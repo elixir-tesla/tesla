@@ -25,6 +25,19 @@ defmodule Tesla.Mixfile do
   #
   # Type `mix help deps` for more examples and options
   defp deps do
+    deps_for(Mix.env)
+  end
+
+  defp deps_for(:dev) do
+    [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1"},
+     {:jsex, "~> 2.0.0"}]
+  end
+
+  defp deps_for(:test) do
+    []
+  end
+
+  defp deps_for(:prod) do
     []
   end
 end
