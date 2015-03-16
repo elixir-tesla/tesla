@@ -65,5 +65,8 @@ end
 
 defmodule Tesla.Env do
   defstruct url:      "",
-            method:   nil
+            method:   nil,
+            status:   nil,
+            headers:  [],
+            body:     nil
 end
