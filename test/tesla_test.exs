@@ -10,6 +10,35 @@ defmodule EchoClient do
   adapter EchoAdapter
 end
 
+defmodule PoliteMiddleware do
+  def call(env, run, []) do
+    run.(%{env | url: (env.url <> "/please")})
+  end
+end
+
+defmodule AngryMiddleware do
+  def call(env, run, msg) do
+    run.(%{env | url: env.url <> "/" <> msg})
+  end
+end
+
+defmodule PoliteClient do
+  use Tesla
+
+  with PoliteMiddleware
+
+  adapter EchoAdapter
+end
+
+defmodule AngryClient do
+  use Tesla
+
+  with AngryMiddleware, "booo"
+
+  adapter EchoAdapter
+end
+
+
 defmodule TeslaTest do
   use ExUnit.Case
 
@@ -21,5 +50,15 @@ defmodule TeslaTest do
   test "post" do
     env = EchoClient.post("/foo")
     assert env.method == :post
+  end
+
+  test "simple middleware" do
+    env = PoliteClient.get("/foo")
+    assert env.url == "/foo/please"
+  end
+
+  test "middleware with options" do
+    env = AngryClient.get("/foo")
+    assert env.url == "/foo/booo"
   end
 end
