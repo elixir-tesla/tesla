@@ -6,12 +6,12 @@ defmodule Tesla.Adapter.Ibrowse do
   def call(env) do
     {:ok, status, headers, body} = :ibrowse.send_req(
       env.url |> to_char_list,
-      env.headers,
+      Enum.into(env.headers, []),
       env.method
     )
 
     %{env | status:   status,
-            headers:  headers,
+            headers:  Enum.into(headers, %{}),
             body:     body}
   end
 end

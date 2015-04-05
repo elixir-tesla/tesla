@@ -1,23 +1,24 @@
 defmodule Tesla.Middleware.DecodeJson do
-  def call(env, run, []) do
+  def call(env, run, nil) do
     env = run.(env)
 
-    if is_binary(env.body) do
-      {:ok, body} = JSEX.decode(env.body)
+    if is_binary(env.body) || is_list(env.body) do
+      {:ok, body} = JSX.decode(to_string(env.body))
 
       %{env | body: body}
     else
-      run.(env)
+      env
     end
   end
 end
 
 defmodule Tesla.Middleware.EncodeJson do
-  def call(env, run, []) do
-    if is_binary(env.body) do
-      {:ok, body} = JSEX.decode(env.body)
+  def call(env, run, nil) do
 
-      headers = [{"Content-Type", "application/json"}]
+    if env.body do
+      {:ok, body} = JSX.encode(env.body)
+
+      headers = %{'Content-Type' => 'application/json'}
       env = %{env | body: body}
 
       Tesla.Middleware.Headers.call(env, run, headers)
@@ -26,4 +27,3 @@ defmodule Tesla.Middleware.EncodeJson do
     end
   end
 end
-

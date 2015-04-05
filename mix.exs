@@ -5,7 +5,8 @@ defmodule Tesla.Mixfile do
     [app: :tesla,
      version: "0.0.1",
      elixir: "~> 1.0",
-     deps: deps]
+     deps: deps(Mix.env),
+     test_coverage: [tool: ExCoveralls]]
   end
 
   # Configuration for the OTP application
@@ -24,20 +25,17 @@ defmodule Tesla.Mixfile do
   #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
   #
   # Type `mix help deps` for more examples and options
-  defp deps do
-    deps_for(Mix.env)
-  end
-
-  defp deps_for(:dev) do
+  defp deps(:dev) do
     [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1"},
-     {:jsex, "~> 2.0.0"}]
+     {:exjsx, "~> 3.1.0"},
+     {:excoveralls, "~> 0.3"}]
   end
 
-  defp deps_for(:test) do
-    []
+  defp deps(:test) do
+    deps(:dev)
   end
 
-  defp deps_for(:prod) do
+  defp deps(:prod) do
     []
   end
 end

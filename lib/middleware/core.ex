@@ -4,10 +4,9 @@ defmodule Tesla.Middleware.BaseUrl do
   end
 end
 
-
 defmodule Tesla.Middleware.Headers do
   def call(env, run, headers) do
-    headers = env.headers ++ headers
+    headers = Map.merge(env.headers, headers)
     run.(%{env | headers: headers})
   end
 end
