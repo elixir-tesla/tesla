@@ -8,7 +8,7 @@ defmodule Tesla.Mixfile do
      package: package,
      source_url: "https://github.com/monterail/tesla",
      elixir: "~> 1.0",
-     deps: deps(Mix.env),
+     deps: deps,
      test_coverage: [tool: ExCoveralls]]
   end
 
@@ -30,18 +30,10 @@ defmodule Tesla.Mixfile do
               "Documentation" => "http://hexdocs.pm/tesla/0.1.0/"}]
   end
 
-  defp deps(:dev) do
     [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1"},
+  defp deps do
      {:exjsx, "~> 3.1.0"},
-     {:excoveralls, "~> 0.3"},
-     {:ex_doc, "~> 0.7"}]
-  end
-
-  defp deps(:test) do
-    deps(:dev)
-  end
-
-  defp deps(:prod) do
-    []
+     {:excoveralls, "~> 0.3", only: :test},
+     {:ex_doc, "~> 0.7", only: :docs}]
   end
 end
