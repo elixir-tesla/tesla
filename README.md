@@ -126,7 +126,7 @@ Consider the following case: GitHub API can be accessed using OAuth token author
 
 We can't use `with Tesla.Middleware.Headers, %{'Authorization' => 'token here'}` since this would be compiled only once and there is no way to insert dynamic user token.
 
-Instead, we can use `Tesla.build_client` to create a dynamid middleware function:
+Instead, we can use `Tesla.build_client` to create a dynamic middleware function:
 
 ```ex
 defmodule GitHub do
