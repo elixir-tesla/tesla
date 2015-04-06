@@ -3,9 +3,10 @@ defmodule Tesla.Mixfile do
 
   def project do
     [app: :tesla,
-     version: "0.1.0",
+     version: "0.1.1",
      description: description,
      package: package,
+     source_url: "https://github.com/monterail/tesla",
      elixir: "~> 1.0",
      deps: deps(Mix.env),
      test_coverage: [tool: ExCoveralls]]
@@ -25,13 +26,15 @@ defmodule Tesla.Mixfile do
   defp package do
     [contributors: ["Tymon Tobolski"],
      licenses: ["MIT"],
-     links: %{"GitHub" => "https://github.com/monterail/tesla"}]
+     links: %{"GitHub" => "https://github.com/monterail/tesla",
+              "Documentation" => "http://hexdocs.pm/tesla/0.1.0/"}]
   end
 
   defp deps(:dev) do
     [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1"},
      {:exjsx, "~> 3.1.0"},
-     {:excoveralls, "~> 0.3"}]
+     {:excoveralls, "~> 0.3"},
+     {:ex_doc, "~> 0.7"}]
   end
 
   defp deps(:test) do
