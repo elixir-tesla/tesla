@@ -13,15 +13,21 @@ defmodule JsonTest do
           {200, %{}, "{\"value\": 123}"}
         "/encode" ->
           {200, %{}, env.body |> String.replace("foo", "baz")}
+        "/empty" ->
+          {200, %{}, nil}
       end
     end
   end
 
-  test "Tesla.Middleware.DecodeJson" do
+  test "decode JSON body" do
     assert Client.get("/decode").body == %{"value" => 123}
   end
 
-  test "Tesla.Middleware.EndcodeJson" do
+  test "do not decode empty body" do
+    assert Client.get("/empty").body == nil
+  end
+
+  test "encode body as JSON" do
     assert Client.post("/encode", %{"foo" => "bar"}).body == %{"baz" => "bar"}
   end
 end
