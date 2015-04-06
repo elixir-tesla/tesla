@@ -1,5 +1,7 @@
-Tesla
-=====
+# Tesla
+
+Tesla is an HTTP client losely based on [Faraday](https://github.com/lostisland/faraday).
+It embraces the concept of middleware when processing the request/response cycle.
 
 ## Basic usage
 
@@ -32,6 +34,8 @@ defmodule GitHub do
   with Tesla.Middleware.EncodeJson
   with Tesla.Middleware.DecodeJson
 
+  adapter Tesla.Adapter.Ibrowse
+
   def user_repos(login) do
     get("/user/" <> login <> "/repos")
   end
@@ -44,6 +48,56 @@ Then use it like this:
 GitHub.get("/user/teamon/repos")
 GitHub.user_repos("teamon")
 ```
+
+## Adapters
+
+Tesla has support for different adapters that do the actual HTTP request processing.
+
+### ibrowse
+
+Tesla has built-in support for [ibrowse](https://github.com/cmullaparthi/ibrowse) Erlang HTTP client.
+
+To use it simply include `adapter Tesla.Adapter.Ibrowse` line in your API client definition.
+
+NOTE: Remember to start ibrowse first with `Tesla.Adapter.Ibrowse.start` before executing any requests.
+
+ibrowse is also the default adapter when using generic `Tesla.get(...)` etc. methods.
+
+### Test / Mock
+
+When testing it might be useful to use simple function as adapter:
+
+```ex
+defmodule MyApi do
+  use Tesla
+
+  adapter fn (env) ->
+    case env.url do
+      "/"       -> {200, %{}, "home"}
+      "/about"  -> {200, %{}, "about us"}
+    end
+  end
+end
+```
+
+
+
+
+## Middleware
+
+### Basic
+
+- `Tesla.Middleware.BaseUrl` - set base url for all request
+- `Tesla.Middleware.Headers` - set request headers
+
+### JSON
+NOTE: requires [exjsx](https://github.com/talentdeficit/exjsx) as dependency
+
+- `Tesla.Middleware.DecodeJson` - decode response body as JSON
+- `Tesla.Middleware.EncodeJson` - endode request body as JSON
+
+If you are using different json library writing middleware should be straightforward. See [link to json.ex] for implementation.
+
 
 ## Dynamic middleware
 
@@ -75,19 +129,3 @@ client = GitHub.client(user_token)
 client |> GitHub.user_repos("teamon")
 client |> GitHub.get("/me")
 ```
-
-
-## Available Middleware
-
-### Basic
-
-- `Tesla.Middleware.BaseUrl` - set base url for all request
-- `Tesla.Middleware.Headers` - set request headers
-
-### JSON
-NOTE: requires [exjsx](https://github.com/talentdeficit/exjsx) as dependency
-
-- `Tesla.Middleware.DecodeJson` - decode response body as JSON
-- `Tesla.Middleware.EncodeJson` - endode request body as JSON
-
-If you are using different json library writing middleware should be straightforward. See [link to json.ex] for implementation.
