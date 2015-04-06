@@ -107,10 +107,10 @@ defmodule Tesla.Builder do
     end
   end
 
-  defmacro adapter(ad) do
+  defmacro adapter(adapter) do
     quote do
       def call_adapter(env) do
-        Tesla.Builder.process_adapter_response(env, unquote(ad).call(env))
+        Tesla.Builder.process_adapter_response(env, unquote(adapter).call(env))
       end
     end
   end
