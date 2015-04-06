@@ -114,7 +114,7 @@ NOTE: requires [exjsx](https://github.com/talentdeficit/exjsx) as dependency
 - `Tesla.Middleware.DecodeJson` - decode response body as JSON
 - `Tesla.Middleware.EncodeJson` - endode request body as JSON
 
-If you are using different json library writing middleware should be straightforward. See [link to json.ex] for implementation.
+If you are using different json library writing middleware should be straightforward. See [`json.ex`](https://github.com/monterail/tesla/blob/master/lib/middleware/json.ex) for implementation.
 
 
 ## Dynamic middleware
