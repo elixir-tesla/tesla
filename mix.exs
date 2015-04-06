@@ -30,8 +30,8 @@ defmodule Tesla.Mixfile do
               "Documentation" => "http://hexdocs.pm/tesla/0.1.0/"}]
   end
 
-    [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1"},
   defp deps do
+    [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1", optional: true},
      {:exjsx, "~> 3.1.0"},
      {:excoveralls, "~> 0.3", only: :test},
      {:ex_doc, "~> 0.7", only: :docs}]
