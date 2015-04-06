@@ -3,31 +3,48 @@ defmodule Tesla.Env do
             method:   nil,
             status:   nil,
             headers:  %{},
-            body:     nil
+            body:     nil,
+            opts:     []
 end
 
 defmodule Tesla.Builder do
   defmacro __using__(_what) do
     method_defs = for method <- [:get, :head, :delete, :trace, :options] do
       quote do
+        def unquote(method)(fun, url, opts) when is_function(fun) do
+          request(fun, unquote(method), url, nil, opts)
+        end
+
         def unquote(method)(fun, url) when is_function(fun) do
-          request(fun, unquote(method), url, nil)
+          request(fun, unquote(method), url, nil, [])
+        end
+
+        def unquote(method)(url, opts) do
+          request(unquote(method), url, nil, opts)
         end
 
         def unquote(method)(url) do
-          request(unquote(method), url, nil)
+          request(unquote(method), url, nil, [])
         end
       end
     end
 
     method_defs_with_body = for method <- [:post, :put, :patch] do
       quote do
+        def unquote(method)(fun, url, body, opts) when is_function(fun) do
+          request(fun, unquote(method), url, body, opts)
+        end
+
         def unquote(method)(fun, url, body) when is_function(fun) do
-          request(fun, unquote(method), url, body)
+          request(fun, unquote(method), url, body, [])
+        end
+
+        def unquote(method)(url, body, opts) do
+          request(unquote(method), url, body, opts)
         end
 
         def unquote(method)(url, body) do
-          request(unquote(method), url, body)
+          request(unquote(method), url, body, [])
         end
       end
     end
@@ -36,18 +53,19 @@ defmodule Tesla.Builder do
       unquote(method_defs)
       unquote(method_defs_with_body)
 
-      defp request(fun, method, url, body) when is_function(fun) do
+      defp request(fun, method, url, body, opts) when is_function(fun) do
         env = %Tesla.Env{
           method: method,
           url:    url,
-          body:   body
+          body:   body,
+          opts:   opts
         }
 
         fun.(env, &call_middleware/1)
       end
 
-      defp request(method, url, body) do
-        request(fn (env, run) -> run.(env) end, method, url, body)
+      defp request(method, url, body, opts) do
+        request(fn (env, run) -> run.(env) end, method, url, body, opts)
       end
 
       import Tesla.Builder

@@ -129,3 +129,17 @@ client = GitHub.client(user_token)
 client |> GitHub.user_repos("teamon")
 client |> GitHub.get("/me")
 ```
+
+
+## Asynchronous requests
+
+If adapter supports it, you can make asynchronous requests by passing `respond_to: pid` option:
+
+```ex
+
+Tesla.get("http://example.org", respond_to: self)
+
+receive do
+  {:tesla_response, res} -> res.status # => 200
+end
+```
