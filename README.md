@@ -19,6 +19,19 @@ response.headers  # => %{'Content-Type' => 'application/json' ...}
 response = Tesla.post("http://httpbin.org/post", "data")
 ```
 
+## Installation
+
+Add `tesla` as dependency in `mix.exs`
+
+```ex
+defp deps do
+  [{:tesla, "~> 0.1.0"},
+   {:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1"}, # default adapter
+   {:exjsx, "~> 3.1.0"}] # for JSON middleware
+end
+```
+
+
 ## Creating API clients
 
 Use `Tesla.Builder` module to create API wrappers.
