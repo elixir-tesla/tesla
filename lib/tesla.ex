@@ -115,15 +115,9 @@ defmodule Tesla.Builder do
     end
   end
 
-  defmacro with(middleware) do
+  defmacro with(middleware, opts \\ []) do
     quote do
-      @middleware {unquote(middleware), nil}
-    end
-  end
-
-  defmacro with(middleware, args) do
-    quote do
-      @middleware {unquote(middleware), unquote(args)}
+      @middleware {unquote(middleware), unquote(opts)}
     end
   end
 end

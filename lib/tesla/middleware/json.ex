@@ -1,5 +1,5 @@
 defmodule Tesla.Middleware.DecodeJson do
-  def call(env, run, nil) do
+  def call(env, run, []) do
     env = run.(env)
 
     if is_binary(env.body) || is_list(env.body) do
@@ -13,7 +13,7 @@ defmodule Tesla.Middleware.DecodeJson do
 end
 
 defmodule Tesla.Middleware.EncodeJson do
-  def call(env, run, nil) do
+  def call(env, run, []) do
 
     if env.body do
       {:ok, body} = JSX.encode(env.body)
