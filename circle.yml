@@ -1,0 +1,12 @@
+dependencies:
+  pre:
+    - script/ci/prepare.sh
+  cache_directories:
+    - ~/dependencies
+    - ~/.mix
+    - _build
+    - deps
+
+test:
+  override:
+    - script/ci/tests.sh
