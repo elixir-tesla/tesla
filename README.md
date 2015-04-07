@@ -1,6 +1,6 @@
 # Tesla
 
-![CircleCI Status](https://circleci.com/gh/monterail/tesla.png?style=shield)
+[![CircleCI Status](https://circleci.com/gh/monterail/tesla.png?style=shield)](https://circleci.com/gh/monterail/tesla)
 
 Tesla is an HTTP client losely based on [Faraday](https://github.com/lostisland/faraday).
 It embraces the concept of middleware when processing the request/response cycle.
