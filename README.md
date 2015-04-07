@@ -4,7 +4,7 @@ Tesla is an HTTP client losely based on [Faraday](https://github.com/lostisland/
 It embraces the concept of middleware when processing the request/response cycle.
 
 > **WARNING**: Tesla is currently under heavy development, so please don't use it in your production application just yet.
-  
+
 >  Nevertheless all comments/issues/suggestions are more than welcome - please submit them using [GitHub issues](https://github.com/monterail/tesla/issues), thanks!
 
 
@@ -147,6 +147,51 @@ client = GitHub.client(user_token)
 client |> GitHub.user_repos("teamon")
 client |> GitHub.get("/me")
 ```
+
+
+## Writing your own middleware
+
+A Tesla middleware is a module with `call/3` function:
+
+```ex
+defmodule MyMiddleware do
+  def call(env, run, options) do
+    # ...
+  end
+end
+```
+
+The arguments are:
+- `env` - `Tesla.Env` instance
+- `run` - continuation function for the rest of middleware/adapter stack
+- `options` - arguments passed during middleware configuration (`with MyMiddleware, options`)
+
+There is no distinction between request and response middleware, it's all about executing `run` function at the correct time.
+
+For example, z request logger middleware could be implemented like this:
+
+```ex
+defmodule Tesla.Middleware.MyMiddleware do
+  def call(env, run, _) do
+    IO.inspect env # print request env
+    run.(env)
+  end
+end
+```
+
+and response logger middleware like this:
+
+```ex
+defmodule Tesla.Middleware.MyMiddleware do
+  def call(env, run, _) do
+    res = run.(env)
+    IO.inspect res # print response env
+    res
+  end
+end
+```
+
+See [`core.ex`](https://github.com/monterail/tesla/blob/master/lib/middleware/core.ex) and [`json.ex`](https://github.com/monterail/tesla/blob/master/lib/middleware/json.ex) for more examples.
 
 
 ## Asynchronous requests
