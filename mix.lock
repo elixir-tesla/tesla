@@ -1,0 +1,8 @@
+%{"ex_doc": {:hex, :ex_doc, "0.7.2"},
+  "excoveralls": {:hex, :excoveralls, "0.3.8"},
+  "exjsx": {:hex, :exjsx, "3.1.0"},
+  "hackney": {:hex, :hackney, "1.1.0"},
+  "ibrowse": {:git, "git://github.com/cmullaparthi/ibrowse.git", "d2e369ff42666c3574b8b7ec26f69027895c4d94", [tag: "v4.1.1"]},
+  "idna": {:hex, :idna, "1.0.2"},
+  "jsx": {:hex, :jsx, "2.4.0"},
+  "ssl_verify_hostname": {:hex, :ssl_verify_hostname, "1.0.4"}}

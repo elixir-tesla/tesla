@@ -107,23 +107,17 @@ defmodule Tesla.Builder do
     end
   end
 
-  defmacro adapter(ad) do
+  defmacro adapter(adapter) do
     quote do
       def call_adapter(env) do
-        Tesla.Builder.process_adapter_response(env, unquote(ad).call(env))
+        Tesla.Builder.process_adapter_response(env, unquote(adapter).call(env))
       end
     end
   end
 
-  defmacro with(middleware) do
+  defmacro with(middleware, opts \\ []) do
     quote do
-      @middleware {unquote(middleware), nil}
-    end
-  end
-
-  defmacro with(middleware, args) do
-    quote do
-      @middleware {unquote(middleware), unquote(args)}
+      @middleware {unquote(middleware), unquote(opts)}
     end
   end
 end
