@@ -79,6 +79,7 @@ defmodule Tesla.Builder do
     middleware = Module.get_attribute(env.module, :middleware)
 
     reduced = Enum.reduce(middleware, (quote do: call_adapter(env)), fn {mid, args}, acc ->
+      args = Macro.escape(args)
       quote do
         unquote(mid).call(env, fn(env) -> unquote(acc) end, unquote(args))
       end
