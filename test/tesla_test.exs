@@ -107,3 +107,73 @@ defmodule MiddlewareTest do
     assert res.body == "token: xxyyzz"
   end
 end
+
+defmodule ClientWrapTest do
+  use ExUnit.Case
+
+  defmodule Client do
+    use Tesla.Builder
+
+    adapter fn (_env) ->
+      {200, %{'Content-Type' => 'text/plain'}, "hello"}
+    end
+
+    defwrap custom_simple_get(a,b,c) do
+      get("/#{a}/#{b}/#{c}")
+    end
+
+    defwrap custom_complex_get_head(a,b) do
+      c = "#{b}-#{a}"
+      head("/#{a}-#{b}").url <> " | " <> get("/#{c}").url
+    end
+
+    # defwrap custom_post_with_defaults(opts \\ []) do
+    #   post("/" <> opts[:arg], "nothing")
+    # end
+
+    def new(token) do
+      Tesla.build_client [
+        {Tesla.Middleware.BaseUrl, "http://example.com"},
+        {Tesla.Middleware.Headers, %{"Authorization" => "token #{token}"}}
+      ]
+    end
+  end
+
+  test "custom_simple_get - static" do
+    env = Client.custom_simple_get("x","y","z")
+    assert env.url == "/x/y/z"
+    assert env.method == :get
+  end
+
+  test "custom_simple_get - dynamic" do
+    client = Client.new("abc")
+    env = client |> Client.custom_simple_get("x","y","z")
+    assert env.url == "http://example.com/x/y/z"
+    assert env.method == :get
+  end
+
+  test "custom_complex_get_head - static" do
+    res = Client.custom_complex_get_head("x","y")
+    assert res == "/x-y | /y-x"
+  end
+
+  test "custom_complex_get_head - dynamic" do
+    client = Client.new("abc")
+    res = client |> Client.custom_complex_get_head("x","y")
+    assert res == "http://example.com/x-y | http://example.com/y-x"
+  end
+
+
+  # test "custom_post_with_defaults - static" do
+  #   env = Client.custom_post_with_defaults(arg: "foo")
+  #   assert env.url == "/foo"
+  #   assert env.method == :post
+  # end
+
+  # test "custom_post_with_defaults - dynamic" do
+  #   client = Client.new("abc")
+  #   env = client |> Client.custom_post_with_defaults(arg: "foo")
+  #   assert env.url == "http://example.com/foo"
+  #   assert env.method == :post
+  # end
+end

@@ -8,6 +8,8 @@ defmodule Tesla.Env do
 end
 
 defmodule Tesla.Builder do
+  @http_methods [:get, :head, :delete, :trace, :options, :post, :put, :patch]
+
   defmacro __using__(_what) do
     method_defs = for method <- [:get, :head, :delete, :trace, :options] do
       quote do
@@ -120,6 +122,37 @@ defmodule Tesla.Builder do
     quote do
       @middleware {unquote(middleware), unquote(opts)}
     end
+  end
+
+
+  defmacro defwrap(head, do: body) do
+    fun_var = Macro.var(:client_fun, __MODULE__)
+
+    head_with_client = case head do
+      {:when, ctx1, [{name, ctx2, args} | tl]}  -> {:when, ctx1, [{name, ctx2, [fun_var | args]} | tl]}
+      {name, ctx, args}                         -> {:when, ctx,  [{name, ctx,  [fun_var | args]}, {:is_function, ctx, [fun_var]}]}
+    end
+
+    body_with_client = Macro.prewalk body, fn (ast) ->
+      case ast do
+        {fun, ctx, args} when fun in @http_methods -> {fun, ctx, [fun_var | args]}
+        other -> other
+      end
+    end
+
+    def_with_client = quote do
+      def unquote(head_with_client) do
+        unquote(body_with_client)
+      end
+    end
+
+    normal = quote do
+      def unquote(head) do
+        unquote(body)
+      end
+    end
+
+    [def_with_client, normal]
   end
 end
 
