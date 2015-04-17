@@ -3,7 +3,7 @@ defmodule Tesla.Mixfile do
 
   def project do
     [app: :tesla,
-     version: "0.1.1",
+     version: "0.1.2",
      description: description,
      package: package,
      source_url: "https://github.com/monterail/tesla",
