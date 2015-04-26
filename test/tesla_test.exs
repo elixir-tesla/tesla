@@ -53,6 +53,14 @@ defmodule TeslaTest do
     assert Client.options("/").method == :options
   end
 
+  test "path + query" do
+    assert Client.get("/foo", %{a: 1, b: "foo"}).url == "/foo?a=1&b=foo"
+  end
+
+  test "path with query + query" do
+    assert Client.get("/foo?c=4", %{a: 1, b: "foo"}).url == "/foo?c=4&a=1&b=foo"
+  end
+
   test "insert request middleware function at runtime" do
     fun = fn (env, run) ->
       run.(%{env | url: env.url <> ".json"})

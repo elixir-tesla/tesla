@@ -13,40 +13,80 @@ defmodule Tesla.Builder do
   defmacro __using__(_what) do
     method_defs = for method <- [:get, :head, :delete, :trace, :options] do
       quote do
-        def unquote(method)(fun, url, opts) when is_function(fun) do
-          request(fun, unquote(method), url, nil, opts)
+        # 4 args
+        def unquote(method)(fun, url, query, opts) when is_function(fun) and is_map(query) do
+          request(fun, unquote(method), url, query, nil, opts)
         end
 
+        # 3 args
+        def unquote(method)(fun, url, query) when is_function(fun) and is_map(query) do
+          request(fun, unquote(method), url, query, nil, [])
+        end
+
+        def unquote(method)(fun, url, opts) when is_function(fun) do
+          request(fun, unquote(method), url, nil, nil, opts)
+        end
+
+        def unquote(method)(url, query, opts) when is_map(query) and is_map(query) do
+          request(unquote(method), url, query, nil, opts)
+        end
+
+        # 2 args
         def unquote(method)(fun, url) when is_function(fun) do
-          request(fun, unquote(method), url, nil, [])
+          request(fun, unquote(method), url, nil, nil, [])
+        end
+
+        def unquote(method)(url, query) when is_map(query)  do
+          request(unquote(method), url, query, nil, [])
         end
 
         def unquote(method)(url, opts) do
-          request(unquote(method), url, nil, opts)
+          request(unquote(method), url, nil, nil, opts)
         end
 
+        # 1 args
         def unquote(method)(url) do
-          request(unquote(method), url, nil, [])
+          request(unquote(method), url, nil, nil, [])
         end
       end
     end
 
     method_defs_with_body = for method <- [:post, :put, :patch] do
       quote do
-        def unquote(method)(fun, url, body, opts) when is_function(fun) do
-          request(fun, unquote(method), url, body, opts)
+        # 5 args
+        def unquote(method)(fun, url, query, body, opts) when is_function(fun) and is_map(query) do
+          request(fun, unquote(method), url, query, body, opts)
         end
 
+        # 4 args
+        def unquote(method)(fun, url, query, body) when is_function(fun) and is_map(query) do
+          request(fun, unquote(method), url, query, body, [])
+        end
+
+        def unquote(method)(fun, url, body, opts) when is_function(fun) do
+          request(fun, unquote(method), url, nil, body, opts)
+        end
+
+        def unquote(method)(url, query, body, opts) when is_map(query) do
+          request(unquote(method), url, query, body, opts)
+        end
+
+        # 3 args
         def unquote(method)(fun, url, body) when is_function(fun) do
-          request(fun, unquote(method), url, body, [])
+          request(fun, unquote(method), url, nil, body, [])
+        end
+
+        def unquote(method)(url, query, body) when is_map(query)  do
+          request(unquote(method), url, query, body, [])
         end
 
         def unquote(method)(url, body, opts) do
-          request(unquote(method), url, body, opts)
+          request(unquote(method), url, nil, body, opts)
         end
 
+        # 2 args
         def unquote(method)(url, body) do
-          request(unquote(method), url, body, [])
+          request(unquote(method), url, nil, body, [])
         end
       end
     end
@@ -55,10 +95,10 @@ defmodule Tesla.Builder do
       unquote(method_defs)
       unquote(method_defs_with_body)
 
-      defp request(fun, method, url, body, opts) when is_function(fun) do
+      defp request(fun, method, url, query, body, opts) when is_function(fun) do
         env = %Tesla.Env{
           method: method,
-          url:    url,
+          url:    Tesla.Builder.append_query_string(url, query),
           body:   body,
           opts:   opts
         }
@@ -66,8 +106,8 @@ defmodule Tesla.Builder do
         fun.(env, &call_middleware/1)
       end
 
-      defp request(method, url, body, opts) do
-        request(fn (env, run) -> run.(env) end, method, url, body, opts)
+      defp request(method, url, query, body, opts) do
+        request(fn (env, run) -> run.(env) end, method, url, query, body, opts)
       end
 
       import Tesla.Builder
@@ -99,6 +139,19 @@ defmodule Tesla.Builder do
       {status, headers, body} ->
         %{env | status: status, headers: headers, body: body}
       e -> e
+    end
+  end
+
+  def append_query_string(url, query) do
+    if query do
+      query_string = URI.encode_query(query)
+      if url |> String.contains?("?") do
+        url <> "&" <> query_string
+      else
+        url <> "?" <> query_string
+      end
+    else
+      url
     end
   end
 
