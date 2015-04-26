@@ -3,7 +3,7 @@ defmodule Tesla.Mixfile do
 
   def project do
     [app: :tesla,
-     version: "0.1.3",
+     version: "0.1.4",
      description: description,
      package: package,
      source_url: "https://github.com/monterail/tesla",
@@ -32,7 +32,7 @@ defmodule Tesla.Mixfile do
 
   defp deps do
     [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1", optional: true},
-     {:exjsx, "~> 3.1.0"},
+     {:exjsx, "~> 3.1.0", optional: true},
      {:excoveralls, "~> 0.3", only: :test},
      {:ex_doc, "~> 0.7", only: :docs}]
   end
