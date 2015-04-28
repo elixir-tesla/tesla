@@ -148,6 +148,13 @@ defmodule Tesla.Builder do
     adapter = Module.get_attribute(env.module, :adapter)
 
     case adapter do
+      nil ->
+        quote do
+          def call_adapter(env) do
+            Tesla.call_module_adapter(Tesla.default_adapter, env)
+          end
+        end
+
       {:fn, _, _} ->
         quote do
           def call_adapter(env) do
@@ -155,7 +162,7 @@ defmodule Tesla.Builder do
           end
         end
 
-      mod when is_atom(adapter) ->
+      mod when is_atom(mod) ->
         quote do
           def call_adapter(env) do
             Tesla.call_module_adapter(unquote(mod), env)
@@ -163,11 +170,7 @@ defmodule Tesla.Builder do
         end
 
       _ ->
-        quote do
-          def call_adapter(env) do
-            Tesla.call_module_adapter(Tesla.default_adapter, env)
-          end
-        end
+        raise "Adapter must be either Function or Module"
     end
   end
 
