@@ -1,8 +1,4 @@
 defmodule Tesla.Adapter.Ibrowse do
-  def start do
-    :ibrowse.start
-  end
-
   def call(env) do
     opts = []
 

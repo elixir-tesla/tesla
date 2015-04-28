@@ -1,6 +1,36 @@
 defmodule TeslaTest do
   use ExUnit.Case
 
+  defmodule ClientWithAdapterFun do
+    use Tesla.Builder
+
+    adapter fn (_) ->
+      {201, %{}, "function adapter"}
+    end
+  end
+
+  defmodule ModuleAdapter do
+    def call(env) do
+      %{env | status: 202}
+    end
+  end
+
+  defmodule ClientWithAdapterMod do
+    use Tesla.Builder
+
+    adapter ModuleAdapter
+  end
+
+  test "client with adapter as function" do
+    assert ClientWithAdapterFun.get("/").status == 201
+  end
+
+  test "client with adapter as module" do
+    assert ClientWithAdapterMod.get("/").status == 202
+  end
+
+
+
   defmodule Client do
     use Tesla.Builder
 

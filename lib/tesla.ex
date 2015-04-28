@@ -95,6 +95,8 @@ defmodule Tesla.Builder do
       unquote(method_defs)
       unquote(method_defs_with_body)
 
+      @adapter nil
+
       defp request(fun, method, url, query, body, opts) when is_function(fun) do
         env = %Tesla.Env{
           method: method,
@@ -110,6 +112,14 @@ defmodule Tesla.Builder do
         request(fn (env, run) -> run.(env) end, method, url, query, body, opts)
       end
 
+      defp call_with_adapter(env) do
+        case call_adapter(env) do
+          {status, headers, body} ->
+            %{env | status: status, headers: headers, body: body}
+          e -> e
+        end
+      end
+
       import Tesla.Builder
 
       Module.register_attribute(__MODULE__, :middleware, accumulate: true)
@@ -117,10 +127,10 @@ defmodule Tesla.Builder do
     end
   end
 
-  defmacro __before_compile__(env) do
+  defp generate_call_middleware(env) do
     middleware = Module.get_attribute(env.module, :middleware)
 
-    reduced = Enum.reduce(middleware, (quote do: call_adapter(env)), fn {mid, args}, acc ->
+    reduced = Enum.reduce(middleware, (quote do: call_with_adapter(env)), fn {mid, args}, acc ->
       args = Macro.escape(args)
       quote do
         unquote(mid).call(env, fn(env) -> unquote(acc) end, unquote(args))
@@ -134,40 +144,52 @@ defmodule Tesla.Builder do
     end
   end
 
-  def process_adapter_response(env, res) do
-    case res do
-      {status, headers, body} ->
-        %{env | status: status, headers: headers, body: body}
-      e -> e
+  defp generate_call_adapter(env) do
+    adapter = Module.get_attribute(env.module, :adapter)
+
+    case adapter do
+      {:fn, _, _} ->
+        quote do
+          def call_adapter(env) do
+            unquote(adapter).(env)
+          end
+        end
+
+      mod when is_atom(adapter) ->
+        quote do
+          def call_adapter(env) do
+            Tesla.call_module_adapter(unquote(mod), env)
+          end
+        end
+
+      _ ->
+        quote do
+          def call_adapter(env) do
+            Tesla.call_module_adapter(Tesla.default_adapter, env)
+          end
+        end
     end
   end
 
-  def append_query_string(url, query) do
-    if query do
-      query_string = URI.encode_query(query)
-      if url |> String.contains?("?") do
-        url <> "&" <> query_string
-      else
-        url <> "?" <> query_string
-      end
-    else
-      url
-    end
+  defmacro __before_compile__(env) do
+    [
+      generate_call_adapter(env),
+      generate_call_middleware(env)
+    ]
   end
+
+
 
   defmacro adapter({:fn, _, _} = ad) do # pattern match for function
+    escaped = Macro.escape(ad)
     quote do
-      def call_adapter(env) do
-        Tesla.Builder.process_adapter_response(env, unquote(ad).(env))
-      end
+      @adapter unquote(escaped)
     end
   end
 
   defmacro adapter(adapter) do
     quote do
-      def call_adapter(env) do
-        Tesla.Builder.process_adapter_response(env, unquote(adapter).call(env))
-      end
+      @adapter unquote(adapter)
     end
   end
 
@@ -207,12 +229,28 @@ defmodule Tesla.Builder do
 
     [def_with_client, normal]
   end
+
+
+  # Utility functions
+  def append_query_string(url, query) do
+    if query do
+      query_string = URI.encode_query(query)
+      if url |> String.contains?("?") do
+        url <> "&" <> query_string
+      else
+        url <> "?" <> query_string
+      end
+    else
+      url
+    end
+  end
 end
 
 
 defmodule Tesla do
   use Tesla.Builder
-  adapter Tesla.Adapter.Ibrowse
+
+  @adapters [ibrowse: Tesla.Adapter.Ibrowse]
 
   def build_client(stack) do
     fn (env, run) ->
@@ -224,7 +262,11 @@ defmodule Tesla do
     end
   end
 
-  def start do
-    Tesla.Adapter.Ibrowse.start
+  def call_module_adapter(mod, env) do
+    (@adapters[mod] || mod).call(env)
+  end
+
+  def default_adapter do
+    Application.get_env(:tesla, :adapter) || Tesla.Adapter.Ibrowse
   end
 end

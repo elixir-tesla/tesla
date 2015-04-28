@@ -4,10 +4,14 @@ defmodule IbrowseTest do
   defmodule Client do
     use Tesla.Builder
 
-    adapter Tesla.Adapter.Ibrowse
+    adapter :ibrowse
   end
 
-  Tesla.Adapter.Ibrowse.start
+  setup do
+    Application.ensure_started(:ibrowse)
+    :ok
+  end
+
 
   test "async requests" do
     {:ok, id} = Client.get("http://httpbin.org/ip", respond_to: self)
