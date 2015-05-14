@@ -34,7 +34,7 @@ defmodule Tesla.Adapter.Ibrowse do
       env.url |> to_char_list,
       Enum.into(env.headers, []),
       env.method,
-      [],
+      env.body || [],
       opts
     )
   end
