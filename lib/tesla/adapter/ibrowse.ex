@@ -30,11 +30,12 @@ defmodule Tesla.Adapter.Ibrowse do
   end
 
   defp send_req(env, opts) do
+    body = env.body || []
     :ibrowse.send_req(
       env.url |> to_char_list,
       Enum.into(env.headers, []),
       env.method,
-      [],
+      body,
       opts
     )
   end
