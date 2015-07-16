@@ -1,6 +1,7 @@
 defmodule CoreTest do
   use ExUnit.Case
 
+  # TODO: Change order of arguments to (mid, opts, env)
   def call(mid, env, opts) do
     mid.call(env, fn a -> a end, opts)
   end
@@ -8,6 +9,11 @@ defmodule CoreTest do
   test "Tesla.Middleware.BaseUrl" do
     env = call(Tesla.Middleware.BaseUrl, %{url: "/path"}, "http://example.com")
     assert env.url == "http://example.com/path"
+  end
+
+  test "Tesla.Middleware.BaseUrl - skip double append" do
+    env = call(Tesla.Middleware.BaseUrl, %{url: "http://other.foo"}, "http://example.com")
+    assert env.url == "http://other.foo"
   end
 
   test "Tesla.Middleware.Headers" do
