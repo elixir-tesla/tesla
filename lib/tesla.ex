@@ -4,7 +4,10 @@ defmodule Tesla.Env do
             status:   nil,
             headers:  %{},
             body:     nil,
-            opts:     []
+            opts:     [],
+
+            _client: nil,
+            _module: nil
 end
 
 defmodule Tesla.Builder do
@@ -102,7 +105,10 @@ defmodule Tesla.Builder do
           method: method,
           url:    Tesla.Builder.append_query_string(url, query),
           body:   body,
-          opts:   opts
+          opts:   opts,
+
+          _client: fun,
+          _module: __MODULE__
         }
 
         fun.(env, &call_middleware/1)
