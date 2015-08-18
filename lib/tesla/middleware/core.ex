@@ -36,3 +36,8 @@ defmodule Tesla.Middleware.DecodeRels do
   end
 end
 
+defmodule Tesla.Middleware.AdapterOptions do
+  def call(env, run, opts) do
+    run.(%{env | opts: env.opts ++ opts})
+  end
+end
