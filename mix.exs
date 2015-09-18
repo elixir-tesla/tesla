@@ -31,7 +31,7 @@ defmodule Tesla.Mixfile do
   end
 
   defp deps do
-    [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1", optional: true},
+    [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.2", optional: true},
      {:exjsx, "~> 3.1.0", optional: true},
      {:excoveralls, "~> 0.3", only: :test},
      {:ex_doc, "~> 0.7", only: :dev}]
