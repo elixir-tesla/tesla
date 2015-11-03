@@ -41,3 +41,13 @@ defmodule Tesla.Middleware.AdapterOptions do
     run.(%{env | opts: env.opts ++ opts})
   end
 end
+
+defmodule Tesla.Middleware.BaseUrlFromConfig do
+ def call(env, run, opts) do
+   run.(%{env | url: config(opts)[:base_url] <> env.url})
+ end
+
+ defp config(opts) do
+   Application.get_env(Keyword.fetch!(opts, :otp_app), Keyword.fetch!(opts, :module))
+ end
+end
