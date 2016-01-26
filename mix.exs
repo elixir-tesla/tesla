@@ -26,8 +26,7 @@ defmodule Tesla.Mixfile do
   defp package do
     [maintainers: ["Tymon Tobolski"],
      licenses: ["MIT"],
-     links: %{"GitHub" => "https://github.com/monterail/tesla",
-              "Documentation" => "http://hexdocs.pm/tesla/0.1.0/"}]
+     links: %{"GitHub" => "https://github.com/monterail/tesla"}]
   end
 
   defp deps do
