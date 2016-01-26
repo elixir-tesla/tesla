@@ -3,7 +3,7 @@ defmodule Tesla.Mixfile do
 
   def project do
     [app: :tesla,
-     version: "0.2.0",
+     version: "0.2.1",
      description: description,
      package: package,
      source_url: "https://github.com/monterail/tesla",
@@ -24,7 +24,7 @@ defmodule Tesla.Mixfile do
   end
 
   defp package do
-    [contributors: ["Tymon Tobolski"],
+    [maintainers: ["Tymon Tobolski"],
      licenses: ["MIT"],
      links: %{"GitHub" => "https://github.com/monterail/tesla",
               "Documentation" => "http://hexdocs.pm/tesla/0.1.0/"}]
