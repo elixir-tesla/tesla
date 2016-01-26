@@ -59,10 +59,10 @@ For example
 defmodule GitHub do
   use Tesla.Builder
 
-  with Tesla.Middleware.BaseUrl, "https://api.github.com"
-  with Tesla.Middleware.Headers, %{'Authorization' => 'xyz'}
-  with Tesla.Middleware.EncodeJson
-  with Tesla.Middleware.DecodeJson
+  plug Tesla.Middleware.BaseUrl, "https://api.github.com"
+  plug Tesla.Middleware.Headers, %{'Authorization' => 'xyz'}
+  plug Tesla.Middleware.EncodeJson
+  plug Tesla.Middleware.DecodeJson
 
   adapter Tesla.Adapter.Ibrowse
 
@@ -134,7 +134,7 @@ This allow to use convinient syntax for modyfiyng the behaviour in runtime.
 
 Consider the following case: GitHub API can be accessed using OAuth token authorization.
 
-We can't use `with Tesla.Middleware.Headers, %{'Authorization' => 'token here'}` since this would be compiled only once and there is no way to insert dynamic user token.
+We can't use `plug Tesla.Middleware.Headers, %{'Authorization' => 'token here'}` since this would be compiled only once and there is no way to insert dynamic user token.
 
 Instead, we can use `Tesla.build_client` to create a dynamic middleware function:
 
@@ -174,7 +174,7 @@ end
 The arguments are:
 - `env` - `Tesla.Env` instance
 - `run` - continuation function for the rest of middleware/adapter stack
-- `options` - arguments passed during middleware configuration (`with MyMiddleware, options`)
+- `options` - arguments passed during middleware configuration (`plug MyMiddleware, options`)
 
 There is no distinction between request and response middleware, it's all about executing `run` function at the correct time.
 

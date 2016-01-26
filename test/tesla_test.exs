@@ -117,7 +117,7 @@ defmodule MiddlewareTest do
   defmodule Client do
     use Tesla.Builder
 
-    with Tesla.Middleware.BaseUrl, "http://example.com"
+    plug Tesla.Middleware.BaseUrl, "http://example.com"
 
     adapter fn (env) ->
       cond do

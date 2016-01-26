@@ -202,7 +202,7 @@ defmodule Tesla.Builder do
     end
   end
 
-  defmacro with(middleware, opts \\ []) do
+  defmacro plug(middleware, opts \\ []) do
     quote do
       @middleware {unquote(middleware), unquote(opts)}
     end
