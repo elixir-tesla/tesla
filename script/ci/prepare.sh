@@ -2,8 +2,8 @@
 
 set -e
 
-export ERLANG_VERSION="17.1"
-export ELIXIR_VERSION="v1.0.2"
+export ERLANG_VERSION="18.2"
+export ELIXIR_VERSION="v1.2.2"
 
 # If you have a elixir_buildpack.config, do this instead:
 #export ERLANG_VERSION=$(cat elixir_buildpack.config | grep erlang_version | tr "=" " " | awk '{ print $2 }')
@@ -19,7 +19,7 @@ cd $INSTALL_PATH
 
 # Install erlang
 if [ ! -e $ERLANG_PATH/bin/erl ]; then
-  curl -O http://www.erlang.org/download/otp_src_$ERLANG_VERSION.tar.gz
+  curl -O -L http://erlang.org/download/otp_src_$ERLANG_VERSION.tar.gz
   tar xzf otp_src_$ERLANG_VERSION.tar.gz
   cd $ERLANG_PATH
   ./configure --enable-smp-support \
