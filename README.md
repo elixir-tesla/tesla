@@ -59,10 +59,10 @@ For example
 defmodule GitHub do
   use Tesla.Builder
 
-  with Tesla.Middleware.BaseUrl, "https://api.github.com"
-  with Tesla.Middleware.Headers, %{'Authorization' => 'xyz'}
-  with Tesla.Middleware.EncodeJson
-  with Tesla.Middleware.DecodeJson
+  middleware Tesla.Middleware.BaseUrl, "https://api.github.com"
+  middleware Tesla.Middleware.Headers, %{'Authorization' => 'xyz'}
+  middleware Tesla.Middleware.EncodeJson
+  middleware Tesla.Middleware.DecodeJson
 
   adapter Tesla.Adapter.Ibrowse
 

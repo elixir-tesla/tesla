@@ -4,8 +4,8 @@ defmodule JsonTest do
   defmodule Client do
     use Tesla.Builder
 
-    with Tesla.Middleware.EncodeJson
-    with Tesla.Middleware.DecodeJson
+    middleware Tesla.Middleware.EncodeJson, encode: &JSX.encode/1
+    middleware Tesla.Middleware.DecodeJson, decode: &JSX.decode/1
 
     adapter fn (env) ->
       case env.url do

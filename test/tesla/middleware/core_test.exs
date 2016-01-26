@@ -20,4 +20,10 @@ defmodule CoreTest do
     env = call(Tesla.Middleware.Headers, %{headers: %{}}, %{'Content-Type' => 'text/plain'})
     assert env.headers == %{'Content-Type' => 'text/plain'}
   end
+
+  test "Tesla.Middleware.BaseUrlFromConfig" do
+    Application.put_env(:tesla, SomeModule, [base_url: "http://example.com"])
+    env = call(Tesla.Middleware.BaseUrlFromConfig, %{url: "/path"}, otp_app: :tesla, module: SomeModule)
+    assert env.url == "http://example.com/path"
+  end
 end
