@@ -23,16 +23,13 @@ defmodule Tesla.Middleware.QueryParams do
     run.(env)
   end
 
-  def query_from_url(url) do
-    URI.parse(url).query
-  end
-
+  @spec merge_url_and_query(String.t, %{}) :: String.t
   def merge_url_and_query(url, query) do
+    query = for {key, val} <- query, into: %{}, do: {to_string(key), val}
     uri = URI.parse(url)
-    query_str = uri.query
-    q = if query_str do
-      old_query = URI.decode_query(query_str)
-      Map.merge(query, old_query)
+    q = if uri.query do
+      old_query = URI.decode_query(uri.query)
+      Map.merge(old_query, query)
     else
       query
     end

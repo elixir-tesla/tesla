@@ -23,7 +23,7 @@ defmodule CoreTest do
   end
 
   test "Tesla.Middlware.QueryParams - joining onto existing query params" do
-    e = %Tesla.Env{url: "http://example.com?foo=bar"}
+    e = %Tesla.Env{url: "http://example.com?foo=bar&access_token=old_token"}
     env = call(Tesla.Middleware.QueryParams, e, %{access_token: "secret_token"})
     assert env.url == "http://example.com?access_token=secret_token&foo=bar"
   end
