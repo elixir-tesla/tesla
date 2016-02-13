@@ -4,9 +4,7 @@ defmodule Tesla.Middleware.DecodeJson do
 
     env = run.(env)
 
-    content_type = to_string(env.headers['Content-Type'])
-
-    if String.starts_with?(content_type, "application/json") && (is_binary(env.body) || is_list(env.body)) do
+    if is_json_content(env) do
       {:ok, body} = decode.(to_string(env.body))
 
       %{env | body: body}
@@ -14,6 +12,14 @@ defmodule Tesla.Middleware.DecodeJson do
       env
     end
   end
+
+  def is_json_content(env) do
+    content_type = to_string(env.headers['Content-Type'])
+    valid_types = ["application/json", "text/javascript"]
+    is_valid_type = Enum.find(valid_types, fn(x) -> String.starts_with?(content_type, x) end)
+    is_valid_type && (is_binary(env.body) || is_list(env.body))
+  end
+
 end
 
 defmodule Tesla.Middleware.EncodeJson do
