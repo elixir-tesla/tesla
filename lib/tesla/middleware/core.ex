@@ -28,8 +28,8 @@ defmodule Tesla.Middleware.QueryParams do
     query = for {key, val} <- query, into: %{}, do: {to_string(key), val}
     uri = URI.parse(url)
     q = if uri.query do
-      old_query = URI.decode_query(uri.query)
-      Map.merge(old_query, query)
+      env_query = URI.decode_query(uri.query)
+      Map.merge(query, env_query)
     else
       query
     end
