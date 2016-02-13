@@ -118,6 +118,7 @@ end
 
 - `Tesla.Middleware.BaseUrl` - set base url for all request
 - `Tesla.Middleware.Headers` - set request headers
+- `Tesla.Middleware.QueryParams` - set query parameters
 
 ### JSON
 NOTE: requires [exjsx](https://github.com/talentdeficit/exjsx) as dependency

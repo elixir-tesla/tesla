@@ -16,6 +16,18 @@ defmodule CoreTest do
     assert env.url == "http://other.foo"
   end
 
+  test "Tesla.Middlware.QueryParams - joining default query params" do
+    e = %Tesla.Env{url: "http://example.com"}
+    env = call(Tesla.Middleware.QueryParams, e, %{access_token: "secret_token"})
+    assert env.url == "http://example.com?access_token=secret_token"
+  end
+
+  test "Tesla.Middlware.QueryParams - joining onto existing query params" do
+    e = %Tesla.Env{url: "http://example.com?foo=bar"}
+    env = call(Tesla.Middleware.QueryParams, e, %{access_token: "secret_token"})
+    assert env.url == "http://example.com?access_token=secret_token&foo=bar"
+  end
+
   test "Tesla.Middleware.Headers" do
     env = call(Tesla.Middleware.Headers, %{headers: %{}}, %{'Content-Type' => 'text/plain'})
     assert env.headers == %{'Content-Type' => 'text/plain'}
