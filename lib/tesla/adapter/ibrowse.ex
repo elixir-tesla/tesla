@@ -1,16 +1,14 @@
 defmodule Tesla.Adapter.Ibrowse do
   def call(env) do
-    opts = []
-
     if target = env.opts[:respond_to] do
-
+       
       gatherer = spawn_link fn -> gather_response(env, target, nil, nil, nil) end
 
-      opts = opts ++ [stream_to: gatherer]
+      opts = List.keyreplace(env.opts, :respond_to, 0, stream_to: gatherer)
       {:ibrowse_req_id, id} = send_req(env, opts)
       {:ok, id}
     else
-      {:ok, status, headers, body} = send_req(env, opts)
+      {:ok, status, headers, body} = send_req(env, env.opts)
       format_response(env, status, headers, body)
     end
   end
