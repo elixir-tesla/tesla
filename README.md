@@ -1,6 +1,6 @@
 # Tesla
 
-[![CircleCI Status](https://circleci.com/gh/monterail/tesla.png?style=shield)](https://circleci.com/gh/monterail/tesla)
+[![CircleCI Status](https://circleci.com/gh/teamon/tesla.png?style=shield)](https://circleci.com/gh/monterail/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](http://hex.pm/packages/tesla)
 
 Tesla is an HTTP client losely based on [Faraday](https://github.com/lostisland/faraday).
