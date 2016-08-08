@@ -1,6 +1,6 @@
 # Tesla
 
-[![CircleCI Status](https://circleci.com/gh/teamon/tesla.png?style=shield)](https://circleci.com/gh/monterail/tesla)
+[![CircleCI Status](https://circleci.com/gh/teamon/tesla.png?style=shield)](https://circleci.com/gh/teamon/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](http://hex.pm/packages/tesla)
 
 Tesla is an HTTP client losely based on [Faraday](https://github.com/lostisland/faraday).
@@ -8,7 +8,7 @@ It embraces the concept of middleware when processing the request/response cycle
 
 > **WARNING**: Tesla is currently under heavy development, so please don't use it in your production application just yet.
 
->  Nevertheless all comments/issues/suggestions are more than welcome - please submit them using [GitHub issues](https://github.com/monterail/tesla/issues), thanks!
+>  Nevertheless all comments/issues/suggestions are more than welcome - please submit them using [GitHub issues](https://github.com/teamon/tesla/issues), thanks!
 
 
 ## Basic usage
@@ -126,7 +126,7 @@ NOTE: requires [exjsx](https://github.com/talentdeficit/exjsx) as dependency
 - `Tesla.Middleware.DecodeJson` - decode response body as JSON
 - `Tesla.Middleware.EncodeJson` - endode request body as JSON
 
-If you are using different json library writing middleware should be straightforward. See [`json.ex`](https://github.com/monterail/tesla/blob/master/lib/tesla/middleware/json.ex) for implementation.
+If you are using different json library writing middleware should be straightforward. See [`json.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware/json.ex) for implementation.
 
 
 ## Dynamic middleware
@@ -203,7 +203,7 @@ defmodule Tesla.Middleware.ResponseLogger do
 end
 ```
 
-See [`core.ex`](https://github.com/monterail/tesla/blob/master/lib/tesla/middleware/core.ex) and [`json.ex`](https://github.com/monterail/tesla/blob/master/lib/tesla/middleware/json.ex) for more examples.
+See [`core.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware/core.ex) and [`json.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware/json.ex) for more examples.
 
 
 ## Asynchronous requests

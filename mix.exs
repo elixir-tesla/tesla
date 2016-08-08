@@ -6,7 +6,7 @@ defmodule Tesla.Mixfile do
      version: "0.2.2",
      description: description,
      package: package,
-     source_url: "https://github.com/monterail/tesla",
+     source_url: "https://github.com/teamon/tesla",
      elixir: "~> 1.0",
      deps: deps,
      test_coverage: [tool: ExCoveralls]]
@@ -26,7 +26,7 @@ defmodule Tesla.Mixfile do
   defp package do
     [maintainers: ["Tymon Tobolski"],
      licenses: ["MIT"],
-     links: %{"GitHub" => "https://github.com/monterail/tesla"}]
+     links: %{"GitHub" => "https://github.com/teamon/tesla"}]
   end
 
   defp deps do
