@@ -17,6 +17,27 @@ defmodule Tesla.Middleware.Headers do
   end
 end
 
+defmodule Tesla.Middleware.QueryParams do
+  def call(env, run, query) do
+    env = %{env | url: merge_url_and_query(env.url, query)}
+    run.(env)
+  end
+
+  @spec merge_url_and_query(String.t, %{}) :: String.t
+  def merge_url_and_query(url, query) do
+    query = for {key, val} <- query, into: %{}, do: {to_string(key), val}
+    uri = URI.parse(url)
+    q = if uri.query do
+      env_query = URI.decode_query(uri.query)
+      Map.merge(query, env_query)
+    else
+      query
+    end
+
+    uri |> Map.put(:query, URI.encode_query(q)) |> URI.to_string
+  end
+end
+
 defmodule Tesla.Middleware.DecodeRels do
   def call(env, run, []) do
     env = run.(env)
