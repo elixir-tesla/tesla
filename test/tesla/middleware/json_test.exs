@@ -17,6 +17,8 @@ defmodule JsonTest do
           {200, %{'Content-Type' => 'application/json'}, nil}
         "/invalid-content-type" ->
           {200, %{'Content-Type' => 'text/plain'}, "hello"}
+        "/facebook" ->
+          {200, %{'Content-Type' => 'text/javascript'}, "{\"friends\": 1000000}"}
       end
     end
   end
@@ -29,11 +31,15 @@ defmodule JsonTest do
     assert Client.get("/empty").body == nil
   end
 
-  test "decode only if Content-Type is application/json" do
+  test "decode only if Content-Type is application/json or test/json" do
     assert Client.get("/invalid-content-type").body == "hello"
   end
 
   test "encode body as JSON" do
     assert Client.post("/encode", %{"foo" => "bar"}).body == %{"baz" => "bar"}
+  end
+
+  test "decode if Content-Type is text/javascript" do
+    assert Client.get("/facebook").body == %{"friends" => 1000000}
   end
 end
