@@ -1,17 +1,12 @@
 defmodule LoggerTest do
   use ExUnit.Case
 
-  setup do
-    Tesla.Adapter.Ibrowse.start
-    {:ok, %{}}
-  end
-
   defmodule Client do
     use Tesla.Builder
 
-    with Tesla.Middleware.Headers, %{'Content-Type' => 'text/plain'}
-    with Tesla.Middleware.Logger
-    with Tesla.Middleware.DebugLogger
+    plug Tesla.Middleware.Headers, %{'Content-Type' => 'text/plain'}
+    plug Tesla.Middleware.Logger
+    plug Tesla.Middleware.DebugLogger
 
     adapter fn (env) ->
       case env.url do
@@ -23,19 +18,25 @@ defmodule LoggerTest do
     end
   end
 
+  import ExUnit.CaptureLog
+
   test "server error" do
-    Client.get("/server-error")
+    log = capture_log(fn -> Client.get("/server-error") end)
+    assert log =~ "/server-error -> 500"
   end
 
   test "client error" do
-    Client.get("/client-error")
+    log = capture_log(fn -> Client.get("/client-error") end)
+    assert log =~ "/client-error -> 404"
   end
 
   test "redirect" do
-    Client.get("/redirect")
+    log = capture_log(fn -> Client.get("/redirect") end)
+    assert log =~ "/redirect -> 301"
   end
 
   test "ok" do
-    Client.get("/ok")
+    log = capture_log(fn -> Client.get("/ok") end)
+    assert log =~ "/ok -> 200"
   end
 end
