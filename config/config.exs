@@ -2,7 +2,7 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
-config :tesla, adapter: :ibrowse,
+config :tesla, adapter: :httpc,
                json: :exjsx
 
 # This configuration is loaded before any dependency and is restricted

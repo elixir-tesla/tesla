@@ -287,6 +287,6 @@ defmodule Tesla do
   end
 
   def default_adapter do
-    Application.get_env(:tesla, :adapter) || Tesla.Adapter.Ibrowse
+    Application.get_env(:tesla, :adapter) || :httpc
   end
 end
