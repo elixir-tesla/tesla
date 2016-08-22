@@ -16,8 +16,11 @@ defmodule Tesla.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger]]
+    [applications: applications(Mix.env)]
   end
+
+  def applications(:test), do: applications(:dev) ++ [:httparrot]
+  def applications(_), do: [:logger]
 
   defp description do
     "HTTP client library, with support for middleware and multiple adapters."
@@ -39,8 +42,9 @@ defmodule Tesla.Mixfile do
       {:exjsx, "~> 3.1.0",                                     optional: true},
 
       # testing & docs
-      {:excoveralls, "~> 0.3", only: :test},
-      {:ex_doc, "~> 0.7", only: :dev}
+      {:httparrot, github: "edgurgel/httparrot", tag: "0.3.4",  only: :test},
+      {:excoveralls, "~> 0.3",  only: :test},
+      {:ex_doc, "~> 0.7",       only: :dev}
     ]
   end
 end
