@@ -39,12 +39,12 @@ defmodule Tesla.Mixfile do
       {:hackney, "~> 1.6.0",                                   optional: true},
 
       # json parsers
-      {:exjsx, "~> 3.1.0",                                     optional: true},
+      {:exjsx, "~> 3.2.0",                                     optional: true},
 
       # testing & docs
       {:httparrot, github: "edgurgel/httparrot", tag: "0.3.4",  only: :test},
-      {:excoveralls, "~> 0.3",  only: :test},
-      {:ex_doc, "~> 0.7",       only: :dev},
+      {:excoveralls, "~> 0.5",  only: :test},
+      {:ex_doc, "~> 0.13.0",       only: :dev},
       {:mix_test_watch, "0.2.6", only: :dev}
     ]
   end
