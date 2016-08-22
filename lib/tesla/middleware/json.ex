@@ -22,8 +22,18 @@ defmodule Tesla.Middleware.DecodeJson do
   end
 
   def valid_content_type?(env) do
-    content_type = to_string(env.headers['Content-Type'])
-    Enum.find(@valid_content_types, fn(x) -> String.starts_with?(content_type, x) end)
+    if ct = find_content_type(env.headers) do
+      Enum.find(@valid_content_types, fn(x) -> String.starts_with?(ct, x) end)
+    else
+      false
+    end
+  end
+
+  def find_content_type(headers) do
+    case Enum.find(headers, fn {k,_} -> String.downcase(to_string(k)) == "content-type" end) do
+      {_, ct} -> to_string(ct)
+      nil     -> nil
+    end
   end
 
   def parsable_body?(env) do
@@ -33,11 +43,8 @@ end
 
 defmodule Tesla.Middleware.EncodeJson do
   def call(env, run, opts \\ []) do
-    encode = opts[:encode] || &JSX.encode/1
-
     if env.body do
-      {:ok, body} = encode.(env.body)
-
+      body    = encode_body(env.body, opts[:encode] || &JSX.encode/1)
       headers = %{'Content-Type' => 'application/json'}
       env = %{env | body: body}
 
@@ -45,5 +52,16 @@ defmodule Tesla.Middleware.EncodeJson do
     else
       run.(env)
     end
+  end
+
+  def encode_body(%Stream{} = body, encode_fun), do: encode_body_stream(body, encode_fun)
+  def encode_body(body, encode_fun) when is_function(body), do: encode_body_stream(body, encode_fun)
+  def encode_body(body, encode_fun) do
+    {:ok, body} = encode_fun.(body)
+    body
+  end
+
+  def encode_body_stream(body, encode_fun) do
+    Stream.map body, fn item -> encode_body(item, encode_fun) <> "\n" end
   end
 end

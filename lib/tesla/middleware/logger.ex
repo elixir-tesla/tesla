@@ -31,35 +31,41 @@ defmodule Tesla.Middleware.DebugLogger do
   def call(env, run, _opts) do
     log_request(env)
     log_headers(env)
-    log_body(env)
+    env = %{env | body: log_body(env.body)}
 
     env = run.(env)
 
     log_response(env)
     log_headers(env)
-    log_body(env)
+    log_body(env.body)
 
     env
   end
 
-  defp log_request(env) do
+  def log_request(env) do
     Logger.debug "#{env.method |> to_string |> String.upcase} #{env.url}"
   end
 
-  defp log_response(env) do
+  def log_response(env) do
     Logger.debug "HTTP/1.1 #{env.status}"
   end
 
-  defp log_headers(env) do
+  def log_headers(env) do
     for {k,v} <- env.headers do
       Logger.debug "#{k}: #{v}"
     end
   end
 
-  defp log_body(env) do
-    if env.body do
-      Logger.debug ""
-      Logger.debug env.body
-    end
+  def log_body(nil), do: nil
+  def log_body(%Stream{} = stream), do: log_body_stream(stream)
+  def log_body(stream) when is_function(stream), do: log_body_stream(stream)
+  def log_body(data) when is_binary(data) do
+    Logger.debug ""
+    Logger.debug data
+  end
+
+  def log_body_stream(stream) do
+    Logger.debug ""
+    Stream.each stream, &Logger.debug/1
   end
 end
