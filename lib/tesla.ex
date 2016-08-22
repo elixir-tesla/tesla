@@ -157,7 +157,7 @@ defmodule Tesla.Builder do
       nil ->
         quote do
           def call_adapter(env) do
-            Tesla.call_module_adapter(Tesla.default_adapter, env)
+            Tesla.call_module_adapter(nil, env)
           end
         end
 
@@ -261,7 +261,8 @@ defmodule Tesla do
 
   @adapters [
     ibrowse:  Tesla.Adapter.Ibrowse,
-    httpc:    Tesla.Adapter.Httpc
+    httpc:    Tesla.Adapter.Httpc,
+    hackney:  Tesla.Adapter.Hackney
   ]
 
   def build_client(stack) do
@@ -274,8 +275,15 @@ defmodule Tesla do
     end
   end
 
+  def call_module_adapter(nil, env) do
+    call_module_adapter(default_adapter, env)
+  end
   def call_module_adapter(mod, env) do
-    (@adapters[mod] || mod).call(env)
+    if Keyword.has_key?(@adapters, mod) do
+      @adapters[mod].call(env)
+    else
+      apply(mod, :call, [env])
+    end
   end
 
   def default_adapter do
