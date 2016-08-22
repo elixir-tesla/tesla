@@ -44,7 +44,8 @@ defmodule Tesla.Mixfile do
       # testing & docs
       {:httparrot, github: "edgurgel/httparrot", tag: "0.3.4",  only: :test},
       {:excoveralls, "~> 0.3",  only: :test},
-      {:ex_doc, "~> 0.7",       only: :dev}
+      {:ex_doc, "~> 0.7",       only: :dev},
+      {:mix_test_watch, "0.2.6", only: :dev}
     ]
   end
 end
