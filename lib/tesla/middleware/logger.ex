@@ -1,7 +1,7 @@
 defmodule Tesla.Middleware.Logger do
   require Logger
 
-  def call(env, run, opts) do
+  def call(env, run, _opts) do
     {time, env} = :timer.tc(__MODULE__, :do_call, [env, run])
     log(env, time)
     env
@@ -28,7 +28,7 @@ end
 defmodule Tesla.Middleware.DebugLogger do
   require Logger
 
-  def call(env, run, opts) do
+  def call(env, run, _opts) do
     log_request(env)
     log_headers(env)
     log_body(env)
