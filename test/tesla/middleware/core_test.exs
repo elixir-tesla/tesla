@@ -6,10 +6,26 @@ defmodule CoreTest do
     mid.call(env, fn a -> a end, opts)
   end
 
-  test "Tesla.Middleware.BaseUrl" do
+  test "Tesla.Middleware.BaseUrl - base without slash, path without slash" do
+    env = call(Tesla.Middleware.BaseUrl, %{url: "path"}, "http://example.com")
+    assert env.url == "http://example.com/path"
+  end
+
+  test "Tesla.Middleware.BaseUrl - base without slash, path with slash" do
     env = call(Tesla.Middleware.BaseUrl, %{url: "/path"}, "http://example.com")
     assert env.url == "http://example.com/path"
   end
+
+  test "Tesla.Middleware.BaseUrl - base with slash, path without slash" do
+    env = call(Tesla.Middleware.BaseUrl, %{url: "path"}, "http://example.com/")
+    assert env.url == "http://example.com/path"
+  end
+
+  test "Tesla.Middleware.BaseUrl - base with slash, path with slash" do
+    env = call(Tesla.Middleware.BaseUrl, %{url: "/path"}, "http://example.com/")
+    assert env.url == "http://example.com/path"
+  end
+
 
   test "Tesla.Middleware.BaseUrl - skip double append" do
     env = call(Tesla.Middleware.BaseUrl, %{url: "http://other.foo"}, "http://example.com")

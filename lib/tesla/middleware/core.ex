@@ -1,12 +1,23 @@
 defmodule Tesla.Middleware.BaseUrl do
   def call(env, run, base) do
-    env = if !Regex.match?(~r/^https?:\/\//, env.url) do
-      %{env | url: base <> env.url}
-    else
-      env
-    end
+    run.(apply_base(env, base))
+  end
 
-    run.(env)
+  def apply_base(env, base) do
+    if Regex.match?(~r/^https?:\/\//, env.url) do
+      env # skip if url is already with scheme
+    else
+      %{env | url: join(base, env.url)}
+    end
+  end
+
+  defp join(base, url) do
+    case {String.last(base), url} do
+      {"/", "/" <> rest}  -> base <> rest
+      {"/", rest}         -> base <> rest
+      {_,   "/" <> rest}  -> base <> "/" <> rest
+      {_,   rest}         -> base <> "/" <> rest
+    end
   end
 end
 
