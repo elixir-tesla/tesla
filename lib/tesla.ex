@@ -16,80 +16,72 @@ defmodule Tesla.Builder do
   defmacro __using__(_what) do
     method_defs = for method <- [:get, :head, :delete, :trace, :options] do
       quote do
-        # 4 args
-        def unquote(method)(fun, url, query, opts) when is_function(fun) and is_map(query) do
-          request(fun, unquote(method), url, query, nil, opts)
-        end
-
-        # 3 args
-        def unquote(method)(fun, url, query) when is_function(fun) and is_map(query) do
-          request(fun, unquote(method), url, query, nil, [])
+        def unquote(method)(fun, {url, query}, opts) when is_function(fun) do
+          request(fun, unquote(method), {url, query}, nil, opts)
         end
 
         def unquote(method)(fun, url, opts) when is_function(fun) do
-          request(fun, unquote(method), url, nil, nil, opts)
+          request(fun, unquote(method), {url, nil}, nil, opts)
         end
 
-        def unquote(method)(url, query, opts) when is_map(query) and is_map(query) do
-          request(unquote(method), url, query, nil, opts)
+        def unquote(method)(fun, {url, query}) when is_function(fun) do
+          request(fun, unquote(method), {url, query}, nil, [])
         end
 
-        # 2 args
         def unquote(method)(fun, url) when is_function(fun) do
-          request(fun, unquote(method), url, nil, nil, [])
+          request(fun, unquote(method), {url, nil}, nil, [])
         end
 
-        def unquote(method)(url, query) when is_map(query)  do
-          request(unquote(method), url, query, nil, [])
+        def unquote(method)({url, query}, opts) do
+          request(unquote(method), {url, query}, nil, opts)
         end
 
         def unquote(method)(url, opts) do
-          request(unquote(method), url, nil, nil, opts)
+          request(unquote(method), {url, nil}, nil, opts)
         end
 
-        # 1 args
+        def unquote(method)({url, query}) do
+          request(unquote(method), {url, query}, nil, [])
+        end
+
         def unquote(method)(url) do
-          request(unquote(method), url, nil, nil, [])
+          request(unquote(method), {url, nil}, nil, [])
         end
       end
     end
 
     method_defs_with_body = for method <- [:post, :put, :patch] do
       quote do
-        # 5 args
-        def unquote(method)(fun, url, query, body, opts) when is_function(fun) and is_map(query) do
-          request(fun, unquote(method), url, query, body, opts)
-        end
-
-        # 4 args
-        def unquote(method)(fun, url, query, body) when is_function(fun) and is_map(query) do
-          request(fun, unquote(method), url, query, body, [])
+        def unquote(method)(fun, {url, query}, body, opts) when is_function(fun) do
+          request(fun, unquote(method), {url, query}, body, opts)
         end
 
         def unquote(method)(fun, url, body, opts) when is_function(fun) do
-          request(fun, unquote(method), url, nil, body, opts)
+          request(fun, unquote(method), {url, nil}, body, opts)
         end
 
-        def unquote(method)(url, query, body, opts) when is_map(query) do
-          request(unquote(method), url, query, body, opts)
+        def unquote(method)(fun, {url, query}, body) when is_function(fun) do
+          request(fun, unquote(method), {url, query}, body, [])
         end
 
-        # 3 args
         def unquote(method)(fun, url, body) when is_function(fun) do
-          request(fun, unquote(method), url, nil, body, [])
+          request(fun, unquote(method), {url, nil}, body, nil)
         end
 
-        def unquote(method)(url, query, body) when is_map(query)  do
-          request(unquote(method), url, query, body, [])
+        def unquote(method)({url, query}, body, opts) do
+          request(unquote(method), {url, query}, body, opts)
         end
 
         def unquote(method)(url, body, opts) do
-          request(unquote(method), url, nil, body, opts)
+          request(unquote(method), {url, nil}, body, opts)
         end
 
-        # 2 args
+        def unquote(method)({url, query}, body) do
+          request(unquote(method), {url, query}, body, [])
+        end
+
         def unquote(method)(url, body) do
-          request(unquote(method), url, nil, body, [])
+          request(unquote(method), {url, nil}, body, nil)
         end
       end
     end
@@ -100,7 +92,7 @@ defmodule Tesla.Builder do
 
       @adapter nil
 
-      defp request(fun, method, url, query, body, opts) when is_function(fun) do
+      defp request(fun, method, {url, query}, body, opts) when is_function(fun) do
         env = %Tesla.Env{
           method: method,
           url:    Tesla.Builder.append_query_string(url, query),
@@ -114,8 +106,8 @@ defmodule Tesla.Builder do
         fun.(env, &call_middleware/1)
       end
 
-      defp request(method, url, query, body, opts) do
-        request(fn (env, run) -> run.(env) end, method, url, query, body, opts)
+      defp request(method, {url, query}, body, opts) do
+        request(fn (env, run) -> run.(env) end, method, {url, query}, body, opts)
       end
 
       defp call_with_adapter(env) do

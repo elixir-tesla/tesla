@@ -84,11 +84,15 @@ defmodule TeslaTest do
   end
 
   test "path + query" do
-    assert Client.get("/foo", %{a: 1, b: "foo"}).url == "/foo?a=1&b=foo"
+    assert Client.get({"/foo", %{a: 1, b: "foo"}}).url == "/foo?a=1&b=foo"
   end
 
   test "path with query + query" do
-    assert Client.get("/foo?c=4", %{a: 1, b: "foo"}).url == "/foo?c=4&a=1&b=foo"
+    assert Client.get({"/foo?c=4", %{a: 1, b: "foo"}}).url == "/foo?c=4&a=1&b=foo"
+  end
+
+  test "path + query with multiple values" do
+    assert Client.get({"/foo", [a: 1, b: "foo", b: "bar"]}).url == "/foo?a=1&b=foo&b=bar"
   end
 
   test "insert request middleware function at runtime" do
