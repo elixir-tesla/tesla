@@ -1,5 +1,4 @@
-defmodule Tesla.Adapter.TestCase do
-
+defmodule Tesla.Adapter.TestCase.Basic do
   defmacro __using__([client: client]) do
     quote do
       test "basic get request" do

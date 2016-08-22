@@ -1,6 +1,6 @@
 defmodule IbrowseTest do
   use ExUnit.Case
-  use Tesla.Adapter.TestCase, client: IbrowseTest.Client
+  use Tesla.Adapter.TestCase.Basic, client: IbrowseTest.Client
 
   defmodule Client do
     use Tesla.Builder
