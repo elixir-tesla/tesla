@@ -259,7 +259,10 @@ end
 defmodule Tesla do
   use Tesla.Builder
 
-  @adapters [ibrowse: Tesla.Adapter.Ibrowse]
+  @adapters [
+    ibrowse:  Tesla.Adapter.Ibrowse,
+    httpc:    Tesla.Adapter.Httpc
+  ]
 
   def build_client(stack) do
     fn (env, run) ->
