@@ -30,9 +30,17 @@ defmodule Tesla.Mixfile do
   end
 
   defp deps do
-    [{:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.2", optional: true},
-     {:exjsx, "~> 3.1.0", optional: true},
-     {:excoveralls, "~> 0.3", only: :test},
-     {:ex_doc, "~> 0.7", only: :dev}]
+    [
+      # http clients
+      {:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.2",  optional: true},
+      {:hackney, "~> 1.6.0",                                   optional: true},
+
+      # json parsers
+      {:exjsx, "~> 3.1.0",                                     optional: true},
+
+      # testing & docs
+      {:excoveralls, "~> 0.3", only: :test},
+      {:ex_doc, "~> 0.7", only: :dev}
+    ]
   end
 end
