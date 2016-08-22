@@ -62,6 +62,7 @@ defmodule Tesla.Middleware.DebugLogger do
   def log_body(data) when is_binary(data) do
     Logger.debug ""
     Logger.debug data
+    data
   end
 
   def log_body_stream(stream) do

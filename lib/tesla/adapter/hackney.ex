@@ -1,9 +1,9 @@
 defmodule Tesla.Adapter.Hackney do
   def call(env) do
-    {:ok, status, headers, ref} = request(env)
-    {:ok, body} = :hackney.body(ref)
-
-    format_response(env, status, headers, body)
+    with  {:ok, status, headers, ref} <- request(env),
+          {:ok, body} <- :hackney.body(ref) do
+      format_response(env, status, headers, body)
+    end
   end
 
   defp format_response(env, status, headers, body) do
