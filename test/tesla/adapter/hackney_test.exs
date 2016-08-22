@@ -1,6 +1,7 @@
 defmodule HackneyTest do
   use ExUnit.Case
   use Tesla.Adapter.TestCase.Basic, client: HackneyTest.Client
+  use Tesla.Adapter.TestCase.StreamRequestBody, client: HackneyTest.Client
 
   defmodule Client do
     use Tesla.Builder

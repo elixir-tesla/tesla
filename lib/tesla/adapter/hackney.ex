@@ -15,6 +15,18 @@ defmodule Tesla.Adapter.Hackney do
   end
 
   defp request(env) do
-    :hackney.request(env.method, to_char_list(env.url), Enum.into(env.headers, []), env.body || '')
+    request(env.method, to_char_list(env.url), Enum.into(env.headers, []), env.body)
+  end
+  defp request(method, url, headers, %Stream{} = body), do: request_stream(method, url, headers, body)
+  defp request(method, url, headers, body) when is_function(body), do: request_stream(method, url, headers, body)
+  defp request(method, url, headers, body) do
+    :hackney.request(method, url, headers, body || '')
+  end
+
+
+  defp request_stream(method, url, headers, body) do
+    {:ok, ref} = :hackney.request(method, url, headers, :stream)
+    for data <- body, do: :ok = :hackney.send_body(ref, data)
+    :hackney.start_response(ref)
   end
 end
