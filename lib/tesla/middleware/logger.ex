@@ -57,6 +57,7 @@ defmodule Tesla.Middleware.DebugLogger do
   end
 
   def log_body(nil), do: nil
+  def log_body([]), do: nil
   def log_body(%Stream{} = stream), do: log_body_stream(stream)
   def log_body(stream) when is_function(stream), do: log_body_stream(stream)
   def log_body(data) when is_binary(data) do
