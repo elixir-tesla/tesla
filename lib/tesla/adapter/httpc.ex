@@ -1,7 +1,8 @@
 defmodule Tesla.Adapter.Httpc do
   def call(env) do
-    {:ok, {status, headers, body}} = request(env)
-    format_response(env, status, headers, body)
+    with {:ok, {status, headers, body}} <- request(env) do
+      format_response(env, status, headers, body)
+    end
   end
 
   defp format_response(env, {_, status, _}, headers, body) do

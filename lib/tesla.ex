@@ -10,6 +10,10 @@ defmodule Tesla.Env do
             _module: nil
 end
 
+defmodule Tesla.Error do
+  defexception message: nil
+end
+
 defmodule Tesla.Builder do
   @http_methods [:get, :head, :delete, :trace, :options, :post, :put, :patch]
 
@@ -114,6 +118,8 @@ defmodule Tesla.Builder do
         case call_adapter(env) do
           {status, headers, body} ->
             %{env | status: status, headers: headers, body: body}
+          {:error, reason} ->
+            raise Tesla.Error, message: inspect({reason, env})
           e -> e
         end
       end
