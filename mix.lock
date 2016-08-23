@@ -14,6 +14,7 @@
   "metrics": {:hex, :metrics, "1.0.1", "25f094dea2cda98213cecc3aeff09e940299d950904393b2a29d191c346a8486", [:rebar3], []},
   "mimerl": {:hex, :mimerl, "1.0.2", "993f9b0e084083405ed8252b99460c4f0563e41729ab42d9074fd5e52439be88", [:rebar3], []},
   "mix_test_watch": {:hex, :mix_test_watch, "0.2.6", "9fcc2b1b89d1594c4a8300959c19d50da2f0ff13642c8f681692a6e507f92cab", [:mix], [{:fs, "~> 0.9.1", [hex: :fs, optional: false]}]},
+  "poison": {:hex, :poison, "2.2.0", "4763b69a8a77bd77d26f477d196428b741261a761257ff1cf92753a0d4d24a63", [:mix], []},
   "ranch": {:hex, :ranch, "1.2.1", "a6fb992c10f2187b46ffd17ce398ddf8a54f691b81768f9ef5f461ea7e28c762", [:make], []},
   "ssl_verify_fun": {:hex, :ssl_verify_fun, "1.1.0", "edee20847c42e379bf91261db474ffbe373f8acb56e9079acb6038d4e0bf414f", [:rebar, :make], []},
   "ssl_verify_hostname": {:hex, :ssl_verify_hostname, "1.0.4", "f357b4dd338c062988d4f2aa5e983adafd555c5c74dcf259d221572327dd8086", [:make], []}}

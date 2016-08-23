@@ -130,7 +130,7 @@ end
 
 ### JSON
 
-NOTE: requires [exjsx](https://github.com/talentdeficit/exjsx) (or other engine) as dependency
+NOTE: requires [poison](https://hex.pm/packages/poison) (or other engine) as dependency
 
 - `Tesla.Middleware.DecodeJson` - decode response body as JSON
 - `Tesla.Middleware.EncodeJson` - endode request body as JSON
@@ -138,9 +138,11 @@ NOTE: requires [exjsx](https://github.com/talentdeficit/exjsx) (or other engine)
 If you are using different json library it can be easily configured:
 
 ```ex
-plug Tesla.Middleware.DecodeJson, decode: &Poison.decode/1
-plug Tesla.Middleware.EncodeJson, encode: &Poison.encode/1
+plug Tesla.Middleware.DecodeJson, engine: JSX, opts: [labels: :atom]
+# or
+plug Tesla.Middleware.DecodeJson, decode: &JSX.decode/1
 ```
+
 
 See [`json.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware/json.ex) for implementation details.
 

@@ -35,11 +35,12 @@ defmodule Tesla.Mixfile do
   defp deps do
     [
       # http clients
-      {:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.2",  optional: true},
-      {:hackney, "~> 1.6.0",                                   optional: true},
+      {:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.2",   optional: true},
+      {:hackney, "~> 1.6.0",                                    optional: true},
 
       # json parsers
-      {:exjsx, "~> 3.2.0",                                     optional: true},
+      {:exjsx, "~> 3.2.0",                                      optional: true},
+      {:poison, "~> 2.0",                                       optional: true},
 
       # testing & docs
       {:httparrot, github: "edgurgel/httparrot", tag: "0.3.4",  only: :test},

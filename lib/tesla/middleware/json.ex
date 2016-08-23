@@ -4,7 +4,7 @@ defmodule Tesla.Middleware.DecodeJson do
   @valid_content_types ["application/json", "text/javascript"]
 
   def call(env, run, opts \\ []) do
-    decode = opts[:decode] || &JSX.decode/1
+    decode = get_decode(opts)
 
     env = run.(env)
 
@@ -14,6 +14,15 @@ defmodule Tesla.Middleware.DecodeJson do
       %{env | body: body}
     else
       env
+    end
+  end
+
+  def get_decode(opts) do
+    if opts[:decode] do
+      opts[:decode]
+    else
+      engine = opts[:engine] || Poison
+      fn e -> apply(engine, :decode, [e, (opts[:opts] || [])]) end
     end
   end
 
@@ -44,7 +53,7 @@ end
 defmodule Tesla.Middleware.EncodeJson do
   def call(env, run, opts \\ []) do
     if env.body do
-      body    = encode_body(env.body, opts[:encode] || &JSX.encode/1)
+      body    = encode_body(env.body, get_encode(opts))
       headers = %{'Content-Type' => 'application/json'}
       env = %{env | body: body}
 
@@ -53,6 +62,16 @@ defmodule Tesla.Middleware.EncodeJson do
       run.(env)
     end
   end
+
+  def get_encode(opts) do
+    if opts[:encode] do
+      opts[:encode]
+    else
+      engine = opts[:engine] || Poison
+      fn e -> apply(engine, :encode, [e, (opts[:opts] || [])]) end
+    end
+  end
+
 
   def encode_body(%Stream{} = body, encode_fun), do: encode_body_stream(body, encode_fun)
   def encode_body(body, encode_fun) when is_function(body), do: encode_body_stream(body, encode_fun)

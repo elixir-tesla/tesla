@@ -23,6 +23,20 @@ defmodule JsonTest do
     end
   end
 
+  defmodule CustomClient do
+    use Tesla.Builder
+
+    plug Tesla.Middleware.DecodeJson, engine: Poison, opts: [keys: :atoms]
+
+    adapter fn (env) ->
+      case env.url do
+        "/decode" ->
+          {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
+      end
+    end
+  end
+
+
   test "decode JSON body" do
     assert Client.get("/decode").body == %{"value" => 123}
   end
