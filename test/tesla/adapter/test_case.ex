@@ -16,6 +16,12 @@ defmodule Tesla.Adapter.TestCase.Basic do
     quote do
       import Tesla.Adapter.TestCase, only: [httpbin_url: 0, text_plain_client: 0]
 
+      test "basic head request" do
+        response = unquote(client).head(text_plain_client, "#{httpbin_url}/ip")
+        assert response.status == 200
+        assert response.body == []
+      end
+
       test "basic get request" do
         response = unquote(client).get(text_plain_client, "#{httpbin_url}/ip")
         assert response.status == 200
