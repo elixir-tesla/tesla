@@ -39,8 +39,8 @@ defmodule Tesla.Mixfile do
       {:hackney, "~> 1.6.0",                                    optional: true},
 
       # json parsers
-      {:exjsx, "~> 3.2.0",                                      optional: true},
-      {:poison, "~> 2.0",                                       optional: true},
+      {:exjsx,  ">= 0.1.0",                                       optional: true},
+      {:poison, ">= 1.0.0",                                       optional: true},
 
       # testing & docs
       {:httparrot, github: "edgurgel/httparrot", tag: "0.3.4",  only: :test},
