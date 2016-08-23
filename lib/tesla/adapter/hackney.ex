@@ -20,13 +20,16 @@ defmodule Tesla.Adapter.Hackney do
   defp request(method, url, headers, %Stream{} = body), do: request_stream(method, url, headers, body)
   defp request(method, url, headers, body) when is_function(body), do: request_stream(method, url, headers, body)
   defp request(method, url, headers, body) do
-    :hackney.request(method, url, headers, body || '')
+    handle :hackney.request(method, url, headers, body || '')
   end
 
 
   defp request_stream(method, url, headers, body) do
     {:ok, ref} = :hackney.request(method, url, headers, :stream)
     for data <- body, do: :ok = :hackney.send_body(ref, data)
-    :hackney.start_response(ref)
+    handle :hackney.start_response(ref)
   end
+
+  defp handle({:ok, status, headers}), do: {:ok, status, headers, nil}
+  defp handle({:ok, _status, _headers, _ref} = result), do: result
 end
