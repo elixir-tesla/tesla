@@ -96,7 +96,7 @@ defmodule Tesla.Builder do
 
       @adapter nil
 
-      defp request(fun, method, {url, query}, body, opts) when is_function(fun) do
+      def request(fun, method, {url, query}, body, opts) when is_function(fun) do
         env = %Tesla.Env{
           method: method,
           url:    Tesla.Builder.append_query_string(url, query),
@@ -110,7 +110,7 @@ defmodule Tesla.Builder do
         fun.(env, &call_middleware/1)
       end
 
-      defp request(method, {url, query}, body, opts) do
+      def request(method, {url, query}, body, opts) do
         request(fn (env, run) -> run.(env) end, method, {url, query}, body, opts)
       end
 
