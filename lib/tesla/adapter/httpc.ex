@@ -18,7 +18,7 @@ defmodule Tesla.Adapter.Httpc do
     request(
       env.method,
       to_char_list(env.url),
-      Enum.into(env.headers, []),
+      Enum.into(env.headers, [], fn {k,v} -> {to_char_list(k), to_char_list(v)} end),
       content_type,
       env.body
     )
