@@ -30,44 +30,45 @@ defmodule Tesla.Middleware.DebugLogger do
 
   def call(env, run, _opts) do
     log_request(env)
-    log_headers(env)
-    env = %{env | body: log_body(env.body)}
+    log_headers(env, "> ")
+    env = %{env | body: log_body(env.body, "> ")}
 
     env = run.(env)
 
     log_response(env)
-    log_headers(env)
-    log_body(env.body)
+    log_headers(env, "< ")
+    log_body(env.body, "< ")
 
     env
   end
 
   def log_request(env) do
-    Logger.debug "#{env.method |> to_string |> String.upcase} #{env.url}"
+    Logger.debug "> #{env.method |> to_string |> String.upcase} #{env.url}"
   end
 
   def log_response(env) do
-    Logger.debug "HTTP/1.1 #{env.status}"
+    Logger.debug ""
+    Logger.debug "< HTTP/1.1 #{env.status}"
   end
 
-  def log_headers(env) do
+  def log_headers(env, prefix) do
     for {k,v} <- env.headers do
-      Logger.debug "#{k}: #{v}"
+      Logger.debug "#{prefix}#{k}: #{v}"
     end
   end
 
-  def log_body(nil), do: nil
-  def log_body([]), do: nil
-  def log_body(%Stream{} = stream), do: log_body_stream(stream)
-  def log_body(stream) when is_function(stream), do: log_body_stream(stream)
-  def log_body(data) when is_binary(data) do
+  def log_body(nil, _), do: nil
+  def log_body([], _), do: nil
+  def log_body(%Stream{} = stream, prefix), do: log_body_stream(stream, prefix)
+  def log_body(stream, prefix) when is_function(stream), do: log_body_stream(stream, prefix)
+  def log_body(data, prefix) when is_binary(data) or is_list(data) do
     Logger.debug ""
-    Logger.debug data
+    Logger.debug prefix <> to_string(data)
     data
   end
 
-  def log_body_stream(stream) do
+  def log_body_stream(stream, prefix) do
     Logger.debug ""
-    Stream.each stream, &Logger.debug/1
+    Stream.each stream, fn line -> Logger.debug prefix <> line end
   end
 end
