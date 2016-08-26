@@ -51,6 +51,13 @@ defmodule TeslaTest do
     assert Client.get("/").body == "hello"
   end
 
+  test "request/1" do
+    env = Client.request(method: :get, url: "/")
+
+    assert env.method == :get
+    assert env.body == "hello"
+  end
+
   test "GET request" do
     assert Client.get("/").method == :get
   end

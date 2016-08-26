@@ -96,6 +96,25 @@ defmodule Tesla.Builder do
 
       @adapter nil
 
+      def request(opts) when is_list(opts) do
+        method  = Keyword.fetch!(opts, :method)
+        url     = Keyword.fetch!(opts, :url)
+        headers = Keyword.get(opts, :headers, [])
+        body    = Keyword.get(opts, :body, nil)
+
+        env = %Tesla.Env{
+          method: method,
+          url:    url,
+          body:   body,
+          opts:   [],
+
+          _client: (fn (env, run) -> run.(env) end),
+          _module: __MODULE__
+        }
+
+        call_middleware(env)
+      end
+
       def request(fun, method, {url, query}, body, opts) when is_function(fun) do
         env = %Tesla.Env{
           method: method,
