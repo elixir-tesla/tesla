@@ -101,13 +101,14 @@ defmodule Tesla.Builder do
         url     = Keyword.fetch!(opts, :url)
         headers = Keyword.get(opts, :headers, [])
         body    = Keyword.get(opts, :body, nil)
+        opts1    = Keyword.get(opts, :opts, [])
 
         env = %Tesla.Env{
           method:   method,
           url:      url,
           headers:  headers,
           body:     body,
-          opts:     [],
+          opts:     opts1,
 
           _client: (fn (env, run) -> run.(env) end),
           _module: __MODULE__
