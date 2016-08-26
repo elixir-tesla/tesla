@@ -103,10 +103,11 @@ defmodule Tesla.Builder do
         body    = Keyword.get(opts, :body, nil)
 
         env = %Tesla.Env{
-          method: method,
-          url:    url,
-          body:   body,
-          opts:   [],
+          method:   method,
+          url:      url,
+          headers:  headers,
+          body:     body,
+          opts:     [],
 
           _client: (fn (env, run) -> run.(env) end),
           _module: __MODULE__
