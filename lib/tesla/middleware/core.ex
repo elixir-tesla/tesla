@@ -88,36 +88,43 @@ end
 
 
 defmodule Tesla.Middleware.DecodeRels do
-  def call(env, run, []) do
-    env = run.(env)
+  def call(env, next, _opts) do
+    env
+    |> Tesla.run(next)
+    |> parse_rels
+  end
 
-    if env.headers['Link'] do
-      rels = env.headers['Link']
-        |> to_string
-        |> String.split(",")
-        |> Enum.map(&String.strip/1)
-        |> Enum.map(fn e -> Regex.run(~r/\A<(.+)>; rel="(.+)"\z/, e, capture: :all_but_first) |> List.to_tuple end)
-        |> Enum.reduce(%{}, fn ({url, key}, a) -> Dict.put(a, key, url) end)
-
-      env |> Map.put(:rels, rels)
+  def parse_rels(env) do
+    if link = env.headers["Link"] do
+      Map.update!(env, :opts, &Keyword.put(&1, :rels, rels(link)))
     else
       env
     end
   end
-end
 
-defmodule Tesla.Middleware.AdapterOptions do
-  def call(env, run, opts) do
-    run.(%{env | opts: env.opts ++ opts})
+  defp rels(link) do
+    link
+    |> String.split(",")
+    |> Enum.map(&String.strip/1)
+    |> Enum.map(&rel/1)
+    |> Enum.into(%{})
+  end
+
+  def rel(item) do
+    Regex.run(~r/\A<(.+)>; rel="(.+)"\z/, item, capture: :all_but_first)
+    |> Enum.reverse
+    |> List.to_tuple
   end
 end
 
-defmodule Tesla.Middleware.BaseUrlFromConfig do
- def call(env, run, opts) do
-   run.(%{env | url: config(opts)[:base_url] <> env.url})
- end
 
- defp config(opts) do
-   Application.get_env(Keyword.fetch!(opts, :otp_app), Keyword.fetch!(opts, :module))
- end
+defmodule Tesla.Middleware.BaseUrlFromConfig do
+  def call(env, next, opts) do
+    base = config(opts)[:base_url]
+    Tesla.Middleware.BaseUrl.call(env, next, base)
+  end
+
+  defp config(opts) do
+    Application.get_env(Keyword.fetch!(opts, :otp_app), Keyword.fetch!(opts, :module))
+  end
 end

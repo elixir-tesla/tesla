@@ -62,6 +62,23 @@ defmodule CoreTest do
 
 
 
+  describe "Tesla.Middleware.DecodeRels" do
+    alias Tesla.Middleware.DecodeRels
+    use Tesla.Middleware.TestCase, middleware: DecodeRels
+
+    test "deocde rels" do
+      headers = %{"Link" => ~s(<https://api.github.com/resource?page=2>; rel="next",
+                               <https://api.github.com/resource?page=5>; rel="last")}
+      env = DecodeRels.call %Tesla.Env{headers: headers}, [], nil
+
+      assert env.opts[:rels] == %{
+        "next" => "https://api.github.com/resource?page=2",
+        "last" => "https://api.github.com/resource?page=5"
+      }
+    end
+  end
+
+
   # test "Tesla.Middleware.BaseUrlFromConfig" do
   #   Application.put_env(:tesla, SomeModule, [base_url: "http://example.com"])
   #   env = call(Tesla.Middleware.BaseUrlFromConfig, %{url: "/path"}, otp_app: :tesla, module: SomeModule)
