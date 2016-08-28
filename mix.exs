@@ -2,14 +2,21 @@ defmodule Tesla.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :tesla,
-     version: "0.3.6",
-     description: description,
-     package: package,
-     source_url: "https://github.com/teamon/tesla",
-     elixir: "~> 1.0",
-     deps: deps,
-     test_coverage: [tool: ExCoveralls]]
+    [
+      app: :tesla,
+      version: "0.3.6",
+      description: description,
+      package: package,
+      source_url: "https://github.com/teamon/tesla",
+      elixir: "~> 1.0",
+      deps: deps,
+      test_coverage: [tool: ExCoveralls],
+      dialyzer: [
+        plt_add_apps: [:inets],
+        plt_add_deps: :project
+      ],
+      docs: [extras: ["README.md"]]
+    ]
   end
 
   # Configuration for the OTP application
@@ -27,26 +34,29 @@ defmodule Tesla.Mixfile do
   end
 
   defp package do
-    [maintainers: ["Tymon Tobolski"],
-     licenses: ["MIT"],
-     links: %{"GitHub" => "https://github.com/teamon/tesla"}]
+    [
+      maintainers: ["Tymon Tobolski"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/teamon/tesla"}
+    ]
   end
 
   defp deps do
     [
       # http clients
-      {:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.2",   optional: true},
-      {:hackney, "~> 1.6.0",                                    optional: true},
+      {:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.2", optional: true},
+      {:hackney, "~> 1.6.0",                                  optional: true},
 
       # json parsers
-      {:exjsx,  ">= 0.1.0",                                       optional: true},
-      {:poison, ">= 1.0.0",                                       optional: true},
+      {:exjsx,  ">= 0.1.0",                                   optional: true},
+      {:poison, ">= 1.0.0",                                   optional: true},
 
       # testing & docs
       {:httparrot, github: "edgurgel/httparrot", tag: "0.3.4",  only: :test},
-      {:excoveralls, "~> 0.5",  only: :test},
-      {:ex_doc, "~> 0.13.0",       only: :dev},
-      {:mix_test_watch, "0.2.6", only: :dev}
+      {:excoveralls,    "~> 0.5",       only: :test},
+      {:ex_doc,         "~> 0.13.0",    only: :dev},
+      {:mix_test_watch, "0.2.6",        only: :dev},
+      {:dialyxir,       "~> 0.3.5",     only: :dev}
     ]
   end
 end
