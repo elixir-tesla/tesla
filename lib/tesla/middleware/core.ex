@@ -1,3 +1,24 @@
+defmodule Tesla.Middleware.Normalize do
+  def call(env, next, _opts) do
+    env
+    |> normalize
+    |> Tesla.run(next)
+    |> normalize
+  end
+
+  def normalize(env) do
+    env
+    |> Map.update!(:headers, &normalize_headers/1)
+  end
+
+  def normalize_headers(%{} = map) do
+    Enum.into map, %{}, fn {k,v} ->
+      {k |> to_string |> String.downcase, v |> to_string}
+    end
+  end
+end
+
+
 defmodule Tesla.Middleware.BaseUrl do
   def call(env, next, base) do
     env
@@ -24,6 +45,7 @@ defmodule Tesla.Middleware.BaseUrl do
   end
 end
 
+
 defmodule Tesla.Middleware.Headers do
   def call(env, next, headers) do
     env
@@ -37,6 +59,7 @@ defmodule Tesla.Middleware.Headers do
   end
 end
 
+
 defmodule Tesla.Middleware.Query do
   def call(env, next, query) do
     env
@@ -49,6 +72,7 @@ defmodule Tesla.Middleware.Query do
     Map.update!(env, :query, & &1 ++ query)
   end
 end
+
 
 defmodule Tesla.Middleware.DecodeRels do
   def call(env, run, []) do

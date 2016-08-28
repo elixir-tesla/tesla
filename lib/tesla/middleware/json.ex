@@ -1,86 +1,98 @@
-defmodule Tesla.Middleware.DecodeJson do
+defmodule Tesla.Middleware.JSON do
   # NOTE: text/javascript added to support Facebook Graph API.
   #       see https://github.com/teamon/tesla/pull/13
-  @valid_content_types ["application/json", "text/javascript"]
+  @content_types ["application/json", "text/javascript"]
+  @default_engine Poison
 
-  def call(env, run, opts \\ []) do
-    decode = get_decode(opts)
+  @doc """
+  Encode and decode response body as JSON
 
-    env = run.(env)
+  Available options:
+  - `:decode` - decoding function
+  - `:encode` - encoding function
+  - `:engine` - encode/decode engine, e.g `Poison` or `JSX`  (defaults to Poison)
+  - `:engine_opts` - optional engine options
+  """
+  def call(env, next, opts) do
+    opts = opts || []
 
-    if json?(env) do
-      {:ok, body} = decode.(to_string(env.body))
+    env
+    |> encode(opts)
+    |> Tesla.run(next)
+    |> decode(opts)
+  end
 
-      %{env | body: body}
+  def encode(env, opts) do
+    if encodable?(env) do
+      env
+      |> Map.update!(:body, &process(&1, :encode, opts))
+      |> Tesla.Middleware.Headers.call([], %{"content-type" => "application/json"})
     else
       env
     end
   end
 
-  def get_decode(opts) do
-    if opts[:decode] do
-      opts[:decode]
+  defp encode_body(%Stream{} = body, opts),             do: encode_stream(body, opts)
+  defp encode_body(body, opts) when is_function(body),  do: encode_stream(body, opts)
+  defp encode_body(body, opts), do: process(body, :encode, opts)
+
+  defp encode_stream(body, opts) do
+    Stream.map body, fn item -> encode_body(item, encode_fun) <> "\n" end
+  end
+
+  def encodable?(env), do: env.body != nil
+
+  def decode(env, opts) do
+    if decodable?(env) do
+      Map.update!(env, :body, &process(&1, :decode, opts))
     else
-      engine = opts[:engine] || Poison
-      fn e -> apply(engine, :decode, [e, (opts[:opts] || [])]) end
+      env
     end
   end
 
-  def json?(env) do
-    valid_content_type?(env) && parsable_body?(env)
+  def decodable?(env), do: decodable_body?(env) && decodable_content_type?(env)
+  def decodable_body?(env), do: is_binary(env.body) || is_list(env.body)
+  def decodable_content_type?(env) do
+    case env.headers["content-type"] do
+      nil           -> false
+      content_type  -> Enum.any?(@content_types, &String.starts_with?(content_type, &1))
+    end
   end
 
-  def valid_content_type?(env) do
-    if ct = find_content_type(env.headers) do
-      Enum.find(@valid_content_types, fn(x) -> String.starts_with?(ct, x) end)
+  defp process(data, op, opts) do
+    with {:ok, value} <- do_process(data, op, opts) do
+      value
+    end
+  end
+
+  defp do_process(data, op, opts) do
+    if fun = opts[op] do # :encode/:decode
+      fun.(data)
     else
-      false
+      engine  = Keyword.get(opts, :engine, @default_engine)
+      opts    = Keyword.get(opts, :engine_opts, [])
+
+      apply(engine, op, [data | opts])
     end
   end
+end
 
-  def find_content_type(headers) do
-    case Enum.find(headers, fn {k,_} -> String.downcase(to_string(k)) == "content-type" end) do
-      {_, ct} -> to_string(ct)
-      nil     -> nil
-    end
-  end
 
-  def parsable_body?(env) do
-    is_binary(env.body) || is_list(env.body)
+
+defmodule Tesla.Middleware.DecodeJson do
+  alias Tesla.Middleware.JSON
+  def call(env, next, opts \\ []) do
+    env
+    |> Tesla.run(next)
+    |> Tesla.Middleware.JSON.decode(opts)
   end
 end
 
 defmodule Tesla.Middleware.EncodeJson do
-  def call(env, run, opts \\ []) do
-    if env.body do
-      body    = encode_body(env.body, get_encode(opts))
-      headers = %{'Content-Type' => 'application/json'}
-      env = %{env | body: body}
-
-      Tesla.Middleware.Headers.call(env, run, headers)
-    else
-      run.(env)
-    end
-  end
-
-  def get_encode(opts) do
-    if opts[:encode] do
-      opts[:encode]
-    else
-      engine = opts[:engine] || Poison
-      fn e -> apply(engine, :encode, [e, (opts[:opts] || [])]) end
-    end
-  end
-
-
-  def encode_body(%Stream{} = body, encode_fun), do: encode_body_stream(body, encode_fun)
-  def encode_body(body, encode_fun) when is_function(body), do: encode_body_stream(body, encode_fun)
-  def encode_body(body, encode_fun) do
-    {:ok, body} = encode_fun.(body)
-    body
-  end
-
-  def encode_body_stream(body, encode_fun) do
-    Stream.map body, fn item -> encode_body(item, encode_fun) <> "\n" end
+  alias Tesla.Middleware.JSON
+  def call(env, next, opts \\ []) do
+    env
+    |> Tesla.Middleware.JSON.encode(opts)
+    |> Tesla.run(next)
   end
 end

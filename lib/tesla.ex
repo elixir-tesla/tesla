@@ -23,7 +23,7 @@ defmodule Tesla.Env do
   defstruct method:   nil,
             url:      "",
             query:    [],
-            headers:  [],
+            headers:  %{},
             body:     nil,
             status:   nil
 end
@@ -282,8 +282,10 @@ defmodule Tesla do
   def request(module, client, options), do: do_request(module, [client], options)
   def request(module, options), do: do_request(module, [], options)
 
+  @default_middleware [{Tesla.Middleware.Normalize, nil}]
+
   defp do_request(module, clients, options) do
-    stack = prepare(module, clients ++ module.__middleware__ ++ [module.__adapter__])
+    stack = prepare(module, clients ++ module.__middleware__ ++ @default_middleware ++ [module.__adapter__])
     env   = struct(Tesla.Env, options)
     run(env, stack)
   end

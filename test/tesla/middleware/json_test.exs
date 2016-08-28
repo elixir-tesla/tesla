@@ -1,14 +1,18 @@
 defmodule JsonTest do
   use ExUnit.Case
 
-  defmodule Client do
-    use Tesla.Builder
+  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.JSON
+  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.DecodeJson
+  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.EncodeJson
 
-    plug Tesla.Middleware.EncodeJson
-    plug Tesla.Middleware.DecodeJson
+
+  defmodule Client do
+    use Tesla
+
+    plug Tesla.Middleware.JSON
 
     adapter fn (env) ->
-      case env.url do
+      {status, headers, body} = case env.url do
         "/decode" ->
           {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
         "/encode" ->
@@ -20,13 +24,15 @@ defmodule JsonTest do
         "/facebook" ->
           {200, %{'Content-Type' => 'text/javascript'}, "{\"friends\": 1000000}"}
       end
+
+      %{env | status: status, headers: headers, body: body}
     end
   end
 
   defmodule CustomClient do
-    use Tesla.Builder
+    use Tesla
 
-    plug Tesla.Middleware.DecodeJson, engine: Poison, opts: [keys: :atoms]
+    plug Tesla.Middleware.DecodeJson, engine: Poison, engine_opts: [keys: :atoms]
 
     adapter fn (env) ->
       case env.url do
