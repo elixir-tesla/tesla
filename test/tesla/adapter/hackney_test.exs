@@ -1,7 +1,7 @@
 defmodule HackneyTest do
   use ExUnit.Case
-  use Tesla.Adapter.TestCase.Basic, adapter: Tesla.Adapter.Hackney
-  use Tesla.Adapter.TestCase.StreamRequestBody, adapter: Tesla.Adapter.Hackney
+  use Tesla.Adapter.TestCase.Basic, adapter: :hackney
+  use Tesla.Adapter.TestCase.StreamRequestBody, adapter: :hackney
 
   setup do
     case Application.ensure_started(:hackney) do

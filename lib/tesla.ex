@@ -50,6 +50,25 @@ defmodule Tesla do
     plug Tesla.Middleware.JSON
   end
   """
+
+  @default_middleware [{Tesla.Middleware.Normalize, nil}]
+  @aliases [
+    httpc:    Tesla.Adapter.Httpc,
+    hackney:  Tesla.Adapter.Hackney,
+    ibrowse:  Tesla.Adapter.Ibrowse,
+
+    base_url:     Tesla.Middleware.BaseUrl,
+    headers:      Tesla.Middleware.Headers,
+    query:        Tesla.Middleware.Query,
+    decode_rels:  Tesla.Middleware.DecodeRels,
+    json:         Tesla.Middleware.JSON,
+    logger:       Tesla.Middleware.Logger,
+    debug_logger: Tesla.Middleware.DebugLogger
+  ]
+  def alias(key) when is_atom(key), do: Keyword.get(@aliases, key, key)
+  def alias(key), do: key
+
+
   defmacro __using__(_opts) do
     quote do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
@@ -141,6 +160,7 @@ defmodule Tesla do
   end
   """
   defmacro plug(middleware, opts \\ nil) do
+    middleware = Tesla.alias(middleware)
     quote do: @__middleware__ {unquote(middleware), unquote(opts)}
   end
 
@@ -176,6 +196,7 @@ defmodule Tesla do
     quote do: @__adapter__ unquote(adapter)
   end
   defmacro adapter(adapter, opts \\ nil) do
+    adapter = Tesla.alias(adapter)
     quote do: @__adapter__ {unquote(adapter), unquote(opts)}
   end
 
@@ -282,8 +303,6 @@ defmodule Tesla do
 
   def request(module, client, options), do: do_request(module, [client], options)
   def request(module, options), do: do_request(module, [], options)
-
-  @default_middleware [{Tesla.Middleware.Normalize, nil}]
 
   defp do_request(module, clients, options) do
     stack = prepare(module, clients ++ module.__middleware__ ++ @default_middleware ++ [module.__adapter__])
