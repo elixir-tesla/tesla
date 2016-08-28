@@ -25,7 +25,7 @@ defmodule Tesla.Middleware.JSON do
   def encode(env, opts) do
     if encodable?(env) do
       env
-      |> Map.update!(:body, &process(&1, :encode, opts))
+      |> Map.update!(:body, &encode_body(&1, opts))
       |> Tesla.Middleware.Headers.call([], %{"content-type" => "application/json"})
     else
       env
@@ -37,7 +37,7 @@ defmodule Tesla.Middleware.JSON do
   defp encode_body(body, opts), do: process(body, :encode, opts)
 
   defp encode_stream(body, opts) do
-    Stream.map body, fn item -> encode_body(item, encode_fun) <> "\n" end
+    Stream.map body, fn item -> encode_body(item, opts) <> "\n" end
   end
 
   def encodable?(env), do: env.body != nil
@@ -80,7 +80,6 @@ end
 
 
 defmodule Tesla.Middleware.DecodeJson do
-  alias Tesla.Middleware.JSON
   def call(env, next, opts \\ []) do
     env
     |> Tesla.run(next)
@@ -89,7 +88,6 @@ defmodule Tesla.Middleware.DecodeJson do
 end
 
 defmodule Tesla.Middleware.EncodeJson do
-  alias Tesla.Middleware.JSON
   def call(env, next, opts \\ []) do
     env
     |> Tesla.Middleware.JSON.encode(opts)

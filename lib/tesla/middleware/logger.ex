@@ -3,7 +3,7 @@ defmodule Tesla.Middleware.Logger do
 
   def call(env, next, _opts) do
     {time, env} = :timer.tc(Tesla, :run, [env, next])
-    log(env, time)
+    _ = log(env, time)
     env
   end
 
@@ -36,24 +36,24 @@ defmodule Tesla.Middleware.DebugLogger do
   end
 
   def log_request(env) do
-    Logger.debug "> #{env.method |> to_string |> String.upcase} #{env.url}"
+    _ = Logger.debug "> #{env.method |> to_string |> String.upcase} #{env.url}"
     env
   end
 
   def log_response(env) do
-    Logger.debug ""
-    Logger.debug "< HTTP/1.1 #{env.status}"
+    _ = Logger.debug ""
+    _ = Logger.debug "< HTTP/1.1 #{env.status}"
     env
   end
 
   def log_headers(env, prefix) do
     for {k,v} <- env.headers do
-      Logger.debug "#{prefix}#{k}: #{v}"
+      _ = Logger.debug "#{prefix}#{k}: #{v}"
     end
     env
   end
 
-  def log_body(%Tesla.Env{} = env, prefix) do
+  def log_body(%Tesla.Env{} = env, _prefix) do
     Map.update!(env, :body, & log_body(&1, "> "))
   end
   def log_body(nil, _), do: nil
@@ -61,13 +61,13 @@ defmodule Tesla.Middleware.DebugLogger do
   def log_body(%Stream{} = stream, prefix), do: log_body_stream(stream, prefix)
   def log_body(stream, prefix) when is_function(stream), do: log_body_stream(stream, prefix)
   def log_body(data, prefix) when is_binary(data) or is_list(data) do
-    Logger.debug ""
-    Logger.debug prefix <> to_string(data)
+    _ = Logger.debug ""
+    _ = Logger.debug prefix <> to_string(data)
     data
   end
 
   def log_body_stream(stream, prefix) do
-    Logger.debug ""
+    _ = Logger.debug ""
     Stream.each stream, fn line -> Logger.debug prefix <> line end
   end
 end

@@ -136,7 +136,6 @@ defmodule Tesla do
     end
   end
   """
-  @spec plug(Atom, any) :: nil
   defmacro plug(middleware, opts \\ nil) do
     quote do: @__middleware__ {unquote(middleware), unquote(opts)}
   end
@@ -168,13 +167,10 @@ defmodule Tesla do
     end
   end
   """
-  @spec adapter(Function, any) :: nil
   defmacro adapter({:fn, _, _} = adapter) do
     adapter = Macro.escape(adapter)
     quote do: @__adapter__ unquote(adapter)
   end
-
-  @spec adapter(Atom, any) :: nil
   defmacro adapter(adapter, opts \\ nil) do
     quote do: @__adapter__ {unquote(adapter), unquote(opts)}
   end
@@ -324,7 +320,24 @@ defmodule Tesla do
     {adapter, []}
   end
 
-  @spec build_client([{Atom, any}]) :: Tesla.Env.client
+  @doc """
+  Dynamically build client from list of middlewares.
+
+  ```ex
+  defmodule ExampleAPI do
+    use Tesla
+
+    def new(token) do
+      Tesla.build_client([
+        {Tesla.Middleware.Headers, %{"Authorization" => token}}
+      ])
+    end
+  end
+
+  client = ExampleAPI.new(token: "abc")
+  client |> ExampleAPI.get("/me")
+  ```
+  """
   defmacro build_client(stack) do
     quote do
       fn env,next -> Tesla.run(env, Tesla.prepare(__MODULE__, unquote(stack)) ++ next) end
