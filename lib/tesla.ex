@@ -33,42 +33,7 @@ defmodule Tesla.Env do
             opts:     []
 end
 
-defmodule Tesla do
-  @moduledoc """
-  A HTTP toolkit for buuiling middlewares
-  """
-
-
-  @doc """
-  Include Tesla module in your api client:
-
-  ```ex
-  defmodule ExampleApi do
-    use Tesla
-
-    plug Tesla.Middleware.BaseURL, "http://api.example.com"
-    plug Tesla.Middleware.JSON
-  end
-  """
-
-  @default_middleware [{Tesla.Middleware.Normalize, nil}]
-  @aliases [
-    httpc:    Tesla.Adapter.Httpc,
-    hackney:  Tesla.Adapter.Hackney,
-    ibrowse:  Tesla.Adapter.Ibrowse,
-
-    base_url:     Tesla.Middleware.BaseUrl,
-    headers:      Tesla.Middleware.Headers,
-    query:        Tesla.Middleware.Query,
-    decode_rels:  Tesla.Middleware.DecodeRels,
-    json:         Tesla.Middleware.JSON,
-    logger:       Tesla.Middleware.Logger,
-    debug_logger: Tesla.Middleware.DebugLogger
-  ]
-  def alias(key) when is_atom(key), do: Keyword.get(@aliases, key, key)
-  def alias(key), do: key
-
-
+defmodule Tesla.Builder do
   defmacro __using__(_opts) do
     quote do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
@@ -109,7 +74,7 @@ defmodule Tesla do
       """
       @spec request(Tesla.Env.client, [option]) :: Tesla.Env.t
       def request(client, options) do
-        Tesla.request(__MODULE__, client, options)
+        Tesla.perform_request(__MODULE__, client, options)
       end
 
       @doc """
@@ -117,7 +82,7 @@ defmodule Tesla do
       """
       @spec request([option]) :: Tesla.Env.t
       def request(options) do
-        Tesla.request(__MODULE__, options)
+        Tesla.perform_request(__MODULE__, options)
       end
 
       unquote(generate_api(:head))
@@ -129,9 +94,9 @@ defmodule Tesla do
       unquote(generate_api(:put))
       unquote(generate_api(:patch))
 
-      require Tesla
-      import Tesla, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
-      @before_compile Tesla
+      require Tesla.Builder
+      import Tesla.Builder, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
+      @before_compile Tesla.Builder
     end
   end
 
@@ -299,13 +264,52 @@ defmodule Tesla do
       def __adapter__, do: unquote(adapter)
     end
   end
+end
 
+defmodule Tesla do
+  use Tesla.Builder
 
-  def request(module, client, options), do: do_request(module, [client], options)
-  def request(module, options), do: do_request(module, [], options)
+  @moduledoc """
+  A HTTP toolkit for building API clients using middlewares
+
+  Include Tesla module in your api client:
+
+  ```ex
+  defmodule ExampleApi do
+    use Tesla
+
+    plug Tesla.Middleware.BaseURL, "http://api.example.com"
+    plug Tesla.Middleware.JSON
+  end
+  """
+
+  defmacro __using__(opts) do
+    quote do
+      use Tesla.Builder
+    end
+  end
+
+  @aliases [
+    httpc:    Tesla.Adapter.Httpc,
+    hackney:  Tesla.Adapter.Hackney,
+    ibrowse:  Tesla.Adapter.Ibrowse,
+
+    base_url:     Tesla.Middleware.BaseUrl,
+    headers:      Tesla.Middleware.Headers,
+    query:        Tesla.Middleware.Query,
+    decode_rels:  Tesla.Middleware.DecodeRels,
+    json:         Tesla.Middleware.JSON,
+    logger:       Tesla.Middleware.Logger,
+    debug_logger: Tesla.Middleware.DebugLogger
+  ]
+  def alias(key) when is_atom(key), do: Keyword.get(@aliases, key, key)
+  def alias(key), do: key
+
+  def perform_request(module, client, options), do: do_request(module, [client], options)
+  def perform_request(module, options), do: do_request(module, [], options)
 
   defp do_request(module, clients, options) do
-    stack = prepare(module, clients ++ module.__middleware__ ++ @default_middleware ++ [module.__adapter__])
+    stack = prepare(module, clients ++ module.__middleware__ ++ default_middleware ++ [module.__adapter__])
     env   = struct(Tesla.Env, options)
     run(env, stack)
   end
@@ -339,9 +343,14 @@ defmodule Tesla do
   def run(env, [{m,f,a} | rest]),   do: apply(m, f, [env, rest | a])
 
   def default_adapter do
-    adapter = Application.get_env(:tesla, :adapter, Tesla.Adapters.Httpc)
+    adapter = Application.get_env(:tesla, :adapter, Tesla.Adapters.Httpc) |> Tesla.alias
     {adapter, []}
   end
+
+  def default_middleware do
+    [{Tesla.Middleware.Normalize, nil}]
+  end
+
 
   @doc """
   Dynamically build client from list of middlewares.
@@ -387,8 +396,4 @@ defmodule Tesla do
     end
   end
   defp encode_pair({key, value}), do: [{key, value}]
-end
-
-defmodule Tesla.Client do
-  use Tesla
 end

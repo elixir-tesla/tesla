@@ -2,8 +2,7 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
-config :tesla, adapter: :httpc,
-               json: :exjsx
+config :tesla, adapter: :httpc
 
 config :logger, :console,
   level: :debug,

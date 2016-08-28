@@ -6,12 +6,12 @@
 Tesla is an HTTP client losely based on [Faraday](https://github.com/lostisland/faraday).
 It embraces the concept of middleware when processing the request/response cycle.
 
-> **WARNING**: Tesla is currently under heavy development, so please don't use it in your production application just yet.
+> **NOTE**: Tesla is currently under heavy development, so please don't use it in your production application just yet.
 
 >  Nevertheless all comments/issues/suggestions are more than welcome - please submit them using [GitHub issues](https://github.com/teamon/tesla/issues), thanks!
 
 
-## Basic usage
+## Direct usage
 
 ```ex
 # Example get request
@@ -21,12 +21,12 @@ response.body     # => '{\n  "origin": "87.205.72.203"\n}\n'
 response.headers  # => %{'Content-Type' => 'application/json' ...}
 
 
-response = Tesla.get({"http://httpbin.org/get", [a: 1, b: "foo"]})
+response = Tesla.get("http://httpbin.org/get", query: [a: 1, b: "foo"])
 response.url     # => "http://httpbin.org/get?a=1&b=foo"
 
 
 # Example post request
-response = Tesla.post("http://httpbin.org/post", "data")
+response = Tesla.post("http://httpbin.org/post", "data", headers: %{"Content-Type" => "application/json"})
 ```
 
 ## Installation
