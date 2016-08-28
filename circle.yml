@@ -1,12 +1,17 @@
+machine:
+  environment:
+    PATH: "$HOME/.asdf/bin:$HOME/.asdf/shims:$PATH"
+    MIX_ENV: test
+
 dependencies:
   pre:
     - script/ci/prepare.sh
   cache_directories:
-    - ~/dependencies
+    - ~/.asdf
     - ~/.mix
     - _build
     - deps
 
 test:
   override:
-    - script/ci/tests.sh
+    - mix test
