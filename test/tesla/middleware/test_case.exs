@@ -15,7 +15,7 @@ defmodule Tesla.Middleware.TestCase do
 
   defmacro __using__([middleware: middleware]) do
     quote do
-      test "return Tesla.Env and execute rest of the stack" do
+      test "#{inspect unquote(middleware)}: return Tesla.Env and execute rest of the stack" do
         require Tesla
 
 
@@ -24,7 +24,13 @@ defmodule Tesla.Middleware.TestCase do
           {Exec, self}
         ])
 
-        response = Client.get(client, "/")
+        ExUnit.CaptureLog.capture_log(fn ->
+          send self, {:response, Client.get(client, "/")}
+        end)
+
+        response = receive do
+          {:response, res} -> res
+        end
 
         assert %Tesla.Env{} = response
         assert_receive :before

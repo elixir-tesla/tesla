@@ -1,20 +1,23 @@
 defmodule LoggerTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
+
+  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.Logger
+  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.DebugLogger
 
   defmodule Client do
-    use Tesla.Builder
+    use Tesla
 
-    plug Tesla.Middleware.Headers, %{'Content-Type' => 'text/plain'}
     plug Tesla.Middleware.Logger
     plug Tesla.Middleware.DebugLogger
 
     adapter fn (env) ->
-      case env.url do
-        "/server-error" -> {500, %{"Content-Type": "text/plain"}, "error"}
-        "/client-error" -> {404, %{"Content-Type": "text/plain"}, "error"}
-        "/redirect"     -> {301, %{"Content-Type": "text/plain"}, "moved"}
-        "/ok"           -> {200, %{"Content-Type": "text/plain"}, "ok"}
+      {status, body} = case env.url do
+        "/server-error" -> {500, "error"}
+        "/client-error" -> {404, "error"}
+        "/redirect"     -> {301, "moved"}
+        "/ok"           -> {200, "ok"}
       end
+      %{env | status: status, body: body}
     end
   end
 
