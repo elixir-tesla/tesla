@@ -9,14 +9,17 @@ defmodule Tesla.Adapter.TestCase.Basic do
     quote do
       defmodule B.Client do
         use Tesla
+
         adapter unquote(adapter)
       end
 
       import Tesla.Adapter.TestCase, only: [httpbin_url: 0]
+      require Tesla
 
       test "basic head request" do
         response = B.Client.head("#{httpbin_url}/ip")
-        assert response.status == 200      end
+        assert response.status == 200
+      end
 
       test "basic get request" do
         response = B.Client.get("#{httpbin_url}/ip")
@@ -28,6 +31,23 @@ defmodule Tesla.Adapter.TestCase.Basic do
         assert response.status == 200
         assert response.headers["content-type"] == "application/json"
         assert Regex.match?(~r/some-post-data/, response.body)
+      end
+
+      test "passing query params" do
+        client = Tesla.build_client([{Tesla.Middleware.JSON, nil}])
+        response = client |> B.Client.get("#{httpbin_url}/get", query: [
+          page: 1, sort: "desc",
+          status: ["a", "b", "c"],
+          user: [name: "Jon", age: 20]
+        ])
+
+        args = response.body["args"]
+
+        assert args["page"] == "1"
+        assert args["sort"] == "desc"
+        assert args["status[]"]   == ["c", "b", "a"] # reversed order, probably HTTParrot bug
+        assert args["user[name]"] == "Jon"
+        assert args["user[age]"]  == "20"
       end
 
       test "error: connection refused" do

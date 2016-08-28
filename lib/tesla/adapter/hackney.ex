@@ -10,7 +10,7 @@ defmodule Tesla.Adapter.Hackney do
   defp request(env, opts) do
     request(
       env.method,
-      to_char_list(env.url),
+      Tesla.build_url(env.url, env.query),
       Enum.into(env.headers, []),
       env.body,
       opts ++ env.opts

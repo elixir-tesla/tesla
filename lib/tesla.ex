@@ -347,6 +347,27 @@ defmodule Tesla do
       fn env,next -> Tesla.run(env, Tesla.prepare(__MODULE__, unquote(stack)) ++ next) end
     end
   end
+
+  def build_url(url, []), do: url
+  def build_url(url, query) do
+    join = if String.contains?(url, "?"), do: "&", else: "?"
+    url <> join <> encode_query(query)
+  end
+
+  defp encode_query(query) do
+    query
+    |> Enum.flat_map(&encode_pair/1)
+    |> URI.encode_query
+  end
+
+  defp encode_pair({key, value}) when is_list(value) do
+    if Keyword.keyword?(value) do
+      Enum.flat_map(value, fn {k,v} -> encode_pair({"#{key}[#{k}]", v}) end)
+    else
+      Enum.map(value, fn e -> {"#{key}[]", e} end)
+    end
+  end
+  defp encode_pair({key, value}), do: [{key, value}]
 end
 
 defmodule Tesla.Client do

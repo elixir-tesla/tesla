@@ -15,7 +15,7 @@ defmodule Tesla.Adapter.Httpc do
     content_type = to_char_list(env.headers["content-type"] || "")
     request(
       env.method,
-      to_char_list(env.url),
+      Tesla.build_url(env.url, env.query) |> to_char_list,
       Enum.into(env.headers, [], fn {k,v} -> {to_char_list(k), to_char_list(v)} end),
       content_type,
       env.body
