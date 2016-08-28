@@ -36,7 +36,7 @@ Add `tesla` as dependency in `mix.exs`
 ```ex
 defp deps do
   [{:tesla, "~> 0.1.0"},
-   {:exjsx, "~> 3.1.0"}] # for JSON middleware
+   {:poison, ">= 1.0.0"}] # for JSON middleware
 end
 ```
 
@@ -51,20 +51,19 @@ end
 
 ## Creating API clients
 
-Use `Tesla.Builder` module to create API wrappers.
+Use `Tesla` module to create API wrappers.
 
 For example
 
 ```ex
 defmodule GitHub do
-  use Tesla.Builder
+  use Tesla
 
   plug Tesla.Middleware.BaseUrl, "https://api.github.com"
   plug Tesla.Middleware.Headers, %{'Authorization' => 'xyz'}
-  plug Tesla.Middleware.EncodeJson
-  plug Tesla.Middleware.DecodeJson
+  plug Tesla.Middleware.JSON
 
-  adapter Tesla.Adapter.Ibrowse
+  adapter Tesla.Adapter.Hackney
 
   def user_repos(login) do
     get("/user/" <> login <> "/repos")
@@ -87,17 +86,17 @@ Tesla has support for different adapters that do the actual HTTP request process
 
 The default adapter, available in all erlang installations
 
-### [ibrowse](https://github.com/cmullaparthi/ibrowse)
-
-Tesla has built-in support for [ibrowse](https://github.com/cmullaparthi/ibrowse) Erlang HTTP client.
-To use it simply include `adapter :ibrowse` line in your API client definition.
-NOTE: Remember to include ibrowse in applications list.
-
 ### [hackney](https://github.com/benoitc/hackney)
 
 This adapter supports real streaming body.
 To use it simply include `adapter :hackney` line in your API client definition.
 NOTE: Remember to include hackney in applications list.
+
+### [ibrowse](https://github.com/cmullaparthi/ibrowse)
+
+Tesla has built-in support for [ibrowse](https://github.com/cmullaparthi/ibrowse) Erlang HTTP client.
+To use it simply include `adapter :ibrowse` line in your API client definition.
+NOTE: Remember to include ibrowse in applications list.
 
 
 ### Test / Mock
@@ -110,8 +109,8 @@ defmodule MyApi do
 
   adapter fn (env) ->
     case env.url do
-      "/"       -> {200, %{}, "home"}
-      "/about"  -> {200, %{}, "about us"}
+      "/"       -> %{env | status: 200, body: "home"}
+      "/about"  -> %{env | status: 200, body: "about us"}
     end
   end
 end
@@ -124,23 +123,21 @@ end
 
 - `Tesla.Middleware.BaseUrl` - set base url for all request
 - `Tesla.Middleware.Headers` - set request headers
-- `Tesla.Middleware.QueryParams` - set query parameters
-- `Tesla.Middleware.AdapterOptions` - set default adapter options (like ssl etc.)
-- `Tesla.Middleware.DecodeRels` - decode `Link` header into `rels` field in response
+- `Tesla.Middleware.Query` - set query parameters
+- `Tesla.Middleware.DecodeRels` - decode `Link` header into `opts[:rels]` field in response
 
 ### JSON
 
 NOTE: requires [poison](https://hex.pm/packages/poison) (or other engine) as dependency
 
-- `Tesla.Middleware.DecodeJson` - decode response body as JSON
-- `Tesla.Middleware.EncodeJson` - endode request body as JSON
+- `Tesla.Middleware.JSON`` - encode/decode request/response bodies as JSON
 
 If you are using different json library it can be easily configured:
 
 ```ex
-plug Tesla.Middleware.DecodeJson, engine: JSX, opts: [labels: :atom]
+plug Tesla.Middleware.JSON, engine: JSX, engine_opts: [labels: :atom]
 # or
-plug Tesla.Middleware.DecodeJson, decode: &JSX.decode/1
+plug Tesla.Middleware.JSON, decode: &JSX.decode/1, encode: &JSX.encode/1
 ```
 
 
@@ -154,11 +151,11 @@ See [`json.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware
 ## Dynamic middleware
 
 All methods can take a middleware function as the first parameter.
-This allow to use convinient syntax for modyfiyng the behaviour in runtime.
+This allow to use convenient syntax for modifying the behaviour in runtime.
 
 Consider the following case: GitHub API can be accessed using OAuth token authorization.
 
-We can't use `plug Tesla.Middleware.Headers, %{'Authorization' => 'token here'}` since this would be compiled only once and there is no way to insert dynamic user token.
+We can't use `plug Tesla.Middleware.Headers, %{"Authorization" => "token here"}` since this would be compiled only once and there is no way to insert dynamic user token.
 
 Instead, we can use `Tesla.build_client` to create a dynamic middleware function:
 
@@ -168,7 +165,7 @@ defmodule GitHub do
 
   def client(token) do
     Tesla.build_client [
-      {Tesla.Middleware.Headers, %{'Authorization' => "token: " <> token }}
+      {Tesla.Middleware.Headers, %{"Authorization" => "token: " <> token }}
     ]
   end
 end
@@ -185,30 +182,34 @@ client |> GitHub.get("/me")
 
 ## Writing your own middleware
 
-A Tesla middleware is a module with `call/3` function:
+A Tesla middleware is a module with `call/3` function, that at some point calls `Tesla.run(env, next)` to process
+the rest of stack
 
 ```ex
 defmodule MyMiddleware do
-  def call(env, run, options) do
-    # ...
+  def call(env, next, options) do
+    env
+    |> do_something_with_request
+    |> Tesla.run(next)
+    |> do_something_with_response
   end
 end
 ```
 
 The arguments are:
 - `env` - `Tesla.Env` instance
-- `run` - continuation function for the rest of middleware/adapter stack
+- `next` - middleware continuation stack; to be executed with `Tesla.run(env, next)`
 - `options` - arguments passed during middleware configuration (`plug MyMiddleware, options`)
 
-There is no distinction between request and response middleware, it's all about executing `run` function at the correct time.
+There is no distinction between request and response middleware, it's all about executing `Tesla.run/2` function at the correct time.
 
 For example, z request logger middleware could be implemented like this:
 
 ```ex
 defmodule Tesla.Middleware.RequestLogger do
-  def call(env, run, _) do
+  def call(env, next, _) do
     IO.inspect env # print request env
-    run.(env)
+    Tesla.run(env, next)
   end
 end
 ```
@@ -217,8 +218,8 @@ and response logger middleware like this:
 
 ```ex
 defmodule Tesla.Middleware.ResponseLogger do
-  def call(env, run, _) do
-    res = run.(env)
+  def call(env, next, _) do
+    res = Tesla.run(env, next)
     IO.inspect res # print response env
     res
   end
@@ -227,19 +228,6 @@ end
 
 See [`core.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware/core.ex) and [`json.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware/json.ex) for more examples.
 
-
-## Asynchronous requests
-
-If adapter supports it, you can make asynchronous requests by passing `respond_to: pid` option:
-
-```ex
-
-Tesla.get("http://example.org", respond_to: self)
-
-receive do
-  {:tesla_response, res} -> res.status # => 200
-end
-```
 
 ## Streaming body
 
