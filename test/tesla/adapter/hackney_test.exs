@@ -1,13 +1,7 @@
 defmodule HackneyTest do
   use ExUnit.Case
-  use Tesla.Adapter.TestCase.Basic, client: HackneyTest.Client
-  use Tesla.Adapter.TestCase.StreamRequestBody, client: HackneyTest.Client
-
-  defmodule Client do
-    use Tesla.Builder
-
-    adapter :hackney
-  end
+  use Tesla.Adapter.TestCase.Basic, adapter: Tesla.Adapter.Hackney
+  use Tesla.Adapter.TestCase.StreamRequestBody, adapter: Tesla.Adapter.Hackney
 
   setup do
     case Application.ensure_started(:hackney) do

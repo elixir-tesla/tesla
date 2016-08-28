@@ -2,49 +2,51 @@ defmodule Tesla.Adapter.TestCase do
   @httpbin_url "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
 
   def httpbin_url, do: @httpbin_url
-
-  def text_plain_client do
-    Tesla.build_client [
-      {Tesla.Middleware.Headers, %{'Content-Type' => 'text/plain'}}
-    ]
-  end
 end
 
 defmodule Tesla.Adapter.TestCase.Basic do
-
-  defmacro __using__([client: client]) do
+  defmacro __using__([adapter: adapter]) do
     quote do
-      import Tesla.Adapter.TestCase, only: [httpbin_url: 0, text_plain_client: 0]
-
-      test "basic head request" do
-        response = unquote(client).head(text_plain_client, "#{httpbin_url}/ip")
-        assert response.status == 200
-        assert response.body == []
+      defmodule B.Client do
+        use Tesla
+        adapter unquote(adapter)
       end
 
+      import Tesla.Adapter.TestCase, only: [httpbin_url: 0]
+
+      test "basic head request" do
+        response = B.Client.head("#{httpbin_url}/ip")
+        assert response.status == 200      end
+
       test "basic get request" do
-        response = unquote(client).get(text_plain_client, "#{httpbin_url}/ip")
+        response = B.Client.get("#{httpbin_url}/ip")
         assert response.status == 200
       end
 
       test "basic post request" do
-        response = unquote(client).post(text_plain_client, "#{httpbin_url}/post", "some-post-data")
+        response = B.Client.post("#{httpbin_url}/post", "some-post-data", headers: %{"Content-Type" => "text/plain"})
         assert response.status == 200
-        assert Regex.match?(~r/some-post-data/, to_string(response.body))
+        assert response.headers["content-type"] == "application/json"
+        assert Regex.match?(~r/some-post-data/, response.body)
       end
     end
   end
 end
 
 defmodule Tesla.Adapter.TestCase.StreamRequestBody do
-
-  defmacro __using__([client: client]) do
+  defmacro __using__([adapter: adapter]) do
     quote do
-      import Tesla.Adapter.TestCase, only: [httpbin_url: 0, text_plain_client: 0]
+      defmodule S.Client do
+        use Tesla
+
+        adapter unquote(adapter)
+      end
+
+      import Tesla.Adapter.TestCase, only: [httpbin_url: 0]
 
       test "stream request body: Stream.map" do
         body = (1..5) |> Stream.map(&to_string/1)
-        response = unquote(client).post(text_plain_client, "#{httpbin_url}/post", body)
+        response = S.Client.post("#{httpbin_url}/post", body, headers: %{"Content-Type" => "text/plain"})
         assert response.status == 200
         assert Regex.match?(~r/12345/, to_string(response.body))
       end
@@ -52,7 +54,7 @@ defmodule Tesla.Adapter.TestCase.StreamRequestBody do
       test "stream request body: Stream.unfold" do
         body = Stream.unfold(5, fn 0 -> nil; n -> {n,n-1} end)
         |> Stream.map(&to_string/1)
-        response = unquote(client).post(text_plain_client, "#{httpbin_url}/post", body)
+        response = S.Client.post("#{httpbin_url}/post", body, headers: %{"Content-Type" => "text/plain"})
 
         assert response.status == 200
         assert Regex.match?(~r/54321/, to_string(response.body))

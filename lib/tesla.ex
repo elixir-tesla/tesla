@@ -25,7 +25,8 @@ defmodule Tesla.Env do
             query:    [],
             headers:  %{},
             body:     nil,
-            status:   nil
+            status:   nil,
+            opts:     []
 end
 
 defmodule Tesla do

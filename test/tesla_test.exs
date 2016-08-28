@@ -12,7 +12,7 @@ defmodule TeslaTest do
       end
 
       defmodule Basic.Middleware.Plus1 do
-        def call(env, next, opts) do
+        def call(env, next, _opts) do
           env
           |> Map.put(:url, "#{env.url}/1")
           |> Tesla.run(next)
@@ -178,7 +178,7 @@ defmodule TeslaTest do
       end
 
       defmodule Mid2 do
-        def call(env, next, opts) do
+        def call(env, next, _opts) do
           env
           |> Map.put(:url, env.url <> "/mid2")
           |> Tesla.run(next)

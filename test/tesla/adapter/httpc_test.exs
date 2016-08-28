@@ -1,10 +1,4 @@
 defmodule HttpcTest do
   use ExUnit.Case
-  use Tesla.Adapter.TestCase.Basic, client: HttpcTest.Client
-
-  defmodule Client do
-    use Tesla.Builder
-
-    adapter :httpc
-  end
+  use Tesla.Adapter.TestCase.Basic, adapter: Tesla.Adapter.Httpc
 end

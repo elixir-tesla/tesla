@@ -1,20 +1,18 @@
 defmodule Tesla.Adapter.Httpc do
-  def call(env) do
+  def call(env, _opts) do
     with {:ok, {status, headers, body}} <- request(env) do
       format_response(env, status, headers, body)
     end
   end
 
   defp format_response(env, {_, status, _}, headers, body) do
-    headers     = Enum.into(headers, %{})
-
     %{env | status:   status,
             headers:  headers,
             body:     body}
   end
 
   defp request(env) do
-    content_type = env.headers['Content-Type'] || ''
+    content_type = to_char_list(env.headers["content-type"] || "")
     request(
       env.method,
       to_char_list(env.url),

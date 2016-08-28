@@ -1,20 +1,20 @@
 defmodule Tesla.Adapter.Hackney do
-  def call(env) do
-    with  {:ok, status, headers, body} <- request(env) do
-      format_response(env, status, headers, body)
+  def call(env, opts) do
+    with  {:ok, status, headers, body} <- request(env, opts || []) do
+      %{env | status:   status,
+              headers:  headers,
+              body:     body}
     end
   end
 
-  defp format_response(env, status, headers, body) do
-    headers = Enum.into(headers, %{})
-
-    %{env | status:   status,
-            headers:  headers,
-            body:     body}
-  end
-
-  defp request(env) do
-    request(env.method, to_char_list(env.url), Enum.into(env.headers, []), env.body, env.opts)
+  defp request(env, opts) do
+    request(
+      env.method,
+      to_char_list(env.url),
+      Enum.into(env.headers, []),
+      env.body,
+      opts ++ env.opts
+    )
   end
   defp request(method, url, headers, %Stream{} = body, opts), do: request_stream(method, url, headers, body, opts)
   defp request(method, url, headers, body, opts) when is_function(body), do: request_stream(method, url, headers, body, opts)
@@ -24,9 +24,12 @@ defmodule Tesla.Adapter.Hackney do
 
 
   defp request_stream(method, url, headers, body, opts) do
-    {:ok, ref} = :hackney.request(method, url, headers, :stream, opts || [])
-    for data <- body, do: :ok = :hackney.send_body(ref, data)
-    handle :hackney.start_response(ref)
+    with {:ok, ref} <- :hackney.request(method, url, headers, :stream, opts || []) do
+      for data <- body, do: :ok = :hackney.send_body(ref, data)
+      handle :hackney.start_response(ref)
+    else
+      e -> handle(e)
+    end
   end
 
   defp handle({:error, _} = error), do: error

@@ -1,33 +1,9 @@
 defmodule IbrowseTest do
   use ExUnit.Case
-  use Tesla.Adapter.TestCase.Basic, client: IbrowseTest.Client
-
-  defmodule Client do
-    use Tesla.Builder
-
-    adapter :ibrowse
-  end
+  use Tesla.Adapter.TestCase.Basic, adapter: Tesla.Adapter.Ibrowse
 
   setup do
     Application.ensure_started(:ibrowse)
     :ok
   end
-
-  test "async requests" do
-    {:ok, _id} = Client.get("http://httpbin.org/ip", respond_to: self)
-
-    assert_receive {:tesla_response, _}, 2000
-  end
-
-  test "async requests parameters" do
-    {:ok, _id} = Client.get("http://httpbin.org/ip", respond_to: self)
-
-    receive do
-      {:tesla_response, res} ->
-        assert res.status == 200
-    after
-      2000 -> raise "Timeout"
-    end
-  end
-
 end

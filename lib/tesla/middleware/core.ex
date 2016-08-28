@@ -8,14 +8,24 @@ defmodule Tesla.Middleware.Normalize do
 
   def normalize(env) do
     env
-    |> Map.update!(:headers, &normalize_headers/1)
+    |> Map.update!(:status,   &normalize_status/1)
+    |> Map.update!(:headers,  &normalize_headers/1)
+    |> Map.update!(:body,     &normalize_body/1)
   end
 
-  def normalize_headers(%{} = map) do
-    Enum.into map, %{}, fn {k,v} ->
+  def normalize_status(nil), do: nil
+  def normalize_status(status) when is_integer(status), do: status
+  def normalize_status(status) when is_binary(status),  do: status |> String.to_integer
+  def normalize_status(status) when is_list(status),    do: status |> to_string |> String.to_integer
+
+  def normalize_headers(headers) when is_map(headers) or is_list(headers) do
+    Enum.into headers, %{}, fn {k,v} ->
       {k |> to_string |> String.downcase, v |> to_string}
     end
   end
+
+  def normalize_body(data) when is_list(data), do: to_string(data)
+  def normalize_body(data), do: data
 end
 
 
