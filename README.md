@@ -6,11 +6,6 @@
 Tesla is an HTTP client losely based on [Faraday](https://github.com/lostisland/faraday).
 It embraces the concept of middleware when processing the request/response cycle.
 
-> **NOTE**: Tesla is currently under heavy development, so please don't use it in your production application just yet.
-
->  Nevertheless all comments/issues/suggestions are more than welcome - please submit them using [GitHub issues](https://github.com/teamon/tesla/issues), thanks!
-
-
 ## Direct usage
 
 ```ex
