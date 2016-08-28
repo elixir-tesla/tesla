@@ -1,228 +1,245 @@
 defmodule TeslaTest do
   use ExUnit.Case
 
-  defmodule ClientWithAdapterFun do
-    use Tesla.Builder
+  describe "Macros" do
+    defmodule Mc do
+      defmodule Basic.Middleware.Plus do
+        def call(env, next, opts) do
+          env
+          |> Map.put(:url, "#{env.url}/#{opts[:with]}")
+          |> Tesla.run(next)
+        end
+      end
 
-    adapter fn (_) ->
-      {201, %{}, "function adapter"}
-    end
-  end
+      defmodule Basic.Middleware.Plus1 do
+        def call(env, next, opts) do
+          env
+          |> Map.put(:url, "#{env.url}/1")
+          |> Tesla.run(next)
+        end
+      end
 
-  defmodule ModuleAdapter do
-    def call(env) do
-      %{env | status: 202}
-    end
-  end
+      defmodule Basic do
+        use Tesla
 
-  defmodule ClientWithAdapterMod do
-    use Tesla.Builder
+        plug Basic.Middleware.Plus, with: "engine"
+        plug Basic.Middleware.Plus1
+        plug :some_function
 
-    adapter ModuleAdapter
-  end
+        adapter :some_adapter, some: "opts"
+      end
 
-  test "client with adapter as function" do
-    assert ClientWithAdapterFun.get("/").status == 201
-  end
+      defmodule Empty do
+        use Tesla
+      end
 
-  test "client with adapter as module" do
-    assert ClientWithAdapterMod.get("/").status == 202
-  end
+      defmodule Fun do
+        use Tesla
 
-
-
-  defmodule Client do
-    use Tesla.Builder
-
-    adapter fn (_) ->
-      {200, %{'Content-Type' => 'text/plain'}, "hello"}
-    end
-  end
-
-  test "return :status 200" do
-    assert Client.get("/").status == 200
-  end
-
-  test "return content type header" do
-    assert Client.get("/").headers == %{'Content-Type' => 'text/plain'}
-  end
-
-  test "return 'hello' as body" do
-    assert Client.get("/").body == "hello"
-  end
-
-  test "request/1" do
-    env = Client.request(method: :get, url: "/")
-
-    assert env.method == :get
-    assert env.body == "hello"
-  end
-
-  test "GET request" do
-    assert Client.get("/").method == :get
-  end
-
-  test "HEAD request" do
-    assert Client.head("/").method == :head
-  end
-
-  test "POST request" do
-    assert Client.post("/", "").method == :post
-  end
-
-  test "PUT request" do
-    assert Client.put("/", "").method == :put
-  end
-
-  test "PATCH request" do
-    assert Client.patch("/", "").method == :patch
-  end
-
-  test "DELETE request" do
-    assert Client.delete("/").method == :delete
-  end
-
-  test "TRACE request" do
-    assert Client.trace("/").method == :trace
-  end
-
-  test "OPTIONS request" do
-    assert Client.options("/").method == :options
-  end
-
-  test "path + query" do
-    assert Client.get({"/foo", %{a: 1, b: "foo"}}).url == "/foo?a=1&b=foo"
-  end
-
-  test "path with query + query" do
-    assert Client.get({"/foo?c=4", %{a: 1, b: "foo"}}).url == "/foo?c=4&a=1&b=foo"
-  end
-
-  test "path + query with multiple values" do
-    assert Client.get({"/foo", [a: 1, b: "foo", b: "bar"]}).url == "/foo?a=1&b=foo&b=bar"
-  end
-
-  test "insert request middleware function at runtime" do
-    fun = fn (env, run) ->
-      run.(%{env | url: env.url <> ".json"})
-    end
-
-    res = fun |> Client.get("/foo")
-    assert res.url == "/foo.json"
-  end
-
-  test "insert response middleware function at runtime" do
-    fun = fn (env, run) ->
-      env = run.(env)
-      %{env | body: env.body <> env.body}
-    end
-
-    res = fun |> Client.get("/foo")
-    assert res.body == "hellohello"
-  end
-end
-
-defmodule MiddlewareTest do
-  use ExUnit.Case
-
-  defmodule Client do
-    use Tesla.Builder
-
-    plug Tesla.Middleware.BaseUrl, "http://example.com"
-
-    adapter fn (env) ->
-      cond do
-        List.last(String.split(env.url, "/")) == "secret" ->
-          {200, %{}, env.headers['Authorization']}
-        true ->
-          {200, %{'Content-Type' => 'text/plain'}, "hello"}
+        adapter fn env ->
+          Map.put(env, :url, "#{env.url}/anon")
+        end
       end
     end
 
-    def new(token) do
-      Tesla.build_client [
-        {Tesla.Middleware.Headers, %{'Authorization' => "token: " <> token }}
+    test "middleware list" do
+      assert Mc.Basic.__middleware__ == [
+        {Mc.Basic.Middleware.Plus,   [with: "engine"]},
+        {Mc.Basic.Middleware.Plus1,  nil},
+        {:some_function,          nil}
       ]
+
+      assert Mc.Basic.__adapter__ == {:some_adapter, some: "opts"}
+    end
+
+    test "defauilt adapter" do
+      assert Mc.Empty.__adapter__ == Tesla.default_adapter
+    end
+
+    test "adapter as function" do
+      assert is_function(Mc.Fun.__adapter__)
     end
   end
 
-  test "make use of base url" do
-    assert Client.get("/").url == "http://example.com/"
-  end
 
-  test "build client" do
-    c = Client.new("xxyyzz")
-    res = c |> Client.get("/secret")
-    assert res.body == "token: xxyyzz"
-  end
-end
 
-defmodule ClientWrapTest do
-  use ExUnit.Case
+  describe "Middleware" do
+    defmodule M do
+      defmodule Mid do
+        def call(env, next, opts) do
+          env
+          |> Map.update!(:url, fn url -> url <> "/module/" <> opts[:before] end)
+          |> Tesla.run(next)
+          |> Map.update!(:url, fn url -> url <> "/module/" <> opts[:after] end)
+        end
+      end
 
-  defmodule Client do
-    use Tesla.Builder
+      defmodule Client do
+        use Tesla
 
-    adapter fn (_env) ->
-      {200, %{'Content-Type' => 'text/plain'}, "hello"}
+        plug Mid, before: "A", after: "B"
+        plug :local_middleware
+
+        adapter fn env -> env end
+
+        def local_middleware(env, next) do
+          env
+          |> Map.put(:url, env.url <> "/local")
+          |> Tesla.run(next)
+        end
+      end
     end
 
-    defwrap custom_simple_get(a,b,c) do
-      get("/#{a}/#{b}/#{c}")
-    end
-
-    defwrap custom_complex_get_head(a,b) do
-      c = "#{b}-#{a}"
-      head("/#{a}-#{b}").url <> " | " <> get("/#{c}").url
-    end
-
-    # defwrap custom_post_with_defaults(opts \\ []) do
-    #   post("/" <> opts[:arg], "nothing")
-    # end
-
-    def new(token) do
-      Tesla.build_client [
-        {Tesla.Middleware.BaseUrl, "http://example.com"},
-        {Tesla.Middleware.Headers, %{"Authorization" => "token #{token}"}}
-      ]
+    test "execute middleware top down" do
+      response = M.Client.request(url: "one")
+      assert response.url == "one/module/A/local/module/B"
     end
   end
 
-  test "custom_simple_get - static" do
-    env = Client.custom_simple_get("x","y","z")
-    assert env.url == "/x/y/z"
-    assert env.method == :get
+
+
+  describe "Adapters" do
+    defmodule A do
+      defmodule Adapter do
+        def call(env, opts \\ []) do
+          Map.put(env, :url, env.url <> "/module/" <> opts[:with])
+        end
+      end
+
+      defmodule ClientModule do
+        use Tesla
+        adapter Adapter, with: "someopt"
+      end
+
+      defmodule ClientLocal do
+        use Tesla
+        adapter :local_adapter
+        def local_adapter(env) do
+          Map.put(env, :url, env.url <> "/local")
+        end
+      end
+
+      defmodule ClientAnon do
+        use Tesla
+        adapter fn env ->
+          Map.put(env, :url, env.url <> "/anon")
+        end
+      end
+    end
+
+    test "execute module adapter" do
+      response = A.ClientModule.request(url: "test")
+      assert response.url == "test/module/someopt"
+    end
+
+    test "execute local function adapter" do
+      response = A.ClientLocal.request(url: "test")
+      assert response.url == "test/local"
+    end
+
+    test "execute anonymous function adapter" do
+      response = A.ClientAnon.request(url: "test")
+      assert response.url == "test/anon"
+    end
   end
 
-  test "custom_simple_get - dynamic" do
-    client = Client.new("abc")
-    env = client |> Client.custom_simple_get("x","y","z")
-    assert env.url == "http://example.com/x/y/z"
-    assert env.method == :get
+
+
+  describe "request API" do
+    defmodule R do
+      defmodule Client do
+        use Tesla
+
+        adapter fn env ->
+          env
+        end
+
+        def new do
+          Tesla.build_client [
+            {R.Mid1, [with: "/mid1"]},
+            {R.Mid2, nil},
+            :local_middleware
+          ]
+        end
+
+        def local_middleware(env, next) do
+          env
+          |> Map.put(:url, env.url <> "/local")
+          |> Tesla.run(next)
+        end
+      end
+
+      defmodule Mid1 do
+        def call(env, next, opts) do
+          env
+          |> Map.put(:url, env.url <> opts[:with])
+          |> Tesla.run(next)
+        end
+      end
+
+      defmodule Mid2 do
+        def call(env, next, opts) do
+          env
+          |> Map.put(:url, env.url <> "/mid2")
+          |> Tesla.run(next)
+        end
+      end
+    end
+
+    test "basic request" do
+      response = R.Client.request(url: "/", method: :post, query: [page: 1], body: "data")
+      assert response.method  == :post
+      assert response.url     == "/"
+      assert response.query   == [page: 1]
+      assert response.body    == "data"
+    end
+
+    test "shortcut function" do
+      response = R.Client.get("/get")
+      assert response.method  == :get
+      assert response.url     == "/get"
+    end
+
+    test "request with client" do
+      client = fn env, next ->
+        env
+        |> Map.put(:url, "/prefix" <> env.url)
+        |> Tesla.run(next)
+      end
+
+      response = R.Client.get("/")
+      assert response.url == "/"
+
+      response = client |> R.Client.get("/")
+      assert response.url == "/prefix/"
+    end
+
+    test "build_client helper" do
+      client = R.Client.new
+      response = client |> R.Client.get("test")
+      assert response.url == "test/mid1/mid2/local"
+    end
+
+    test "insert request middleware function at runtime" do
+      fun = fn env, next ->
+        env
+        |> Map.put(:url, env.url <> ".json")
+        |> Tesla.run(next)
+      end
+
+      res = fun |> R.Client.get("/foo")
+      assert res.url == "/foo.json"
+    end
+
+    test "insert response middleware function at runtime" do
+      fun = fn env, next ->
+        env
+        |> Tesla.run(next)
+        |> Map.put(:url, env.url <> ".json")
+      end
+
+      res = fun |> R.Client.get("/foo")
+      assert res.url == "/foo.json"
+    end
   end
-
-  test "custom_complex_get_head - static" do
-    res = Client.custom_complex_get_head("x","y")
-    assert res == "/x-y | /y-x"
-  end
-
-  test "custom_complex_get_head - dynamic" do
-    client = Client.new("abc")
-    res = client |> Client.custom_complex_get_head("x","y")
-    assert res == "http://example.com/x-y | http://example.com/y-x"
-  end
-
-
-  # test "custom_post_with_defaults - static" do
-  #   env = Client.custom_post_with_defaults(arg: "foo")
-  #   assert env.url == "/foo"
-  #   assert env.method == :post
-  # end
-
-  # test "custom_post_with_defaults - dynamic" do
-  #   client = Client.new("abc")
-  #   env = client |> Client.custom_post_with_defaults(arg: "foo")
-  #   assert env.url == "http://example.com/foo"
-  #   assert env.method == :post
-  # end
 end
