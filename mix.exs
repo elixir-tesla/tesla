@@ -8,7 +8,7 @@ defmodule Tesla.Mixfile do
       description: description,
       package: package,
       source_url: "https://github.com/teamon/tesla",
-      elixir: "~> 1.0",
+      elixir: "~> 1.3",
       deps: deps,
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
