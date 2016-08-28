@@ -1,3 +1,7 @@
+defmodule Tesla.Error do
+  defexception message: "", reason: nil
+end
+
 defmodule Tesla.Env do
   @type client      :: (t,stack -> t)
   @type method      :: :head | :get | :delete | :trace | :options | :post | :put | :patch

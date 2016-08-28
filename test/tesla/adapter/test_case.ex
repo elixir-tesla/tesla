@@ -29,6 +29,12 @@ defmodule Tesla.Adapter.TestCase.Basic do
         assert response.headers["content-type"] == "application/json"
         assert Regex.match?(~r/some-post-data/, response.body)
       end
+
+      test "error: connection refused" do
+        assert_raise Tesla.Error, fn ->
+          response = B.Client.get("http://localhost:1234")
+        end
+      end
     end
   end
 end

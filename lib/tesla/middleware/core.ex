@@ -6,6 +6,9 @@ defmodule Tesla.Middleware.Normalize do
     |> normalize
   end
 
+  def normalize({:error, reason}) do
+    raise %Tesla.Error{message: "adapter error: #{inspect reason}", reason: reason}
+  end
   def normalize(env) do
     env
     |> Map.update!(:status,   &normalize_status/1)
