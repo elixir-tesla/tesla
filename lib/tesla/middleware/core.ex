@@ -1,9 +1,11 @@
 defmodule Tesla.Middleware.BaseUrl do
-  def call(env, run, base) do
-    run.(apply_base(env, base))
+  def call(env, next, base) do
+    env
+    |> apply_base(base)
+    |> Tesla.run(next)
   end
 
-  def apply_base(env, base) do
+  defp apply_base(env, base) do
     if Regex.match?(~r/^https?:\/\//, env.url) do
       env # skip if url is already with scheme
     else
@@ -12,7 +14,8 @@ defmodule Tesla.Middleware.BaseUrl do
   end
 
   defp join(base, url) do
-    case {String.last(base), url} do
+    case {String.last(to_string(base)), url} do
+      {nil, url}          -> url
       {"/", "/" <> rest}  -> base <> rest
       {"/", rest}         -> base <> rest
       {_,   "/" <> rest}  -> base <> "/" <> rest
@@ -22,30 +25,28 @@ defmodule Tesla.Middleware.BaseUrl do
 end
 
 defmodule Tesla.Middleware.Headers do
-  def call(env, run, headers) do
-    headers = Map.merge(env.headers, headers)
-    run.(%{env | headers: headers})
+  def call(env, next, headers) do
+    env
+    |> merge(headers)
+    |> Tesla.run(next)
+  end
+
+  defp merge(env, nil), do: env
+  defp merge(env, headers) do
+    Map.update!(env, :headers, & Map.merge(&1, headers))
   end
 end
 
-defmodule Tesla.Middleware.QueryParams do
-  def call(env, run, query) do
-    env = %{env | url: merge_url_and_query(env.url, query)}
-    run.(env)
+defmodule Tesla.Middleware.Query do
+  def call(env, next, query) do
+    env
+    |> merge(query)
+    |> Tesla.run(next)
   end
 
-  @spec merge_url_and_query(String.t, %{}) :: String.t
-  def merge_url_and_query(url, query) do
-    query = for {key, val} <- query, into: %{}, do: {to_string(key), val}
-    uri = URI.parse(url)
-    q = if uri.query do
-      env_query = URI.decode_query(uri.query)
-      Map.merge(query, env_query)
-    else
-      query
-    end
-
-    uri |> Map.put(:query, URI.encode_query(q)) |> URI.to_string
+  defp merge(env, nil), do: env
+  defp merge(env, query) do
+    Map.update!(env, :query, & &1 ++ query)
   end
 end
 

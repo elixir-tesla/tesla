@@ -2,9 +2,9 @@ defmodule Tesla.Env do
   @type client      :: (t,stack -> t)
   @type method      :: :head | :get | :delete | :trace | :options | :post | :put | :patch
   @type url         :: binary
-  @type param       :: binary | %{binary => param} | [param]
-  @type query       :: %{binary => param}
-  @type headers     :: [{binary, binary}]
+  @type param       :: binary | [{(binary | atom), param}]
+  @type query       :: [{(binary | atom), param}]
+  @type headers     :: %{binary => binary}
   @type body        :: any #
   @type status      :: integer
   @type opts        :: [any]
@@ -105,6 +105,7 @@ defmodule Tesla do
       unquote(generate_api(:put))
       unquote(generate_api(:patch))
 
+      require Tesla
       import Tesla, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
       @before_compile Tesla
     end
@@ -301,6 +302,9 @@ defmodule Tesla do
       _                -> {module, name}
     end
   end
+
+  # empty stack case is useful for reusing/testing middlewares (just pass [] as next)
+  def run(env, []), do: env
 
   # last item in stack is adapter - skip passing rest of stack
   def run(env, [{:fn, f}]),  do: apply(f, [env])

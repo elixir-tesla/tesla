@@ -1,57 +1,70 @@
 defmodule CoreTest do
   use ExUnit.Case
 
-  # TODO: Change order of arguments to (mid, opts, env)
-  def call(mid, env, opts) do
-    mid.call(env, fn a -> a end, opts)
+  describe "Tesla.Middleware.BaseUrl" do
+    alias Tesla.Middleware.BaseUrl
+    use Tesla.Middleware.TestCase, middleware: BaseUrl
+
+    test "base without slash, path without slash" do
+      env = BaseUrl.call(%Tesla.Env{url: "path"}, [], "http://example.com")
+      assert env.url == "http://example.com/path"
+    end
+
+    test "base without slash, path with slash" do
+      env = BaseUrl.call(%Tesla.Env{url: "/path"}, [], "http://example.com")
+      assert env.url == "http://example.com/path"
+    end
+
+    test "base with slash, path without slash" do
+      env = BaseUrl.call(%Tesla.Env{url: "path"}, [], "http://example.com/")
+      assert env.url == "http://example.com/path"
+    end
+
+    test "base with slash, path with slash" do
+      env = BaseUrl.call(%Tesla.Env{url: "/path"}, [], "http://example.com/")
+      assert env.url == "http://example.com/path"
+    end
+
+    test "skip double append" do
+      env = BaseUrl.call(%Tesla.Env{url: "http://other.foo"}, [], "http://example.com")
+      assert env.url == "http://other.foo"
+    end
   end
 
-  test "Tesla.Middleware.BaseUrl - base without slash, path without slash" do
-    env = call(Tesla.Middleware.BaseUrl, %{url: "path"}, "http://example.com")
-    assert env.url == "http://example.com/path"
-  end
 
-  test "Tesla.Middleware.BaseUrl - base without slash, path with slash" do
-    env = call(Tesla.Middleware.BaseUrl, %{url: "/path"}, "http://example.com")
-    assert env.url == "http://example.com/path"
-  end
 
-  test "Tesla.Middleware.BaseUrl - base with slash, path without slash" do
-    env = call(Tesla.Middleware.BaseUrl, %{url: "path"}, "http://example.com/")
-    assert env.url == "http://example.com/path"
-  end
+  describe "Tesla.Middleware.Query" do
+    alias Tesla.Middleware.Query
+    use Tesla.Middleware.TestCase, middleware: Query
 
-  test "Tesla.Middleware.BaseUrl - base with slash, path with slash" do
-    env = call(Tesla.Middleware.BaseUrl, %{url: "/path"}, "http://example.com/")
-    assert env.url == "http://example.com/path"
+    test "joining default query params" do
+      env = Query.call %Tesla.Env{}, [], page: 1
+      assert env.query == [page: 1]
+    end
+
+    test "should not override existing key" do
+      env = Query.call %Tesla.Env{query: [page: 1]}, [], [page: 5]
+      assert env.query == [page: 1, page: 5]
+    end
   end
 
 
-  test "Tesla.Middleware.BaseUrl - skip double append" do
-    env = call(Tesla.Middleware.BaseUrl, %{url: "http://other.foo"}, "http://example.com")
-    assert env.url == "http://other.foo"
+
+  describe "Tesla.Middleware.Headers" do
+    alias Tesla.Middleware.Headers
+    use Tesla.Middleware.TestCase, middleware: Headers
+
+    test "merge headers" do
+      env = Headers.call %Tesla.Env{headers: %{"Authorization" => "secret"}}, [], %{"Content-Type" => "text/plain"}
+      assert env.headers == %{"Authorization" => "secret", "Content-Type" => "text/plain"}
+    end
   end
 
-  test "Tesla.Middlware.QueryParams - joining default query params" do
-    e = %Tesla.Env{url: "http://example.com"}
-    env = call(Tesla.Middleware.QueryParams, e, %{access_token: "secret_token"})
-    assert env.url == "http://example.com?access_token=secret_token"
-  end
 
-  test "Tesla.Middlware.QueryParams - should not override existing key" do
-    e = %Tesla.Env{url: "http://example.com?foo=bar&access_token=params_token"}
-    env = call(Tesla.Middleware.QueryParams, e, %{access_token: "middleware_token"})
-    assert env.url == "http://example.com?access_token=params_token&foo=bar"
-  end
 
-  test "Tesla.Middleware.Headers" do
-    env = call(Tesla.Middleware.Headers, %{headers: %{}}, %{'Content-Type' => 'text/plain'})
-    assert env.headers == %{'Content-Type' => 'text/plain'}
-  end
-
-  test "Tesla.Middleware.BaseUrlFromConfig" do
-    Application.put_env(:tesla, SomeModule, [base_url: "http://example.com"])
-    env = call(Tesla.Middleware.BaseUrlFromConfig, %{url: "/path"}, otp_app: :tesla, module: SomeModule)
-    assert env.url == "http://example.com/path"
-  end
+  # test "Tesla.Middleware.BaseUrlFromConfig" do
+  #   Application.put_env(:tesla, SomeModule, [base_url: "http://example.com"])
+  #   env = call(Tesla.Middleware.BaseUrlFromConfig, %{url: "/path"}, otp_app: :tesla, module: SomeModule)
+  #   assert env.url == "http://example.com/path"
+  # end
 end
