@@ -62,6 +62,8 @@ defmodule Tesla.Middleware.JSON do
   defp process(data, op, opts) do
     with {:ok, value} <- do_process(data, op, opts) do
       value
+    else
+      {:error, reason} -> raise %Tesla.Error{message: "JSON #{op} error: #{inspect reason}", reason: reason}
     end
   end
 
@@ -72,7 +74,7 @@ defmodule Tesla.Middleware.JSON do
       engine  = Keyword.get(opts, :engine, @default_engine)
       opts    = Keyword.get(opts, :engine_opts, [])
 
-      apply(engine, op, [data | opts])
+      apply(engine, op, [data, opts])
     end
   end
 end
