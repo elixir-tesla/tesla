@@ -343,7 +343,7 @@ defmodule Tesla do
   def run(env, [{m,f,a} | rest]),   do: apply(m, f, [env, rest | a])
 
   def default_adapter do
-    adapter = Application.get_env(:tesla, :adapter, Tesla.Adapters.Httpc) |> Tesla.alias
+    adapter = Application.get_env(:tesla, :adapter, :httpc) |> Tesla.alias
     {adapter, []}
   end
 
