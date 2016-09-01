@@ -285,7 +285,7 @@ defmodule Tesla do
 
   defmacro __using__(opts) do
     quote do
-      use Tesla.Builder
+      use Tesla.Builder, unquote(opts)
     end
   end
 
