@@ -94,7 +94,6 @@ defmodule Tesla.Builder do
       unquote(generate_api(:put))
       unquote(generate_api(:patch))
 
-      require Tesla.Builder
       import Tesla.Builder, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
       @before_compile Tesla.Builder
     end
