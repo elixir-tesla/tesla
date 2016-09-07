@@ -371,7 +371,7 @@ defmodule Tesla do
   """
   defmacro build_client(stack) do
     quote do
-      fn env,next -> Tesla.run(env, Tesla.prepare(__MODULE__, unquote(stack)) ++ next) end
+      fn env, next -> Tesla.run(env, Tesla.prepare(__MODULE__, unquote(stack)) ++ next) end
     end
   end
 
