@@ -34,6 +34,8 @@ defmodule Tesla.Env do
 end
 
 defmodule Tesla.Builder do
+  @http_verbs ~w(head get delete trace options post put patch)a
+  
   defmacro __using__(_opts) do
     quote do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
@@ -85,16 +87,8 @@ defmodule Tesla.Builder do
         Tesla.perform_request(__MODULE__, options)
       end
 
-      unquote(generate_api(:head))
-      unquote(generate_api(:get))
-      unquote(generate_api(:delete))
-      unquote(generate_api(:trace))
-      unquote(generate_api(:options))
-      unquote(generate_api(:post))
-      unquote(generate_api(:put))
-      unquote(generate_api(:patch))
+      unquote(generate_http_verbs())
 
-      require Tesla.Builder
       import Tesla.Builder, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
       @before_compile Tesla.Builder
     end
@@ -163,6 +157,10 @@ defmodule Tesla.Builder do
   defmacro adapter(adapter, opts \\ nil) do
     adapter = Tesla.alias(adapter)
     quote do: @__adapter__ {unquote(adapter), unquote(opts)}
+  end
+  
+  defp generate_http_verbs do
+    Enum.map @http_verbs, &generate_api/1
   end
 
   defp generate_api(method) when method in [:post, :put, :patch] do
@@ -372,7 +370,7 @@ defmodule Tesla do
   """
   defmacro build_client(stack) do
     quote do
-      fn env,next -> Tesla.run(env, Tesla.prepare(__MODULE__, unquote(stack)) ++ next) end
+      fn env, next -> Tesla.run(env, Tesla.prepare(__MODULE__, unquote(stack)) ++ next) end
     end
   end
 

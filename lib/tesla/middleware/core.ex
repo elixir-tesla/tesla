@@ -68,7 +68,7 @@ defmodule Tesla.Middleware.Headers do
 
   defp merge(env, nil), do: env
   defp merge(env, headers) do
-    Map.update!(env, :headers, & Map.merge(&1, headers))
+    Map.update!(env, :headers, &Map.merge(&1, headers))
   end
 end
 
