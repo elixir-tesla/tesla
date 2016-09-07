@@ -44,7 +44,7 @@ defmodule Tesla.Mixfile do
   defp deps do
     [
       # http clients
-      {:ibrowse, "~> 4.2.2", optional: true},
+      {:ibrowse, "~> 4.2",   optional: true},
       {:hackney, "~> 1.6.0", optional: true},
 
       # json parsers
