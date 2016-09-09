@@ -340,6 +340,12 @@ defmodule Tesla do
   def run(env, [{m,f} | rest]),     do: apply(m, f, [env, rest])
   def run(env, [{m,f,a} | rest]),   do: apply(m, f, [env, rest | a])
 
+  # useful helper fuctions
+  def put_opt(env, key, value) do
+    Map.update!(env, :opts, &Keyword.put(&1, key, value))
+  end
+
+
   def default_adapter do
     adapter = Application.get_env(:tesla, :adapter, :httpc) |> Tesla.alias
     {adapter, []}
