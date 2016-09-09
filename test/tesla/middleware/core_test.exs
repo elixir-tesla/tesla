@@ -1,5 +1,6 @@
 defmodule CoreTest do
   use ExUnit.Case
+  alias Tesla.Middleware.Normalize
 
   describe "Tesla.Middleware.BaseUrl" do
     alias Tesla.Middleware.BaseUrl
@@ -69,7 +70,10 @@ defmodule CoreTest do
     test "deocde rels" do
       headers = %{"Link" => ~s(<https://api.github.com/resource?page=2>; rel="next",
                                <https://api.github.com/resource?page=5>; rel="last")}
-      env = DecodeRels.call %Tesla.Env{headers: headers}, [], nil
+
+      env = %Tesla.Env{headers: headers}
+        |> Normalize.call([], nil)
+        |> DecodeRels.call([], nil)
 
       assert env.opts[:rels] == %{
         "next" => "https://api.github.com/resource?page=2",

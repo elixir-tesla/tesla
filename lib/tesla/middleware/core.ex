@@ -95,7 +95,7 @@ defmodule Tesla.Middleware.DecodeRels do
   end
 
   def parse_rels(env) do
-    if link = env.headers["Link"] do
+    if link = env.headers["link"] do
       Map.update!(env, :opts, &Keyword.put(&1, :rels, rels(link)))
     else
       env
