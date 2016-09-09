@@ -4,12 +4,12 @@
   "dialyxir": {:hex, :dialyxir, "0.3.5", "eaba092549e044c76f83165978979f60110dc58dd5b92fd952bf2312f64e9b14", [:mix], []},
   "earmark": {:hex, :earmark, "1.0.1", "2c2cd903bfdc3de3f189bd9a8d4569a075b88a8981ded9a0d95672f6e2b63141", [:mix], []},
   "ex_doc": {:hex, :ex_doc, "0.13.0", "aa2f8fe4c6136a2f7cfc0a7e06805f82530e91df00e2bff4b4362002b43ada65", [:mix], [{:earmark, "~> 1.0", [hex: :earmark, optional: false]}]},
-  "excoveralls": {:hex, :excoveralls, "0.5.5", "d97b6fc7aa59c5f04f2fa7ec40fc0b7555ceea2a5f7e7c442aad98ddd7f79002", [:mix], [{:exjsx, "~> 3.0", [hex: :exjsx, optional: false]}, {:hackney, ">= 0.12.0", [hex: :hackney, optional: false]}]},
+  "excoveralls": {:hex, :excoveralls, "0.5.6", "35a903f6f78619ee7f951448dddfbef094b3a0d8581657afaf66465bc930468e", [:mix], [{:exjsx, "~> 3.0", [hex: :exjsx, optional: false]}, {:hackney, ">= 0.12.0", [hex: :hackney, optional: false]}]},
   "exjsx": {:hex, :exjsx, "3.2.0", "7136cc739ace295fc74c378f33699e5145bead4fdc1b4799822d0287489136fb", [:mix], [{:jsx, "~> 2.6.2", [hex: :jsx, optional: false]}]},
   "fs": {:hex, :fs, "0.9.2", "ed17036c26c3f70ac49781ed9220a50c36775c6ca2cf8182d123b6566e49ec59", [:rebar], []},
   "hackney": {:hex, :hackney, "1.6.1", "ddd22d42db2b50e6a155439c8811b8f6df61a4395de10509714ad2751c6da817", [:rebar3], [{:certifi, "0.4.0", [hex: :certifi, optional: false]}, {:idna, "1.2.0", [hex: :idna, optional: false]}, {:metrics, "1.0.1", [hex: :metrics, optional: false]}, {:mimerl, "1.0.2", [hex: :mimerl, optional: false]}, {:ssl_verify_fun, "1.1.0", [hex: :ssl_verify_fun, optional: false]}]},
-  "httparrot": {:git, "https://github.com/edgurgel/httparrot.git", "d0f977d2856d863e99bf08e4514000144eb0d697", [tag: "0.3.4"]},
-  "ibrowse": {:git, "https://github.com/cmullaparthi/ibrowse.git", "fd81d44182507c23445ed720df8c30e2e8da9d9b", [tag: "v4.2"]},
+  "httparrot": {:hex, :httparrot, "0.4.1", "216b18b39ff206f71363cf17234a46f1846e6f3f364137d05d4e80fe70ec6e06", [:mix], [{:cowboy, "~> 1.0.0", [hex: :cowboy, optional: false]}, {:exjsx, "~> 3.0", [hex: :exjsx, optional: false]}]},
+  "ibrowse": {:hex, :ibrowse, "4.2.2", "b32b5bafcc77b7277eff030ed32e1acc3f610c64e9f6aea19822abcadf681b4b", [:rebar3], []},
   "idna": {:hex, :idna, "1.2.0", "ac62ee99da068f43c50dc69acf700e03a62a348360126260e87f2b54eced86b2", [:rebar3], []},
   "jsx": {:hex, :jsx, "2.6.2", "213721e058da0587a4bce3cc8a00ff6684ced229c8f9223245c6ff2c88fbaa5a", [:mix, :rebar], []},
   "metrics": {:hex, :metrics, "1.0.1", "25f094dea2cda98213cecc3aeff09e940299d950904393b2a29d191c346a8486", [:rebar3], []},
@@ -17,5 +17,4 @@
   "mix_test_watch": {:hex, :mix_test_watch, "0.2.6", "9fcc2b1b89d1594c4a8300959c19d50da2f0ff13642c8f681692a6e507f92cab", [:mix], [{:fs, "~> 0.9.1", [hex: :fs, optional: false]}]},
   "poison": {:hex, :poison, "2.2.0", "4763b69a8a77bd77d26f477d196428b741261a761257ff1cf92753a0d4d24a63", [:mix], []},
   "ranch": {:hex, :ranch, "1.2.1", "a6fb992c10f2187b46ffd17ce398ddf8a54f691b81768f9ef5f461ea7e28c762", [:make], []},
-  "ssl_verify_fun": {:hex, :ssl_verify_fun, "1.1.0", "edee20847c42e379bf91261db474ffbe373f8acb56e9079acb6038d4e0bf414f", [:rebar, :make], []},
-  "ssl_verify_hostname": {:hex, :ssl_verify_hostname, "1.0.4", "f357b4dd338c062988d4f2aa5e983adafd555c5c74dcf259d221572327dd8086", [:make], []}}
+  "ssl_verify_fun": {:hex, :ssl_verify_fun, "1.1.0", "edee20847c42e379bf91261db474ffbe373f8acb56e9079acb6038d4e0bf414f", [:rebar, :make], []}}
