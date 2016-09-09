@@ -35,7 +35,7 @@ end
 
 defmodule Tesla.Builder do
   @http_verbs ~w(head get delete trace options post put patch)a
-  
+
   defmacro __using__(_opts) do
     quote do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
@@ -119,6 +119,7 @@ defmodule Tesla.Builder do
   end
   """
   defmacro plug(middleware, opts \\ nil) do
+    opts = Macro.escape(opts)
     middleware = Tesla.alias(middleware)
     quote do: @__middleware__ {unquote(middleware), unquote(opts)}
   end
@@ -158,7 +159,7 @@ defmodule Tesla.Builder do
     adapter = Tesla.alias(adapter)
     quote do: @__adapter__ {unquote(adapter), unquote(opts)}
   end
-  
+
   defp generate_http_verbs do
     Enum.map @http_verbs, &generate_api/1
   end

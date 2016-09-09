@@ -2,6 +2,37 @@ defmodule CoreTest do
   use ExUnit.Case
   alias Tesla.Middleware.Normalize
 
+  describe "middleware basics" do
+    defmodule Opt do
+      def call(env, next, key: key, value: value) do
+        env
+        |> Tesla.run(next)
+        |> Tesla.put_opt(key, value)
+      end
+    end
+
+    defmodule TestClient do
+      use Tesla
+      @api_key "some_key"
+
+      plug Opt, key: :attr, value: %{"Authorization" => @api_key}
+      plug Opt, key: :int,  value: 123
+      plug Opt, key: :list, value: ["a", "b", "c"]
+      plug Opt, key: :fun,  value: (fn x -> x*2 end)
+
+      adapter fn env -> env end
+    end
+
+    test "apply middleware options" do
+      env = TestClient.get("/")
+
+      assert env.opts[:attr] == %{"Authorization" => "some_key"}
+      assert env.opts[:int] == 123
+      assert env.opts[:list] == ["a", "b", "c"]
+      assert env.opts[:fun].(4) == 8
+    end
+  end
+
   describe "Tesla.Middleware.BaseUrl" do
     alias Tesla.Middleware.BaseUrl
     use Tesla.Middleware.TestCase, middleware: BaseUrl
