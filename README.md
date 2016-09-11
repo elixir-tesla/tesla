@@ -130,7 +130,7 @@ NOTE: requires [poison](https://hex.pm/packages/poison) (or other engine) as dep
 If you are using different json library it can be easily configured:
 
 ```ex
-plug Tesla.Middleware.JSON, engine: JSX, engine_opts: [labels: :atom]
+plug Tesla.Middleware.JSON, engine: JSX, engine_opts: [strict: [:comments]]
 # or
 plug Tesla.Middleware.JSON, decode: &JSX.decode/1, encode: &JSX.encode/1
 ```
