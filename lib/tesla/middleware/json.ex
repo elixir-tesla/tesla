@@ -51,7 +51,12 @@ defmodule Tesla.Middleware.JSON do
   end
 
   def decodable?(env), do: decodable_body?(env) && decodable_content_type?(env)
-  def decodable_body?(env), do: is_binary(env.body) || is_list(env.body)
+
+  def decodable_body?(env) do
+    (is_binary(env.body)  && env.body != "") ||
+    (is_list(env.body)    && env.body != [])
+  end
+
   def decodable_content_type?(env) do
     case env.headers["content-type"] do
       nil           -> false

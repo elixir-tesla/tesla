@@ -19,6 +19,8 @@ defmodule JsonTest do
           {200, %{'Content-Type' => 'application/json'}, env.body |> String.replace("foo", "baz")}
         "/empty" ->
           {200, %{'Content-Type' => 'application/json'}, nil}
+        "/empty-string" ->
+          {200, %{'Content-Type' => 'application/json'}, ""}
         "/invalid-content-type" ->
           {200, %{'Content-Type' => 'text/plain'}, "hello"}
         "/facebook" ->
@@ -49,6 +51,10 @@ defmodule JsonTest do
 
   test "do not decode empty body" do
     assert Client.get("/empty").body == nil
+  end
+
+  test "do not decode empty string body" do
+    assert Client.get("/empty-string").body == ""
   end
 
   test "decode only if Content-Type is application/json or test/json" do
