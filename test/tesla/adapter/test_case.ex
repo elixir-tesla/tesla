@@ -16,6 +16,11 @@ defmodule Tesla.Adapter.TestCase.Basic do
       import Tesla.Adapter.TestCase, only: [httpbin_url: 0]
       require Tesla
 
+      setup do
+        {adapter, _} = B.Client.__adapter__
+        {:ok, adapter: adapter}
+      end
+
       test "basic head request" do
         response = B.Client.head("#{httpbin_url}/ip")
         assert response.status == 200
@@ -48,6 +53,10 @@ defmodule Tesla.Adapter.TestCase.Basic do
         assert args["status[]"]   == ["a", "b", "c"]
         assert args["user[name]"] == "Jon"
         assert args["user[age]"]  == "20"
+      end
+
+      test "error: normalized connection refused error", %{adapter: adapter} do
+        assert {:error, :econnrefused} == adapter.call(%Tesla.Env{url: "http://localhost:1234"}, [])
       end
 
       test "error: connection refused" do

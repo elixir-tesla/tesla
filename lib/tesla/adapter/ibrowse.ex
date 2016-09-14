@@ -10,7 +10,7 @@ if Code.ensure_loaded?(:ibrowse) do
 
     defp request(env, opts) do
       body = env.body || []
-      :ibrowse.send_req(
+      handle :ibrowse.send_req(
         Tesla.build_url(env.url, env.query) |> to_char_list,
         Enum.into(env.headers, []),
         env.method,
@@ -18,5 +18,8 @@ if Code.ensure_loaded?(:ibrowse) do
         opts
       )
     end
+
+    defp handle({:error, {:conn_failed, error}}), do: error
+    defp handle(response), do: response
   end
 end

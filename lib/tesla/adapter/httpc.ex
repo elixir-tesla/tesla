@@ -13,8 +13,8 @@ defmodule Tesla.Adapter.Httpc do
 
   defp request(env) do
     content_type = to_char_list(env.headers["content-type"] || "")
-    request(
-      env.method,
+    handle request(
+      env.method || :get,
       Tesla.build_url(env.url, env.query) |> to_char_list,
       Enum.into(env.headers, [], fn {k,v} -> {to_char_list(k), to_char_list(v)} end),
       content_type,
@@ -29,4 +29,7 @@ defmodule Tesla.Adapter.Httpc do
   defp request(method, url, headers, content_type, body) do
     :httpc.request(method, {url, headers, content_type, body}, [], [])
   end
+
+  defp handle({:error, {:failed_connect, _}}), do: {:error, :econnrefused}
+  defp handle(response), do: response
 end
