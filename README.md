@@ -120,6 +120,7 @@ end
 - `Tesla.Middleware.Headers` - set request headers
 - `Tesla.Middleware.Query` - set query parameters
 - `Tesla.Middleware.DecodeRels` - decode `Link` header into `opts[:rels]` field in response
+- `Tesla.Middleware.Retry` - retry few times in case of connection refused
 
 ### JSON
 
