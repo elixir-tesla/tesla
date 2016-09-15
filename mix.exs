@@ -51,6 +51,8 @@ defmodule Tesla.Mixfile do
       {:exjsx,  ">= 0.1.0",  optional: true},
       {:poison, ">= 1.0.0",  optional: true},
 
+      {:fuse, "~> 2.4", optional: true},
+
       # testing & docs
       {:httparrot,      "~> 0.4.1",  only: :test},
       {:excoveralls,    "~> 0.5",    only: :test},

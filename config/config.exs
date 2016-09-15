@@ -10,4 +10,8 @@ config :logger, :console,
 
 if Mix.env == :test do
   config :httparrot, http_port: 8888
+
+  config :sasl,
+    errlog_type: :error,
+    sasl_error_logger: false
 end
