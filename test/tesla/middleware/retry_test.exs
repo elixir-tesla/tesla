@@ -35,11 +35,11 @@ defmodule RetryTest do
   end
 
   test "pass on successful request" do
-    assert %Tesla.Env{url: "/ok", method: :get} == Client.get("/ok")
+    assert %Tesla.Env{url: "/ok", method: :get} = Client.get("/ok")
   end
 
   test "finally pass on laggy request" do
-    assert %Tesla.Env{url: "/maybe", method: :get} == Client.get("/maybe")
+    assert %Tesla.Env{url: "/maybe", method: :get} = Client.get("/maybe")
   end
 
   test "raise if max_retries is exceeded" do

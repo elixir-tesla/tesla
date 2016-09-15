@@ -12,25 +12,29 @@ defmodule Tesla.Env do
   @type body        :: any #
   @type status      :: integer
   @type opts        :: [any]
+  @type __module__  :: atom
 
   @type stack       :: [{atom, atom, any}]
 
   @type t :: %__MODULE__{
-    method:   method,
-    query:    query,
-    url:      url,
-    headers:  headers,
-    body:     body,
-    status:   status
+            method:     method,
+            query:      query,
+            url:        url,
+            headers:    headers,
+            body:       body,
+            status:     status,
+            opts:       opts,
+            __module__: __module__
   }
 
-  defstruct method:   nil,
-            url:      "",
-            query:    [],
-            headers:  %{},
-            body:     nil,
-            status:   nil,
-            opts:     []
+  defstruct method:     nil,
+            url:        "",
+            query:      [],
+            headers:    %{},
+            body:       nil,
+            status:     nil,
+            opts:       [],
+            __module__: nil
 end
 
 defmodule Tesla.Builder do
@@ -282,9 +286,9 @@ defmodule Tesla do
   end
   """
 
-  defmacro __using__(opts) do
+  defmacro __using__(_opts) do
     quote do
-      use Tesla.Builder, unquote(opts)
+      use Tesla.Builder, module: __MODULE__
     end
   end
 
@@ -309,7 +313,7 @@ defmodule Tesla do
 
   defp do_request(module, clients, options) do
     stack = prepare(module, clients ++ module.__middleware__ ++ default_middleware ++ [module.__adapter__])
-    env   = struct(Tesla.Env, options)
+    env   = struct(Tesla.Env, options ++ [__module__: module])
     run(env, stack)
   end
 
