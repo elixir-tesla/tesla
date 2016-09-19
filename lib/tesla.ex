@@ -13,6 +13,7 @@ defmodule Tesla.Env do
   @type status      :: integer
   @type opts        :: [any]
   @type __module__  :: atom
+  @type __client__  :: function
 
   @type stack       :: [{atom, atom, any}]
 
@@ -24,7 +25,8 @@ defmodule Tesla.Env do
             body:       body,
             status:     status,
             opts:       opts,
-            __module__: __module__
+            __module__: __module__,
+            __client__: __client__
   }
 
   defstruct method:     nil,
@@ -34,7 +36,8 @@ defmodule Tesla.Env do
             body:       nil,
             status:     nil,
             opts:       [],
-            __module__: nil
+            __module__: nil,
+            __client__: nil
 end
 
 defmodule Tesla.Builder do
@@ -308,12 +311,9 @@ defmodule Tesla do
   def alias(key) when is_atom(key), do: Keyword.get(@aliases, key, key)
   def alias(key), do: key
 
-  def perform_request(module, client, options), do: do_request(module, [client], options)
-  def perform_request(module, options), do: do_request(module, [], options)
-
-  defp do_request(module, clients, options) do
-    stack = prepare(module, clients ++ module.__middleware__ ++ default_middleware ++ [module.__adapter__])
-    env   = struct(Tesla.Env, options ++ [__module__: module])
+  def perform_request(module, client \\ nil, options) do
+    stack = prepare(module, List.wrap(client) ++ module.__middleware__ ++ default_middleware ++ [module.__adapter__])
+    env   = struct(Tesla.Env, options ++ [__module__: module, __client__: client])
     run(env, stack)
   end
 
