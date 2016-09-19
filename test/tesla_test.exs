@@ -209,9 +209,11 @@ defmodule TeslaTest do
 
       response = R.Client.get("/")
       assert response.url == "/"
+      refute response.__client__
 
       response = client |> R.Client.get("/")
       assert response.url == "/prefix/"
+      assert response.__client__ == client
     end
 
     test "build_client helper" do
