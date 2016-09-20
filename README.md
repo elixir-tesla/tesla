@@ -144,6 +144,10 @@ See [`json.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware
 - `Tesla.Middleware.Logger` - log each request in single line including method, path, status and execution time (colored)
 - `Tesla.Middleware.DebugLogger` - log full request and response (incl. headers and body)
 
+### Authentication
+
+- `Tesla.Middleware.DigestAuth` - [Digest access authentication](https://en.wikipedia.org/wiki/Digest_access_authentication)
+
 ## Dynamic middleware
 
 All methods can take a middleware function as the first parameter.
