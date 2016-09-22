@@ -35,11 +35,23 @@ defp deps do
 end
 ```
 
+### Adapters
+
 When using `ibrowse` or `hackney` adapters remember to alter applications list in `mix.exs`
 
 ```ex
 def application do
   [applications: [:ibrowse, ...], ...] # or :hackney
+end
+```
+
+and add it to the dependency list
+
+```ex
+defp deps do
+  [{:tesla, "~> 0.5.0"},
+   {:ibrowse, "~> 4.2"}, # or :hackney
+   {:poison, ">= 1.0.0"}] # for JSON middleware
 end
 ```
 
