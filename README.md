@@ -67,7 +67,7 @@ defmodule GitHub do
   use Tesla
 
   plug Tesla.Middleware.BaseUrl, "https://api.github.com"
-  plug Tesla.Middleware.Headers, %{'Authorization' => 'xyz'}
+  plug Tesla.Middleware.Headers, %{"Authorization" => "token xyz"}
   plug Tesla.Middleware.JSON
 
   adapter Tesla.Adapter.Hackney
