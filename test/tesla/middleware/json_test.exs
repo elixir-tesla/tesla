@@ -68,4 +68,25 @@ defmodule JsonTest do
   test "decode if Content-Type is text/javascript" do
     assert Client.get("/facebook").body == %{"friends" => 1000000}
   end
+
+  defmodule EncodeDecodeJsonClient do
+    use Tesla
+
+    plug Tesla.Middleware.DecodeJson
+    plug Tesla.Middleware.EncodeJson
+
+    adapter fn (env) ->
+      {status, headers, body} = case env.url do
+        "/foo2baz" ->
+          {200, %{'Content-Type' => 'application/json'}, env.body |> String.replace("foo", "baz")}
+      end
+
+      %{env | status: status, headers: headers, body: body}
+    end
+  end
+
+  test "EncodeJson / DecodeJson work without options" do
+    alias EncodeDecodeJsonClient, as: EDJClient
+    assert EDJClient.post("/foo2baz", %{"foo" => "bar"}).body == %{"baz" => "bar"}
+  end
 end
