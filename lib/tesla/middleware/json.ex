@@ -87,7 +87,9 @@ end
 
 
 defmodule Tesla.Middleware.DecodeJson do
-  def call(env, next, opts \\ []) do
+  def call(env, next, opts) do
+    opts = opts || []
+
     env
     |> Tesla.run(next)
     |> Tesla.Middleware.JSON.decode(opts)
@@ -95,7 +97,9 @@ defmodule Tesla.Middleware.DecodeJson do
 end
 
 defmodule Tesla.Middleware.EncodeJson do
-  def call(env, next, opts \\ []) do
+  def call(env, next, opts) do
+    opts = opts || []
+
     env
     |> Tesla.Middleware.JSON.encode(opts)
     |> Tesla.run(next)
