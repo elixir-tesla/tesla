@@ -57,10 +57,11 @@ defmodule Tesla.Middleware.DebugLogger do
     Map.update!(env, :body, & log_body(&1, "> "))
   end
   def log_body(nil, _), do: nil
-  def log_body([], _), do: nil
+  def log_body([], _), do: []
+  def log_body({:multipart, _} = body, _), do: body
   def log_body(%Stream{} = stream, prefix), do: log_body_stream(stream, prefix)
   def log_body(stream, prefix) when is_function(stream), do: log_body_stream(stream, prefix)
-  def log_body(data, prefix) when is_binary(data) or is_list(data) do
+  def log_body(data, prefix) when is_binary(data) do
     _ = Logger.debug ""
     _ = Logger.debug prefix <> to_string(data)
     data

@@ -1,19 +1,24 @@
 defmodule Tesla.Middleware.Normalize do
   def call(env, next, _opts) do
     env
-    |> normalize
+    |> normalize_request
     |> Tesla.run(next)
-    |> normalize
+    |> normalize_response
   end
 
-  def normalize({:error, reason}) do
+  def normalize_response({:error, reason}) do
     raise %Tesla.Error{message: "adapter error: #{inspect reason}", reason: reason}
   end
-  def normalize(env) do
+  def normalize_response(env) do
     env
     |> Map.update!(:status,   &normalize_status/1)
     |> Map.update!(:headers,  &normalize_headers/1)
     |> Map.update!(:body,     &normalize_body/1)
+  end
+
+  def normalize_request(env) do
+    env
+    |> Map.update!(:headers,  &normalize_headers/1)
   end
 
   def normalize_status(nil), do: nil
