@@ -45,12 +45,33 @@ defmodule Tesla.Middleware.JSON do
   def encodable?(env), do: true
 
   def decode(env, opts) do
-    if decodable?(env) do
-      Map.update!(env, :body, &process(&1, :decode, opts))
-    else
-      env
+    cond do
+      env.opts[:stream_response] && decodable_content_type?(env) ->
+        decode_stream(env, opts)
+      decodable?(env) ->
+        Map.update!(env, :body, &process(&1, :decode, opts))
+      true ->
+        env
     end
   end
+
+  defp decode_stream(env, opts), do: %{env | body: decode_stream_body(env.body, opts)}
+  defp decode_stream_body(body, opts) do
+    body
+    |> Stream.transform('', &decode_stream_transform/2)
+    |> Stream.map(&process(&1, :decode, opts))
+  end
+  defp decode_stream_transform(chunk, acc) do
+    {acc, lines} = chunk
+      |> :erlang.binary_to_list
+      |> Enum.reduce({acc, []}, &decode_stream_reduce/2)
+    {Enum.reverse(lines), acc}
+  end
+  @crlf [?\r, ?\n]
+  defp decode_stream_reduce(ch, {'',   lines}) when ch in @crlf, do: {'', lines}
+  defp decode_stream_reduce(ch, {head, lines}) when ch in @crlf, do: {'', [to_string(head) | lines]}
+  defp decode_stream_reduce(ch, {head, lines}),                  do: {[head, ch], lines}
+
 
   def decodable?(env), do: decodable_body?(env) && decodable_content_type?(env)
 

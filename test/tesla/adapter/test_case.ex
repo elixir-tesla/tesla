@@ -71,7 +71,7 @@ end
 defmodule Tesla.Adapter.TestCase.StreamRequestBody do
   defmacro __using__([adapter: adapter]) do
     quote do
-      defmodule S.Client do
+      defmodule ReqStream.Client do
         use Tesla
 
         adapter unquote(adapter)
@@ -81,7 +81,7 @@ defmodule Tesla.Adapter.TestCase.StreamRequestBody do
 
       test "stream request body: Stream.map" do
         body = (1..5) |> Stream.map(&to_string/1)
-        response = S.Client.post("#{httpbin_url}/post", body, headers: %{"Content-Type" => "text/plain"})
+        response = ReqStream.Client.post("#{httpbin_url}/post", body, headers: %{"Content-Type" => "text/plain"})
         assert response.status == 200
         assert Regex.match?(~r/12345/, to_string(response.body))
       end
@@ -89,10 +89,33 @@ defmodule Tesla.Adapter.TestCase.StreamRequestBody do
       test "stream request body: Stream.unfold" do
         body = Stream.unfold(5, fn 0 -> nil; n -> {n,n-1} end)
         |> Stream.map(&to_string/1)
-        response = S.Client.post("#{httpbin_url}/post", body, headers: %{"Content-Type" => "text/plain"})
+        response = ReqStream.Client.post("#{httpbin_url}/post", body, headers: %{"Content-Type" => "text/plain"})
 
         assert response.status == 200
         assert Regex.match?(~r/54321/, to_string(response.body))
+      end
+    end
+  end
+end
+
+defmodule Tesla.Adapter.TestCase.StreamResponseBody do
+  defmacro __using__([adapter: adapter]) do
+    quote do
+      defmodule ResStream.Client do
+        use Tesla
+
+        plug Tesla.Middleware.Opts, stream_response: true
+
+        adapter unquote(adapter)
+      end
+
+      import Tesla.Adapter.TestCase, only: [httpbin_url: 0]
+
+      test "stream response body" do
+        body = (1..100) |> Enum.map(&to_string/1) |> Enum.join
+        response = ResStream.Client.post("#{httpbin_url}/post", body, headers: %{"Content-Type" => "text/plain"})
+        assert response.status == 200
+        assert response.body |> Enum.join |> String.contains?(body)
       end
     end
   end
