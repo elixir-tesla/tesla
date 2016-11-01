@@ -34,7 +34,7 @@ defmodule Tesla.Adapter.TestCase.Basic do
       test "basic post request" do
         response = B.Client.post("#{httpbin_url}/post", "some-post-data", headers: %{"Content-Type" => "text/plain"})
         assert response.status == 200
-        assert response.headers["content-type"] == "application/json"
+        assert response.headers["Content-Type"] == "application/json"
         assert Regex.match?(~r/some-post-data/, response.body)
       end
 

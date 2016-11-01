@@ -28,8 +28,16 @@ defmodule Tesla.Middleware.Normalize do
 
   def normalize_headers(headers) when is_map(headers) or is_list(headers) do
     Enum.into headers, %{}, fn {k,v} ->
-      {k |> to_string |> String.downcase, v |> to_string}
+      {normalize_header_name(k), to_string(v)}
     end
+  end
+
+  def normalize_header_name(name) do
+    name
+    |> to_string
+    |> String.split("-")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join("-")
   end
 
   def normalize_body(data) when is_list(data), do: to_string(data)
@@ -100,7 +108,7 @@ defmodule Tesla.Middleware.DecodeRels do
   end
 
   def parse_rels(env) do
-    if link = env.headers["link"] do
+    if link = env.headers["Link"] do
       Tesla.put_opt(env, :rels, rels(link))
     else
       env

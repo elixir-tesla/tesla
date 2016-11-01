@@ -12,7 +12,7 @@ defmodule Tesla.Adapter.Httpc do
   end
 
   defp request(env) do
-    content_type = to_char_list(env.headers["content-type"] || "")
+    content_type = to_char_list(env.headers["Content-Type"] || "")
     handle request(
       env.method || :get,
       Tesla.build_url(env.url, env.query) |> to_char_list,

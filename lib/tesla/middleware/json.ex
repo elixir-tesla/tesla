@@ -40,7 +40,9 @@ defmodule Tesla.Middleware.JSON do
     Stream.map body, fn item -> encode_body(item, opts) <> "\n" end
   end
 
-  def encodable?(env), do: env.body != nil
+  def encodable?(%Tesla.Env{body: body}) when is_binary(body), do: false
+  def encodable?(%Tesla.Env{body: nil}), do: false
+  def encodable?(env), do: true
 
   def decode(env, opts) do
     if decodable?(env) do
@@ -58,7 +60,7 @@ defmodule Tesla.Middleware.JSON do
   end
 
   def decodable_content_type?(env) do
-    case env.headers["content-type"] do
+    case env.headers["Content-Type"] do
       nil           -> false
       content_type  -> Enum.any?(@content_types, &String.starts_with?(content_type, &1))
     end
