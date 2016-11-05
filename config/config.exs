@@ -9,7 +9,10 @@ config :logger, :console,
   format: "$date $time [$level] $metadata$message\n"
 
 if Mix.env == :test do
-  config :httparrot, http_port: 8888
+  config :httparrot,
+    http_port: 8888,
+    ssl: false,
+    unix_socket: false
 
   config :sasl,
     errlog_type: :error,
