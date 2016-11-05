@@ -44,7 +44,7 @@ defmodule Tesla.Middleware.Fuse do
     try do
       Tesla.run(env, next)
     rescue
-      error ->
+      _error ->
         :fuse.melt(name)
         {:error, :unavailable}
     end
