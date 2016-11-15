@@ -54,9 +54,10 @@ if Code.ensure_loaded?(:hackney) do
     defp handle_stream_response({:ok, status, headers, ref}) do
       body = Stream.unfold(ref, fn ref ->
         case :hackney.stream_body(ref) do
+          {:ok, ""}         -> nil
           {:ok, data}       -> {data, ref}
           :done             -> nil
-          {:error, _reason} -> nil # raise error ? {:error, reason}
+          {:error, reason}  -> raise "hackney stream error: #{inspect reason}"
         end
       end)
 
