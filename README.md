@@ -173,7 +173,11 @@ Instead, we can use `Tesla.build_client` to create a dynamic middleware function
 
 ```ex
 defmodule GitHub do
-  # same as above
+  # same as above with a slightly change to `user_repos/1`
+
+  def user_repos(client, login) do
+    get(client, "/user/" <> login <> "/repos")
+  end
 
   def client(token) do
     Tesla.build_client [
