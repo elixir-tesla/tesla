@@ -401,7 +401,7 @@ defmodule Tesla do
     if Keyword.keyword?(value) do
       Enum.flat_map(value, fn {k,v} -> encode_pair({"#{key}[#{k}]", v}) end)
     else
-      Enum.map(value, fn e -> {"#{key}[]", e} end)
+      Enum.map(value, fn e -> {key, e} end)
     end
   end
   defp encode_pair({key, value}), do: [{key, value}]

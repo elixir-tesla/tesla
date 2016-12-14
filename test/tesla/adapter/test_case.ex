@@ -50,7 +50,7 @@ defmodule Tesla.Adapter.TestCase.Basic do
 
         assert args["page"] == "1"
         assert args["sort"] == "desc"
-        assert args["status[]"]   == ["a", "b", "c"]
+        assert args["status"]   == ["a", "b", "c"]
         assert args["user[name]"] == "Jon"
         assert args["user[age]"]  == "20"
       end
