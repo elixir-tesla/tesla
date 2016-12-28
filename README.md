@@ -133,6 +133,7 @@ end
 - `Tesla.Middleware.Query` - set query parameters
 - `Tesla.Middleware.DecodeRels` - decode `Link` header into `opts[:rels]` field in response
 - `Tesla.Middleware.Retry` - retry few times in case of connection refused
+- `Tesla.Middleware.FormUrlencoded` - urlencode POST body parameter, useful for POSTing a map/keyword list
 
 ### JSON
 
