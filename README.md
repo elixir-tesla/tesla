@@ -162,7 +162,7 @@ See [`json.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware
 
 ## Dynamic middleware
 
-All methods can take a middleware function as the first parameter.
+All functions can take a middleware function as the first parameter.
 This allow to use convenient syntax for modifying the behaviour in runtime.
 
 Consider the following case: GitHub API can be accessed using OAuth token authorization.
