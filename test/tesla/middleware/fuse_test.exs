@@ -10,7 +10,7 @@ defmodule FuseTest do
     plug :report
 
     def report(env, next) do
-      send self, :request_made
+      send self(), :request_made
       Tesla.run(env, next)
     end
 

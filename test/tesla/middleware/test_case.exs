@@ -21,11 +21,11 @@ defmodule Tesla.Middleware.TestCase do
 
         client = Tesla.build_client([
           {unquote(middleware), nil},
-          {Exec, self}
+          {Exec, self()}
         ])
 
         ExUnit.CaptureLog.capture_log(fn ->
-          send self, {:response, Client.get(client, "/")}
+          send self(), {:response, Client.get(client, "/")}
         end)
 
         response = receive do
