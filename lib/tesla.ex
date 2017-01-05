@@ -312,7 +312,7 @@ defmodule Tesla do
   def alias(key), do: key
 
   def perform_request(module, client \\ nil, options) do
-    stack = prepare(module, List.wrap(client) ++ module.__middleware__ ++ default_middleware ++ [module.__adapter__])
+    stack = prepare(module, List.wrap(client) ++ module.__middleware__ ++ default_middleware() ++ [module.__adapter__])
     env   = struct(Tesla.Env, options ++ [__module__: module, __client__: client])
     run(env, stack)
   end
