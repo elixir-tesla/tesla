@@ -139,7 +139,7 @@ end
 
 NOTE: requires [poison](https://hex.pm/packages/poison) (or other engine) as dependency
 
-- `Tesla.Middleware.JSON`` - encode/decode request/response bodies as JSON
+- `Tesla.Middleware.JSON` - encode/decode request/response bodies as JSON
 
 If you are using different json library it can be easily configured:
 
