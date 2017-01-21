@@ -299,6 +299,7 @@ defmodule Tesla do
     httpc:    Tesla.Adapter.Httpc,
     hackney:  Tesla.Adapter.Hackney,
     ibrowse:  Tesla.Adapter.Ibrowse,
+    katipo:   Tesla.Adapter.Katipo,
 
     base_url:     Tesla.Middleware.BaseUrl,
     headers:      Tesla.Middleware.Headers,
