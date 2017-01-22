@@ -43,7 +43,9 @@ end
 defmodule Tesla.Builder do
   @http_verbs ~w(head get delete trace options post put patch)a
 
-  defmacro __using__(_opts) do
+  defmacro __using__(opts \\ []) do
+    opts = Macro.prewalk(opts, &Macro.expand(&1, __CALLER__))
+
     quote do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
       Module.register_attribute(__MODULE__, :__adapter__, [])
@@ -94,7 +96,7 @@ defmodule Tesla.Builder do
         Tesla.perform_request(__MODULE__, options)
       end
 
-      unquote(generate_http_verbs())
+      unquote(generate_http_verbs(opts))
 
       import Tesla.Builder, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
       @before_compile Tesla.Builder
@@ -167,8 +169,13 @@ defmodule Tesla.Builder do
     quote do: @__adapter__ {unquote(adapter), unquote(opts)}
   end
 
-  defp generate_http_verbs do
-    Enum.map @http_verbs, &generate_api/1
+  defp generate_http_verbs(opts) do
+    selected_verbs =
+      @http_verbs
+      |> Enum.reject(&(not &1 in Keyword.get(opts, :only, @http_verbs)))
+      |> Enum.reject(&(&1 in Keyword.get(opts, :except, [])))
+
+    Enum.map selected_verbs, &generate_api/1
   end
 
   defp generate_api(method) when method in [:post, :put, :patch] do
@@ -289,9 +296,9 @@ defmodule Tesla do
   end
   """
 
-  defmacro __using__(_opts) do
+  defmacro __using__(opts \\ []) do
     quote do
-      use Tesla.Builder, module: __MODULE__
+      use Tesla.Builder, unquote(opts)
     end
   end
 
