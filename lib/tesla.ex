@@ -40,19 +40,38 @@ defmodule Tesla.Env do
             __client__: nil
 end
 
+defmodule Tesla.DynamicDef do
+  defmacro dynamic_def(true, definition, do: body) do
+    quote do
+      defp unquote(definition) do
+        unquote(body)
+      end
+    end
+  end
+
+  defmacro dynamic_def(_, definition, do: body) do
+    quote do
+      def unquote(definition) do
+        unquote(body)
+      end
+    end
+  end
+end
+
 defmodule Tesla.Builder do
   @http_verbs ~w(head get delete trace options post put patch)a
 
   defmacro __using__(opts \\ []) do
     opts = Macro.prewalk(opts, &Macro.expand(&1, __CALLER__))
+    private = Keyword.get(opts, :private)
 
     quote do
+      import Tesla.DynamicDef
+
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
       Module.register_attribute(__MODULE__, :__adapter__, [])
 
-      docs = Keyword.get(unquote(opts), :docs, true)
-
-      if docs do
+      unless unquote(private) do
         @type option :: {:method,   Tesla.Env.method}  |
                         {:url,      Tesla.Env.url}     |
                         {:query,    Tesla.Env.query}   |
@@ -87,22 +106,18 @@ defmodule Tesla.Builder do
             iex> myclient |> ExampleApi.post("/users", %{name: "Jon"})
         """
         @spec request(Tesla.Env.client, [option]) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def request(client, options) do
+      dynamic_def unquote(private), request(client, options) do
         Tesla.perform_request(__MODULE__, client, options)
       end
 
-      if docs do
+      unless unquote(private) do
         @doc """
         Perform a request. See `request/2` for available options.
         """
       @spec request([option]) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def request(options) do
+      dynamic_def unquote(private), request(options) do
         Tesla.perform_request(__MODULE__, options)
       end
 
@@ -185,12 +200,12 @@ defmodule Tesla.Builder do
       |> Enum.reject(&(not &1 in Keyword.get(opts, :only, @http_verbs)))
       |> Enum.reject(&(&1 in Keyword.get(opts, :except, [])))
 
-    Enum.map selected_verbs, &generate_api(&1, Keyword.get(opts, :docs, true))
+    Enum.map selected_verbs, &generate_api(&1, Keyword.get(opts, :private))
   end
 
-  defp generate_api(method, docs) when method in [:post, :put, :patch] do
+  defp generate_api(method, private) when method in [:post, :put, :patch] do
     quote do
-      if unquote(docs) do
+      unless unquote(private) do
         @doc """
         Perform a #{unquote(method |> to_string |> String.upcase)} request.
         See `request/1` or `request/2` for options definition.
@@ -199,14 +214,12 @@ defmodule Tesla.Builder do
             iex> myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
         """
         @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body, [option]) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def unquote(method)(client, url, body, options) when is_function(client) do
+      dynamic_def unquote(private), unquote(method)(client, url, body, options) when is_function(client) do
         request(client, [method: unquote(method), url: url, body: body] ++ options)
       end
 
-      if unquote(docs) do
+      unless unquote(private) do
         @doc """
         Perform a #{unquote(method |> to_string |> String.upcase)} request.
         See `request/1` or `request/2` for options definition.
@@ -216,22 +229,18 @@ defmodule Tesla.Builder do
             iex> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
         """
         @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def unquote(method)(client, url, body) when is_function(client) do
+      dynamic_def unquote(private), unquote(method)(client, url, body) when is_function(client) do
         request(client, method: unquote(method), url: url, body: body)
       end
-      if unquote(docs) do
+      unless unquote(private) do
         @spec unquote(method)(Tesla.Env.url, Tesla.Env.body, [option]) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def unquote(method)(url, body, options) do
+      dynamic_def unquote(private), unquote(method)(url, body, options) do
         request([method: unquote(method), url: url, body: body] ++ options)
       end
 
-      if unquote(docs) do
+      unless unquote(private) do
         @doc """
         Perform a #{unquote(method |> to_string |> String.upcase)} request.
         See `request/1` or `request/2` for options definition.
@@ -240,18 +249,16 @@ defmodule Tesla.Builder do
             iex> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
         """
         @spec unquote(method)(Tesla.Env.url, Tesla.Env.body) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def unquote(method)(url, body) do
+      dynamic_def unquote(private), unquote(method)(url, body) do
         request(method: unquote(method), url: url, body: body)
       end
     end
   end
 
-  defp generate_api(method, docs) when method in [:head, :get, :delete, :trace, :options] do
+  defp generate_api(method, private) when method in [:head, :get, :delete, :trace, :options] do
     quote do
-      if unquote(docs) do
+      unless unquote(private) do
         @doc """
         Perform a #{unquote(method |> to_string |> String.upcase)} request.
         See `request/1` or `request/2` for options definition.
@@ -260,14 +267,12 @@ defmodule Tesla.Builder do
             iex> myclient |> ExampleApi.#{unquote(method)}("/users", query: [page: 1])
         """
         @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, [option]) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def unquote(method)(client, url, options) when is_function(client) do
+      dynamic_def unquote(private), unquote(method)(client, url, options) when is_function(client) do
         request(client, [method: unquote(method), url: url] ++ options)
       end
 
-      if unquote(docs) do
+      unless unquote(private) do
         @doc """
         Perform a #{unquote(method |> to_string |> String.upcase)} request.
         See `request/1` or `request/2` for options definition.
@@ -277,22 +282,18 @@ defmodule Tesla.Builder do
             iex> ExampleApi.#{unquote(method)}("/users", query: [page: 1])
         """
         @spec unquote(method)(Tesla.Env.client, Tesla.Env.url) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def unquote(method)(client, url) when is_function(client) do
+      dynamic_def unquote(private), unquote(method)(client, url) when is_function(client) do
         request(client, method: unquote(method), url: url)
       end
-      if unquote(docs) do
+      unless unquote(private) do
         @spec unquote(method)(Tesla.Env.url, [option]) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def unquote(method)(url, options) do
+      dynamic_def unquote(private), unquote(method)(url, options) do
         request([method: unquote(method), url: url] ++ options)
       end
 
-      if unquote(docs) do
+      unless unquote(private) do
         @doc """
         Perform a #{unquote(method |> to_string |> String.upcase)} request.
         See `request/1` or `request/2` for options definition.
@@ -301,10 +302,8 @@ defmodule Tesla.Builder do
             iex> ExampleApi.#{unquote(method)}("/users")
         """
         @spec unquote(method)(Tesla.Env.url) :: Tesla.Env.t
-      else
-        @doc false
       end
-      def unquote(method)(url) do
+      dynamic_def unquote(private), unquote(method)(url) do
         request(method: unquote(method), url: url)
       end
     end
