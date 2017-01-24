@@ -48,6 +48,16 @@ defmodule TeslaTest do
       defmodule Except do
         use Tesla.Builder, except: ~w(delete)a
       end
+
+      defmodule Private do
+        use Tesla.Builder, private: true
+
+        adapter fn env ->
+          Map.put(env, :status, 200)
+        end
+
+        def custom_get(url), do: get(url)
+      end
     end
 
     @http_verbs ~w(head get delete trace options post put patch)a
@@ -80,6 +90,11 @@ defmodule TeslaTest do
       functions = Mc.Except.__info__(:functions) |> Keyword.keys() |> Enum.uniq
       refute :delete in functions
       assert Enum.all?(@http_verbs -- [:delete], &(&1 in functions))
+    end
+
+    test "generate private functions" do
+      assert Mc.Private.custom_get("/").status == 200
+      assert_raise(UndefinedFunctionError, fn -> Mc.Private.get("/") end)
     end
   end
 
