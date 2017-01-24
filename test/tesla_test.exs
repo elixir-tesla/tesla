@@ -91,11 +91,6 @@ defmodule TeslaTest do
       refute :delete in functions
       assert Enum.all?(@http_verbs -- [:delete], &(&1 in functions))
     end
-
-    test "generate private functions" do
-      assert Mc.Private.custom_get("/").status == 200
-      assert_raise(UndefinedFunctionError, fn -> Mc.Private.get("/") end)
-    end
   end
 
 
