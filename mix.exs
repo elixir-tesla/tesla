@@ -9,6 +9,7 @@ defmodule Tesla.Mixfile do
       package: package(),
       source_url: "https://github.com/teamon/tesla",
       elixir: "~> 1.3",
+      elixirc_paths: elixirc_paths(Mix.env),
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
@@ -40,6 +41,10 @@ defmodule Tesla.Mixfile do
       links: %{"GitHub" => "https://github.com/teamon/tesla"}
     ]
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_),     do: ["lib"]
 
   defp deps do
     [

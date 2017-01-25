@@ -48,16 +48,6 @@ defmodule TeslaTest do
       defmodule Except do
         use Tesla.Builder, except: ~w(delete)a
       end
-
-      defmodule Private do
-        use Tesla.Builder, private: true
-
-        adapter fn env ->
-          Map.put(env, :status, 200)
-        end
-
-        def custom_get(url), do: get(url)
-      end
     end
 
     @http_verbs ~w(head get delete trace options post put patch)a
@@ -93,6 +83,23 @@ defmodule TeslaTest do
     end
   end
 
+  describe "docs" do
+    # Code.get_docs/2 requires .beam file of given module to exist in file system
+    # See test/support/docs.ex file for definitions of TeslaDocsTest.* modules
+
+    test "generate docs by default" do
+      docs = Code.get_docs(TeslaDocsTest.Default, :docs)
+      assert {_, _, _, _, doc} = Enum.find(docs, &match?({{:get, 1}, _, :def, _, _}, &1))
+      assert doc != false
+    end
+
+    test "do not generate docs for HTTP methods when docs: false" do
+      docs = Code.get_docs(TeslaDocsTest.NoDocs, :docs)
+      assert {_, _, _, _, false}  = Enum.find(docs, &match?({{:get, 1}, _, :def, _, _}, &1))
+      assert {_, _, _, _, doc}    = Enum.find(docs, &match?({{:custom, 1}, _, :def, _, _}, &1))
+      assert doc =~ ~r/something/
+    end
+  end
 
 
   describe "Middleware" do
