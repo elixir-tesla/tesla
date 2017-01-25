@@ -93,7 +93,7 @@ Tesla.Builder allows to pass following options
 
 Useful when you don't need functions for all http verbs to be generated.
 
-```ex
+```elixir
   #examples
   use Tesla, only: ~w(get post)a
   use Tesla, only: [:delete]
@@ -104,7 +104,7 @@ Useful when you don't need functions for all http verbs to be generated.
 
 You can disable docs for tesla generated functions if you don't want them to be included in your own project docs.
 
-```ex
+```elixir
   defmodule MyProject.ApiModule do
     @moduledoc "Module that does something"
 
