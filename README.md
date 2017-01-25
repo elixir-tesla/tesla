@@ -85,6 +85,36 @@ GitHub.get("/user/teamon/repos")
 GitHub.user_repos("teamon")
 ```
 
+### Supported options
+
+Tesla.Builder allows to pass following options
+
+#### `:only` and `:except`
+
+Useful when you don't need functions for all http verbs to be generated.
+
+```ex
+  #examples
+  use Tesla, only: ~w(get post)a
+  use Tesla, only: [:delete]
+  use Tesla, except: [:delete, :options]
+```
+
+#### `:docs`
+
+You can disable docs for tesla generated functions if you don't want them to be included in your own project docs.
+
+```ex
+  defmodule MyProject.ApiModule do
+    @moduledoc "Module that does something"
+
+    use Tesla, docs: false
+
+    @doc "Function to get something from somewhere"
+    def custom_function(), do: get(...)
+  end
+```
+
 ## Adapters
 
 Tesla has support for different adapters that do the actual HTTP request processing.

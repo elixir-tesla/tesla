@@ -40,7 +40,27 @@ defmodule TeslaTest do
           Map.put(env, :url, "#{env.url}/anon")
         end
       end
+
+      defmodule Only do
+        use Tesla, only: [:get]
+      end
+
+      defmodule Except do
+        use Tesla.Builder, except: ~w(delete)a
+      end
+
+      defmodule Private do
+        use Tesla.Builder, private: true
+
+        adapter fn env ->
+          Map.put(env, :status, 200)
+        end
+
+        def custom_get(url), do: get(url)
+      end
     end
+
+    @http_verbs ~w(head get delete trace options post put patch)a
 
     test "middleware list" do
       assert Mc.Basic.__middleware__ == [
@@ -58,6 +78,18 @@ defmodule TeslaTest do
 
     test "adapter as function" do
       assert is_function(Mc.Fun.__adapter__)
+    end
+
+    test "limit generated functions (only)" do
+      functions = Mc.Only.__info__(:functions) |> Keyword.keys() |> Enum.uniq
+      assert :get in functions
+      refute Enum.any?(@http_verbs -- [:get], &(&1 in functions))
+    end
+
+    test "limit generated functions (except)" do
+      functions = Mc.Except.__info__(:functions) |> Keyword.keys() |> Enum.uniq
+      refute :delete in functions
+      assert Enum.all?(@http_verbs -- [:delete], &(&1 in functions))
     end
   end
 
