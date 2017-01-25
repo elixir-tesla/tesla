@@ -8,7 +8,7 @@ It embraces the concept of middleware when processing the request/response cycle
 
 ## Direct usage
 
-```ex
+```elixir
 # Example get request
 response = Tesla.get("http://httpbin.org/ip")
 response.status   # => 200
@@ -28,7 +28,7 @@ response = Tesla.post("http://httpbin.org/post", "data", headers: %{"Content-Typ
 
 Add `tesla` as dependency in `mix.exs`
 
-```ex
+```elixir
 defp deps do
   [{:tesla, "~> 0.5.0"},
    {:poison, ">= 1.0.0"}] # for JSON middleware
@@ -39,7 +39,7 @@ end
 
 When using `ibrowse` or `hackney` adapters remember to alter applications list in `mix.exs`
 
-```ex
+```elixir
 def application do
   [applications: [:ibrowse, ...], ...] # or :hackney
 end
@@ -47,7 +47,7 @@ end
 
 and add it to the dependency list
 
-```ex
+```elixir
 defp deps do
   [{:tesla, "~> 0.5.0"},
    {:ibrowse, "~> 4.2"}, # or :hackney
@@ -62,7 +62,7 @@ Use `Tesla` module to create API wrappers.
 
 For example
 
-```ex
+```elixir
 defmodule GitHub do
   use Tesla
 
@@ -80,7 +80,7 @@ end
 
 Then use it like this:
 
-```ex
+```elixir
 GitHub.get("/user/teamon/repos")
 GitHub.user_repos("teamon")
 ```
@@ -110,7 +110,7 @@ NOTE: Remember to include ibrowse in applications list.
 
 When testing it might be useful to use simple function as adapter:
 
-```ex
+```elixir
 defmodule MyApi do
   use Tesla
 
@@ -143,7 +143,7 @@ NOTE: requires [poison](https://hex.pm/packages/poison) (or other engine) as dep
 
 If you are using different json library it can be easily configured:
 
-```ex
+```elixir
 plug Tesla.Middleware.JSON, engine: JSX, engine_opts: [strict: [:comments]]
 # or
 plug Tesla.Middleware.JSON, decode: &JSX.decode/1, encode: &JSX.encode/1
@@ -172,7 +172,7 @@ We can't use `plug Tesla.Middleware.Headers, %{"Authorization" => "token here"}`
 
 Instead, we can use `Tesla.build_client` to create a dynamic middleware function:
 
-```ex
+```elixir
 defmodule GitHub do
   # same as above with a slightly change to `user_repos/1`
 
@@ -190,7 +190,7 @@ end
 
 and then:
 
-```ex
+```elixir
 client = GitHub.client(user_token)
 client |> GitHub.user_repos("teamon")
 client |> GitHub.get("/me")
@@ -202,7 +202,7 @@ client |> GitHub.get("/me")
 A Tesla middleware is a module with `call/3` function, that at some point calls `Tesla.run(env, next)` to process
 the rest of stack
 
-```ex
+```elixir
 defmodule MyMiddleware do
   def call(env, next, options) do
     env
@@ -222,7 +222,7 @@ There is no distinction between request and response middleware, it's all about 
 
 For example, z request logger middleware could be implemented like this:
 
-```ex
+```elixir
 defmodule Tesla.Middleware.RequestLogger do
   def call(env, next, _) do
     IO.inspect env # print request env
@@ -233,7 +233,7 @@ end
 
 and response logger middleware like this:
 
-```ex
+```elixir
 defmodule Tesla.Middleware.ResponseLogger do
   def call(env, next, _) do
     res = Tesla.run(env, next)
@@ -250,7 +250,7 @@ See [`core.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware
 
 If adapter supports it, you can pass a [Stream](http://elixir-lang.org/docs/stable/elixir/Stream.html) as body, e.g.:
 
-```ex
+```elixir
 defmodule ES do
   use Tesla.Builder
 
