@@ -97,7 +97,7 @@ defmodule Tesla.Builder do
         @doc """
         Perform a request. See `request/2` for available options.
         """
-      @spec request([option]) :: Tesla.Env.t
+        @spec request([option]) :: Tesla.Env.t
       else
         @doc false
       end
@@ -179,12 +179,12 @@ defmodule Tesla.Builder do
   end
 
   defp generate_http_verbs(opts) do
-    selected_verbs =
-      @http_verbs
-      |> Enum.reject(&(not &1 in Keyword.get(opts, :only, @http_verbs)))
-      |> Enum.reject(&(&1 in Keyword.get(opts, :except, [])))
+    only    = Keyword.get(opts, :only,    @http_verbs)
+    except  = Keyword.get(opts, :except,  [])
 
-    Enum.map selected_verbs, &generate_api(&1, Keyword.get(opts, :docs, true))
+    @http_verbs
+    |> Enum.filter(&(&1 in only && not &1 in except))
+    |> Enum.map(&generate_api(&1, Keyword.get(opts, :docs, true)))
   end
 
   defp generate_api(method, docs) when method in [:post, :put, :patch] do
