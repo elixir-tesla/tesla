@@ -46,7 +46,6 @@ defmodule Tesla.Mixfile do
       # http clients
       {:ibrowse, "~> 4.2",   optional: true},
       {:hackney, "~> 1.6.0", optional: true},
-      {:katipo, "~> 0.4",    optional: true},
 
       # json parsers
       {:exjsx,  ">= 0.1.0",  optional: true},
@@ -57,12 +56,17 @@ defmodule Tesla.Mixfile do
       # testing & docs
       {:httparrot,      "~> 0.5.0",  only: :test},
       {:excoveralls,    "~> 0.5",    only: :test},
-      {:ex_doc,         "~> 0.13.0", only: :dev},
+      {:ex_doc,         "~> 0.13.0", only: [:dev, :publish]},
       {:mix_test_watch, "~> 0.2.6",  only: :dev},
-      {:dialyxir,       "~> 0.3.5",  only: :dev},
+      {:dialyxir,       "~> 0.3.5",  only: :dev}
+    ] ++ hex_workaround(Mix.env)
+  end
 
-      # workaround for deps conflict between http clients
-      {:metrics, "~>1.1.0", override: true, optional: true}
+  defp hex_workaround(:publish), do: []
+  defp hex_workaround(_) do
+    [
+      {:katipo,  "~> 0.4",   optional: true},
+      {:metrics, "~>1.1.0",  override: true}
     ]
   end
 end
