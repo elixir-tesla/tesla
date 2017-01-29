@@ -19,7 +19,7 @@ defmodule Tesla.Middleware.FollowRedirects do
     redirect(env, next, max)
   end
 
-  defp redirect(env, next, left) when left <= 0 do
+  defp redirect(_env, _next, left) when left <= 0 do
     raise Tesla.Error, "too many redirects"
   end
 
