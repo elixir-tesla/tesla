@@ -19,8 +19,13 @@ defmodule Tesla.Middleware.FollowRedirects do
     redirect(env, next, max)
   end
 
-  defp redirect(env, next, left) when left <= 0 do
-    raise Tesla.Error, "too many redirects"
+  defp redirect(env, next, left) when left == 0 do
+    case Tesla.run(env, next) do
+      %{status: status} = env when not status in @redirect_statuses ->
+        env
+      _ ->
+        raise Tesla.Error, "too many redirects"
+    end
   end
 
   defp redirect(env, next, left) do
