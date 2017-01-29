@@ -31,20 +31,6 @@ defmodule JsonTest do
     end
   end
 
-  defmodule CustomClient do
-    use Tesla
-
-    plug Tesla.Middleware.DecodeJson, engine: Poison, engine_opts: [keys: :atoms]
-
-    adapter fn (env) ->
-      case env.url do
-        "/decode" ->
-          {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
-      end
-    end
-  end
-
-
   test "decode JSON body" do
     assert Client.get("/decode").body == %{"value" => 123}
   end
@@ -67,6 +53,25 @@ defmodule JsonTest do
 
   test "decode if Content-Type is text/javascript" do
     assert Client.get("/facebook").body == %{"friends" => 1000000}
+  end
+
+  defmodule CustomClient do
+    use Tesla
+
+    plug Tesla.Middleware.DecodeJson, engine: Poison, engine_opts: [keys: :atoms]
+
+    adapter fn (env) ->
+      {status, headers, body} = case env.url do
+        "/decode" ->
+          {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
+      end
+
+      %{env | status: status, headers: headers, body: body}
+    end
+  end
+
+  test "decode with custom engine options" do
+    assert CustomClient.get("/decode").body == %{value: 123}
   end
 
   defmodule CustomContentTypeClient do
