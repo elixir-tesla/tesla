@@ -77,7 +77,7 @@ defmodule JsonTest do
   defmodule CustomContentTypeClient do
     use Tesla
 
-    plug Tesla.Middleware.JSON, enable_decoding: ["application/x-custom-json"]
+    plug Tesla.Middleware.JSON, decode_content_types: ["application/x-custom-json"]
 
     adapter fn (env) ->
       {status, headers, body} = case env.url do
@@ -89,7 +89,7 @@ defmodule JsonTest do
     end
   end
 
-  test "decode if Content-Type specified in :enable_decoding" do
+  test "decode if Content-Type specified in :decode_content_types" do
     alias CustomContentTypeClient, as: CCTClient
     assert CCTClient.get("/decode").body == %{"value" => 123}
   end

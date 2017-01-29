@@ -12,7 +12,7 @@ defmodule Tesla.Middleware.JSON do
   - `:encode` - encoding function
   - `:engine` - encode/decode engine, e.g `Poison` or `JSX`  (defaults to Poison)
   - `:engine_opts` - optional engine options
-  - `:enable_decoding` - list of additional decodable content-types
+  - `:decode_content_types` - list of additional decodable content-types
   """
   def call(env, next, opts) do
     opts = opts || []
@@ -65,7 +65,7 @@ defmodule Tesla.Middleware.JSON do
     end
   end
 
-  def content_types(opts), do: @default_content_types ++ Keyword.get(opts, :enable_decoding, [])
+  def content_types(opts), do: @default_content_types ++ Keyword.get(opts, :decode_content_types, [])
 
   defp process(data, op, opts) do
     with {:ok, value} <- do_process(data, op, opts) do
