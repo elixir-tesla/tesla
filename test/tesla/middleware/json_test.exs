@@ -69,6 +69,26 @@ defmodule JsonTest do
     assert Client.get("/facebook").body == %{"friends" => 1000000}
   end
 
+  defmodule CustomContentTypeClient do
+    use Tesla
+
+    plug Tesla.Middleware.JSON, enable_decoding: ["application/x-custom-json"]
+
+    adapter fn (env) ->
+      {status, headers, body} = case env.url do
+        "/decode" ->
+          {200, %{'Content-Type' => 'application/x-custom-json'}, "{\"value\": 123}"}
+      end
+
+      %{env | status: status, headers: headers, body: body}
+    end
+  end
+
+  test "decode if Content-Type specified in :enable_decoding" do
+    alias CustomContentTypeClient, as: CCTClient
+    assert CCTClient.get("/decode").body == %{"value" => 123}
+  end
+
   defmodule EncodeDecodeJsonClient do
     use Tesla
 
