@@ -1,14 +1,16 @@
 defmodule Tesla.Middleware.FollowRedirects do
-  @doc """
+  @moduledoc """
   Follow 301/302 redirects
 
   Example:
+      defmodule MyClient do
+        use Tesla
 
-  defmodule MyClient do
-    use Tesla
+        plug Tesla.Middleware.FollowRedirects, max_redirects: 3 # defaults to 5
+      end
 
-    plug Tesla.Middleware.FollowRedirects, max_redirects: 3 # defaults to 5
-  end
+  **NOTE** For `httpc` adapter you have to explicitely disable default autoredirection
+      adapter :httpc, autoredirect: false
   """
   @max_redirects 5
   @redirect_statuses [301, 302, 307, 308]
@@ -19,8 +21,13 @@ defmodule Tesla.Middleware.FollowRedirects do
     redirect(env, next, max)
   end
 
-  defp redirect(_env, _next, left) when left <= 0 do
-    raise Tesla.Error, "too many redirects"
+  defp redirect(env, next, left) when left == 0 do
+    case Tesla.run(env, next) do
+      %{status: status} = env when not status in @redirect_statuses ->
+        env
+      _ ->
+        raise Tesla.Error, "too many redirects"
+    end
   end
 
   defp redirect(env, next, left) do
