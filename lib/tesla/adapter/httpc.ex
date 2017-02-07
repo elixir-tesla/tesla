@@ -1,8 +1,17 @@
 defmodule Tesla.Adapter.Httpc do
+  @moduledoc """
+    Adapter for `:httpc`
+
+    **NOTE** Tesla overrides default autoredirect value with false to ensure
+    consistency between adapters
+  """
+
+  @override_defaults autoredirect: false
   @http_opts ~w(timeout connect_timeout ssl essl autoredirect proxy_auth version relaxed url_encode)a
 
   def call(env, opts) do
-    with {:ok, {status, headers, body}} <- request(env, opts || []) do
+    opts = Keyword.merge(@override_defaults, opts || [])
+    with {:ok, {status, headers, body}} <- request(env, opts) do
       format_response(env, status, headers, body)
     end
   end
