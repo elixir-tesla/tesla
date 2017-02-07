@@ -8,9 +8,6 @@ defmodule Tesla.Middleware.FollowRedirects do
 
         plug Tesla.Middleware.FollowRedirects, max_redirects: 3 # defaults to 5
       end
-
-  **NOTE** For `httpc` adapter you have to explicitely disable default autoredirection
-      adapter :httpc, autoredirect: false
   """
   @max_redirects 5
   @redirect_statuses [301, 302, 307, 308]

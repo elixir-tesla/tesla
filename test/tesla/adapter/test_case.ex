@@ -66,6 +66,11 @@ defmodule Tesla.Adapter.TestCase.Basic do
           response = B.Client.get("http://localhost:1234")
         end
       end
+
+      test "autoredirects disabled by default" do
+        response = B.Client.get("#{http_url()}/redirect-to?url=#{http_url()}/status/200")
+        assert response.status == 301
+      end
     end
   end
 end
