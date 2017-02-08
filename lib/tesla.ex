@@ -120,7 +120,7 @@ defmodule Tesla.Builder do
     use Tesla
 
     # plug middleware module with options
-    plug Tesla.Middleware.BaseURL, "http://api.example.com"
+    plug Tesla.Middleware.BaseUrl, "http://api.example.com"
     plug Tesla.Middleware.JSON, engine: Poison
 
     # plug middleware function
@@ -332,7 +332,7 @@ defmodule Tesla do
   defmodule ExampleApi do
     use Tesla
 
-    plug Tesla.Middleware.BaseURL, "http://api.example.com"
+    plug Tesla.Middleware.BaseUrl, "http://api.example.com"
     plug Tesla.Middleware.JSON
   end
   """
