@@ -38,9 +38,25 @@ defmodule Tesla.Adapter.Httpc do
     :httpc.request(method, {url, headers}, http_opts, opts)
   end
 
+  defp request(method, url, headers, content_type, %Stream{} = body, opts) do
+    reductor = fn(item, _acc) -> {:suspend, item} end
+    {_, _, fun} = Enumerable.reduce(body, {:suspend, nil}, reductor)
+    request(method, url, headers, content_type, fun, opts)
+  end
+
+  defp request(method, url, headers, content_type, body, opts) when is_function(body) do
+    body = {:chunkify, &next_chunk/1, body}
+    request(method, url, headers, content_type, body, opts)
+  end
+
   defp request(method, url, headers, content_type, body, {http_opts, opts}) do
     :httpc.request(method, {url, headers, content_type, body}, http_opts, opts)
   end
+
+  defp next_chunk(fun), do: parse_chunk fun.({:cont, nil})
+
+  defp parse_chunk({:suspended, item, fun}), do: {:ok, item, fun}
+  defp parse_chunk(_),                       do: :eof
 
   defp handle({:error, {:failed_connect, _}}), do: {:error, :econnrefused}
   defp handle(response), do: response
