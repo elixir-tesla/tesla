@@ -15,7 +15,7 @@ if Code.ensure_loaded?(:ibrowse) do
         Enum.into(env.headers, []),
         env.method,
         body,
-        opts
+        opts ++ env.opts
       )
     end
 
