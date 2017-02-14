@@ -1,5 +1,7 @@
 if Code.ensure_loaded?(:ibrowse) do
   defmodule Tesla.Adapter.Ibrowse do
+    import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
+
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts || []) do
         %{env | status:   status,
@@ -20,8 +22,7 @@ if Code.ensure_loaded?(:ibrowse) do
     end
 
     defp request(url, headers, method, %Stream{} = body, opts) do
-      reductor = fn(item, _acc) -> {:suspend, item} end
-      {_, _, fun} = Enumerable.reduce(body, {:suspend, nil}, reductor)
+      fun = stream_to_fun(body)
       request(url, headers, method, fun, opts)
     end
 
@@ -34,11 +35,6 @@ if Code.ensure_loaded?(:ibrowse) do
     defp request(url, headers, method, body, opts) do
       :ibrowse.send_req(url, headers, method, body, opts)
     end
-
-    defp next_chunk(fun), do: parse_chunk fun.({:cont, nil})
-
-    defp parse_chunk({:suspended, item, fun}), do: {:ok, item, fun}
-    defp parse_chunk(_),                       do: :eof
 
     defp handle({:error, {:conn_failed, error}}), do: error
     defp handle(response), do: response
