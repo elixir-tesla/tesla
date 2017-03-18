@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/teamon/tesla.svg?branch=master)](https://travis-ci.org/teamon/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](http://hex.pm/packages/tesla)
 
-Tesla is an HTTP client losely based on [Faraday](https://github.com/lostisland/faraday).
+Tesla is an HTTP client loosely based on [Faraday](https://github.com/lostisland/faraday).
 It embraces the concept of middleware when processing the request/response cycle.
 
 ## Direct usage
