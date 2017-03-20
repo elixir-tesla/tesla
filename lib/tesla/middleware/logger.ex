@@ -8,7 +8,7 @@ defmodule Tesla.Middleware.Logger do
   end
 
   defp log(env, time) do
-    ms = :io_lib.format("~.3f", [time / 10000])
+    ms = :io_lib.format("~.3f", [time / 1000])
     method = env.method |> to_string |> String.upcase
     message = "#{method} #{env.url} -> #{env.status} (#{ms} ms)"
 
