@@ -40,6 +40,13 @@ defmodule Tesla.Adapter.TestCase.Basic do
         assert Regex.match?(~r/some-post-data/, response.body)
       end
 
+      test "unicode request" do
+        response = B.Client.post("#{http_url()}/post", "1 ø 2 đ 1 \u00F8 2 \u0111", headers: %{"Content-Type" => "text/plain"})
+        assert response.status == 200
+        assert response.headers["content-type"] == "application/json"
+        assert Regex.match?(~r/1 ø 2 đ 1 ø 2 đ/, response.body)
+      end
+
       test "passing query params" do
         client = Tesla.build_client([{Tesla.Middleware.JSON, nil}])
         response = client |> B.Client.get("#{http_url()}/get", query: [
