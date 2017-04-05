@@ -6,6 +6,8 @@ defmodule Tesla.Adapter.Httpc do
     consistency between adapters
   """
 
+  import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
+
   @override_defaults autoredirect: false
   @http_opts ~w(timeout connect_timeout ssl essl autoredirect proxy_auth version relaxed url_encode)a
 
@@ -39,8 +41,7 @@ defmodule Tesla.Adapter.Httpc do
   end
 
   defp request(method, url, headers, content_type, %Stream{} = body, opts) do
-    reductor = fn(item, _acc) -> {:suspend, item} end
-    {_, _, fun} = Enumerable.reduce(body, {:suspend, nil}, reductor)
+    fun = stream_to_fun(body)
     request(method, url, headers, content_type, fun, opts)
   end
 
@@ -52,11 +53,6 @@ defmodule Tesla.Adapter.Httpc do
   defp request(method, url, headers, content_type, body, {http_opts, opts}) do
     :httpc.request(method, {url, headers, content_type, body}, http_opts, opts)
   end
-
-  defp next_chunk(fun), do: parse_chunk fun.({:cont, nil})
-
-  defp parse_chunk({:suspended, item, fun}), do: {:ok, item, fun}
-  defp parse_chunk(_),                       do: :eof
 
   defp handle({:error, {:failed_connect, _}}), do: {:error, :econnrefused}
   defp handle(response), do: response
