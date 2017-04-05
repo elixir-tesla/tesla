@@ -13,7 +13,7 @@ defmodule Tesla.Middleware.MethodOverride do
   def call(env, next, opts) do
     if overridable?(env, opts) do
       env
-      |> override(opts)
+      |> override
       |> Tesla.run(next)
     else
       env
@@ -21,7 +21,7 @@ defmodule Tesla.Middleware.MethodOverride do
     end
   end
 
-  def override(env, opts) do
+  def override(env) do
     env
     |> Tesla.Middleware.Headers.call([], %{"X-Http-Method-Override" => "#{env.method}"})
     |> Map.put(:method, :post)
