@@ -50,7 +50,7 @@ defmodule Tesla.Mixfile do
     [
       # http clients
       {:ibrowse, "~> 4.2",   optional: true},
-      {:hackney, "~> 1.6.0", optional: true},
+      {:hackney, ">= 1.6.0", optional: true},
 
       # json parsers
       {:exjsx,  ">= 0.1.0",  optional: true},
