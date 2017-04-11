@@ -35,13 +35,21 @@ defp deps do
 end
 ```
 
+Also, unless using Elixir 1.4, add `:tesla` to the `applications` list: 
+
+```ex
+def application do
+  [applications: [:tesla, ...], ...]
+end
+```
+
 ### Adapters
 
 When using `ibrowse` or `hackney` adapters remember to alter applications list in `mix.exs`
 
 ```ex
 def application do
-  [applications: [:ibrowse, ...], ...] # or :hackney
+  [applications: [:tesla, :ibrowse, ...], ...] # or :hackney
 end
 ```
 
