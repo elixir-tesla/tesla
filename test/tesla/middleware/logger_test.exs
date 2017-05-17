@@ -45,6 +45,6 @@ defmodule LoggerTest do
 
   test "ok with params" do
     log = capture_log(fn -> Client.get("/ok", query: %{"test" => "true"}) end)
-    assert log =~ "Param 'test': 'true'"
+    assert log =~ "Query Param 'test': 'true'"
   end  
 end

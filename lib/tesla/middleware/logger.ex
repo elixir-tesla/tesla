@@ -56,7 +56,7 @@ defmodule Tesla.Middleware.DebugLogger do
 
   def log_params(env, prefix) do
     for {k,v} <- env.query do
-      _ = Logger.debug "#{prefix} Param '#{k}': '#{v}'"
+      _ = Logger.debug "#{prefix} Query Param '#{k}': '#{v}'"
     end
     env
   end
