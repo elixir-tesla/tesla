@@ -28,6 +28,7 @@ defmodule Tesla.Middleware.DebugLogger do
     env
     |> log_request
     |> log_headers("> ")
+    |> log_params("> ")
     |> log_body("> ")
     |> Tesla.run(next)
     |> log_response
@@ -49,6 +50,13 @@ defmodule Tesla.Middleware.DebugLogger do
   def log_headers(env, prefix) do
     for {k,v} <- env.headers do
       _ = Logger.debug "#{prefix}#{k}: #{v}"
+    end
+    env
+  end
+
+  def log_params(env, prefix) do
+    for {k,v} <- env.query do
+      _ = Logger.debug "#{prefix} Query Param '#{k}': '#{v}'"
     end
     env
   end
