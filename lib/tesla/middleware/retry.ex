@@ -10,7 +10,7 @@ defmodule Tesla.Middleware.Retry do
       end
 
   Options:
-  - `:delay`        - number of milisecond to wait before retrying (defaults to 1000)
+  - `:delay`        - number of milliseconds to wait before retrying (defaults to 1000)
   - `:max_retries`  - maximum number of retries (defaults to 5)
   """
 
