@@ -28,7 +28,7 @@ defmodule Tesla.Mixfile do
   end
 
   def applications(:test), do: applications(:dev) ++ [:httparrot]
-  def applications(_), do: [:logger]
+  def applications(_), do: [:logger, :ssl]
 
   defp description do
     "HTTP client library, with support for middleware and multiple adapters."
