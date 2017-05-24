@@ -27,7 +27,7 @@ defmodule Tesla.Middleware.Normalize do
     end
   end
 
-  def normalize_body(data) when is_list(data), do: to_string(data)
+  def normalize_body(data) when is_list(data), do: IO.iodata_to_binary(data)
   def normalize_body(data), do: data
 end
 
