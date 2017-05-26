@@ -69,9 +69,7 @@ defmodule Tesla.Adapter.TestCase.Basic do
       end
 
       test "error: connection refused" do
-        assert_raise Tesla.Error, fn ->
-          response = B.Client.get("http://localhost:1234")
-        end
+        assert {:error, :econnrefused} = B.Client.get("http://localhost:1234")
       end
 
       test "autoredirects disabled by default" do

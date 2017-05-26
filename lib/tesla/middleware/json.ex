@@ -70,8 +70,6 @@ defmodule Tesla.Middleware.JSON do
   defp process(data, op, opts) do
     with {:ok, value} <- do_process(data, op, opts) do
       value
-    else
-      {:error, reason} -> raise %Tesla.Error{message: "JSON #{op} error: #{inspect reason}", reason: reason}
     end
   end
 
