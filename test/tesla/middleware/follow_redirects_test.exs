@@ -25,8 +25,8 @@ defmodule FollowRedirectsTest do
     assert Client.get("/5").status == 200
   end
 
-  test "raise error when redirect default max redirects is exceeded" do
-    assert_raise(Tesla.Error, "too many redirects", fn-> Client.get("/6") end)
+  test "error when redirect default max redirects is exceeded" do
+    assert {:error, :too_many_redirects} = Client.get("/6")
   end
 
   defmodule CustomMaxRedirectsClient do
@@ -53,8 +53,8 @@ defmodule FollowRedirectsTest do
     assert CMRClient.get("/1").status == 200
   end
 
-  test "raise error when custom max redirects is exceeded" do
-    assert_raise(Tesla.Error, "too many redirects", fn-> CMRClient.get("/2") end)
+  test "error when custom max redirects is exceeded" do
+    assert {:error, :too_many_redirects} = CMRClient.get("/2")
   end
 
 end

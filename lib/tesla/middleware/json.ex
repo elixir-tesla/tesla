@@ -53,6 +53,7 @@ defmodule Tesla.Middleware.JSON do
 
   def decodable?(env, opts), do: decodable_body?(env) && decodable_content_type?(env, opts)
 
+  def decodable_body?({:error, _}), do: false
   def decodable_body?(env) do
     (is_binary(env.body)  && env.body != "") ||
     (is_list(env.body)    && env.body != [])
@@ -70,8 +71,6 @@ defmodule Tesla.Middleware.JSON do
   defp process(data, op, opts) do
     with {:ok, value} <- do_process(data, op, opts) do
       value
-    else
-      {:error, reason} -> raise %Tesla.Error{message: "JSON #{op} error: #{inspect reason}", reason: reason}
     end
   end
 

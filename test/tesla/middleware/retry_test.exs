@@ -42,8 +42,8 @@ defmodule RetryTest do
     assert %Tesla.Env{url: "/maybe", method: :get} = Client.get("/maybe")
   end
 
-  test "raise if max_retries is exceeded" do
-    assert_raise Tesla.Error, fn -> Client.get("/nope") end
+  test "error if max_retries is exceeded" do
+    {:error, :econnrefused} = Client.get("/nope")
   end
 
 end

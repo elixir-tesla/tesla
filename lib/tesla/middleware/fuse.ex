@@ -42,12 +42,9 @@ if Code.ensure_loaded?(:fuse) do
     end
 
     defp run(env, next, name) do
-      try do
-        Tesla.run(env, next)
-      rescue
-        _error ->
-          :fuse.melt(name)
-          {:error, :unavailable}
+      with {:error, :econnrefused} <- Tesla.run(env, next) do
+        :fuse.melt(name)
+        {:error, :unavailable}
       end
     end
   end
