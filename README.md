@@ -35,7 +35,7 @@ defp deps do
 end
 ```
 
-Also, unless using Elixir 1.4, add `:tesla` to the `applications` list: 
+Also, unless using Elixir 1.4, add `:tesla` to the `applications` list:
 
 ```ex
 def application do
@@ -173,6 +173,7 @@ end
 - `Tesla.Middleware.Retry` - retry few times in case of connection refused
 - `Tesla.Middleware.FormUrlencoded` - urlencode POST body parameter, useful for POSTing a map/keyword list
 - `Tesla.Middleware.FollowRedirects` - follow 3xx redirects
+- `Tesla.Middleware.Tuples` - return `{:ok, env} | {:error, reason}` instead of raising exception
 
 ### JSON
 
