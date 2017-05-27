@@ -10,11 +10,11 @@ defmodule FollowRedirectsTest do
 
     adapter fn (env) ->
       {status, headers, body} = case env.url do
-        "/0" ->
+        "http://example.com/0" ->
           {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
-        "/" <> n ->
+        "http://example.com/" <> n ->
           next = String.to_integer(n) - 1
-          {301, %{'Location' => '/#{next}'}, ""}
+          {301, %{'Location' => 'http://example.com/#{next}'}, ""}
       end
 
       %{env | status: status, headers: headers, body: body}
@@ -22,11 +22,11 @@ defmodule FollowRedirectsTest do
   end
 
   test "redirects if default max redirects isn't exceeded" do
-    assert Client.get("/5").status == 200
+    assert Client.get("http://example.com/5").status == 200
   end
 
   test "raise error when redirect default max redirects is exceeded" do
-    assert_raise(Tesla.Error, "too many redirects", fn-> Client.get("/6") end)
+    assert_raise(Tesla.Error, "too many redirects", fn-> Client.get("http://example.com/6") end)
   end
 
   defmodule CustomMaxRedirectsClient do
@@ -36,11 +36,11 @@ defmodule FollowRedirectsTest do
 
     adapter fn (env) ->
       {status, headers, body} = case env.url do
-        "/0" ->
+        "http://example.com/0" ->
           {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
-        "/" <> n ->
+        "http://example.com/" <> n ->
           next = String.to_integer(n) - 1
-          {301, %{'Location' => '/#{next}'}, ""}
+          {301, %{'Location' => 'http://example.com/#{next}'}, ""}
       end
 
       %{env | status: status, headers: headers, body: body}
@@ -50,11 +50,41 @@ defmodule FollowRedirectsTest do
   alias CustomMaxRedirectsClient, as: CMRClient
 
   test "redirects if custom max redirects isn't exceeded" do
-    assert CMRClient.get("/1").status == 200
+    assert CMRClient.get("http://example.com/1").status == 200
   end
 
   test "raise error when custom max redirects is exceeded" do
-    assert_raise(Tesla.Error, "too many redirects", fn-> CMRClient.get("/2") end)
+    assert_raise(Tesla.Error, "too many redirects", fn-> CMRClient.get("http://example.com/2") end)
   end
 
+  defmodule RelativeLocationClient do
+    use Tesla
+
+    plug Tesla.Middleware.FollowRedirects
+
+    adapter fn (env) ->
+      {status, headers, body} = case env.url do
+        "https://example.com/pl" ->
+          {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
+        "http://example.com" ->
+          {301, %{'Location' => 'https://example.com'}, ""}
+        "https://example.com" ->
+          {301, %{'Location' => '/pl'}, ""}
+        "https://example.com/" ->
+          {301, %{'Location' => '/pl'}, ""}
+      end
+
+      %{env | status: status, headers: headers, body: body}
+    end
+  end
+
+  alias RelativeLocationClient, as: RLClient
+
+  test "supports relative address in location header" do
+    assert RLClient.get("http://example.com").status == 200
+  end
+
+  test "doesn't create double slashes inside new url" do
+    assert RLClient.get("https://example.com/").url == "https://example.com/pl"
+  end
 end
