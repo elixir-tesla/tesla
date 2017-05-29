@@ -4,7 +4,7 @@ defmodule Tesla.Mixfile do
   def project do
     [
       app: :tesla,
-      version: "0.7.0",
+      version: "0.7.1",
       description: description(),
       package: package(),
       source_url: "https://github.com/teamon/tesla",
