@@ -8,7 +8,7 @@ defmodule Tesla.Env do
   @type url         :: binary
   @type param       :: binary | [{(binary | atom), param}]
   @type query       :: [{(binary | atom), param}]
-  @type headers     :: %{binary => binary}
+  @type headers     :: %{atom => atom}
   @type body        :: any #
   @type status      :: integer
   @type opts        :: [any]
