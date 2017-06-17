@@ -12,16 +12,24 @@ defmodule LoggerTest do
 
     adapter fn (env) ->
       {status, body} = case env.url do
-        "/server-error" -> {500, "error"}
-        "/client-error" -> {404, "error"}
-        "/redirect"     -> {301, "moved"}
-        "/ok"           -> {200, "ok"}
+        "/connection-error" -> raise %Tesla.Error{message: "adapter error: :econnrefused", reason: :econnrefused}
+        "/server-error"     -> {500, "error"}
+        "/client-error"     -> {404, "error"}
+        "/redirect"         -> {301, "moved"}
+        "/ok"               -> {200, "ok"}
       end
       %{env | status: status, body: body}
     end
   end
 
   import ExUnit.CaptureLog
+
+  test "connection error" do
+    log = capture_log(fn ->
+      assert_raise Tesla.Error, fn -> Client.get("/connection-error") end
+    end)
+    assert log =~ "/connection-error -> adapter error: :econnrefused"
+  end
 
   test "server error" do
     log = capture_log(fn -> Client.get("/server-error") end)
