@@ -17,6 +17,7 @@ defmodule Tesla.Adapter.TestCase.Basic do
 
       import Tesla.Adapter.TestCase, only: [http_url: 0]
       require Tesla
+      alias Tesla.Multipart
 
       setup do
         {adapter, _} = B.Client.__adapter__
@@ -38,6 +39,27 @@ defmodule Tesla.Adapter.TestCase.Basic do
         assert response.status == 200
         assert response.headers["content-type"] == "application/json"
         assert Regex.match?(~r/some-post-data/, response.body)
+      end
+
+      test "multipart post request" do
+        mp = Multipart.new
+        |> Multipart.add_content_type_param("charset=utf-8")
+        |> Multipart.add_field("field1", "foo")
+        |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
+        |> Multipart.add_file("test/tesla/multipart_test_file.sh")
+        |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
+
+        response = B.Client.post("#{http_url()}/post", mp)
+        resp_body = Poison.decode!(response.body)
+
+        assert response.status == 200
+        assert response.headers["content-type"] == "application/json"
+        assert Regex.match?(~r[multipart/form-data; boundary=#{mp.boundary}; charset=utf-8$], resp_body["headers"]["content-type"])
+        assert resp_body["form"] == %{"field1" => "foo", "field2" => "bar"}
+        assert resp_body["files"] == %{
+          "file" => "#!/usr/bin/env bash\necho \"test multipart file\"\n",
+          "foobar" => "#!/usr/bin/env bash\necho \"test multipart file\"\n"
+        }
       end
 
       test "unicode request" do

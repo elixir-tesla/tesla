@@ -1,6 +1,7 @@
 if Code.ensure_loaded?(:ibrowse) do
   defmodule Tesla.Adapter.Ibrowse do
     import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
+    alias Tesla.Multipart
 
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts || []) do
@@ -19,6 +20,13 @@ if Code.ensure_loaded?(:ibrowse) do
         body,
         opts ++ env.opts
       )
+    end
+
+    defp request(url, headers, method, %Multipart{} = mp, opts) do
+      headers = Keyword.merge(headers, Multipart.headers(mp))
+      body = stream_to_fun(Multipart.body(mp))
+
+      request(url, headers, method, body, opts)
     end
 
     defp request(url, headers, method, %Stream{} = body, opts) do

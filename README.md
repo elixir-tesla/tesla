@@ -307,3 +307,21 @@ end
 ```
 
 Each piece of stream will be encoded as json and sent as a new line (conforming to json stream format)
+
+
+## Multipart functionality
+
+You can pass a Multipart struct as the body.
+
+Example:
+```ex
+    mp =
+      Multipart.new
+      |> Multipart.add_content_type_param("charset=utf-8")
+      |> Multipart.add_field("field1", "foo")
+      |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
+      |> Multipart.add_file("test/tesla/multipart_test_file.sh")
+      |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
+
+    response = Tesla.post("http://httpbin.org/post", mp)
+```

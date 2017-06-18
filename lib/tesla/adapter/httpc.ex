@@ -7,6 +7,7 @@ defmodule Tesla.Adapter.Httpc do
   """
 
   import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
+  alias Tesla.Multipart
 
   @override_defaults autoredirect: false
   @http_opts ~w(timeout connect_timeout ssl essl autoredirect proxy_auth version relaxed url_encode)a
@@ -38,6 +39,15 @@ defmodule Tesla.Adapter.Httpc do
 
   defp request(method, url, headers, _content_type, nil, {http_opts, opts}) do
     :httpc.request(method, {url, headers}, http_opts, opts)
+  end
+
+  defp request(method, url, headers, _content_type, %Multipart{} = mp, opts) do
+    headers = Keyword.merge(headers, Multipart.headers(mp))
+    headers = for {key, value} <- headers, do: {to_charlist(key), to_charlist(value)}
+    {content_type, headers} = Keyword.pop_first(headers, 'Content-Type', 'text/plain')
+    body = stream_to_fun(Multipart.body(mp))
+
+    request(method, url, headers, to_charlist(content_type), body, opts)
   end
 
   defp request(method, url, headers, content_type, %Stream{} = body, opts) do
