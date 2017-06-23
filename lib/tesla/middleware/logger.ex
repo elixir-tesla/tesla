@@ -5,18 +5,30 @@ defmodule Tesla.Middleware.Logger do
     {time, env} = :timer.tc(Tesla, :run, [env, next])
     _ = log(env, time)
     env
+  rescue
+    ex in Tesla.Error ->
+      stacktrace = System.stacktrace()
+      _ = log(env, ex)
+      reraise ex, stacktrace
+  end
+
+  defp log(env, %Tesla.Error{message: message}) do
+    Logger.error "#{normalize_method(env)} #{env.url} -> #{message}"
   end
 
   defp log(env, time) do
     ms = :io_lib.format("~.3f", [time / 1000])
-    method = env.method |> to_string |> String.upcase
-    message = "#{method} #{env.url} -> #{env.status} (#{ms} ms)"
+    message = "#{normalize_method(env)} #{env.url} -> #{env.status} (#{ms} ms)"
 
     cond do
       env.status >= 400 -> Logger.error message
       env.status >= 300 -> Logger.warn message
       true              -> Logger.info message
     end
+  end
+
+  defp normalize_method(env) do
+    env.method |> to_string() |> String.upcase()
   end
 end
 
@@ -34,6 +46,11 @@ defmodule Tesla.Middleware.DebugLogger do
     |> log_response
     |> log_headers("< ")
     |> log_body("< ")
+  rescue
+    ex in Tesla.Error ->
+      stacktrace = System.stacktrace()
+      _ = log_exception(ex, "< ")
+      reraise ex, stacktrace
   end
 
   def log_request(env) do
@@ -77,5 +94,9 @@ defmodule Tesla.Middleware.DebugLogger do
   def log_body_stream(stream, prefix) do
     _ = Logger.debug ""
     Stream.each stream, fn line -> Logger.debug prefix <> line end
+  end
+
+  defp log_exception(%Tesla.Error{message: message, reason: reason}, prefix) do
+    _ = Logger.debug prefix <> message <> " (#{inspect reason})"
   end
 end
