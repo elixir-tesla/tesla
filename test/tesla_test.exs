@@ -1,5 +1,6 @@
 defmodule TeslaTest do
   use ExUnit.Case
+  doctest TeslaDocsTest.Doctest
 
   describe "Macros" do
     defmodule Mc do
