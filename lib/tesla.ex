@@ -75,15 +75,15 @@ defmodule Tesla.Builder do
 
         Examples:
 
-            iex> ExampleApi.request(method: :get, url: "/users/path")
+            ExampleApi.request(method: :get, url: "/users/path")
 
         You can also use shortcut methods like:
 
-            iex> ExampleApi.get("/users/1")
+            ExampleApi.get("/users/1")
 
         or
 
-            iex> myclient |> ExampleApi.post("/users", %{name: "Jon"})
+            myclient |> ExampleApi.post("/users", %{name: "Jon"})
         """
         @spec request(Tesla.Env.client, [option]) :: Tesla.Env.t
       else
@@ -195,7 +195,7 @@ defmodule Tesla.Builder do
         See `request/1` or `request/2` for options definition.
 
         Example
-            iex> myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
+            myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
         """
         @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body, [option]) :: Tesla.Env.t
       else
@@ -211,8 +211,8 @@ defmodule Tesla.Builder do
         See `request/1` or `request/2` for options definition.
 
         Example
-            iex> myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
-            iex> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
+            myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
+            ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
         """
         @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body) :: Tesla.Env.t
       else
@@ -236,7 +236,7 @@ defmodule Tesla.Builder do
         See `request/1` or `request/2` for options definition.
 
         Example
-            iex> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
+            ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
         """
         @spec unquote(method)(Tesla.Env.url, Tesla.Env.body) :: Tesla.Env.t
       else
@@ -256,7 +256,7 @@ defmodule Tesla.Builder do
         See `request/1` or `request/2` for options definition.
 
         Example
-            iex> myclient |> ExampleApi.#{unquote(method)}("/users", query: [page: 1])
+            myclient |> ExampleApi.#{unquote(method)}("/users", query: [page: 1])
         """
         @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, [option]) :: Tesla.Env.t
       else
@@ -272,8 +272,8 @@ defmodule Tesla.Builder do
         See `request/1` or `request/2` for options definition.
 
         Example
-            iex> myclient |> ExampleApi.#{unquote(method)}("/users")
-            iex> ExampleApi.#{unquote(method)}("/users", query: [page: 1])
+            myclient |> ExampleApi.#{unquote(method)}("/users")
+            ExampleApi.#{unquote(method)}("/users", query: [page: 1])
         """
         @spec unquote(method)(Tesla.Env.client, Tesla.Env.url) :: Tesla.Env.t
       else
@@ -297,7 +297,7 @@ defmodule Tesla.Builder do
         See `request/1` or `request/2` for options definition.
 
         Example
-            iex> ExampleApi.#{unquote(method)}("/users")
+            ExampleApi.#{unquote(method)}("/users")
         """
         @spec unquote(method)(Tesla.Env.url) :: Tesla.Env.t
       else
