@@ -315,6 +315,8 @@ You can pass a Multipart struct as the body.
 
 Example:
 ```ex
+    alias Tesla.Multipart
+
     mp =
       Multipart.new
       |> Multipart.add_content_type_param("charset=utf-8")
