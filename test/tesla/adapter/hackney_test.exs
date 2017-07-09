@@ -5,9 +5,9 @@ defmodule HackneyTest do
   use Tesla.Adapter.TestCase.SSL, adapter: :hackney
 
   setup do
-    case Application.ensure_started(:hackney) do
+    case Application.ensure_all_started(:hackney) do
       {:error, _} -> :hackney.start
-      :ok         -> :ok
+      {:ok, _}    -> :ok
     end
   end
 end

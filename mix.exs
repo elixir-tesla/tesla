@@ -8,7 +8,7 @@ defmodule Tesla.Mixfile do
       description: description(),
       package: package(),
       source_url: "https://github.com/teamon/tesla",
-      elixir: "~> 1.3",
+      elixir: "~> 1.4",
       elixirc_paths: elixirc_paths(Mix.env),
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
@@ -59,9 +59,9 @@ defmodule Tesla.Mixfile do
       {:fuse, "~> 2.4", optional: true},
 
       # testing & docs
-      {:httparrot,      "~> 0.5.0",  only: :test},
-      {:excoveralls,    "~> 0.5",    only: :test},
-      {:ex_doc,         "~> 0.13.0", only: :dev},
+      {:httparrot,      "~> 1.0.1",  only: :test},
+      {:excoveralls,    "~> 0.7.1",  only: :test},
+      {:ex_doc,         "~> 0.16.2", only: :dev},
       {:mix_test_watch, "~> 0.2.6",  only: :dev},
       {:dialyxir,       "~> 0.3.5",  only: :dev}
     ]
