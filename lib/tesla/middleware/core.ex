@@ -105,7 +105,7 @@ defmodule Tesla.Middleware.DecodeRels do
   defp rels(link) do
     link
     |> String.split(",")
-    |> Enum.map(&String.strip/1)
+    |> Enum.map(&String.trim/1)
     |> Enum.map(&rel/1)
     |> Enum.into(%{})
   end

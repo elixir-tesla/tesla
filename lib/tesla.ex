@@ -374,7 +374,7 @@ defmodule Tesla do
   end
 
   defp prepare_module(module, name, opts) do
-    case Atom.to_char_list(name) do
+    case Atom.to_charlist(name) do
       ~c"Elixir." ++ _ -> {name,   :call, [opts]}
       _                -> {module, name}
     end
