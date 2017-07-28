@@ -25,11 +25,11 @@ defmodule Tesla.Adapter.Httpc do
   end
 
   defp request(env, opts) do
-    content_type = to_char_list(env.headers["content-type"] || "")
+    content_type = to_charlist(env.headers["content-type"] || "")
     handle request(
       env.method || :get,
-      Tesla.build_url(env.url, env.query) |> to_char_list,
-      Enum.into(env.headers, [], fn {k,v} -> {to_char_list(k), to_char_list(v)} end),
+      Tesla.build_url(env.url, env.query) |> to_charlist,
+      Enum.into(env.headers, [], fn {k,v} -> {to_charlist(k), to_charlist(v)} end),
       content_type,
       env.body,
       Keyword.split(opts ++ env.opts, @http_opts)

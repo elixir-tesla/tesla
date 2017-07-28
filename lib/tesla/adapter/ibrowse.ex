@@ -13,7 +13,7 @@ if Code.ensure_loaded?(:ibrowse) do
     defp request(env, opts) do
       body = env.body || []
       handle request(
-        Tesla.build_url(env.url, env.query) |> to_char_list,
+        Tesla.build_url(env.url, env.query) |> to_charlist,
         Enum.into(env.headers, []),
         env.method,
         body,
