@@ -31,9 +31,8 @@ defmodule LoggerTest do
     plug Tesla.Middleware.JSON
 
     adapter fn (env) ->
-
       {status, body} = case env.url do
-        "/ok_json"          -> {200, "{\"message\": \"ok\"}"}
+        "/ok_json"          -> {200, ~s<{"status": "ok"}>}
       end
       %{env | status: status, body: body, headers: %{"content-type" => "application/json"}}
     end
@@ -75,6 +74,6 @@ defmodule LoggerTest do
 
   test "ok with json" do
     log = capture_log(fn -> JSONClient.get("/ok_json") end)
-    assert log =~ "message"
+    assert log =~ "status"
   end
 end
