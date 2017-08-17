@@ -17,8 +17,25 @@ defmodule LoggerTest do
         "/client-error"     -> {404, "error"}
         "/redirect"         -> {301, "moved"}
         "/ok"               -> {200, "ok"}
+        "/ok_json"          -> {200, "{\"message\": \"ok\""}
       end
       %{env | status: status, body: body}
+    end
+  end
+
+  defmodule JSONClient do
+    use Tesla
+
+    plug Tesla.Middleware.Logger
+    plug Tesla.Middleware.DebugLogger
+    plug Tesla.Middleware.JSON
+
+    adapter fn (env) ->
+
+      {status, body} = case env.url do
+        "/ok_json"          -> {200, "{\"message\": \"ok\"}"}
+      end
+      %{env | status: status, body: body, headers: %{"content-type" => "application/json"}}
     end
   end
 
@@ -54,5 +71,10 @@ defmodule LoggerTest do
   test "ok with params" do
     log = capture_log(fn -> Client.get("/ok", query: %{"test" => "true"}) end)
     assert log =~ "Query Param 'test': 'true'"
-  end  
+  end
+
+  test "ok with json" do
+    log = capture_log(fn -> JSONClient.get("/ok_json") end)
+    assert log =~ "message"
+  end
 end
