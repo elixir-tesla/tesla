@@ -75,5 +75,6 @@ defmodule LoggerTest do
   test "ok with json" do
     log = capture_log(fn -> JSONClient.get("/ok_json") end)
     assert log =~ "status"
+    assert log =~ "ok"    
   end
 end
