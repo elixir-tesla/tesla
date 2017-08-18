@@ -92,13 +92,7 @@ defmodule Tesla.Middleware.DebugLogger do
   end
   def log_body(data, prefix) when is_map(data) do
     _ = Logger.debug ""
-    data
-    |> Map.keys()
-    |> Enum.each(fn(key) ->
-      _ = Logger.debug prefix <> key
-      log_body(data[key], prefix <> prefix)
-    end)
-    data
+    _ = Logger.debug "#{prefix} #{inspect data}"
   end
 
   def log_body_stream(stream, prefix) do

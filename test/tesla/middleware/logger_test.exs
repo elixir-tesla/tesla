@@ -32,7 +32,7 @@ defmodule LoggerTest do
 
     adapter fn (env) ->
       {status, body} = case env.url do
-        "/ok_json"          -> {200, ~s<{"status": "ok"}>}
+        "/ok_json"          -> {200, Poison.encode!(%{"resources" => [%{"bytes" => 624}]})}
       end
       %{env | status: status, body: body, headers: %{"content-type" => "application/json"}}
     end
@@ -74,7 +74,6 @@ defmodule LoggerTest do
 
   test "ok with json" do
     log = capture_log(fn -> JSONClient.get("/ok_json") end)
-    assert log =~ "status"
-    assert log =~ "ok"    
+    assert log =~ "%{\"resources\" => [%{\"bytes\" => 624}]}"   
   end
 end
