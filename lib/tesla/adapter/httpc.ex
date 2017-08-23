@@ -32,7 +32,7 @@ defmodule Tesla.Adapter.Httpc do
       Enum.into(env.headers, [], fn {k,v} -> {to_charlist(k), to_charlist(v)} end),
       content_type,
       env.body,
-      Keyword.split(opts ++ env.opts, @http_opts)
+      Keyword.split(opts ++ List.wrap(env.opts), @http_opts)
     )
   end
 

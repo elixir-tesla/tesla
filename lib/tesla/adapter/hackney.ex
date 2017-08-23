@@ -14,7 +14,7 @@ if Code.ensure_loaded?(:hackney) do
         Tesla.build_url(env.url, env.query),
         Enum.into(env.headers, []),
         env.body,
-        opts ++ env.opts
+        (opts ++ List.wrap(env.opts))
       )
     end
     defp request(method, url, headers, %Stream{} = body, opts), do: request_stream(method, url, headers, body, opts)
