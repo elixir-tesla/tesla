@@ -61,6 +61,7 @@ defmodule Tesla.Mixfile do
       # testing & docs
       {:httparrot,      "~> 1.0.1",  only: :test},
       {:excoveralls,    "~> 0.7.2",    only: :test},
+      {:httparrot,      "~> 0.5.0",  only: :test},
       {:ex_doc,         "~> 0.16.1", only: :dev},
       {:mix_test_watch, "~> 0.4.1",  only: :dev},
       {:dialyxir,       "~> 0.5.1",  only: :dev}
