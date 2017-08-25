@@ -59,7 +59,6 @@ defmodule Tesla.Mixfile do
       {:fuse, "~> 2.4", optional: true},
 
       # testing & docs
-      {:httparrot,      "~> 1.0.1",  only: :test},
       {:excoveralls,    "~> 0.7.2",    only: :test},
       {:httparrot,      "~> 0.5.0",  only: :test},
       {:ex_doc,         "~> 0.16.1", only: :dev},
