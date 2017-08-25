@@ -27,7 +27,7 @@ defmodule Tesla.Mixfile do
     [applications: applications(Mix.env)]
   end
 
-  def applications(:test), do: applications(:dev) ++ [:httparrot]
+  def applications(:test), do: applications(:dev) ++ [:httparrot, :hackney, :ibrowse]
   def applications(_), do: [:logger, :ssl]
 
   defp description do
