@@ -37,12 +37,12 @@ defmodule Tesla.Middleware.FollowRedirects do
     end
   end
 
-  defp parse_location("/" <> rest = location, env) do
-    if String.ends_with?(env.url, "/") do
-      env.url <> rest
-    else
-      env.url <> location
-    end
+  defp parse_location("/" <> _rest = location, env) do
+    env.url
+    |> URI.parse
+    |> URI.merge(location)
+    |> URI.to_string
   end
+
   defp parse_location(location, _env), do: location
 end

@@ -72,6 +72,8 @@ defmodule FollowRedirectsTest do
           {301, %{'Location' => '/pl'}, ""}
         "https://example.com/" ->
           {301, %{'Location' => '/pl'}, ""}
+        "https://example.com/article" ->
+          {301, %{'Location' => '/pl'}, ""}
       end
 
       %{env | status: status, headers: headers, body: body}
@@ -86,5 +88,9 @@ defmodule FollowRedirectsTest do
 
   test "doesn't create double slashes inside new url" do
     assert RLClient.get("https://example.com/").url == "https://example.com/pl"
+  end
+
+  test "rewrites URLs to their root" do
+    assert RLClient.get("https://example.com/article").url == "https://example.com/pl"
   end
 end
