@@ -30,7 +30,7 @@ Add `tesla` as dependency in `mix.exs`
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 0.7.1"},
+  [{:tesla, "~> 0.7.2"},
    {:poison, ">= 1.0.0"}] # for JSON middleware
 end
 ```
