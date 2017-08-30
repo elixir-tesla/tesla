@@ -40,6 +40,11 @@ defmodule Tesla.Adapter.TestCase.Basic do
         assert Regex.match?(~r/some-post-data/, response.body)
       end
 
+      test "basic get request with nil opts" do
+        response = B.Client.get("#{http_url()}/ip", opts: nil)
+        assert response.status == 200
+      end
+
       test "unicode request" do
         response = B.Client.post("#{http_url()}/post", "1 ø 2 đ 1 \u00F8 2 \u0111", headers: %{"Content-Type" => "text/plain"})
         assert response.status == 200
