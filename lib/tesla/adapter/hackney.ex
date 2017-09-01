@@ -22,7 +22,7 @@ if Code.ensure_loaded?(:hackney) do
     defp request(method, url, headers, %Stream{} = body, opts), do: request_stream(method, url, headers, body, opts)
     defp request(method, url, headers, body, opts) when is_function(body), do: request_stream(method, url, headers, body, opts)
     defp request(method, url, headers, %Multipart{} = mp, opts) do
-      headers = Keyword.merge(headers, Multipart.headers(mp))
+      headers = headers ++ Multipart.headers(mp)
       body = Multipart.body(mp)
 
       request(method, url, headers, body, opts)

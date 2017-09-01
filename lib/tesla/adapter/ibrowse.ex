@@ -23,7 +23,7 @@ if Code.ensure_loaded?(:ibrowse) do
     end
 
     defp request(url, headers, method, %Multipart{} = mp, opts) do
-      headers = Keyword.merge(headers, Multipart.headers(mp))
+      headers = headers ++ Multipart.headers(mp)
       body = stream_to_fun(Multipart.body(mp))
 
       request(url, headers, method, body, opts)
