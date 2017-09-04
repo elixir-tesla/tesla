@@ -42,7 +42,7 @@ defmodule Tesla.Adapter.Httpc do
   end
 
   defp request(method, url, headers, _content_type, %Multipart{} = mp, opts) do
-    headers = Keyword.merge(headers, Multipart.headers(mp))
+    headers = headers ++ Multipart.headers(mp)
     headers = for {key, value} <- headers, do: {to_charlist(key), to_charlist(value)}
     {content_type, headers} = Keyword.pop_first(headers, 'Content-Type', 'text/plain')
     body = stream_to_fun(Multipart.body(mp))

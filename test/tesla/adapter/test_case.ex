@@ -15,6 +15,13 @@ defmodule Tesla.Adapter.TestCase.Basic do
         adapter unquote(adapter)
       end
 
+      defmodule B.ClientWithHeaders do
+        use Tesla
+
+        plug Tesla.Middleware.Headers, %{"Authorization" => "token xyz"}
+        adapter unquote(adapter)
+      end
+
       import Tesla.Adapter.TestCase, only: [http_url: 0]
       require Tesla
       alias Tesla.Multipart
@@ -60,6 +67,17 @@ defmodule Tesla.Adapter.TestCase.Basic do
           "file" => "#!/usr/bin/env bash\necho \"test multipart file\"\n",
           "foobar" => "#!/usr/bin/env bash\necho \"test multipart file\"\n"
         }
+      end
+
+      test "multipart with string headers" do
+        mp = Multipart.new
+        |> Multipart.add_field("field1", "foo")
+
+        response = B.ClientWithHeaders.post("#{http_url()}/post", mp)
+        resp_body = Poison.decode!(response.body)
+
+        assert response.status == 200
+        assert resp_body["form"] == %{"field1" => "foo"}
       end
 
       test "unicode request" do
