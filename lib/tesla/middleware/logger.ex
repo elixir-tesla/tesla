@@ -90,6 +90,11 @@ defmodule Tesla.Middleware.DebugLogger do
     _ = Logger.debug prefix <> to_string(data)
     data
   end
+  def log_body(data, prefix) when is_map(data) do
+    _ = Logger.debug ""
+    _ = Logger.debug "#{prefix} #{inspect data}"
+    data
+  end
 
   def log_body_stream(stream, prefix) do
     _ = Logger.debug ""
