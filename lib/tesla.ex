@@ -476,7 +476,7 @@ defmodule Tesla do
   end
 
   def build_adapter(fun) do
-    %Tesla.Client{fun: fn env, _next -> fun.(env) end}
+    %Tesla.Client{post: [{:fn, fn env, _next -> fun.(env) end}]}
   end
 
   def build_url(url, []), do: url

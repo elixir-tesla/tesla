@@ -300,8 +300,19 @@ defmodule TeslaTest do
   describe "override adapter" do
     require Tesla
     defmodule O do
+      defmodule Mid do
+        def call(env, next, _opts) do
+          env
+          |> (& %{&1 | url: &1.url <> "/pre"}).()
+          |> Tesla.run(next)
+          |> (& %{&1 | url: &1.url <> "/post"}).()
+        end
+      end
+
       defmodule Client do
         use Tesla
+
+        plug Mid
 
         adapter fn env ->
           %{env | body: "data"}
@@ -314,7 +325,7 @@ defmodule TeslaTest do
     end
 
     test "use default adapter" do
-      assert %{body: "data"} = O.Client.help()
+      assert %{body: "data", url: "/help/pre/post"} = O.Client.help()
     end
 
     test "override adapter" do
@@ -323,15 +334,14 @@ defmodule TeslaTest do
           %{env | body: "new"}
         end
       ])
-      assert %{body: "new"} = O.Client.help(client)
+      assert %{body: "new", url: "/help/pre/post"} = O.Client.help(client)
     end
 
     test "override adapter - Tesla.build_adapter" do
       client = Tesla.build_adapter fn env ->
         %{env | body: "new"}
       end
-      assert %{body: "new"} = O.Client.help(client)
+      assert %{body: "new", url: "/help/pre/post"} = O.Client.help(client)
     end
-
   end
 end
