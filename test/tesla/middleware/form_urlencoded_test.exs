@@ -32,4 +32,27 @@ defmodule FormUrlencodedTest do
     assert Client.post("/check_incoming_content_type", %{"foo" => "%bar "}).body
       == "application/x-www-form-urlencoded"
   end
+
+  defmodule MultipartClient do
+    use Tesla
+
+    plug Tesla.Middleware.FormUrlencoded
+
+    adapter fn (%{url: url, body: %Tesla.Multipart{}} = env) ->
+      {status, headers, body} = case url do
+        "/upload" ->
+          {200, %{'Content-Type' => 'text/html'}, "ok"}
+      end
+
+      %{env | status: status, headers: headers, body: body}
+    end
+  end
+
+  test "skips encoding multipart bodies" do
+    alias Tesla.Multipart
+    mp = Multipart.new
+    |> Multipart.add_field("param", "foo")
+
+    assert MultipartClient.post("/upload", mp).body == "ok"
+  end
 end

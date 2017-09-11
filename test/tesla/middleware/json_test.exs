@@ -114,4 +114,27 @@ defmodule JsonTest do
     alias EncodeDecodeJsonClient, as: EDJClient
     assert EDJClient.post("/foo2baz", %{"foo" => "bar"}).body == %{"baz" => "bar"}
   end
+
+  defmodule MultipartClient do
+    use Tesla
+
+    plug Tesla.Middleware.JSON
+
+    adapter fn (%{url: url, body: %Tesla.Multipart{}} = env) ->
+      {status, headers, body} = case url do
+        "/upload" ->
+          {200, %{'Content-Type' => 'application/json'}, "{\"status\": \"ok\"}"}
+      end
+
+      %{env | status: status, headers: headers, body: body}
+    end
+  end
+
+  test "skips encoding multipart bodies" do
+    alias Tesla.Multipart
+    mp = Multipart.new
+    |> Multipart.add_field("param", "foo")
+
+    assert MultipartClient.post("/upload", mp).body == %{"status" => "ok"}
+  end
 end

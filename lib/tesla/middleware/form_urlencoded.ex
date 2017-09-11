@@ -33,7 +33,9 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   defp encode_body(body, _opts), do: do_process(body)
 
-  def encodable?(env), do: env.body != nil
+  def encodable?(%{body: nil}),                 do: false
+  def encodable?(%{body: %Tesla.Multipart{}}),  do: false
+  def encodable?(_),                            do: true
 
   defp do_process(data) do
     URI.encode_query(data)

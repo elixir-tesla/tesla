@@ -1,5 +1,7 @@
 if Code.ensure_loaded?(:hackney) do
   defmodule Tesla.Adapter.Hackney do
+    alias Tesla.Multipart
+
     def call(env, opts) do
       with  {:ok, status, headers, body} <- request(env, opts || []) do
         %{env | status:   status,
@@ -19,10 +21,15 @@ if Code.ensure_loaded?(:hackney) do
     end
     defp request(method, url, headers, %Stream{} = body, opts), do: request_stream(method, url, headers, body, opts)
     defp request(method, url, headers, body, opts) when is_function(body), do: request_stream(method, url, headers, body, opts)
+    defp request(method, url, headers, %Multipart{} = mp, opts) do
+      headers = headers ++ Multipart.headers(mp)
+      body = Multipart.body(mp)
+
+      request(method, url, headers, body, opts)
+    end
     defp request(method, url, headers, body, opts) do
       handle :hackney.request(method, url, headers, body || '', opts)
     end
-
 
     defp request_stream(method, url, headers, body, opts) do
       with {:ok, ref} <- :hackney.request(method, url, headers, :stream, opts) do

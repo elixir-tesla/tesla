@@ -41,7 +41,9 @@ defmodule Tesla.Middleware.JSON do
     Stream.map body, fn item -> encode_body(item, opts) <> "\n" end
   end
 
-  def encodable?(env), do: env.body != nil
+  def encodable?(%{body: nil}),                 do: false
+  def encodable?(%{body: %Tesla.Multipart{}}),  do: false
+  def encodable?(_),                            do: true
 
   def decode(env, opts) do
     if decodable?(env, opts) do
