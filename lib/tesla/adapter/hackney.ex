@@ -42,10 +42,11 @@ if Code.ensure_loaded?(:hackney) do
 
     defp handle({:error, _} = error), do: error
     defp handle({:ok, status, headers}), do: {:ok, status, headers, []}
-    defp handle({:ok, status, headers, ref}) do
+    defp handle({:ok, status, headers, ref}) when is_reference(ref) do
       with {:ok, body} <- :hackney.body(ref) do
         {:ok, status, headers, body}
       end
     end
+    defp handle({:ok, status, headers, body}), do: {:ok, status, headers, body}
   end
 end
