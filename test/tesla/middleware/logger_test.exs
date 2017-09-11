@@ -54,5 +54,12 @@ defmodule LoggerTest do
   test "ok with params" do
     log = capture_log(fn -> Client.get("/ok", query: %{"test" => "true"}) end)
     assert log =~ "Query Param 'test': 'true'"
-  end  
+  end
+
+  test "multipart" do
+    mp = Tesla.Multipart.new() |> Tesla.Multipart.add_field("field1", "foo")
+    log = capture_log(fn -> Client.post("/ok", mp) end)
+    assert log =~ "boundary: #{mp.boundary}"
+    assert log =~ inspect List.first(mp.parts)
+  end
 end
