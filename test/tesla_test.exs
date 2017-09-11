@@ -186,6 +186,8 @@ defmodule TeslaTest do
 
 
   describe "request API" do
+    require Tesla
+
     defmodule R do
       defmodule Client do
         use Tesla
@@ -253,13 +255,23 @@ defmodule TeslaTest do
 
       response = client |> R.Client.get("/")
       assert response.url == "/prefix/"
-      assert response.__client__ == client
+      assert response.__client__ == %Tesla.Client{fun: client}
     end
 
     test "build_client helper" do
       client = R.Client.new
       response = client |> R.Client.get("test")
       assert response.url == "test/mid1/mid2/local"
+    end
+
+    test "insert pre & post middlewares" do
+      client = Tesla.build_client(
+        [{R.Mid1, [with: "/mid1"]}],
+        [{R.Mid2, nil}]
+      )
+
+      response = client |> R.Client.get("test")
+      assert response.url == "test/mid1/mid2"
     end
 
     test "insert request middleware function at runtime" do
@@ -283,5 +295,43 @@ defmodule TeslaTest do
       res = fun |> R.Client.get("/foo")
       assert res.url == "/foo.json"
     end
+  end
+
+  describe "override adapter" do
+    require Tesla
+    defmodule O do
+      defmodule Client do
+        use Tesla
+
+        adapter fn env ->
+          %{env | body: "data"}
+        end
+
+        def help(client \\ %Tesla.Client{}) do
+          get(client, "/help")
+        end
+      end
+    end
+
+    test "use default adapter" do
+      assert %{body: "data"} = O.Client.help()
+    end
+
+    test "override adapter" do
+      client = Tesla.build_client([], [
+        fn env, _next ->
+          %{env | body: "new"}
+        end
+      ])
+      assert %{body: "new"} = O.Client.help(client)
+    end
+
+    test "override adapter - Tesla.build_adapter" do
+      client = Tesla.build_adapter fn env ->
+        %{env | body: "new"}
+      end
+      assert %{body: "new"} = O.Client.help(client)
+    end
+
   end
 end

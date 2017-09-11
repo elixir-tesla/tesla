@@ -3,7 +3,7 @@ defmodule Tesla.Error do
 end
 
 defmodule Tesla.Env do
-  @type client      :: (t,stack -> t)
+  @type client      :: Tesla.Client.t | (t,stack -> t)
   @type method      :: :head | :get | :delete | :trace | :options | :post | :put | :patch
   @type url         :: binary
   @type param       :: binary | [{(binary | atom), param}]
@@ -38,6 +38,17 @@ defmodule Tesla.Env do
             opts:       [],
             __module__: nil,
             __client__: nil
+end
+
+defmodule Tesla.Client do
+  @type t :: %__MODULE__{
+            fun:  (Tesla.Env.t, Tesla.Env.stack -> Tesla.Env.t),
+            pre:  Tesla.Env.stack,
+            post: Tesla.Env.stack
+  }
+  defstruct fun: nil,
+            pre: [],
+            post: []
 end
 
 defmodule Tesla.Builder do
@@ -89,7 +100,7 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def request(client, options) do
+      def request(%Tesla.Client{} = client, options) do
         Tesla.perform_request(__MODULE__, client, options)
       end
 
@@ -201,8 +212,13 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(client, url, body, options) when is_function(client) do
+      def unquote(method)(%Tesla.Client{} = client, url, body, options) do
         request(client, [method: unquote(method), url: url, body: body] ++ options)
+      end
+
+      # fallback to keep backward compatibility
+      def unquote(method)(fun, url, body, options) when is_function(fun) do
+        unquote(method)(%Tesla.Client{fun: fun}, url, body, options)
       end
 
       if unquote(docs) do
@@ -218,9 +234,15 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(client, url, body) when is_function(client) do
+      def unquote(method)(%Tesla.Client{} = client, url, body) do
         request(client, method: unquote(method), url: url, body: body)
       end
+
+      # fallback to keep backward compatibility
+      def unquote(method)(fun, url, body) when is_function(fun) do
+        unquote(method)(%Tesla.Client{fun: fun}, url, body)
+      end
+
       if unquote(docs) do
         @spec unquote(method)(Tesla.Env.url, Tesla.Env.body, [option]) :: Tesla.Env.t
       else
@@ -262,8 +284,13 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(client, url, options) when is_function(client) do
+      def unquote(method)(%Tesla.Client{} = client, url, options) do
         request(client, [method: unquote(method), url: url] ++ options)
+      end
+
+      # fallback to keep backward compatibility
+      def unquote(method)(fun, url, options) when is_function(fun) do
+        unquote(method)(%Tesla.Client{fun: fun}, url, options)
       end
 
       if unquote(docs) do
@@ -279,9 +306,15 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(client, url) when is_function(client) do
+      def unquote(method)(%Tesla.Client{} = client, url) do
         request(client, method: unquote(method), url: url)
       end
+
+      # fallback to keep backward compatibility
+      def unquote(method)(fun, url) when is_function(fun) do
+        unquote(method)(%Tesla.Client{fun: fun}, url)
+      end
+
       if unquote(docs) do
         @spec unquote(method)(Tesla.Env.url, [option]) :: Tesla.Env.t
       else
@@ -360,8 +393,14 @@ defmodule Tesla do
   def alias(key), do: key
 
   def perform_request(module, client \\ nil, options) do
-    stack = prepare(module, List.wrap(client) ++ module.__middleware__ ++ default_middleware() ++ [module.__adapter__])
-    env   = struct(Tesla.Env, options ++ [__module__: module, __client__: client])
+    %{fun: fun, pre: pre, post: post} = client || %Tesla.Client{}
+
+    stack = pre
+      ++ prepare(module, List.wrap(fun) ++ module.__middleware__ ++ default_middleware())
+      ++ post
+      ++ prepare(module, [module.__adapter__])
+
+    env = struct(Tesla.Env, options ++ [__module__: module, __client__: client])
     run(env, stack)
   end
 
@@ -427,10 +466,17 @@ defmodule Tesla do
   client |> ExampleAPI.get("/me")
   ```
   """
-  defmacro build_client(stack) do
+  defmacro build_client(pre, post \\ []) do
     quote do
-      fn env, next -> Tesla.run(env, Tesla.prepare(__MODULE__, unquote(stack)) ++ next) end
+      %Tesla.Client{
+        pre:  Tesla.prepare(__MODULE__, unquote(pre)),
+        post: Tesla.prepare(__MODULE__, unquote(post))
+      }
     end
+  end
+
+  def build_adapter(fun) do
+    %Tesla.Client{fun: fn env, _next -> fun.(env) end}
   end
 
   def build_url(url, []), do: url
