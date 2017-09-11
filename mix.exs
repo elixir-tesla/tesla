@@ -48,6 +48,8 @@ defmodule Tesla.Mixfile do
 
   defp deps do
     [
+      {:mime, "~> 1.0"},
+
       # http clients
       {:ibrowse, "~> 4.2",   optional: true},
       {:hackney, "~> 1.6", optional: true},

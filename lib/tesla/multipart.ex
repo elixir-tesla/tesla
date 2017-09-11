@@ -89,7 +89,7 @@ defmodule Tesla.Multipart do
 
     # add in detected content-type if necessary
     headers = case detect_content_type do
-                true -> Keyword.put(headers, :"Content-Type", :mimerl.filename(filename))
+                true -> Keyword.put(headers, :"Content-Type", MIME.from_path(filename))
                 false -> headers
               end
 
