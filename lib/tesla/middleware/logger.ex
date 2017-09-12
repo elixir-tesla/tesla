@@ -85,6 +85,7 @@ defmodule Tesla.Middleware.DebugLogger do
   def log_body([], _), do: nil
   def log_body(%Stream{} = stream, prefix), do: log_body_stream(stream, prefix)
   def log_body(stream, prefix) when is_function(stream), do: log_body_stream(stream, prefix)
+  def log_body(%Tesla.Multipart{} = mp, prefix), do: log_multipart_body(mp, prefix)
   def log_body(data, prefix) when is_binary(data) or is_list(data) do
     _ = Logger.debug ""
     _ = Logger.debug prefix <> to_string(data)
@@ -94,6 +95,15 @@ defmodule Tesla.Middleware.DebugLogger do
   def log_body_stream(stream, prefix) do
     _ = Logger.debug ""
     Stream.each stream, fn line -> Logger.debug prefix <> line end
+  end
+
+  def log_multipart_body(%Tesla.Multipart{} = mp, prefix) do
+    _ = Logger.debug ""
+    _ = Logger.debug prefix <> "boundary: " <> mp.boundary
+    _ = Logger.debug prefix <> "content_type_params: " <> inspect mp.content_type_params
+    Enum.each(mp.parts, &(Logger.debug prefix <> inspect &1))
+
+    mp
   end
 
   defp log_exception(%Tesla.Error{message: message, reason: reason}, prefix) do
