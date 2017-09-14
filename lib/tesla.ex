@@ -439,8 +439,11 @@ defmodule Tesla do
 
 
   def default_adapter do
-    adapter = Application.get_env(:tesla, :adapter, :httpc) |> Tesla.alias
-    {adapter, []}
+    Application.get_env(:tesla, :adapter, :httpc) |> Tesla.alias
+  end
+
+  def run_default_adapter(env, opts \\ []) do
+    apply(default_adapter(), :call, [env, opts])
   end
 
   def default_middleware do

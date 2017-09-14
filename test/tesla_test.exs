@@ -322,7 +322,24 @@ defmodule TeslaTest do
           get(client, "/help")
         end
       end
+
+      defmodule Cached do
+        use Tesla
+
+        adapter :cache
+
+        def cache(env) do
+          cond do
+            String.ends_with?(env.url, "/cached") ->
+              %{env | body: "cached", status: 304}
+            true ->
+              Tesla.run_default_adapter(env)
+          end
+        end
+      end
     end
+
+    @url "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
 
     test "use default adapter" do
       assert %{body: "data", url: "/help/pre/post"} = O.Client.help()
@@ -342,6 +359,11 @@ defmodule TeslaTest do
         %{env | body: "new"}
       end
       assert %{body: "new", url: "/help/pre/post"} = O.Client.help(client)
+    end
+
+    test "statically override adapter" do
+      assert %{status: 200} = O.Cached.get(@url <> "/ip")
+      assert %{status: 304} = O.Cached.get(@url <> "/cached")
     end
   end
 end
