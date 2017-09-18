@@ -5,11 +5,11 @@ defmodule Tesla.Mixfile do
     [
       app: :tesla,
       version: "0.5.2",
-      description: description,
-      package: package,
+      description: description(),
+      package: package(),
       source_url: "https://github.com/teamon/tesla",
       elixir: "~> 1.3",
-      deps: deps,
+      deps: deps(),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
         plt_add_apps: [:inets],
