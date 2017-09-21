@@ -87,6 +87,13 @@ defmodule Tesla.Middleware.Query do
 end
 
 
+defmodule Tesla.Middleware.Opts do
+  def call(env, next, opts) do
+    Tesla.run(%{env | opts: env.opts ++ opts}, next)
+  end
+end
+
+
 defmodule Tesla.Middleware.DecodeRels do
   def call(env, next, _opts) do
     env
