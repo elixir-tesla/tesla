@@ -212,12 +212,12 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(%Tesla.Client{} = client, url, body, options) do
+      def unquote(method)(%Tesla.Client{} = client, url, body, options) when is_list(options) do
         request(client, [method: unquote(method), url: url, body: body] ++ options)
       end
 
       # fallback to keep backward compatibility
-      def unquote(method)(fun, url, body, options) when is_function(fun) do
+      def unquote(method)(fun, url, body, options) when is_function(fun) and is_list(options) do
         unquote(method)(%Tesla.Client{fun: fun}, url, body, options)
       end
 
@@ -248,7 +248,7 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(url, body, options) do
+      def unquote(method)(url, body, options) when is_list(options) do
         request([method: unquote(method), url: url, body: body] ++ options)
       end
 
@@ -284,12 +284,12 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(%Tesla.Client{} = client, url, options) do
+      def unquote(method)(%Tesla.Client{} = client, url, options) when is_list(options) do
         request(client, [method: unquote(method), url: url] ++ options)
       end
 
       # fallback to keep backward compatibility
-      def unquote(method)(fun, url, options) when is_function(fun) do
+      def unquote(method)(fun, url, options) when is_function(fun) and is_list(options) do
         unquote(method)(%Tesla.Client{fun: fun}, url, options)
       end
 
@@ -320,7 +320,7 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(url, options) do
+      def unquote(method)(url, options) when is_list(options) do
         request([method: unquote(method), url: url] ++ options)
       end
 
