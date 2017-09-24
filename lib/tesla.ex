@@ -380,6 +380,7 @@ defmodule Tesla do
     httpc:    Tesla.Adapter.Httpc,
     hackney:  Tesla.Adapter.Hackney,
     ibrowse:  Tesla.Adapter.Ibrowse,
+    mock:     Tesla.Mock,
 
     base_url:     Tesla.Middleware.BaseUrl,
     headers:      Tesla.Middleware.Headers,
