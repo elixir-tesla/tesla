@@ -96,7 +96,7 @@ defmodule Tesla.Builder do
 
             myclient |> ExampleApi.post("/users", %{name: "Jon"})
         """
-        @spec request(Tesla.Env.client, [option]) :: Tesla.Env.t
+        @spec request(Tesla.Env.client, [option]) :: return_type
       else
         @doc false
       end
@@ -108,7 +108,7 @@ defmodule Tesla.Builder do
         @doc """
         Perform a request. See `request/2` for available options.
         """
-        @spec request([option]) :: Tesla.Env.t
+        @spec request([option]) :: return_type
       else
         @doc false
       end
@@ -208,7 +208,7 @@ defmodule Tesla.Builder do
         Example
             myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
         """
-        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body, [option]) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body, [option]) :: return_type
       else
         @doc false
       end
@@ -230,7 +230,7 @@ defmodule Tesla.Builder do
             myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
             ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
         """
-        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body) :: return_type
       else
         @doc false
       end
@@ -244,7 +244,7 @@ defmodule Tesla.Builder do
       end
 
       if unquote(docs) do
-        @spec unquote(method)(Tesla.Env.url, Tesla.Env.body, [option]) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.url, Tesla.Env.body, [option]) :: return_type
       else
         @doc false
       end
@@ -260,7 +260,7 @@ defmodule Tesla.Builder do
         Example
             ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
         """
-        @spec unquote(method)(Tesla.Env.url, Tesla.Env.body) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.url, Tesla.Env.body) :: return_type
       else
         @doc false
       end
@@ -280,7 +280,7 @@ defmodule Tesla.Builder do
         Example
             myclient |> ExampleApi.#{unquote(method)}("/users", query: [page: 1])
         """
-        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, [option]) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, [option]) :: return_type
       else
         @doc false
       end
@@ -302,7 +302,7 @@ defmodule Tesla.Builder do
             myclient |> ExampleApi.#{unquote(method)}("/users")
             ExampleApi.#{unquote(method)}("/users", query: [page: 1])
         """
-        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url) :: return_type
       else
         @doc false
       end
@@ -316,7 +316,7 @@ defmodule Tesla.Builder do
       end
 
       if unquote(docs) do
-        @spec unquote(method)(Tesla.Env.url, [option]) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.url, [option]) :: return_type
       else
         @doc false
       end
@@ -332,7 +332,7 @@ defmodule Tesla.Builder do
         Example
             ExampleApi.#{unquote(method)}("/users")
         """
-        @spec unquote(method)(Tesla.Env.url) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.url) :: return_type
       else
         @doc false
       end
@@ -344,9 +344,25 @@ defmodule Tesla.Builder do
 
   defmacro __before_compile__(env) do
     adapter     = Module.get_attribute(env.module, :__adapter__) || quote(do: Tesla.default_adapter)
-    middleware  = Module.get_attribute(env.module, :__middleware__) |> Enum.reverse
+    middleware  = Module.get_attribute(env.module, :__middleware__)
+
+    return_type = case middleware do
+      [{last,_}|_] ->
+        Code.ensure_loaded(last)
+        if function_exported?(last, :return_type, 0) do
+          apply(last, :return_type, [])
+        else
+          quote(do: Tesla.Env.t)
+        end
+      _ ->
+        quote(do: Tesla.Env.t)
+    end
+
+    middleware = Enum.reverse(middleware)
 
     quote do
+      @type return_type :: unquote(return_type)
+
       def __middleware__, do: unquote(middleware)
       def __adapter__, do: unquote(adapter)
     end

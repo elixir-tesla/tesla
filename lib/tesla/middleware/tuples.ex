@@ -26,6 +26,13 @@ defmodule Tesla.Middleware.Tuples do
       plug Tesla.Middleware.Tuples, rescue_errors: :all
 
   """
+
+  def return_type do
+    quote do
+      {:ok, Tesla.Env.t} | {:error, any}
+    end
+  end
+
   def call(env, next, opts) do
     {:ok, Tesla.run(env, next)}
   rescue
