@@ -366,4 +366,12 @@ defmodule TeslaTest do
       assert %{status: 304} = O.Cached.get(@url <> "/cached")
     end
   end
+
+  describe "nil options" do
+    test "better errors when given nil opts" do
+      assert_raise FunctionClauseError, fn ->
+        Tesla.get("/", nil)
+      end
+    end
+  end
 end
