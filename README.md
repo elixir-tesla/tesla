@@ -144,23 +144,40 @@ To use it simply include `adapter :ibrowse` line in your API client definition.
 NOTE: Remember to include ibrowse in applications list.
 
 
-### Test / Mock
+### Testing
 
-When testing it might be useful to use simple function as adapter:
+You can set the adapter to `:mock` in tests.
 
 ```elixir
-defmodule MyApi do
-  use Tesla
+# config/test.exs
+config :tesla, adapter: :mock
+```
 
-  adapter fn (env) ->
-    case env.url do
-      "/"       -> %{env | status: 200, body: "home"}
-      "/about"  -> %{env | status: 200, body: "about us"}
+Then, mock requests before using your client:
+
+
+```elixir
+defmodule MyAppTest do
+  use ExUnit.Case
+
+  setup do
+    Tesla.Mock.mock fn
+      %{method: :get, url: "http://example.com/hello"} ->
+        %Tesla.Env{status: 200, body: "hello"}
+      %{method: :post, url: "http://example.com/world"} ->
+        %Tesla.Env{status: 200, body: "hi!"}
     end
+
+    :ok
+  end
+
+  test "list things" do
+    assert %Tesla.Env{} = env = MyApp.get("/hello")
+    assert env.status == 200
+    assert env.body == "hello"
   end
 end
 ```
-
 
 ## Middleware
 
