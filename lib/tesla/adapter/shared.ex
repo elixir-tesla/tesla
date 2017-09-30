@@ -1,4 +1,6 @@
 defmodule Tesla.Adapter.Shared do
+  @moduledoc false
+  
   def stream_to_fun(stream) do
     reductor = fn(item, _acc) -> {:suspend, item} end
     {_, _, fun} = Enumerable.reduce(stream, {:suspend, nil}, reductor)

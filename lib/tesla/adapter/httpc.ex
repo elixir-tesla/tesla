@@ -1,9 +1,11 @@
 defmodule Tesla.Adapter.Httpc do
   @moduledoc """
-    Adapter for `:httpc`
+  Adapter for [httpc](http://erlang.org/doc/man/httpc.html)
 
-    **NOTE** Tesla overrides default autoredirect value with false to ensure
-    consistency between adapters
+  This is the default adapter.
+
+  **NOTE** Tesla overrides default autoredirect value with false to ensure
+  consistency between adapters
   """
 
   import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
