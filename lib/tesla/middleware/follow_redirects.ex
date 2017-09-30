@@ -1,14 +1,23 @@
 defmodule Tesla.Middleware.FollowRedirects do
+  @behaviour Tesla.Middleware
+
   @moduledoc """
-  Follow 301/302 redirects
+  Follow 3xx redirects
 
-  Example:
-      defmodule MyClient do
-        use Tesla
+  ### Example
+  ```
+  defmodule MyClient do
+    use Tesla
 
-        plug Tesla.Middleware.FollowRedirects, max_redirects: 3 # defaults to 5
-      end
+    plug Tesla.Middleware.FollowRedirects, max_redirects: 3 # defaults to 5
+  end
+  ```
+
+  ### Options
+  - `:max_redirects` - limit number of redirects (default: `5`)
+
   """
+
   @max_redirects 5
   @redirect_statuses [301, 302, 307, 308]
 
