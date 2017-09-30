@@ -16,7 +16,10 @@ defmodule Tesla.Mixfile do
         plt_add_apps: [:inets],
         plt_add_deps: :project
       ],
-      docs: [extras: ["README.md"]]
+      docs: [
+        main: "readme",
+        extras: ["README.md"]
+      ]
     ]
   end
 
@@ -51,17 +54,17 @@ defmodule Tesla.Mixfile do
       {:mime, "~> 1.0"},
 
       # http clients
-      {:ibrowse, "~> 4.2",   optional: true},
-      {:hackney, "~> 1.6", optional: true},
+      {:ibrowse, "~> 4.2",  optional: true},
+      {:hackney, "~> 1.6",  optional: true},
 
       # json parsers
-      {:exjsx,  ">= 0.1.0",  optional: true},
-      {:poison, ">= 1.0.0",  optional: true},
+      {:exjsx,  ">= 0.1.0", optional: true},
+      {:poison, ">= 1.0.0", optional: true},
 
-      {:fuse, "~> 2.4", optional: true},
+      {:fuse, "~> 2.4",     optional: true},
 
       # testing & docs
-      {:excoveralls,    "~> 0.7.2",    only: :test},
+      {:excoveralls,    "~> 0.7.2",  only: :test},
       {:httparrot,      "~> 0.5.0",  only: :test},
       {:ex_doc,         "~> 0.16.1", only: :dev},
       {:mix_test_watch, "~> 0.4.1",  only: :dev},
