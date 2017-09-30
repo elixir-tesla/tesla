@@ -1,24 +1,28 @@
 defmodule Tesla.Middleware.DigestAuth do
+  @behaviour Tesla.Middleware
+
   @moduledoc """
   Digest access authentication middleware
 
   [Wiki on the topic](https://en.wikipedia.org/wiki/Digest_access_authentication)
 
-  **NOTE** Currently the implementation is incomplete and works only for MD5 algorithm
+  **NOTE**: Currently the implementation is incomplete and works only for MD5 algorithm
   and auth qop.
 
-  Example:
-      defmodule MyClient do
-        use Tesla
+  ### Example
+  ```
+  defmodule MyClient do
+    use Tesla
 
-        def client(username, password, opts \\ %{}) do
-          Tesla.build_client [
-            {Tesla.Middleware.DigestAuth, Map.merge(%{username: username, password: password}, opts)}
-          ]
-        end
-      end
+    def client(username, password, opts \\ %{}) do
+      Tesla.build_client [
+        {Tesla.Middleware.DigestAuth, Map.merge(%{username: username, password: password}, opts)}
+      ]
+    end
+  end
+  ```
 
-  Options:
+  ### Options
   - `:username`  - username (defaults to `""`)
   - `:password`  - password (defaults to `""`)
   - `:cnonce_fn` - custom function generating client nonce (defaults to `&Tesla.Middleware.DigestAuth.cnonce/0`)
