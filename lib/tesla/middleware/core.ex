@@ -115,35 +115,7 @@ defmodule Tesla.Middleware.Opts do
 end
 
 
-defmodule Tesla.Middleware.DecodeRels do
-  def call(env, next, _opts) do
-    env
-    |> Tesla.run(next)
-    |> parse_rels
-  end
 
-  def parse_rels(env) do
-    if link = env.headers["link"] do
-      Tesla.put_opt(env, :rels, rels(link))
-    else
-      env
-    end
-  end
-
-  defp rels(link) do
-    link
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.map(&rel/1)
-    |> Enum.into(%{})
-  end
-
-  def rel(item) do
-    Regex.run(~r/\A<(.+)>; rel="(.+)"\z/, item, capture: :all_but_first)
-    |> Enum.reverse
-    |> List.to_tuple
-  end
-end
 
 
 defmodule Tesla.Middleware.BaseUrlFromConfig do
