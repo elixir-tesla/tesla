@@ -1,17 +1,16 @@
 defmodule Tesla.AdapterCase.SSL do
-  defmacro __using__([adapter: adapter]) do
+  defmacro __using__(_) do
     quote do
-      defmodule SSL.Client do
-        use Tesla
-
-        adapter unquote(adapter)
-      end
-
-      import Tesla.AdapterCase, only: [https_url: 0]
+      alias Tesla.Env
 
       describe "SSL" do
-        test "basic get request" do
-          response = SSL.Client.get("#{https_url()}/ip")
+        test "GET request" do
+          request = %Env{
+            method: :get,
+            url: "https://httpbin.org"
+          }
+
+          assert %Env{} = response = call(request)
           assert response.status == 200
         end
       end

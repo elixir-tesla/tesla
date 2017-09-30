@@ -1,7 +1,12 @@
 defmodule Tesla.AdapterCase do
-  @http_url   "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
-  @https_url  "https://httpbin.org"
+  defmacro __using__([adapter: adapter]) do
+    quote do
+      @adapter  unquote(adapter)
+      @url       "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
 
-  def http_url,   do: @http_url
-  def https_url,  do: @https_url
+      defp call(env, opts \\ []) do
+        Tesla.Middleware.Normalize.call(env, [{@adapter, :call, [opts]}], [])
+      end
+    end
+  end
 end
