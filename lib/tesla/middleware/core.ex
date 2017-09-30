@@ -1,4 +1,5 @@
 defmodule Tesla.Middleware.Normalize do
+  @moduledoc false
   def call(env, next, _opts) do
     env
     |> normalize
@@ -81,6 +82,20 @@ end
 
 
 defmodule Tesla.Middleware.Headers do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Set default headers for all requests
+
+  ### Example usage
+  ```
+  defmodule Myclient do
+    use Tesla
+
+    plug Tesla.Middleware.Headers, %{"User-Agent" => "Tesla"}
+  end
+  ```
+  """
   def call(env, next, headers) do
     env
     |> merge(headers)
@@ -95,6 +110,20 @@ end
 
 
 defmodule Tesla.Middleware.Query do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Set default query params for all requests
+
+  ### Example usage
+  ```
+  defmodule Myclient do
+    use Tesla
+
+    plug Tesla.Middleware.Query, [token: "some-token"]
+  end
+  ```
+  """
   def call(env, next, query) do
     env
     |> merge(query)
@@ -109,13 +138,24 @@ end
 
 
 defmodule Tesla.Middleware.Opts do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Set default opts for all requests
+
+  ### Example usage
+  ```
+  defmodule Myclient do
+    use Tesla
+
+    plug Tesla.Middleware.Opts, [some: "option"]
+  end
+  ```
+  """
   def call(env, next, opts) do
     Tesla.run(%{env | opts: env.opts ++ opts}, next)
   end
 end
-
-
-
 
 
 defmodule Tesla.Middleware.BaseUrlFromConfig do
