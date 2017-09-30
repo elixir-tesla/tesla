@@ -4,30 +4,59 @@ defmodule Tesla.Mock do
 
   ### Setup
 
-      # config/test.exs
-      config :tesla, adapter: :mock
+  ```
+  # config/test.exs
+  config :tesla, adapter: :mock
+
+  # in case MyClient defines specific adapter with `adapter :specific`
+  config :tesla, MyClient, adapter: :mock
+  ```
 
   ### Example test
+  ```
+  defmodule MyAppTest do
+    use ExUnit.Case
 
-      defmodule MyAppTest do
-        use ExUnit.Case
-
-        setup do
-          Tesla.Mock.mock fn
-            %{method: :get} ->
-              %Tesla.Env{status: 200, body: "hello"}
-          end
-
-          :ok
-        end
-
-        test "list things" do
-          assert %Tesla.Env{} = env = MyApp.get("...")
-          assert env.status == 200
-          assert env.body == "hello"
-        end
+    setup do
+      Tesla.Mock.mock fn
+        %{method: :get} ->
+          %Tesla.Env{status: 200, body: "hello"}
       end
 
+      :ok
+    end
+
+    test "list things" do
+      assert %Tesla.Env{} = env = MyApp.get("...")
+      assert env.status == 200
+      assert env.body == "hello"
+    end
+  end
+  ```
+
+  ### Setting up mocks
+  ```
+  # Match on method & url and return whole Tesla.Env
+  Tesla.Mock.mock fn
+    %{method: :get,  url: "http://example.com/list"} ->
+      %Tesla.Env{status: 200, body: "hello"}
+  end
+
+  # You can use any logic required
+  Tesla.Mock.mock fn env ->
+    case env.url do
+      "http://example.com/list" ->
+        %Tesla.Env{status: 200, body: "ok!"}
+      _ ->
+        %Tesla.Env{status: 404, body: "NotFound"}
+  end
+
+  # mock will also accept short version of response
+  # in the form of {status, headers, body}
+  Tesla.Mock.mock fn
+    %{method: :post} -> {201, %{}, %{id: 42}}
+  end
+  ```
   """
 
   defmodule Error do
@@ -59,29 +88,6 @@ defmodule Tesla.Mock do
 
   @doc """
   Setup mocks for current test.
-
-  ## Examples
-
-      # Match on method & url and return whole Tesla.Env
-      Tesla.Mock.mock fn
-        %{method: :get,  url: "http://example.com/list"} ->
-          %Tesla.Env{status: 200, body: "hello"}
-      end
-
-      # You can use any logic required
-      Tesla.Mock.mock fn env ->
-        case env.url do
-          "http://example.com/list" ->
-            %Tesla.Env{status: 200, body: "ok!"}
-          _ ->
-            %Tesla.Env{status: 404, body: "NotFound"}
-      end
-
-      # mock will also accept short version of response
-      # in the form of {status, headers, body}
-      Tesla.Mock.mock fn
-        %{method: :post} -> {201, %{}, %{id: 42}}
-      end
   """
   @spec mock((Tesla.Env.t -> Tesla.Env.t | {integer, map, any})) :: no_return
   def mock(fun) when is_function(fun) do
