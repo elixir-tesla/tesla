@@ -2,27 +2,40 @@
 
 [![Build Status](https://travis-ci.org/teamon/tesla.svg?branch=master)](https://travis-ci.org/teamon/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](http://hex.pm/packages/tesla)
+[![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)
+[![Hex.pm](https://img.shields.io/hexpm/dw/tesla.svg)](https://hex.pm/packages/tesla)
 
 Tesla is an HTTP client loosely based on [Faraday](https://github.com/lostisland/faraday).
 It embraces the concept of middleware when processing the request/response cycle.
 
-## Direct usage
+## HTTP Client example
+
+Define module with `use Tesla` and choose from a variety of middleware.
 
 ```elixir
-# Example get request
-response = Tesla.get("http://httpbin.org/ip")
-response.status   # => 200
-response.body     # => '{\n  "origin": "87.205.72.203"\n}\n'
-response.headers  # => %{'Content-Type' => 'application/json' ...}
+defmodule GitHub do
+  use Tesla
 
+  plug Tesla.Middleware.BaseUrl, "https://api.github.com"
+  plug Tesla.Middleware.Headers, %{"Authorization" => "token xyz"}
+  plug Tesla.Middleware.JSON
 
-response = Tesla.get("http://httpbin.org/get", query: [a: 1, b: "foo"])
-response.url     # => "http://httpbin.org/get?a=1&b=foo"
-
-
-# Example post request
-response = Tesla.post("http://httpbin.org/post", "data", headers: %{"Content-Type" => "application/json"})
+  def user_repos(login) do
+    get("/user/" <> login <> "/repos")
+  end
+end
 ```
+
+Then use it like this:
+
+```elixir
+response = GitHub.user_repos("teamon")
+response.status  # => 200
+response.body    # => [%{…}, …]
+response.headers # => %{'content-type' => 'application/json'}
+```
+
+See below for documentation.
 
 ## Installation
 
@@ -31,11 +44,11 @@ Add `tesla` as dependency in `mix.exs`
 ```elixir
 defp deps do
   [{:tesla, "~> 0.8.0"},
-   {:poison, ">= 1.0.0"}] # for JSON middleware
+   {:poison, ">= 1.0.0"}] # optional, required by JSON middleware
 end
 ```
 
-Also, unless using Elixir 1.4, add `:tesla` to the `applications` list:
+Also, unless using Elixir `>= 1.4`, add `:tesla` to the `applications` list:
 
 ```ex
 def application do
@@ -43,9 +56,124 @@ def application do
 end
 ```
 
-### Adapters
+## Documentation
+- [Middleware](#middleware)
+- [Runtime middleware](#runtime-middleware)
+- [Adapters](#adapters)
+- [Streaming](#streaming)
+- [Multipart](#multipart)
+- [Testing](#testing)
+- [Writing middleware](#writing-middleware)
+- [Direct usage](#direct-usage)
+- [Cheatsheet](#cheatsheet)
 
-When using `ibrowse` or `hackney` adapters remember to alter applications list in `mix.exs`
+
+## Middleware
+Tesla is built around the concept of composable middlewares.
+This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#the-plug-router) works.
+
+#### Basic
+- [`Tesla.Middleware.BaseUrl`](https://hexdocs.pm/tesla/Tesla.Middleware.BaseUrl.html) - set base url
+- [`Tesla.Middleware.Headers`](https://hexdocs.pm/tesla/Tesla.Middleware.Headers.html) - set request headers
+- [`Tesla.Middleware.Query`](https://hexdocs.pm/tesla/Tesla.Middleware.Query.html) - set query parameters
+- [`Tesla.Middleware.Opts`](https://hexdocs.pm/tesla/Tesla.Middleware.Opts.html) - set request options
+- [`Tesla.Middleware.FollowRedirects`](https://hexdocs.pm/tesla/Tesla.Middleware.FollowRedirects.html) - follow 3xx redirects
+- [`Tesla.Middleware.MethodOverride`](https://hexdocs.pm/tesla/Tesla.Middleware.MethodOverride.html) - set X-Http-Method-Override
+- [`Tesla.Middleware.Logger`](https://hexdocs.pm/tesla/Tesla.Middleware.Logger.html) - log requests (method, url, status, time)
+- [`Tesla.Middleware.DebugLogger`](https://hexdocs.pm/tesla/Tesla.Middleware.DebugLogger.html) - log full requests & responses
+
+#### Formats
+- [`Tesla.Middleware.FormUrlencoded`](https://hexdocs.pm/tesla/Tesla.Middleware.FormUrlencoded.html) - urlencode POST body parameter, useful for POSTing a map/keyword list
+- [`Tesla.Middleware.JSON`](https://hexdocs.pm/tesla/Tesla.Middleware.JSON.html) - JSON request/response body
+- [`Tesla.Middleware.Compression`](https://hexdocs.pm/tesla/Tesla.Middleware.Compression.html) - gzip & deflate
+- [`Tesla.Middleware.DecodeRels`](https://hexdocs.pm/tesla/Tesla.Middleware.DecodeRels.html) - decode `Link` header into `opts[:rels]` field in response
+
+#### Auth
+- [`Tesla.Middleware.BasicAuth`](https://hexdocs.pm/tesla/Tesla.Middleware.BasicAuth.html) - HTTP Basic Auth
+- [`Tesla.Middleware.DigestAuth`](https://hexdocs.pm/tesla/Tesla.Middleware.DigestAuth.html) - Digest access authentication
+
+#### Error handling
+- [`Tesla.Middleware.Retry`](https://hexdocs.pm/tesla/Tesla.Middleware.Retry.html) - retry few times in case of connection refused
+- [`Tesla.Middleware.Fuse`](https://hexdocs.pm/tesla/Tesla.Middleware.Fuse.html) - fuse circuit breaker integration
+- [`Tesla.Middleware.Tuples`](https://hexdocs.pm/tesla/Tesla.Middleware.Tuples.html) - return `{:ok, env} | {:error, reason}` instead of raising exception
+
+
+## Runtime middleware
+
+All HTTP functions (`get`, `post`, etc.) can take a dynamic client function as the first parameter.
+This allow to use convenient syntax for modifying the behaviour in runtime.
+
+Consider the following case: GitHub API can be accessed using OAuth token authorization.
+
+We can't use `plug Tesla.Middleware.Headers, %{"Authorization" => "token here"}`
+since this would be compiled only once and there is no way to insert dynamic user token.
+
+Instead, we can use `Tesla.build_client` to create a dynamic middleware function:
+
+```elixir
+defmodule GitHub do
+  # same as above with a slightly change to `user_repos/1`
+
+  def user_repos(client, login) do
+    # pass `client` argument to `get` function
+    get(client, "/user/" <> login <> "/repos")
+  end
+
+  def issues(client \\ %Tesla.Client{}) do
+    # default to empty client that will not include runtime token
+    get(client, "/issues")
+  end
+
+  # build dynamic client based on runtime arguments
+  def client(token) do
+    Tesla.build_client [
+      {Tesla.Middleware.Headers, %{"Authorization" => "token: " <> token }}
+    ]
+  end
+end
+```
+
+and then:
+
+```elixir
+client = GitHub.client(user_token)
+client |> GitHub.user_repos("teamon")
+client |> GitHub.get("/me")
+
+GitHub.issues()
+client |> GitHub.issues()
+```
+
+The `Tesla.build_client` function can take two arguments: `pre` and `post` middleware.
+The first list (`pre`) will be included before any other middleware. In case there is a need
+to inject middleware at the end you can pass a second list (`post`). It will be put just
+before adapter. In fact, one can even dynamically override the adapter.
+
+For example, a private (per user) cache could be implemented as:
+
+```elixir
+def new(user) do
+  Tesla.build_client [], [
+    fn env, next ->
+      case my_private_cache.fetch(user, env) do
+        {:ok, env} -> env               # return cached response
+        :error -> Tesla.run(env, next)  # make real request
+      end
+    end
+  end
+end
+```
+
+
+## Adapters
+
+Tesla supports multiple HTTP adapter that do the actual HTTP request processing.
+
+- [`Tesla.Adapter.Httpc`](https://hexdocs.pm/tesla/Tesla.Adapter.Httpc.html) - the default, built-in erlang [httpc](http://erlang.org/doc/man/httpc.html) adapter
+- [`Tesla.Adapter.Hackney`](https://hexdocs.pm/tesla/Tesla.Adapter.Hackney.html) - [hackney](https://github.com/benoitc/hackney), "simple HTTP client in Erlang"
+- [`Tesla.Adapter.Ibrowse`](https://hexdocs.pm/tesla/Tesla.Adapter.Ibrowse.html) - [ibrowse](https://github.com/cmullaparthi/ibrowse), "Erlang HTTP client"
+
+When using ibrowse or hackney adapters remember to alter applications list in `mix.exs` (for Elixir < 1.4)
 
 ```elixir
 def application do
@@ -64,87 +192,50 @@ end
 ```
 
 
-## Creating API clients
+## Streaming
 
-Use `Tesla` module to create API wrappers.
-
-For example
+If adapter supports it, you can pass a [Stream](http://elixir-lang.org/docs/stable/elixir/Stream.html) as body, e.g.:
 
 ```elixir
-defmodule GitHub do
+defmodule ElasticSearch do
   use Tesla
 
-  plug Tesla.Middleware.BaseUrl, "https://api.github.com"
-  plug Tesla.Middleware.Headers, %{"Authorization" => "token xyz"}
+  plug Tesla.Middleware.BaseUrl, "http://localhost:9200"
   plug Tesla.Middleware.JSON
 
-  adapter Tesla.Adapter.Hackney
-
-  def user_repos(login) do
-    get("/user/" <> login <> "/repos")
+  def index(records_stream) do
+    stream = records_stream |> Stream.map(fn record -> %{index: [some, data]})
+    post("/_bulk", stream)
   end
 end
 ```
 
-Then use it like this:
+Each piece of stream will be encoded as JSON and sent as a new line (conforming to JSON stream format)
+
+
+
+
+## Multipart
+
+You can pass a `Tesla.Multipart` struct as the body.
+
 
 ```elixir
-GitHub.get("/user/teamon/repos")
-GitHub.user_repos("teamon")
+alias Tesla.Multipart
+
+mp =
+  Multipart.new
+  |> Multipart.add_content_type_param("charset=utf-8")
+  |> Multipart.add_field("field1", "foo")
+  |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
+  |> Multipart.add_file("test/tesla/multipart_test_file.sh")
+  |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
+
+response = MyApiClient.post("http://httpbin.org/post", mp)
 ```
 
-### Supported options
 
-Tesla.Builder allows to pass following options
-
-#### `:only` and `:except`
-
-Useful when you don't need functions for all http verbs to be generated.
-
-```elixir
-  #examples
-  use Tesla, only: ~w(get post)a
-  use Tesla, only: [:delete]
-  use Tesla, except: [:delete, :options]
-```
-
-#### `:docs`
-
-You can disable docs for tesla generated functions if you don't want them to be included in your own project docs.
-
-```elixir
-  defmodule MyProject.ApiModule do
-    @moduledoc "Module that does something"
-
-    use Tesla, docs: false
-
-    @doc "Function to get something from somewhere"
-    def custom_function(), do: get(...)
-  end
-```
-
-## Adapters
-
-Tesla has support for different adapters that do the actual HTTP request processing.
-
-### [httpc](http://erlang.org/doc/man/httpc.html)
-
-The default adapter, available in all erlang installations
-
-### [hackney](https://github.com/benoitc/hackney)
-
-This adapter supports real streaming body.
-To use it simply include `adapter :hackney` line in your API client definition.
-NOTE: Remember to include hackney in applications list.
-
-### [ibrowse](https://github.com/cmullaparthi/ibrowse)
-
-Tesla has built-in support for [ibrowse](https://github.com/cmullaparthi/ibrowse) Erlang HTTP client.
-To use it simply include `adapter :ibrowse` line in your API client definition.
-NOTE: Remember to include ibrowse in applications list.
-
-
-### Testing
+## Testing
 
 You can set the adapter to `:mock` in tests.
 
@@ -179,85 +270,11 @@ defmodule MyAppTest do
 end
 ```
 
-## Middleware
 
-### Basic
-
-- `Tesla.Middleware.BaseUrl` - set base url for all request
-- `Tesla.Middleware.Headers` - set request headers
-- `Tesla.Middleware.Query` - set query parameters
-- `Tesla.Middleware.DecodeRels` - decode `Link` header into `opts[:rels]` field in response
-- `Tesla.Middleware.Retry` - retry few times in case of connection refused
-- `Tesla.Middleware.FormUrlencoded` - urlencode POST body parameter, useful for POSTing a map/keyword list
-- `Tesla.Middleware.FollowRedirects` - follow 3xx redirects
-- `Tesla.Middleware.Tuples` - return `{:ok, env} | {:error, reason}` instead of raising exception
-
-### JSON
-
-NOTE: requires [poison](https://hex.pm/packages/poison) (or other engine) as dependency
-
-- `Tesla.Middleware.JSON` - encode/decode request/response bodies as JSON
-
-If you are using different json library it can be easily configured:
-
-```elixir
-plug Tesla.Middleware.JSON, engine: JSX, engine_opts: [strict: [:comments]]
-# or
-plug Tesla.Middleware.JSON, decode: &JSX.decode/1, encode: &JSX.encode/1
-```
-
-
-See [`json.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware/json.ex) for implementation details.
-
-### Logging
-
-- `Tesla.Middleware.Logger` - log each request in single line including method, path, status and execution time (colored)
-- `Tesla.Middleware.DebugLogger` - log full request and response (incl. headers and body)
-
-### Authentication
-
-- `Tesla.Middleware.DigestAuth` - [Digest access authentication](https://en.wikipedia.org/wiki/Digest_access_authentication)
-
-## Dynamic middleware
-
-All functions can take a middleware function as the first parameter.
-This allow to use convenient syntax for modifying the behaviour in runtime.
-
-Consider the following case: GitHub API can be accessed using OAuth token authorization.
-
-We can't use `plug Tesla.Middleware.Headers, %{"Authorization" => "token here"}` since this would be compiled only once and there is no way to insert dynamic user token.
-
-Instead, we can use `Tesla.build_client` to create a dynamic middleware function:
-
-```elixir
-defmodule GitHub do
-  # same as above with a slightly change to `user_repos/1`
-
-  def user_repos(client, login) do
-    get(client, "/user/" <> login <> "/repos")
-  end
-
-  def client(token) do
-    Tesla.build_client [
-      {Tesla.Middleware.Headers, %{"Authorization" => "token: " <> token }}
-    ]
-  end
-end
-```
-
-and then:
-
-```elixir
-client = GitHub.client(user_token)
-client |> GitHub.user_repos("teamon")
-client |> GitHub.get("/me")
-```
-
-
-## Writing your own middleware
+## Writing middleware
 
 A Tesla middleware is a module with `call/3` function, that at some point calls `Tesla.run(env, next)` to process
-the rest of stack
+the rest of stack.
 
 ```elixir
 defmodule MyMiddleware do
@@ -277,7 +294,7 @@ The arguments are:
 
 There is no distinction between request and response middleware, it's all about executing `Tesla.run/2` function at the correct time.
 
-For example, z request logger middleware could be implemented like this:
+For example, a request logger middleware could be implemented like this:
 
 ```elixir
 defmodule Tesla.Middleware.RequestLogger do
@@ -300,47 +317,111 @@ defmodule Tesla.Middleware.ResponseLogger do
 end
 ```
 
-See [`core.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware/core.ex) and [`json.ex`](https://github.com/teamon/tesla/blob/master/lib/tesla/middleware/json.ex) for more examples.
+See [built-in middlewares](https://github.com/teamon/tesla/tree/master/lib/tesla/middleware) for more examples.
 
 
-## Streaming body
+## Direct usage
 
-If adapter supports it, you can pass a [Stream](http://elixir-lang.org/docs/stable/elixir/Stream.html) as body, e.g.:
+You can also use Tesla directly, without creating a client module.
+This however won’t include any middleware.
 
 ```elixir
-defmodule ES do
-  use Tesla.Builder
+# Example get request
+response = Tesla.get("http://httpbin.org/ip")
+response.status   # => 200
+response.body     # => '{\n  "origin": "87.205.72.203"\n}\n'
+response.headers  # => %{'Content-Type' => 'application/json' ...}
 
-  plug Tesla.Middleware.BaseUrl, "http://localhost:9200"
 
-  plug Tesla.Middleware.DecodeJson
-  plug Tesla.Middleware.EncodeJson
+response = Tesla.get("http://httpbin.org/get", query: [a: 1, b: "foo"])
+response.url     # => "http://httpbin.org/get?a=1&b=foo"
 
-  def index(records) do
-    stream = records |> Stream.map(fn record -> %{index: [some, data]})
-    post("/_bulk", stream)
+
+# Example post request
+response = Tesla.post("http://httpbin.org/post", "data", headers: %{"Content-Type" => "application/json"})
+```
+
+
+## Cheatsheet
+
+
+#### Making requests 101
+```elixir
+# GET /path
+get("/path")
+
+# GET /path?a=hi&b[]=1&b[]=2&b[]=3
+get("/path", query: [a: "hi", b: [1,2,3]])
+
+# GET with dynamic client
+get(client, "/path")
+get(client, "/path", query: [page: 3])
+
+# arguments are the same for GET, HEAD, OPTIONS & TRACE
+head("/path")
+options("/path")
+trace("/path")
+
+# POST, PUT, PATCH
+post("/path", "some-body-i-used-to-know")
+put("/path", "some-body-i-used-to-know", query: [a: "0"])
+patch("/path", multipart)
+```
+
+#### Configuring HTTP functions visibility
+```elixir
+# generate only get and post function
+use Tesla, only: ~w(get post)a
+
+# generate only delete fuction
+use Tesla, only: [:delete]
+
+# generate all functions except delete and options
+use Tesla, except: [:delete, :options]
+```
+
+#### Disable docs for HTTP functions
+```elixir
+use Tesla, docs: false
+```
+
+#### Decode only JSON response (do not encode request)
+```elixir
+plug Tesla.Middleware.DecodeJson
+```
+
+#### Use other JSON library
+```elixir
+# use JSX
+plug Tesla.Middleware.JSON, engine: JSX, engine_opts: [strict: [:comments]]
+
+# use custom functions
+plug Tesla.Middleware.JSON, decode: &JSX.decode/1, encode: &JSX.encode/1
+```
+
+
+#### Custom middleware
+```elixir
+defmodule Tesla.Middleware.MyCustomMiddleware do
+  def call(env, next, options) do
+    env
+    |> do_something_with_request
+    |> Tesla.run(next)
+    |> do_something_with_response
   end
 end
 ```
 
-Each piece of stream will be encoded as json and sent as a new line (conforming to json stream format)
+## Contributing
 
+1. Fork it (https://github.com/teamon/tesla/fork)
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin my-new-feature`)
+5. Create new Pull Request
 
-## Multipart functionality
+## License
 
-You can pass a Multipart struct as the body.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
-Example:
-```ex
-    alias Tesla.Multipart
-
-    mp =
-      Multipart.new
-      |> Multipart.add_content_type_param("charset=utf-8")
-      |> Multipart.add_field("field1", "foo")
-      |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
-      |> Multipart.add_file("test/tesla/multipart_test_file.sh")
-      |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
-
-    response = Tesla.post("http://httpbin.org/post", mp)
-```
+Copyright (c) 2015-2017 [Tymon Tobolski](http://teamon.eu/about/)
