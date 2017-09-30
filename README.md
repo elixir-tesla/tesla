@@ -327,7 +327,7 @@ See [built-in middlewares](https://github.com/teamon/tesla/tree/master/lib/tesla
 
 Middleware should have documentation following this template:
 
-```elixir
+````elixir
 defmodule Tesla.Middleware.SomeMiddleware do
   @behaviour Tesla.Middleware
 
@@ -351,7 +351,7 @@ defmodule Tesla.Middleware.SomeMiddleware do
   - `:with` - their default values
   """
 end
-```
+````
 
 
 ## Direct usage
