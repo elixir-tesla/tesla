@@ -278,6 +278,8 @@ the rest of stack.
 
 ```elixir
 defmodule MyMiddleware do
+  @behaviour Tesla.Middleware
+
   def call(env, next, options) do
     env
     |> do_something_with_request
@@ -298,6 +300,8 @@ For example, a request logger middleware could be implemented like this:
 
 ```elixir
 defmodule Tesla.Middleware.RequestLogger do
+  @behaviour Tesla.Middleware
+
   def call(env, next, _) do
     IO.inspect env # print request env
     Tesla.run(env, next)
@@ -309,6 +313,8 @@ and response logger middleware like this:
 
 ```elixir
 defmodule Tesla.Middleware.ResponseLogger do
+  @behaviour Tesla.Middleware
+
   def call(env, next, _) do
     res = Tesla.run(env, next)
     IO.inspect res # print response env
@@ -318,6 +324,34 @@ end
 ```
 
 See [built-in middlewares](https://github.com/teamon/tesla/tree/master/lib/tesla/middleware) for more examples.
+
+Middleware should have documentation following this template:
+
+```elixir
+defmodule Tesla.Middleware.SomeMiddleware do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Short description what it does
+
+  Longer description, including e.g. additional dependencies.
+
+
+  ### Example usage
+  ```
+  defmodule MyClient do
+    use Tesla
+
+    plug Tesla.Middleware.SomeMiddleware, most: :common, options: "here"
+  end
+  ```
+
+  ### Options
+  - `:list` - all possible options
+  - `:with` - their default values
+  """
+end
+```
 
 
 ## Direct usage
