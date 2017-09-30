@@ -2,18 +2,18 @@ defmodule Tesla.Multipart do
   @moduledoc """
   Multipart functionality.
 
-  Example:
-  ```ex
-      mp =
-        Multipart.new
-        |> Multipart.add_content_type_param("charset=utf-8")
-        |> Multipart.add_field("field1", "foo")
-        |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
-        |> Multipart.add_file("test/tesla/multipart_test_file.sh")
-        |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
+  ### Example
+  ```
+  mp =
+    Multipart.new
+    |> Multipart.add_content_type_param("charset=utf-8")
+    |> Multipart.add_field("field1", "foo")
+    |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
+    |> Multipart.add_file("test/tesla/multipart_test_file.sh")
+    |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
 
-        response = client.post(url, mp)
-   ```
+    response = client.post(url, mp)
+ ```
   """
 
   @boundary_chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" |> String.split("")
@@ -34,6 +34,8 @@ defmodule Tesla.Multipart do
   }
 
   defmodule Part do
+    @moduledoc false
+
     defstruct [
       body: nil,
       dispositions: [],
