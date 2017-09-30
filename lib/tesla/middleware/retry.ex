@@ -1,15 +1,19 @@
 defmodule Tesla.Middleware.Retry do
+  @behaviour Tesla.Middleware
+
   @moduledoc """
   Retry few times in case of connection refused error.
 
-  Example:
-      defmodule MyClient do
-        use Tesla
+  ### Example
+  ```
+  defmodule MyClient do
+    use Tesla
 
-        plug Tesla.Middleware.Retry, delay: 500, max_retries: 10
-      end
+    plug Tesla.Middleware.Retry, delay: 500, max_retries: 10
+  end
+  ```
 
-  Options:
+  ### Options
   - `:delay`        - number of milliseconds to wait before retrying (defaults to 1000)
   - `:max_retries`  - maximum number of retries (defaults to 5)
   """
