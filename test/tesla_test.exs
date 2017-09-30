@@ -374,4 +374,42 @@ defmodule TeslaTest do
       end
     end
   end
+
+  describe "Adapter from config" do
+    defmodule C do
+      defmodule A do
+        use Tesla
+      end
+
+      defmodule B do
+        use Tesla
+        adapter :custom
+      end
+    end
+
+    setup do
+      # clean config
+      Application.delete_env(:tesla, C.A)
+      Application.delete_env(:tesla, C.B)
+      :ok
+    end
+
+    test "use default adapter" do
+      assert C.A.__adapter__ == Tesla.default_adapter
+    end
+
+    test "use module-set adapter" do
+      assert C.B.__adapter__ == {:custom, nil}
+    end
+
+    test "use adapter override from config" do
+      Application.put_env(:tesla, C.A, adapter: :mock)
+      assert C.A.__adapter__ == Tesla.Mock
+    end
+
+    test "prefer config over module setting" do
+      Application.put_env(:tesla, C.B, adapter: :mock)
+      assert C.B.__adapter__ == Tesla.Mock
+    end
+  end
 end

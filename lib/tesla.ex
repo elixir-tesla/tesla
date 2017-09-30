@@ -343,12 +343,12 @@ defmodule Tesla.Builder do
   end
 
   defmacro __before_compile__(env) do
-    adapter     = Module.get_attribute(env.module, :__adapter__) || quote(do: Tesla.default_adapter)
+    adapter     = Module.get_attribute(env.module, :__adapter__)
     middleware  = Module.get_attribute(env.module, :__middleware__) |> Enum.reverse
 
     quote do
       def __middleware__, do: unquote(middleware)
-      def __adapter__, do: unquote(adapter)
+      def __adapter__, do: Tesla.adapter(__MODULE__, unquote(adapter))
     end
   end
 end
@@ -438,6 +438,13 @@ defmodule Tesla do
     Map.update!(env, :opts, &Keyword.put(&1, key, value))
   end
 
+  def adapter(module, custom) do
+    module_adapter_from_config(module) || custom || default_adapter()
+  end
+
+  defp module_adapter_from_config(module) do
+    Application.get_env(:tesla, module, [])[:adapter] |> Tesla.alias
+  end
 
   def default_adapter do
     Application.get_env(:tesla, :adapter, :httpc) |> Tesla.alias
