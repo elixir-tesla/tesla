@@ -33,6 +33,27 @@ end
 
 
 defmodule Tesla.Middleware.BaseUrl do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Set base URL for all requests.
+
+  The base URL will be prepended to request path/url only
+  if it does not include http(s).
+
+  ### Example usage
+  ```
+  defmodule MyClient do
+    use Tesla
+
+    plug Tesla.Middleware.BaseUrl, "https://api.github.com"
+  end
+
+  MyClient.get("/path") # equals to GET https://api.github.com/path
+  MyClient.get("http://example.com/path") # equals to GET http://example.com/path
+  ```
+  """
+
   def call(env, next, base) do
     env
     |> apply_base(base)
