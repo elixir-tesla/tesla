@@ -1,6 +1,6 @@
 defmodule Tesla.Adapter.HttpcTest do
   use ExUnit.Case
-  use Tesla.Adapter.TestCase.Basic, adapter: :httpc
-  use Tesla.Adapter.TestCase.StreamRequestBody, adapter: :httpc
-  use Tesla.Adapter.TestCase.SSL, adapter: :httpc
+  use Tesla.AdapterCase.Basic, adapter: :httpc
+  use Tesla.AdapterCase.StreamRequestBody, adapter: :httpc
+  use Tesla.AdapterCase.SSL, adapter: :httpc
 end

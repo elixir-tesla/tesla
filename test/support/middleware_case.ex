@@ -1,4 +1,4 @@
-defmodule Tesla.Middleware.TestCase do
+defmodule Tesla.MiddlewareCase do
   defmodule Exec do
     def call(env, next, pid) do
       send pid, :before

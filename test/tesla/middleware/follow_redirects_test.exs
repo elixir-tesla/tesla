@@ -1,7 +1,7 @@
 defmodule FollowRedirectsTest do
   use ExUnit.Case
 
-  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.FollowRedirects
+  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.FollowRedirects
 
   defmodule Client do
     use Tesla

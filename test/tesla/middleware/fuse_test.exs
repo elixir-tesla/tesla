@@ -1,7 +1,7 @@
 defmodule FuseTest do
   use ExUnit.Case, async: false
 
-  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.Fuse
+  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.Fuse
 
   defmodule Client do
     use Tesla

@@ -1,7 +1,7 @@
 defmodule DigestAuthTest do
   use ExUnit.Case, async: false
 
-  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.DigestAuth
+  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.DigestAuth
 
   defmodule DigestClient do
     use Tesla

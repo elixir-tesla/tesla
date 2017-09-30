@@ -1,12 +1,4 @@
-defmodule Tesla.Adapter.TestCase do
-  @http_url   "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
-  @https_url  "https://httpbin.org"
-
-  def http_url,   do: @http_url
-  def https_url,  do: @https_url
-end
-
-defmodule Tesla.Adapter.TestCase.Basic do
+defmodule Tesla.AdapterCase.Basic do
   defmacro __using__([adapter: adapter]) do
     quote do
       defmodule B.Client do
@@ -22,7 +14,7 @@ defmodule Tesla.Adapter.TestCase.Basic do
         adapter unquote(adapter)
       end
 
-      import Tesla.Adapter.TestCase, only: [http_url: 0]
+      import Tesla.AdapterCase, only: [http_url: 0]
       require Tesla
       alias Tesla.Multipart
 
@@ -117,57 +109,6 @@ defmodule Tesla.Adapter.TestCase.Basic do
       test "autoredirects disabled by default" do
         response = B.Client.get("#{http_url()}/redirect-to?url=#{http_url()}/status/200")
         assert response.status == 301
-      end
-    end
-  end
-end
-
-defmodule Tesla.Adapter.TestCase.StreamRequestBody do
-  defmacro __using__([adapter: adapter]) do
-    quote do
-      defmodule S.Client do
-        use Tesla
-
-        adapter unquote(adapter)
-      end
-
-      import Tesla.Adapter.TestCase, only: [http_url: 0]
-
-      test "stream request body: Stream.map" do
-        body = (1..5) |> Stream.map(&to_string/1)
-        response = S.Client.post("#{http_url()}/post", body, headers: %{"Content-Type" => "text/plain"})
-        assert response.status == 200
-        assert Regex.match?(~r/12345/, to_string(response.body))
-      end
-
-      test "stream request body: Stream.unfold" do
-        body = Stream.unfold(5, fn 0 -> nil; n -> {n,n-1} end)
-        |> Stream.map(&to_string/1)
-        response = S.Client.post("#{http_url()}/post", body, headers: %{"Content-Type" => "text/plain"})
-
-        assert response.status == 200
-        assert Regex.match?(~r/54321/, to_string(response.body))
-      end
-    end
-  end
-end
-
-defmodule Tesla.Adapter.TestCase.SSL do
-  defmacro __using__([adapter: adapter]) do
-    quote do
-      defmodule SSL.Client do
-        use Tesla
-
-        adapter unquote(adapter)
-      end
-
-      import Tesla.Adapter.TestCase, only: [https_url: 0]
-
-      describe "SSL" do
-        test "basic get request" do
-          response = SSL.Client.get("#{https_url()}/ip")
-          assert response.status == 200
-        end
       end
     end
   end

@@ -1,7 +1,7 @@
 defmodule BasicAuthTest do
   use ExUnit.Case, async: false
 
-  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.BasicAuth
+  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.BasicAuth
 
   defmodule BasicClient do
     use Tesla

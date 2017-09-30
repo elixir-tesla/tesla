@@ -35,7 +35,7 @@ defmodule CoreTest do
 
   describe "Tesla.Middleware.BaseUrl" do
     alias Tesla.Middleware.BaseUrl
-    use Tesla.Middleware.TestCase, middleware: BaseUrl
+    use Tesla.MiddlewareCase, middleware: BaseUrl
 
     test "base without slash, path without slash" do
       env = BaseUrl.call(%Tesla.Env{url: "path"}, [], "http://example.com")
@@ -67,7 +67,7 @@ defmodule CoreTest do
 
   describe "Tesla.Middleware.Query" do
     alias Tesla.Middleware.Query
-    use Tesla.Middleware.TestCase, middleware: Query
+    use Tesla.MiddlewareCase, middleware: Query
 
     test "joining default query params" do
       env = Query.call %Tesla.Env{}, [], page: 1
@@ -84,7 +84,7 @@ defmodule CoreTest do
 
   describe "Tesla.Middleware.Headers" do
     alias Tesla.Middleware.Headers
-    use Tesla.Middleware.TestCase, middleware: Headers
+    use Tesla.MiddlewareCase, middleware: Headers
 
     test "merge headers" do
       env = Headers.call %Tesla.Env{headers: %{"Authorization" => "secret"}}, [], %{"Content-Type" => "text/plain"}
@@ -96,7 +96,7 @@ defmodule CoreTest do
 
   describe "Tesla.Middleware.DecodeRels" do
     alias Tesla.Middleware.DecodeRels
-    use Tesla.Middleware.TestCase, middleware: DecodeRels
+    use Tesla.MiddlewareCase, middleware: DecodeRels
 
     test "deocde rels" do
       headers = %{"Link" => ~s(<https://api.github.com/resource?page=2>; rel="next",
