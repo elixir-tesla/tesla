@@ -20,6 +20,14 @@ defmodule Tesla.Middleware.TuplesTest do
     end
   end
 
+  defmodule DefaultClient do
+    use Tesla
+
+    plug Tesla.Middleware.Tuples
+
+    adapter fn _ -> raise %Custom1{} end
+  end
+
   test "return {:ok, env} for successful transaction" do
     assert {:ok, %Tesla.Env{}} = Client.get("/ok")
   end
@@ -34,5 +42,6 @@ defmodule Tesla.Middleware.TuplesTest do
 
   test "do not rescue not-listed custom exception" do
     assert catch_error(Client.get("/custom-2"))
+    assert catch_error(DefaultClient.get("/"))
   end
 end
