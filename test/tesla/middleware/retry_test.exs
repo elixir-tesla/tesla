@@ -43,4 +43,15 @@ defmodule Tesla.Middleware.RetryTest do
     assert_raise Tesla.Error, fn -> Client.get("/nope") end
   end
 
+  defmodule DefunctClient do
+    use Tesla
+
+    plug Tesla.Middleware.Retry
+
+    adapter fn _ -> raise "runtime-error" end
+  end
+
+  test "raise in case or unexpected error" do
+    assert_raise RuntimeError, fn -> DefunctClient.get("/blow") end
+  end
 end
