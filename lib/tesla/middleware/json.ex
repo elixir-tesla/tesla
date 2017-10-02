@@ -72,9 +72,10 @@ defmodule Tesla.Middleware.JSON do
     Stream.map body, fn item -> encode_body(item, opts) <> "\n" end
   end
 
-  defp encodable?(%{body: nil}),                 do: false
-  defp encodable?(%{body: %Tesla.Multipart{}}),  do: false
-  defp encodable?(_),                            do: true
+  defp encodable?(%{body: nil}),                        do: false
+  defp encodable?(%{body: body}) when is_binary(body),  do: false
+  defp encodable?(%{body: %Tesla.Multipart{}}),         do: false
+  defp encodable?(_),                                   do: true
 
   @doc """
   Decode response body as JSON. Used by `Tesla.Middleware.DecodeJson`
