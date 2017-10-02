@@ -1,90 +1,35 @@
 defmodule TeslaTest do
   use ExUnit.Case
-  doctest TeslaDocsTest.Doctest
 
-  describe "Macros" do
-    defmodule Mc do
-      defmodule Basic.Middleware.Plus do
-        def call(env, next, opts) do
-          env
-          |> Map.put(:url, "#{env.url}/#{opts[:with]}")
-          |> Tesla.run(next)
-        end
-      end
+  require Tesla
 
-      defmodule Basic.Middleware.Plus1 do
-        def call(env, next, _opts) do
-          env
-          |> Map.put(:url, "#{env.url}/1")
-          |> Tesla.run(next)
-        end
-      end
+  @url "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
 
-      defmodule Basic do
-        use Tesla
+  describe "use Tesla options" do
+    defmodule OnlyGetClient do
+      use Tesla, only: [:get]
+    end
 
-        plug Basic.Middleware.Plus, with: "engine"
-        plug Basic.Middleware.Plus1
-        plug :some_function
-
-        adapter :some_adapter, some: "opts"
-      end
-
-      defmodule Empty do
-        use Tesla
-      end
-
-      defmodule Fun do
-        use Tesla
-
-        adapter fn env ->
-          Map.put(env, :url, "#{env.url}/anon")
-        end
-      end
-
-      defmodule Only do
-        use Tesla, only: [:get]
-      end
-
-      defmodule Except do
-        use Tesla.Builder, except: ~w(delete)a
-      end
+    defmodule ExceptDeleteClient do
+      use Tesla.Builder, except: ~w(delete)a
     end
 
     @http_verbs ~w(head get delete trace options post put patch)a
 
-    test "middleware list" do
-      assert Mc.Basic.__middleware__ == [
-        {Mc.Basic.Middleware.Plus,   [with: "engine"]},
-        {Mc.Basic.Middleware.Plus1,  nil},
-        {:some_function,          nil}
-      ]
-
-      assert Mc.Basic.__adapter__ == {:some_adapter, some: "opts"}
-    end
-
-    test "defauilt adapter" do
-      assert Mc.Empty.__adapter__ == Tesla.default_adapter
-    end
-
-    test "adapter as function" do
-      assert is_function(Mc.Fun.__adapter__)
-    end
-
     test "limit generated functions (only)" do
-      functions = Mc.Only.__info__(:functions) |> Keyword.keys() |> Enum.uniq
+      functions = OnlyGetClient.__info__(:functions) |> Keyword.keys() |> Enum.uniq
       assert :get in functions
       refute Enum.any?(@http_verbs -- [:get], &(&1 in functions))
     end
 
     test "limit generated functions (except)" do
-      functions = Mc.Except.__info__(:functions) |> Keyword.keys() |> Enum.uniq
+      functions = ExceptDeleteClient.__info__(:functions) |> Keyword.keys() |> Enum.uniq
       refute :delete in functions
       assert Enum.all?(@http_verbs -- [:delete], &(&1 in functions))
     end
   end
 
-  describe "docs" do
+  describe "Docs" do
     # Code.get_docs/2 requires .beam file of given module to exist in file system
     # See test/support/docs.ex file for definitions of TeslaDocsTest.* modules
 
@@ -102,134 +47,195 @@ defmodule TeslaTest do
     end
   end
 
-
-  describe "Middleware" do
-    defmodule M do
-      defmodule Mid do
-        def call(env, next, opts) do
-          env
-          |> Map.update!(:url, fn url -> url <> "/module/" <> opts[:before] end)
-          |> Tesla.run(next)
-          |> Map.update!(:url, fn url -> url <> "/module/" <> opts[:after] end)
-        end
-      end
-
-      defmodule Client do
-        use Tesla
-
-        plug Mid, before: "A", after: "B"
-        plug :local_middleware
-
-        adapter fn env -> env end
-
-        def local_middleware(env, next) do
-          env
-          |> Map.put(:url, env.url <> "/local")
-          |> Tesla.run(next)
-        end
-      end
-    end
-
-    test "execute middleware top down" do
-      response = M.Client.request(url: "one")
-      assert response.url == "one/module/A/local/module/B"
-    end
-  end
-
-
-
   describe "Adapters" do
-    defmodule A do
-      defmodule Adapter do
-        def call(env, opts \\ []) do
-          Map.put(env, :url, env.url <> "/module/" <> opts[:with])
-        end
+    defmodule ModuleAdapter do
+      def call(env, opts \\ []) do
+        Map.put(env, :url, env.url <> "/module/" <> opts[:with])
       end
+    end
 
-      defmodule ClientModule do
-        use Tesla
-        adapter Adapter, with: "someopt"
-      end
+    defmodule EmptyClient do
+      use Tesla
+    end
 
-      defmodule ClientLocal do
-        use Tesla
-        adapter :local_adapter
-        def local_adapter(env) do
-          Map.put(env, :url, env.url <> "/local")
-        end
-      end
+    defmodule ModuleAdapterClient do
+      use Tesla
 
-      defmodule ClientAnon do
-        use Tesla
-        adapter fn env ->
-          Map.put(env, :url, env.url <> "/anon")
-        end
+      adapter ModuleAdapter, with: "someopt"
+    end
+
+    defmodule LocalAdapterClient do
+      use Tesla
+
+      adapter :local_adapter
+
+      def local_adapter(env) do
+        Map.put(env, :url, env.url <> "/local")
       end
+    end
+
+    defmodule FunAdapterClient do
+      use Tesla
+
+      adapter fn env ->
+        Map.put(env, :url, env.url <> "/anon")
+      end
+    end
+
+    setup do
+      # clean config
+      Application.delete_env(:tesla, EmptyClient)
+      Application.delete_env(:tesla, ModuleAdapterClient)
+      :ok
+    end
+
+    test "defauilt adapter" do
+      assert EmptyClient.__adapter__ == Tesla.default_adapter()
+    end
+
+    test "adapter as module" do
+      assert ModuleAdapterClient.__adapter__ == {ModuleAdapter, [with: "someopt"]}
+    end
+
+    test "adapter as local function" do
+      assert LocalAdapterClient.__adapter__ == {:local_adapter, nil}
+    end
+
+    test "adapter as anonymous function" do
+      assert is_function(FunAdapterClient.__adapter__)
     end
 
     test "execute module adapter" do
-      response = A.ClientModule.request(url: "test")
+      response = ModuleAdapterClient.request(url: "test")
       assert response.url == "test/module/someopt"
     end
 
     test "execute local function adapter" do
-      response = A.ClientLocal.request(url: "test")
+      response = LocalAdapterClient.request(url: "test")
       assert response.url == "test/local"
     end
 
     test "execute anonymous function adapter" do
-      response = A.ClientAnon.request(url: "test")
+      response = FunAdapterClient.request(url: "test")
       assert response.url == "test/anon"
+    end
+
+    test "use adapter override from config" do
+      Application.put_env(:tesla, EmptyClient, adapter: :mock)
+      assert EmptyClient.__adapter__ == Tesla.Mock
+    end
+
+    test "prefer config over module setting" do
+      Application.put_env(:tesla, ModuleAdapterClient, adapter: :mock)
+      assert ModuleAdapterClient.__adapter__ == Tesla.Mock
     end
   end
 
+  describe "Middleware" do
+    defmodule AppendOne do
+      @behaviour Tesla.Middleware
 
+      def call(env, next, _opts) do
+        env
+        |> Map.put(:url, "#{env.url}/1")
+        |> Tesla.run(next)
+      end
+    end
+
+    defmodule AppendWith do
+      @behaviour Tesla.Middleware
+
+      def call(env, next, opts) do
+        env
+        |> Map.update!(:url, fn url -> url <> "/MB" <> opts[:with] end)
+        |> Tesla.run(next)
+        |> Map.update!(:url, fn url -> url <> "/MA" <> opts[:with] end)
+      end
+    end
+
+    defmodule AppendClient do
+      use Tesla
+
+      plug AppendOne
+      plug AppendWith, with: "1"
+      plug AppendWith, with: "2"
+      plug :local_middleware
+
+      adapter fn env -> env end
+
+      def local_middleware(env, next) do
+        env
+        |> Map.update!(:url, fn url -> url <> "/LB" end)
+        |> Tesla.run(next)
+        |> Map.update!(:url, fn url -> url <> "/LA" end)
+      end
+    end
+
+    test "middleware list" do
+      assert AppendClient.__middleware__ == [
+        {AppendOne,       nil},
+        {AppendWith,      [with: "1"]},
+        {AppendWith,      [with: "2"]},
+        {:local_middleware,  nil}
+      ]
+    end
+
+    test "execute middleware top down" do
+      response = AppendClient.get("one")
+      assert response.url == "one/1/MB1/MB2/LB/LA/MA2/MA1"
+    end
+  end
+
+  describe "Dynamic client" do
+    defmodule DynamicClient do
+      use Tesla
+
+      adapter fn env ->
+        if String.ends_with?(env.url, "/cached") do
+          %{env | body: "cached", status: 304}
+        else
+          Tesla.run_default_adapter(env)
+        end
+      end
+
+      def help(client \\ %Tesla.Client{}) do
+        get(client, "/help")
+      end
+    end
+
+    test "override adapter - Tesla.build_client" do
+      client = Tesla.build_client([], [
+        fn env, _next ->
+          %{env | body: "new"}
+        end
+      ])
+      assert %{body: "new"} = DynamicClient.help(client)
+    end
+
+    test "override adapter - Tesla.build_adapter" do
+      client = Tesla.build_adapter fn env ->
+        %{env | body: "new"}
+      end
+      assert %{body: "new"} = DynamicClient.help(client)
+    end
+
+    test "statically override adapter" do
+      assert %{status: 200} = DynamicClient.get(@url <> "/ip")
+      assert %{status: 304} = DynamicClient.get(@url <> "/cached")
+    end
+  end
 
   describe "request API" do
-    require Tesla
+    defmodule SimpleClient do
+      use Tesla
 
-    defmodule R do
-      defmodule Client do
-        use Tesla
-
-        adapter fn env ->
-          env
-        end
-
-        def new do
-          Tesla.build_client [
-            {R.Mid1, [with: "/mid1"]},
-            {R.Mid2, nil},
-            :local_middleware
-          ]
-        end
-
-        def local_middleware(env, next) do
-          env
-          |> Map.put(:url, env.url <> "/local")
-          |> Tesla.run(next)
-        end
-      end
-
-      defmodule Mid1 do
-        def call(env, next, opts) do
-          env
-          |> Map.put(:url, env.url <> opts[:with])
-          |> Tesla.run(next)
-        end
-      end
-
-      defmodule Mid2 do
-        def call(env, next, _opts) do
-          env
-          |> Map.put(:url, env.url <> "/mid2")
-          |> Tesla.run(next)
-        end
+      adapter fn env ->
+        env
       end
     end
 
     test "basic request" do
-      response = R.Client.request(url: "/", method: :post, query: [page: 1], body: "data")
+      response = SimpleClient.request(url: "/", method: :post, query: [page: 1], body: "data")
       assert response.method  == :post
       assert response.url     == "/"
       assert response.query   == [page: 1]
@@ -237,9 +243,16 @@ defmodule TeslaTest do
     end
 
     test "shortcut function" do
-      response = R.Client.get("/get")
+      response = SimpleClient.get("/get")
       assert response.method  == :get
       assert response.url     == "/get"
+    end
+
+    test "shortcut function with body" do
+      response = SimpleClient.post("/post", "some-data")
+      assert response.method  == :post
+      assert response.url     == "/post"
+      assert response.body    == "some-data"
     end
 
     test "request with client" do
@@ -249,167 +262,19 @@ defmodule TeslaTest do
         |> Tesla.run(next)
       end
 
-      response = R.Client.get("/")
+      response = SimpleClient.get("/")
       assert response.url == "/"
       refute response.__client__
 
-      response = client |> R.Client.get("/")
+      response = client |> SimpleClient.get("/")
       assert response.url == "/prefix/"
       assert response.__client__ == %Tesla.Client{fun: client}
     end
 
-    test "build_client helper" do
-      client = R.Client.new
-      response = client |> R.Client.get("test")
-      assert response.url == "test/mid1/mid2/local"
-    end
-
-    test "insert pre & post middlewares" do
-      client = Tesla.build_client(
-        [{R.Mid1, [with: "/mid1"]}],
-        [{R.Mid2, nil}]
-      )
-
-      response = client |> R.Client.get("test")
-      assert response.url == "test/mid1/mid2"
-    end
-
-    test "insert request middleware function at runtime" do
-      fun = fn env, next ->
-        env
-        |> Map.put(:url, env.url <> ".json")
-        |> Tesla.run(next)
-      end
-
-      res = fun |> R.Client.get("/foo")
-      assert res.url == "/foo.json"
-    end
-
-    test "insert response middleware function at runtime" do
-      fun = fn env, next ->
-        env
-        |> Tesla.run(next)
-        |> Map.put(:url, env.url <> ".json")
-      end
-
-      res = fun |> R.Client.get("/foo")
-      assert res.url == "/foo.json"
-    end
-  end
-
-  describe "override adapter" do
-    require Tesla
-    defmodule O do
-      defmodule Mid do
-        def call(env, next, _opts) do
-          env
-          |> (& %{&1 | url: &1.url <> "/pre"}).()
-          |> Tesla.run(next)
-          |> (& %{&1 | url: &1.url <> "/post"}).()
-        end
-      end
-
-      defmodule Client do
-        use Tesla
-
-        plug Mid
-
-        adapter fn env ->
-          %{env | body: "data"}
-        end
-
-        def help(client \\ %Tesla.Client{}) do
-          get(client, "/help")
-        end
-      end
-
-      defmodule Cached do
-        use Tesla
-
-        adapter :cache
-
-        def cache(env) do
-          cond do
-            String.ends_with?(env.url, "/cached") ->
-              %{env | body: "cached", status: 304}
-            true ->
-              Tesla.run_default_adapter(env)
-          end
-        end
-      end
-    end
-
-    @url "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
-
-    test "use default adapter" do
-      assert %{body: "data", url: "/help/pre/post"} = O.Client.help()
-    end
-
-    test "override adapter" do
-      client = Tesla.build_client([], [
-        fn env, _next ->
-          %{env | body: "new"}
-        end
-      ])
-      assert %{body: "new", url: "/help/pre/post"} = O.Client.help(client)
-    end
-
-    test "override adapter - Tesla.build_adapter" do
-      client = Tesla.build_adapter fn env ->
-        %{env | body: "new"}
-      end
-      assert %{body: "new", url: "/help/pre/post"} = O.Client.help(client)
-    end
-
-    test "statically override adapter" do
-      assert %{status: 200} = O.Cached.get(@url <> "/ip")
-      assert %{status: 304} = O.Cached.get(@url <> "/cached")
-    end
-  end
-
-  describe "nil options" do
     test "better errors when given nil opts" do
       assert_raise FunctionClauseError, fn ->
         Tesla.get("/", nil)
       end
-    end
-  end
-
-  describe "Adapter from config" do
-    defmodule C do
-      defmodule A do
-        use Tesla
-      end
-
-      defmodule B do
-        use Tesla
-        adapter :custom
-      end
-    end
-
-    setup do
-      # clean config
-      Application.delete_env(:tesla, C.A)
-      Application.delete_env(:tesla, C.B)
-      :ok
-    end
-
-    test "use default adapter" do
-      assert C.A.__adapter__ == Tesla.default_adapter
-    end
-
-    test "use module-set adapter" do
-      assert C.B.__adapter__ == {:custom, nil}
-    end
-
-    test "use adapter override from config" do
-      Application.put_env(:tesla, C.A, adapter: :mock)
-      assert C.A.__adapter__ == Tesla.Mock
-    end
-
-    test "prefer config over module setting" do
-      Application.put_env(:tesla, C.B, adapter: :mock)
-      assert C.B.__adapter__ == Tesla.Mock
     end
   end
 end
