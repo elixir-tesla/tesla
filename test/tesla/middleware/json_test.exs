@@ -20,6 +20,8 @@ defmodule Tesla.Middleware.JsonTest do
           {200, %{'Content-Type' => 'text/plain'}, "hello"}
         "/facebook" ->
           {200, %{'Content-Type' => 'text/javascript'}, "{\"friends\": 1000000}"}
+        "/raw" ->
+          {200, %{}, env.body}
       end
 
       %{env | status: status, headers: headers, body: body}
@@ -44,6 +46,14 @@ defmodule Tesla.Middleware.JsonTest do
 
   test "encode body as JSON" do
     assert Client.post("/encode", %{"foo" => "bar"}).body == %{"baz" => "bar"}
+  end
+
+  test "do not encode nil body" do
+    assert Client.post("/raw", nil).body == nil
+  end
+
+  test "do not encode binary body" do
+    assert Client.post("/raw", "raw-string").body == "raw-string"
   end
 
   test "decode if Content-Type is text/javascript" do
