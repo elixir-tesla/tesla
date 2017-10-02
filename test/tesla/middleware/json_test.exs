@@ -22,6 +22,9 @@ defmodule Tesla.Middleware.JsonTest do
           {200, %{'Content-Type' => 'text/javascript'}, "{\"friends\": 1000000}"}
         "/raw" ->
           {200, %{}, env.body}
+        "/stream" ->
+          list = env.body |> Enum.to_list |> Enum.join("---")
+          {200, %{}, list}
       end
 
       %{env | status: status, headers: headers, body: body}
@@ -58,6 +61,12 @@ defmodule Tesla.Middleware.JsonTest do
 
   test "decode if Content-Type is text/javascript" do
     assert Client.get("/facebook").body == %{"friends" => 1000000}
+  end
+
+  test "post json stream" do
+    stream = Stream.map((1..3), fn i -> %{id: i} end)
+    assert env = Client.post("/stream", stream)
+    assert env.body == ~s|{"id":1}\n---{"id":2}\n---{"id":3}\n|
   end
 
   defmodule CustomClient do
