@@ -34,20 +34,7 @@ defmodule CoreTest do
   end
 
 
-  describe "Tesla.Middleware.Query" do
-    alias Tesla.Middleware.Query
-    use Tesla.MiddlewareCase, middleware: Query
 
-    test "joining default query params" do
-      env = Query.call %Tesla.Env{}, [], page: 1
-      assert env.query == [page: 1]
-    end
-
-    test "should not override existing key" do
-      env = Query.call %Tesla.Env{query: [page: 1]}, [], [page: 5]
-      assert env.query == [page: 1, page: 5]
-    end
-  end
 
 
 
