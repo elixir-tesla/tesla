@@ -47,6 +47,9 @@ if Code.ensure_loaded?(:ibrowse) do
       )
     end
 
+    defp request(_url, _headers, _method, %Multipart{valid: false}, _opts) do
+      raise Tesla.Error, "could not stream non-existent files"
+    end
     defp request(url, headers, method, %Multipart{} = mp, opts) do
       headers = headers ++ Multipart.headers(mp)
       body = stream_to_fun(Multipart.body(mp))

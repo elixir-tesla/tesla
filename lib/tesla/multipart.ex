@@ -24,13 +24,15 @@ defmodule Tesla.Multipart do
   defstruct [
     parts: [],
     boundary: nil,
-    content_type_params: []
+    content_type_params: [],
+    valid: true
   ]
 
   @type t :: %__MODULE__ {
     parts: list(Part.t),
     boundary: String.t,
-    content_type_params: [String.t]
+    content_type_params: [String.t],
+    valid: boolean
   }
 
   defmodule Part do
@@ -82,6 +84,8 @@ defmodule Tesla.Multipart do
 
   @doc """
   Add a file part. The file will be streamed.
+
+  If file does not exist, Multipart struct is marked as invalid.
   """
   @spec add_file(t, String.t, Keyword.t) :: t
   def add_file(%__MODULE__{} = mp, filename, opts \\ []) do
@@ -104,7 +108,23 @@ defmodule Tesla.Multipart do
 
     data = File.stream!(filename, [:read], 2048)
 
-    add_field(mp, name, data, opts)
+    case File.exists?(filename) do
+      true ->
+        add_field(mp, name, data, opts)
+      false ->
+        add_field(%__MODULE__{mp | valid: false}, name, data, opts)
+    end
+  end
+
+  @doc """
+  Add a file part. The file will be streamed.
+
+  If file does not exist, a error is raised.
+  """
+  @spec add_file!(t, String.t, Keyword.t) :: t | no_return
+  def add_file!(%__MODULE__{} = mp, filename, opts \\ []) do
+    unless File.exists?(filename), do: raise Tesla.Error, "file #{filename} doesn't exist"
+    add_file(mp, filename, opts)
   end
 
   @doc false

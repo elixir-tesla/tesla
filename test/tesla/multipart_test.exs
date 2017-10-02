@@ -159,4 +159,23 @@ echo "test multipart file"
 --#{mp.boundary}--\r
 """
   end
+
+  test "add_file (file doesn't exist)" do
+    mp =
+      Multipart.new
+      |> Multipart.add_file("test/tesla/invalid")
+
+    refute mp.valid
+  end
+
+  test "add_file! (file exist)" do
+    assert Multipart.new |> Multipart.add_file!("test/tesla/multipart_test_file.sh")
+  end
+
+  test "add_file! (file doesn't exist)" do
+    assert_raise Tesla.Error, "file test/tesla/invalid doesn't exist", fn ->
+      Multipart.new
+      |> Multipart.add_file!("test/tesla/invalid")
+    end
+  end
 end
