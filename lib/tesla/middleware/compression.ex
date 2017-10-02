@@ -1,4 +1,24 @@
 defmodule Tesla.Middleware.Compression do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Compress requests and decompress responses.
+
+  Supports "gizp" and "deflate" encodings using erlang's built-in `:zlib` module.
+
+  ### Example usage
+  ```
+  defmodule MyClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression, format: "gzip"
+  end
+  ```
+
+  ### Options
+  - `:format` - request compression format, `"gzip"` (default) or `"defalte"`
+  """
+
   def call(env, next, opts) do
     env
     |> compress(opts)
@@ -6,8 +26,11 @@ defmodule Tesla.Middleware.Compression do
     |> decompress()
   end
 
-  def compressable?(body), do: is_binary(body)
+  defp compressable?(body), do: is_binary(body)
 
+  @doc """
+  Compress request, used by `Tesla.Middleware.CompressRequest`
+  """
   def compress(env, opts) do
     if compressable?(env.body) do
       format = Keyword.get(opts || [], :format, "gzip")
@@ -20,20 +43,31 @@ defmodule Tesla.Middleware.Compression do
     end
   end
 
-  def compress_body(body, "gzip"),    do: :zlib.gzip(body)
-  def compress_body(body, "deflate"), do: :zlib.zip(body)
+  defp compress_body(body, "gzip"),    do: :zlib.gzip(body)
+  defp compress_body(body, "deflate"), do: :zlib.zip(body)
 
+  @doc """
+  Decompress response, used by `Tesla.Middleware.DecompressResponse`
+  """
   def decompress(env) do
     env
     |> Map.update!(:body, &decompress_body(&1, env.headers["content-encoding"]))
   end
 
-  def decompress_body(<<31, 139, 8, _ :: binary>> = body, "gzip"), do: :zlib.gunzip(body)
-  def decompress_body(body, "deflate"),                            do: :zlib.unzip(body)
-  def decompress_body(body, _content_encoding),                    do: body
+  defp decompress_body(<<31, 139, 8, _ :: binary>> = body, "gzip"), do: :zlib.gunzip(body)
+  defp decompress_body(body, "deflate"),                            do: :zlib.unzip(body)
+  defp decompress_body(body, _content_encoding),                    do: body
 end
 
 defmodule Tesla.Middleware.CompressRequest do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Only compress request.
+
+  See `Tesla.Middleware.Compression` for options.
+  """
+
   def call(env, next, opts) do
     env
     |> Tesla.Middleware.Compression.compress(opts)
@@ -42,6 +76,14 @@ defmodule Tesla.Middleware.CompressRequest do
 end
 
 defmodule Tesla.Middleware.DecompressResponse do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Only decompress response.
+
+  See `Tesla.Middleware.Compression` for options.
+  """
+
   def call(env, next, _opts) do
     env
     |> Tesla.run(next)

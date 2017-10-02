@@ -1,21 +1,29 @@
 defmodule Tesla.Middleware.BasicAuth do
+  @behaviour Tesla.Middleware
+
   @moduledoc """
   Basic authentication middleware
 
   [Wiki on the topic](https://en.wikipedia.org/wiki/Basic_access_authentication)
 
-  Example:
-      defmodule MyClient do
-        use Tesla
+  ### Example
+  ```
+  defmodule MyClient do
+    use Tesla
 
-        def client(username, password, opts \\ %{}) do
-          Tesla.build_client [
-            {Tesla.Middleware.BasicAuth, Map.merge(%{username: username, password: password}, opts)}
-          ]
-        end
-      end
+    # static configuration
+    plug Tesla.Middleware.BasicAuth, username: "user", password: "pass"
 
-  Options:
+    # dynamic user & pass
+    def new(username, password, opts \\\\ %{}) do
+      Tesla.build_client [
+        {Tesla.Middleware.BasicAuth, Map.merge(%{username: username, password: password}, opts)}
+      ]
+    end
+  end
+  ```
+
+  ### Options
   - `:username`  - username (defaults to `""`)
   - `:password`  - password (defaults to `""`)
   """

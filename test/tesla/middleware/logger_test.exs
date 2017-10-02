@@ -1,8 +1,5 @@
-defmodule LoggerTest do
+defmodule Tesla.Middleware.LoggerTest do
   use ExUnit.Case, async: false
-
-  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.Logger
-  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.DebugLogger
 
   defmodule Client do
     use Tesla

@@ -1,4 +1,4 @@
-defmodule TuplesTest do
+defmodule Tesla.Middleware.TuplesTest do
   use ExUnit.Case, async: false
 
   defmodule Custom1, do: defexception message: "Custom 1"

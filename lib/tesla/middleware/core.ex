@@ -1,4 +1,5 @@
 defmodule Tesla.Middleware.Normalize do
+  @moduledoc false
   def call(env, next, _opts) do
     env
     |> normalize
@@ -33,6 +34,27 @@ end
 
 
 defmodule Tesla.Middleware.BaseUrl do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Set base URL for all requests.
+
+  The base URL will be prepended to request path/url only
+  if it does not include http(s).
+
+  ### Example usage
+  ```
+  defmodule MyClient do
+    use Tesla
+
+    plug Tesla.Middleware.BaseUrl, "https://api.github.com"
+  end
+
+  MyClient.get("/path") # equals to GET https://api.github.com/path
+  MyClient.get("http://example.com/path") # equals to GET http://example.com/path
+  ```
+  """
+
   def call(env, next, base) do
     env
     |> apply_base(base)
@@ -60,6 +82,20 @@ end
 
 
 defmodule Tesla.Middleware.Headers do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Set default headers for all requests
+
+  ### Example usage
+  ```
+  defmodule Myclient do
+    use Tesla
+
+    plug Tesla.Middleware.Headers, %{"User-Agent" => "Tesla"}
+  end
+  ```
+  """
   def call(env, next, headers) do
     env
     |> merge(headers)
@@ -74,6 +110,20 @@ end
 
 
 defmodule Tesla.Middleware.Query do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Set default query params for all requests
+
+  ### Example usage
+  ```
+  defmodule Myclient do
+    use Tesla
+
+    plug Tesla.Middleware.Query, [token: "some-token"]
+  end
+  ```
+  """
   def call(env, next, query) do
     env
     |> merge(query)
@@ -88,39 +138,22 @@ end
 
 
 defmodule Tesla.Middleware.Opts do
+  @behaviour Tesla.Middleware
+
+  @moduledoc """
+  Set default opts for all requests
+
+  ### Example usage
+  ```
+  defmodule Myclient do
+    use Tesla
+
+    plug Tesla.Middleware.Opts, [some: "option"]
+  end
+  ```
+  """
   def call(env, next, opts) do
     Tesla.run(%{env | opts: env.opts ++ opts}, next)
-  end
-end
-
-
-defmodule Tesla.Middleware.DecodeRels do
-  def call(env, next, _opts) do
-    env
-    |> Tesla.run(next)
-    |> parse_rels
-  end
-
-  def parse_rels(env) do
-    if link = env.headers["link"] do
-      Tesla.put_opt(env, :rels, rels(link))
-    else
-      env
-    end
-  end
-
-  defp rels(link) do
-    link
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.map(&rel/1)
-    |> Enum.into(%{})
-  end
-
-  def rel(item) do
-    Regex.run(~r/\A<(.+)>; rel="(.+)"\z/, item, capture: :all_but_first)
-    |> Enum.reverse
-    |> List.to_tuple
   end
 end
 

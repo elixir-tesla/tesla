@@ -1,19 +1,28 @@
 if Code.ensure_loaded?(:fuse) do
   defmodule Tesla.Middleware.Fuse do
+    @behaviour Tesla.Middleware
+
     @moduledoc """
-    Fuse (https://github.com/jlouis/fuse) middleware
+    Circuit Breaker middleware using [fuse](https://github.com/jlouis/fuse)
 
-    Remember to add `{:fuse, "~> 2.4"}` to dependencies
-    and `:fuse` to applications in `mix.exs`
+    Remember to add `{:fuse, "~> 2.4"}` to dependencies (and `:fuse` to applications in `mix.exs`)
+    Also, you need to recompile tesla after adding `:fuse` dependency:
 
-    Example
-        defmodule Myclient do
-          use Tesla
+    ```
+    mix deps.clean tesla
+    mix deps.compile tesla
+    ```
 
-          plug Tesla.Middleware.Fuse, opts: {{:standard, 2, 10_000}, {:reset, 60_000}}
-        end
+    ### Example usage
+    ```
+    defmodule MyClient do
+      use Tesla
 
-    Options:
+      plug Tesla.Middleware.Fuse, opts: {{:standard, 2, 10_000}, {:reset, 60_000}}
+    end
+    ```
+
+    ### Options
     - `:name` - fuse name (defaults to module name)
     - `:opts` - fuse options (see fuse docs for reference)
     """

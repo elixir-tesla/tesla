@@ -1,6 +1,9 @@
 defmodule Tesla.Adapter.IbrowseTest do
   use ExUnit.Case
-  use Tesla.Adapter.TestCase.Basic, adapter: :ibrowse
-  use Tesla.Adapter.TestCase.StreamRequestBody, adapter: :ibrowse
-  use Tesla.Adapter.TestCase.SSL, adapter: :ibrowse
+
+  use Tesla.AdapterCase, adapter: Tesla.Adapter.Ibrowse
+  use Tesla.AdapterCase.Basic
+  use Tesla.AdapterCase.Multipart
+  use Tesla.AdapterCase.StreamRequestBody
+  use Tesla.AdapterCase.SSL
 end

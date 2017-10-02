@@ -1,8 +1,5 @@
-defmodule MethodOverrideTest do
+defmodule Tesla.Middleware.MethodOverrideTest do
   use ExUnit.Case
-
-  use Tesla.Middleware.TestCase, middleware: Tesla.Middleware.MethodOverride
-
 
   defmodule Client do
     use Tesla
