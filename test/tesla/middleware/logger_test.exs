@@ -15,7 +15,7 @@ defmodule Tesla.Middleware.LoggerTest do
         "/redirect"         -> {301, "moved"}
         "/ok"               -> {200, "ok"}
       end
-      %{env | status: status, body: body}
+      %{env | status: status, headers: %{"content-type" => "text/plain"}, body: body}
     end
   end
 
@@ -58,5 +58,11 @@ defmodule Tesla.Middleware.LoggerTest do
     log = capture_log(fn -> Client.post("/ok", mp) end)
     assert log =~ "boundary: #{mp.boundary}"
     assert log =~ inspect List.first(mp.parts)
+  end
+
+  test "stream" do
+    stream = Stream.map((1..10), fn i -> "chunk: #{i}" end)
+    log = capture_log(fn -> Client.post("/ok", stream) end)
+    assert log =~ "/ok -> 200"
   end
 end
