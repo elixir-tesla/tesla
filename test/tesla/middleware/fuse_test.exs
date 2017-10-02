@@ -1,7 +1,5 @@
-defmodule FuseTest do
+defmodule Tesla.Middleware.FuseTest do
   use ExUnit.Case, async: false
-
-  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.Fuse
 
   defmodule Client do
     use Tesla
@@ -24,7 +22,7 @@ defmodule FuseTest do
 
   setup do
     Application.ensure_all_started(:fuse)
-    :fuse.reset(FuseTest.Client)
+    :fuse.reset(Client)
 
     :ok
   end

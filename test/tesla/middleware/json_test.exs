@@ -1,10 +1,5 @@
-defmodule JsonTest do
+defmodule Tesla.Middleware.JsonTest do
   use ExUnit.Case
-
-  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.JSON
-  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.DecodeJson
-  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.EncodeJson
-
 
   defmodule Client do
     use Tesla

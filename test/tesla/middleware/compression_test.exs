@@ -1,10 +1,5 @@
-defmodule CompressionTest do
+defmodule Tesla.Middleware.CompressionTest do
   use ExUnit.Case
-
-  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.Compression
-  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.CompressRequest
-  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.DecompressResponse
-
 
   defmodule CompressionGzipRequestClient do
     use Tesla

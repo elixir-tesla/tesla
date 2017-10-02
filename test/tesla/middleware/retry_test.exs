@@ -1,7 +1,5 @@
-defmodule RetryTest do
+defmodule Tesla.Middleware.RetryTest do
   use ExUnit.Case, async: false
-
-  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.Retry
 
   defmodule LaggyAdapter do
     def start_link, do: Agent.start_link(fn -> 0 end, name: __MODULE__)
@@ -19,7 +17,6 @@ defmodule RetryTest do
       end
     end
   end
-
 
   defmodule Client do
     use Tesla

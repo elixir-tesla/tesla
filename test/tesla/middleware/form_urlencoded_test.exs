@@ -1,7 +1,5 @@
-defmodule FormUrlencodedTest do
+defmodule Tesla.Middleware.FormUrlencodedTest do
   use ExUnit.Case
-
-  use Tesla.MiddlewareCase, middleware: Tesla.Middleware.FormUrlencoded
 
   defmodule Client do
     use Tesla
