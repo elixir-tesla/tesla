@@ -38,7 +38,7 @@ defmodule Tesla.Middleware.Retry do
   defp retry(env, next, delay, retries) do
     Tesla.run(env, next)
   rescue
-    ex in Tesla.Error ->
+    Tesla.Error ->
       :timer.sleep(delay)
       retry(env, next, delay, retries - 1)
     error ->
