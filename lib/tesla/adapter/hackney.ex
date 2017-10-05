@@ -46,6 +46,9 @@ if Code.ensure_loaded?(:hackney) do
     end
     defp request(method, url, headers, %Stream{} = body, opts), do: request_stream(method, url, headers, body, opts)
     defp request(method, url, headers, body, opts) when is_function(body), do: request_stream(method, url, headers, body, opts)
+    defp request(_method, _url, _headers, %Multipart{valid: false}, _opts) do
+      raise Tesla.Error, "could not stream non-existent files"
+    end
     defp request(method, url, headers, %Multipart{} = mp, opts) do
       headers = headers ++ Multipart.headers(mp)
       body = Multipart.body(mp)

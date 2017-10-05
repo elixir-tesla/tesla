@@ -34,6 +34,21 @@ defmodule Tesla.AdapterCase.Multipart do
             "foobar" => "#!/usr/bin/env bash\necho \"test multipart file\"\n"
           }
         end
+
+        test "POST invalid multipart" do
+          mp = Multipart.new
+          |> Multipart.add_file("test/tesla/invalid")
+
+          request = %Env{
+            method: :post,
+            url: "#{@url}/post",
+            body: mp
+          }
+
+          assert_raise Tesla.Error, "could not stream non-existent files", fn ->
+            call(request)
+          end
+        end
       end
     end
   end

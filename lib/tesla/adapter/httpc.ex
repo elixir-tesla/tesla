@@ -43,6 +43,9 @@ defmodule Tesla.Adapter.Httpc do
     :httpc.request(method, {url, headers}, http_opts, opts)
   end
 
+  defp request(_method, _url, _headers, _content_type, %Multipart{valid: false}, _opts) do
+    raise Tesla.Error, "could not stream non-existent files"
+  end
   defp request(method, url, headers, _content_type, %Multipart{} = mp, opts) do
     headers = headers ++ Multipart.headers(mp)
     headers = for {key, value} <- headers, do: {to_charlist(key), to_charlist(value)}
