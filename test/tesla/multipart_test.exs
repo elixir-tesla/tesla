@@ -103,6 +103,24 @@ echo "test multipart file"
 """
   end
 
+  test "add_file (custom filename)" do
+    mp =
+      Multipart.new
+      |> Multipart.add_file("test/tesla/multipart_test_file.sh", filename: "custom.png")
+
+    body = Multipart.body(mp) |> Enum.join
+
+    assert body == """
+--#{mp.boundary}\r
+Content-Disposition: form-data; name="file"; filename="custom.png"\r
+\r
+#!/usr/bin/env bash
+echo "test multipart file"
+\r
+--#{mp.boundary}--\r
+"""
+  end
+
   test "add_file (filename with name, extra headers)" do
     mp =
       Multipart.new

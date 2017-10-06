@@ -82,27 +82,28 @@ defmodule Tesla.Multipart do
 
   @doc """
   Add a file part. The file will be streamed.
+
+  Options:
+  - `:name` - name of form param
+  - `:filename` - filename (defaults to path basename)
+  - `:headers` - additional headers
   """
   @spec add_file(t, String.t, Keyword.t) :: t
-  def add_file(%__MODULE__{} = mp, filename, opts \\ []) do
-    {name, opts} = Keyword.pop_first(opts, :name, "file")
-    {headers, opts} = Keyword.pop_first(opts, :headers, [])
+  def add_file(%__MODULE__{} = mp, path, opts \\ []) do
+    {name, opts}      = Keyword.pop_first(opts, :name, "file")
+    {filename, opts}  = Keyword.pop_first(opts, :filename, Path.basename(path))
+    {headers, opts}   = Keyword.pop_first(opts, :headers, [])
     {detect_content_type, opts} = Keyword.pop_first(opts, :detect_content_type, false)
 
     # add in detected content-type if necessary
     headers = case detect_content_type do
-                true -> Keyword.put(headers, :"Content-Type", MIME.from_path(filename))
+                true -> Keyword.put(headers, :"Content-Type", MIME.from_path(path))
                 false -> headers
               end
 
-    basename = Path.basename(filename)
+    opts = opts ++ [filename: filename, headers: headers]
 
-    opts =
-      opts
-      |> Keyword.put(:filename, basename)
-      |> Keyword.put(:headers, headers)
-
-    data = File.stream!(filename, [:read], 2048)
+    data = File.stream!(path, [:read], 2048)
 
     add_field(mp, name, data, opts)
   end
