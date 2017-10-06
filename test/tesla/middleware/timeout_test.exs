@@ -14,6 +14,12 @@ defmodule Tesla.Middleware.TimeoutTest do
         "/sleep_150ms" ->
           Process.sleep(150)
           200
+        "/raise" ->
+          raise "custom_exception"
+        "/throw" ->
+          throw(:throw_value)
+        "/exit" ->
+          exit(:exit_value)
       end
 
       %{env | status: status}
@@ -62,6 +68,22 @@ defmodule Tesla.Middleware.TimeoutTest do
 
     test "should return the response when not timeout" do
       assert %Tesla.Env{status: 200} = DefaultTimeoutClient.get("/sleep_950ms")
+    end
+  end
+
+  describe "repassing errors and exit" do
+    test "should repass rescued errors" do
+      assert_raise RuntimeError, "custom_exception", fn ->
+        Client.get("/raise")
+      end
+    end
+
+    test "should repass thrown value" do
+      assert catch_throw(Client.get("/throw")) == :throw_value
+    end
+
+    test "should repass exit value" do
+      assert catch_exit(Client.get("/exit")) == :exit_value
     end
   end
 end
