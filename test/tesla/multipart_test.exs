@@ -177,4 +177,20 @@ echo "test multipart file"
 --#{mp.boundary}--\r
 """
   end
+
+  test "add_file_content" do
+    mp =
+      Multipart.new
+      |> Multipart.add_file_content("file-data", "data.gif")
+
+    body = Multipart.body(mp) |> Enum.join
+
+    assert body == """
+--#{mp.boundary}\r
+Content-Disposition: form-data; name="file"; filename="data.gif"\r
+\r
+file-data\r
+--#{mp.boundary}--\r
+"""
+  end
 end
