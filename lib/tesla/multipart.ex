@@ -11,6 +11,7 @@ defmodule Tesla.Multipart do
     |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
     |> Multipart.add_file("test/tesla/multipart_test_file.sh")
     |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
+    |> Multipart.add_file_content("sample file content", "sample.txt")
 
     response = client.post(url, mp)
  ```
@@ -90,9 +91,19 @@ defmodule Tesla.Multipart do
   """
   @spec add_file(t, String.t, Keyword.t) :: t
   def add_file(%__MODULE__{} = mp, path, opts \\ []) do
-    {name, opts}      = Keyword.pop_first(opts, :name, "file")
+    data = File.stream!(path, [:read], 2048)
     {filename, opts}  = Keyword.pop_first(opts, :filename, Path.basename(path))
-    {headers, opts}   = Keyword.pop_first(opts, :headers, [])
+    add_file_content(mp, data, filename, opts)
+  end
+
+
+  @doc """
+  Add a file part. Same of `add_file/3` but the file content is read from `data` input parameter.
+  """
+  @spec add_file_content(t, part_value, String.t, Keyword.t) :: t
+  def add_file_content(%__MODULE__{} = mp, data, filename, opts \\ []) do
+    {name, opts} = Keyword.pop_first(opts, :name, "file")
+    {headers, opts} = Keyword.pop_first(opts, :headers, [])
     {detect_content_type, opts} = Keyword.pop_first(opts, :detect_content_type, false)
 
     # add in detected content-type if necessary
@@ -102,8 +113,6 @@ defmodule Tesla.Multipart do
               end
 
     opts = opts ++ [filename: filename, headers: headers]
-
-    data = File.stream!(path, [:read], 2048)
 
     add_field(mp, name, data, opts)
   end

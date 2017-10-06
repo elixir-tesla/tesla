@@ -233,6 +233,7 @@ mp =
   |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
   |> Multipart.add_file("test/tesla/multipart_test_file.sh")
   |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
+  |> Multipart.add_file_content("sample file content", "sample.txt")
 
 response = MyApiClient.post("http://httpbin.org/post", mp)
 ```
