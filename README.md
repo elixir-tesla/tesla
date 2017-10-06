@@ -83,7 +83,6 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 - [`Tesla.Middleware.MethodOverride`](https://hexdocs.pm/tesla/Tesla.Middleware.MethodOverride.html) - set X-Http-Method-Override
 - [`Tesla.Middleware.Logger`](https://hexdocs.pm/tesla/Tesla.Middleware.Logger.html) - log requests (method, url, status, time)
 - [`Tesla.Middleware.DebugLogger`](https://hexdocs.pm/tesla/Tesla.Middleware.DebugLogger.html) - log full requests & responses
-- [`Tesla.Middleware.Timeout`](https://hexdocs.pm/tesla/Tesla.Middleware.Timeout.html) - timeout request after X milliseconds despite of server response
 
 #### Formats
 - [`Tesla.Middleware.FormUrlencoded`](https://hexdocs.pm/tesla/Tesla.Middleware.FormUrlencoded.html) - urlencode POST body parameter, useful for POSTing a map/keyword list
@@ -96,6 +95,7 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 - [`Tesla.Middleware.DigestAuth`](https://hexdocs.pm/tesla/Tesla.Middleware.DigestAuth.html) - Digest access authentication
 
 #### Error handling
+- [`Tesla.Middleware.Timeout`](https://hexdocs.pm/tesla/Tesla.Middleware.Timeout.html) - timeout request after X milliseconds despite of server response
 - [`Tesla.Middleware.Retry`](https://hexdocs.pm/tesla/Tesla.Middleware.Retry.html) - retry few times in case of connection refused
 - [`Tesla.Middleware.Fuse`](https://hexdocs.pm/tesla/Tesla.Middleware.Fuse.html) - fuse circuit breaker integration
 - [`Tesla.Middleware.Tuples`](https://hexdocs.pm/tesla/Tesla.Middleware.Tuples.html) - return `{:ok, env} | {:error, reason}` instead of raising exception

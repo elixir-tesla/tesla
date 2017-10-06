@@ -11,6 +11,10 @@ defmodule Tesla.Middleware.Timeout do
 
     plug Tesla.Middleware.Timeout, timeout: 2_000
   end
+  ```
+
+  ### Options
+  - `:timeout` - number of milliseconds a request is allowed to take (defaults to 1000)
   """
 
   @timeout_error %Tesla.Error{
