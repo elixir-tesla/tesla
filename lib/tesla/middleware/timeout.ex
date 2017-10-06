@@ -30,7 +30,7 @@ defmodule Tesla.Middleware.Timeout do
       |> Task.await(timeout)
       |> repass_error
     catch :exit, {:timeout, _} ->
-      Task.shutdown(task, 0)
+      Process.exit(task.pid, :kill)
       raise @timeout_error
     end
   end
