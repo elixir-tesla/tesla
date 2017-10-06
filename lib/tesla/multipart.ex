@@ -88,21 +88,11 @@ defmodule Tesla.Multipart do
   - `:name` - name of form param
   - `:filename` - filename (defaults to path basename)
   - `:headers` - additional headers
+  - `:detect_content_type` - auto-detect file content-type (defaults to false)
   """
   @spec add_file(t, String.t, Keyword.t) :: t
   def add_file(%__MODULE__{} = mp, path, opts \\ []) do
-    data = File.stream!(path, [:read], 2048)
-    {filename, opts}  = Keyword.pop_first(opts, :filename, Path.basename(path))
-    add_file_content(mp, data, filename, opts)
-  end
-
-
-  @doc """
-  Add a file part. Same of `add_file/3` but the file content is read from `data` input parameter.
-  """
-  @spec add_file_content(t, part_value, String.t, Keyword.t) :: t
-  def add_file_content(%__MODULE__{} = mp, data, filename, opts \\ []) do
-    {name, opts} = Keyword.pop_first(opts, :name, "file")
+    {filename, opts} = Keyword.pop_first(opts, :filename, Path.basename(path))
     {headers, opts} = Keyword.pop_first(opts, :headers, [])
     {detect_content_type, opts} = Keyword.pop_first(opts, :detect_content_type, false)
 
@@ -112,9 +102,22 @@ defmodule Tesla.Multipart do
                 false -> headers
               end
 
-    opts = opts ++ [filename: filename, headers: headers]
+    data = File.stream!(path, [:read], 2048)
+    add_file_content(mp, data, filename, opts ++ [headers: headers])
+  end
 
-    add_field(mp, name, data, opts)
+
+  @doc """
+  Add a file part. Same of `add_file/3` but the file content is read from `data` input parameter.
+
+  Options:
+  - `:name` - name of form param
+  - `:headers` - additional headers
+  """
+  @spec add_file_content(t, part_value, String.t, Keyword.t) :: t
+  def add_file_content(%__MODULE__{} = mp, data, filename, opts \\ []) do
+    {name, opts} = Keyword.pop_first(opts, :name, "file")
+    add_field(mp, name, data, opts ++ [filename: filename])
   end
 
   @doc false
