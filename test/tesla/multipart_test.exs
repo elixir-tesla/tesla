@@ -193,4 +193,14 @@ file-data\r
 --#{mp.boundary}--\r
 """
   end
+
+  test "add non-existing file" do
+    mp =
+      Multipart.new
+      |> Multipart.add_file("i-do-not-exists.txt")
+
+    assert_raise File.Error, fn ->
+      mp |> Multipart.body |> Enum.to_list
+    end
+  end
 end
