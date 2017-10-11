@@ -10,9 +10,9 @@
 Tesla is an HTTP client loosely based on [Faraday](https://github.com/lostisland/faraday).
 It embraces the concept of middleware when processing the request/response cycle.
 
-Note that this README refers to the `master` branch of Tesla, not the latest
-released version on Hex. See [the documentation](http://hexdocs.pm/tesla) for
-the documentation of the version you're using.
+> Note that this README refers to the `master` branch of Tesla, not the latest
+  released version on Hex. See [the documentation](http://hexdocs.pm/tesla) for
+  the documentation of the version you're using.
 
 ## HTTP Client example
 
