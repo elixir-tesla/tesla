@@ -72,6 +72,7 @@ end
 - [Writing middleware](#writing-middleware)
 - [Direct usage](#direct-usage)
 - [Cheatsheet](#cheatsheet)
+- [Changelog](https://github.com/teamon/tesla/releases)
 
 
 ## Middleware
