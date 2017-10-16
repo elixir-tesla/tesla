@@ -28,7 +28,14 @@ defmodule Tesla.Middleware.Normalize do
     end
   end
 
-  def normalize_body(data) when is_list(data), do: IO.iodata_to_binary(data)
+  def normalize_body(data) when is_list(data) do
+    first = List.first(data)
+    case is_map(first) do
+      true -> data
+      false ->  IO.iodata_to_binary(data)
+    end
+  end
+
   def normalize_body(data), do: data
 end
 
