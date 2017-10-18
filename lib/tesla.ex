@@ -381,18 +381,32 @@ defmodule Tesla do
   end
 
   @aliases [
-    httpc:    Tesla.Adapter.Httpc,
-    hackney:  Tesla.Adapter.Hackney,
-    ibrowse:  Tesla.Adapter.Ibrowse,
-    mock:     Tesla.Mock,
+    httpc:            Tesla.Adapter.Httpc,
+    hackney:          Tesla.Adapter.Hackney,
+    ibrowse:          Tesla.Adapter.Ibrowse,
+    mock:             Tesla.Mock,
 
-    base_url:     Tesla.Middleware.BaseUrl,
-    headers:      Tesla.Middleware.Headers,
-    query:        Tesla.Middleware.Query,
-    decode_rels:  Tesla.Middleware.DecodeRels,
-    json:         Tesla.Middleware.JSON,
-    logger:       Tesla.Middleware.Logger,
-    debug_logger: Tesla.Middleware.DebugLogger
+    base_url:         Tesla.Middleware.BaseUrl,
+    headers:          Tesla.Middleware.Headers,
+    query:            Tesla.Middleware.Query,
+    opts:             Tesla.Middleware.Opts,
+    follow_redirects: Tesla.Middleware.FollowRedirects,
+    method_override:  Tesla.Middleware.MethodOverride,
+    logger:           Tesla.Middleware.Logger,
+    debug_logger:     Tesla.Middleware.DebugLogger,
+
+    form_urlencoded:  Tesla.Middleware.FormUrlencoded,
+    json:             Tesla.Middleware.JSON,
+    compression:      Tesla.Middleware.Compression,
+    decode_rels:      Tesla.Middleware.DecodeRels,
+
+    basic_auth:       Tesla.Middleware.BasicAuth,
+    digest_auth:      Tesla.Middleware.DigestAuth,
+
+    timeout:          Tesla.Middleware.Timeout,
+    retry:            Tesla.Middleware.Retry,
+    fuse:             Tesla.Middleware.Fuse,
+    tuples:           Tesla.Middleware.Tuples
   ]
   def alias(key) when is_atom(key), do: Keyword.get(@aliases, key, key)
   def alias(key), do: key
