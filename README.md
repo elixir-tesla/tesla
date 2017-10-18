@@ -4,7 +4,7 @@
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](http://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dw/tesla.svg)](https://hex.pm/packages/tesla)
-[![Coverage Status](https://coveralls.io/repos/github/teamon/tesla/badge.svg?branch=master)](https://coveralls.io/github/teamon/tesla?branch=master)
+[![codecov](https://codecov.io/gh/teamon/tesla/branch/master/graph/badge.svg)](https://codecov.io/gh/teamon/tesla)
 [![Inline docs](http://inch-ci.org/github/teamon/tesla.svg)](http://inch-ci.org/github/teamon/tesla)
 
 Tesla is an HTTP client loosely based on [Faraday](https://github.com/lostisland/faraday).
