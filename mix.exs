@@ -11,6 +11,7 @@ defmodule Tesla.Mixfile do
       elixir: "~> 1.3",
       elixirc_paths: elixirc_paths(Mix.env),
       deps: deps(),
+      lockfile: lockfile(System.get_env("LOCKFILE")),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
         plt_add_apps: [:inets],
@@ -48,6 +49,9 @@ defmodule Tesla.Mixfile do
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_),     do: ["lib"]
+
+  defp lockfile(nil), do: "mix.lock"
+  defp lockfile(lockfile), do: "test/lockfiles/#{lockfile}.lock"
 
   defp deps do
     [

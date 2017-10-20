@@ -109,6 +109,9 @@ defmodule Tesla.Middleware.JSON do
       value
     else
       {:error, reason} -> raise %Tesla.Error{message: "JSON #{op} error: #{inspect reason}", reason: reason}
+      {:error, msg, position} ->
+        reason = {msg, position}
+        raise %Tesla.Error{message: "JSON #{op} error: #{inspect reason}", reason: reason}
     end
   end
 

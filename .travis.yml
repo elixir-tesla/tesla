@@ -14,6 +14,10 @@ matrix:
   exclude:
     - elixir: 1.3.4
       otp_release: 20.0
+  include:
+    - elixir: 1.5
+      otp_release: 20.0
+      env: MIX_ENV=test LOCKFILE=poison3
 env:
   - MIX_ENV=test
 script: mix coveralls.json
