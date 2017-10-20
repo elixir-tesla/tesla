@@ -51,7 +51,7 @@ defmodule Tesla.Mixfile do
   defp elixirc_paths(_),     do: ["lib"]
 
   defp lockfile(nil), do: "mix.lock"
-  defp lockfile(lockfile), do: "lockfiles/#{lockfile}.lock"
+  defp lockfile(lockfile), do: "test/lockfiles/#{lockfile}.lock"
 
   defp deps do
     [
