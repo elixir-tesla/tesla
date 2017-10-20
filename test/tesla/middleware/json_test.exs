@@ -18,6 +18,10 @@ defmodule Tesla.Middleware.JsonTest do
           {200, %{'Content-Type' => 'application/json'}, ""}
         "/invalid-content-type" ->
           {200, %{'Content-Type' => 'text/plain'}, "hello"}
+        "/invalid-json-format" ->
+          {200, %{'Content-Type' => 'application/json'}, "{\"foo\": bar}"}
+        "/invalid-json-encoding" ->
+          {200, %{'Content-Type' => 'application/json'}, <<123, 34, 102, 111, 111, 34, 58, 32, 34, 98, 225, 114, 34, 125>>}
         "/facebook" ->
           {200, %{'Content-Type' => 'text/javascript'}, "{\"friends\": 1000000}"}
         "/raw" ->
@@ -67,6 +71,18 @@ defmodule Tesla.Middleware.JsonTest do
     stream = Stream.map((1..3), fn i -> %{id: i} end)
     assert env = Client.post("/stream", stream)
     assert env.body == ~s|{"id":1}\n---{"id":2}\n---{"id":3}\n|
+  end
+
+  test "raise error when decoding invalid json format" do
+    assert_raise Tesla.Error, ~r/JSON decode error:/, fn ->
+      Client.get("/invalid-json-format")
+    end
+  end
+
+  test "raise error when decoding non-utf8 json" do
+    assert_raise Tesla.Error, ~r/JSON decode error:/, fn ->
+      Client.get("/invalid-json-encoding")
+    end
   end
 
   defmodule CustomClient do
