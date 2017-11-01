@@ -225,6 +225,26 @@ defmodule TeslaTest do
     end
   end
 
+  describe "Custom client" do
+    defmodule CustomClient do
+      use Tesla, client: CustomClient.Client
+    end
+
+    test "calls work with custom client client" do
+      assert %{status: 200} = CustomClient.get(%CustomClient.Client{}, @url <> "/")
+    end
+
+    test "calls do not accept normal clients" do
+      assert_raise FunctionClauseError, fn ->
+        CustomClient.get(%Tesla.Client{}, @url <> "/")
+      end
+    end
+
+    test "calls defaults to the custom client" do
+      assert %{status: 200} = CustomClient.get(@url <> "/")
+    end
+  end
+
   describe "request API" do
     defmodule SimpleClient do
       use Tesla
