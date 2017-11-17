@@ -92,22 +92,26 @@ defmodule Tesla.Mock do
   @spec mock((Tesla.Env.t -> Tesla.Env.t | {integer, map, any})) :: no_return
   def mock(fun) when is_function(fun) do
     Process.put(__MODULE__, fun)
+    Agent.start_link(fn -> fun end, name: :__tesla_mock__)
   end
 
 
   ## ADAPTER IMPLEMENTATION
 
   def call(env, _opts) do
-    case Process.get(__MODULE__) do
-      nil ->
-        raise Tesla.Mock.Error, env: env
-      fun ->
-        case rescue_call(fun, env) do
-          {status, headers, body} ->
-            %{env | status: status, headers: headers, body: body}
-          %Tesla.Env{} = env ->
-            env
-        end
+    case {Process.get(__MODULE__), Process.whereis(:__tesla_mock__)} do
+      {fun, _pid} when is_function(fun) -> mock_call(fun, env)
+      {nil, pid} when is_pid(pid) -> Agent.get(pid, &(mock_call(&1, env)))
+      _ -> raise Tesla.Mock.Error, env: env
+    end
+  end
+
+  defp mock_call(fun, env) do
+    case rescue_call(fun, env) do
+      {status, headers, body} ->
+        %{env | status: status, headers: headers, body: body}
+      %Tesla.Env{} = env ->
+        env
     end
   end
 
