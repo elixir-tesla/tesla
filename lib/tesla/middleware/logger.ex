@@ -4,7 +4,7 @@ defmodule Tesla.Middleware.Logger do
   @moduledoc """
   Log requests as single line.
 
-  Logs reqeust method, url, response status and time taken in miliseconds.
+  Logs request method, url, response status and time taken in milliseconds.
 
   ### Example usage
   ```
