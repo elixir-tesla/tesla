@@ -45,7 +45,7 @@ defmodule Tesla.Middleware.TimeoutTest do
     end
   end
 
-  describe "using custom timeout (100ms)" do 
+  describe "using custom timeout (100ms)" do
     test "should raise a Tesla.Error when the stack timeout" do
       error = assert_raise Tesla.Error, fn ->
         Client.get("/sleep_150ms")
@@ -56,9 +56,21 @@ defmodule Tesla.Middleware.TimeoutTest do
     test "should return the response when not timeout" do
       assert %Tesla.Env{status: 200} = Client.get("/sleep_50ms")
     end
+
+    test "should not kill calling process" do
+      Process.flag(:trap_exit, true)
+
+      pid = spawn_link fn ->
+        assert_raise Tesla.Error, fn ->
+          Client.get("/sleep_150ms")
+        end
+      end
+
+      assert_receive {:EXIT, ^pid, :normal}, 200
+    end
   end
 
-  describe "using default timeout (1_000ms)" do 
+  describe "using default timeout (1_000ms)" do
     test "should raise a Tesla.Error when the stack timeout" do
       error = assert_raise Tesla.Error, fn ->
         DefaultTimeoutClient.get("/sleep_1050ms")
