@@ -41,7 +41,8 @@ defmodule Tesla.Env do
 end
 
 defmodule Tesla.Client do
-  @type t :: %__MODULE__{
+  @type t :: %{
+            __struct__: atom,
             fun:  (Tesla.Env.t, Tesla.Env.stack -> Tesla.Env.t),
             pre:  Tesla.Env.stack,
             post: Tesla.Env.stack
@@ -61,6 +62,10 @@ defmodule Tesla.Builder do
   defmacro __using__(opts \\ []) do
     opts = Macro.prewalk(opts, &Macro.expand(&1, __CALLER__))
     docs = Keyword.get(opts, :docs, true)
+
+    module = Keyword.get(opts, :client, Tesla.Client)
+    generate_client_struct(module)
+    opts = Keyword.put(opts, :client, module)
 
     quote do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
@@ -104,7 +109,7 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def request(%Tesla.Client{} = client, options) do
+      def request(%unquote(module){} = client, options) do
         Tesla.perform_request(__MODULE__, client, options)
       end
 
@@ -193,16 +198,32 @@ defmodule Tesla.Builder do
     quote do: @__adapter__ {unquote(adapter), unquote(opts)}
   end
 
+  defp generate_client_struct(module) do
+    unless Code.ensure_loaded?(module) do
+      defmodule module do
+        @type t :: %__MODULE__{
+                  fun:  (Tesla.Env.t, Tesla.Env.stack -> Tesla.Env.t),
+                  pre:  Tesla.Env.stack,
+                  post: Tesla.Env.stack
+        }
+        defstruct fun: nil,
+                  pre: [],
+                  post: []
+      end
+    end
+  end
+
   defp generate_http_verbs(opts) do
+    client  = Keyword.fetch!(opts, :client)
     only    = Keyword.get(opts, :only,    @http_verbs)
     except  = Keyword.get(opts, :except,  [])
 
     @http_verbs
     |> Enum.filter(&(&1 in only && not &1 in except))
-    |> Enum.map(&generate_api(&1, Keyword.get(opts, :docs, true)))
+    |> Enum.map(&generate_api(&1, client, Keyword.get(opts, :docs, true)))
   end
 
-  defp generate_api(method, docs) when method in [:post, :put, :patch] do
+  defp generate_api(method, client, docs) when method in [:post, :put, :patch] do
     quote do
       if unquote(docs) do
         @doc """
@@ -216,13 +237,13 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(%Tesla.Client{} = client, url, body, options) when is_list(options) do
+      def unquote(method)(%unquote(client){} = client, url, body, options) when is_list(options) do
         request(client, [method: unquote(method), url: url, body: body] ++ options)
       end
 
       # fallback to keep backward compatibility
       def unquote(method)(fun, url, body, options) when is_function(fun) and is_list(options) do
-        unquote(method)(%Tesla.Client{fun: fun}, url, body, options)
+        unquote(method)(%unquote(client){fun: fun}, url, body, options)
       end
 
       if unquote(docs) do
@@ -238,13 +259,13 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(%Tesla.Client{} = client, url, body) do
+      def unquote(method)(%unquote(client){} = client, url, body) do
         request(client, method: unquote(method), url: url, body: body)
       end
 
       # fallback to keep backward compatibility
       def unquote(method)(fun, url, body) when is_function(fun) do
-        unquote(method)(%Tesla.Client{fun: fun}, url, body)
+        unquote(method)(%unquote(client){fun: fun}, url, body)
       end
 
       if unquote(docs) do
@@ -274,7 +295,7 @@ defmodule Tesla.Builder do
     end
   end
 
-  defp generate_api(method, docs) when method in [:head, :get, :delete, :trace, :options] do
+  defp generate_api(method, client, docs) when method in [:head, :get, :delete, :trace, :options] do
     quote do
       if unquote(docs) do
         @doc """
@@ -288,13 +309,13 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(%Tesla.Client{} = client, url, options) when is_list(options) do
+      def unquote(method)(%unquote(client){} = client, url, options) when is_list(options) do
         request(client, [method: unquote(method), url: url] ++ options)
       end
 
       # fallback to keep backward compatibility
       def unquote(method)(fun, url, options) when is_function(fun) and is_list(options) do
-        unquote(method)(%Tesla.Client{fun: fun}, url, options)
+        unquote(method)(%unquote(client){fun: fun}, url, options)
       end
 
       if unquote(docs) do
@@ -310,13 +331,13 @@ defmodule Tesla.Builder do
       else
         @doc false
       end
-      def unquote(method)(%Tesla.Client{} = client, url) do
+      def unquote(method)(%unquote(client){} = client, url) do
         request(client, method: unquote(method), url: url)
       end
 
       # fallback to keep backward compatibility
       def unquote(method)(fun, url) when is_function(fun) do
-        unquote(method)(%Tesla.Client{fun: fun}, url)
+        unquote(method)(%unquote(client){fun: fun}, url)
       end
 
       if unquote(docs) do
@@ -412,7 +433,7 @@ defmodule Tesla do
   def alias(key), do: key
 
   def perform_request(module, client \\ nil, options) do
-    %{fun: fun, pre: pre, post: post} = client || %Tesla.Client{}
+    %{fun: fun, pre: pre, post: post} = if client, do: struct(client), else: %Tesla.Client{}
 
     stack = pre
       ++ prepare(module, List.wrap(fun) ++ module.__middleware__ ++ default_middleware())
@@ -495,17 +516,23 @@ defmodule Tesla do
   client |> ExampleAPI.get("/me")
   ```
   """
-  defmacro build_client(pre, post \\ []) do
+  defmacro build_client(client \\ Tesla.Client, pre, post \\ []) do
+    {client, pre, post} = if is_list(client) do
+      {Tesla.Client, client, pre}
+    else
+      {client, pre, post}
+    end
+
     quote do
-      %Tesla.Client{
+      %unquote(client){
         pre:  Tesla.prepare(__MODULE__, unquote(pre)),
         post: Tesla.prepare(__MODULE__, unquote(post))
       }
     end
   end
 
-  def build_adapter(fun) do
-    %Tesla.Client{post: [{:fn, fn env, _next -> fun.(env) end}]}
+  def build_adapter(client \\ Tesla.Client, fun) do
+    struct(client, post: [{:fn, fn env, _next -> fun.(env) end}])
   end
 
   def build_url(url, []), do: url
