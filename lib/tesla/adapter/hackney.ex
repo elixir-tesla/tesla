@@ -28,6 +28,8 @@ if Code.ensure_loaded?(:hackney) do
     alias Tesla.Multipart
 
     def call(env, opts) do
+      env = Tesla.Adapter.Shared.capture_query_params(env)
+
       with  {:ok, status, headers, body} <- request(env, opts || []) do
         %{env | status:   status,
                 headers:  headers,

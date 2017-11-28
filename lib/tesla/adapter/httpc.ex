@@ -15,7 +15,9 @@ defmodule Tesla.Adapter.Httpc do
   @http_opts ~w(timeout connect_timeout ssl essl autoredirect proxy_auth version relaxed url_encode)a
 
   def call(env, opts) do
+    env = Tesla.Adapter.Shared.capture_query_params(env)
     opts = Keyword.merge(@override_defaults, opts || [])
+
     with {:ok, {status, headers, body}} <- request(env, opts) do
       format_response(env, status, headers, body)
     end
