@@ -37,8 +37,8 @@ defmodule Tesla.Middleware.Timeout do
       if Version.match?(System.version(), ">= 1.4.0") do
         Task.shutdown(task, 0)
       else
-        task.pid |> Process.unlink()
-        task.pid |> Process.exit(:kill)
+        Process.unlink(task.pid)
+        Process.exit(task.pid, :kill)
       end
       raise @timeout_error
     end
