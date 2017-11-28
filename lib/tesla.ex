@@ -15,7 +15,7 @@ defmodule Tesla.Env do
   @type __module__  :: atom
   @type __client__  :: function
 
-  @type stack       :: [{atom, atom, any}]
+  @type stack       :: [{atom, atom, any} | {atom, atom} | {:fn, (t -> t)} | {:fn, (t,stack -> t)}]
 
   @type t :: %__MODULE__{
             method:     method,
@@ -42,7 +42,7 @@ end
 
 defmodule Tesla.Client do
   @type t :: %__MODULE__{
-            fun:  (Tesla.Env.t, Tesla.Env.stack -> Tesla.Env.t),
+            fun:  (Tesla.Env.t, Tesla.Env.stack -> Tesla.Env.t) | nil,
             pre:  Tesla.Env.stack,
             post: Tesla.Env.stack
   }
@@ -423,6 +423,7 @@ defmodule Tesla do
     run(env, stack)
   end
 
+  @spec prepare(atom, [any]) :: Tesla.Env.stack
   def prepare(module, stack) do
     Enum.map stack, fn
       {name, opts}              -> prepare_module(module, name, opts)
