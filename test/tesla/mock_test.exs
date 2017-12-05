@@ -43,6 +43,13 @@ defmodule Tesla.MockTest do
       assert env.body == "hello"
     end
 
+    test "mock request from spawned process" do
+      pid = self()
+      spawn fn -> send pid, Client.list() end
+
+      assert_receive %Tesla.Env{status: 200, body: "hello"}
+    end
+
     test "raise on unmocked request" do
       assert_raise Tesla.Mock.Error, fn ->
         Client.search()
