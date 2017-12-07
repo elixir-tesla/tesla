@@ -250,7 +250,10 @@ You can set the adapter to `:mock` in tests.
 
 ```elixir
 # config/test.exs
+# Use mock adapter for all clients
 config :tesla, adapter: :mock
+# or only for one
+config :tesla, MyClient, adapter: :mock
 ```
 
 Then, mock requests before using your client:

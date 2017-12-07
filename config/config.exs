@@ -17,4 +17,6 @@ if Mix.env == :test do
   config :sasl,
     errlog_type: :error,
     sasl_error_logger: false
+
+  config :tesla, MockClient, adapter: :mock
 end
