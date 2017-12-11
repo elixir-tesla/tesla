@@ -65,8 +65,8 @@ defmodule Tesla.Mock do
   and make testing in parallel (`async: true`) possible.
 
   While this style is recommended, there is one drawback:
-  if Tesla client is called from different process then the
-  test case it will not get proper mock.
+  if Tesla client is called from different process
+  it will not use the setup mock.
 
   To solve this issue it is possible to setup a global mock
   using `mock_global/1` function.
@@ -129,7 +129,7 @@ defmodule Tesla.Mock do
   @doc """
   Setup global mocks.
 
-  **WARNING**: This mock will be available to ALL process.
+  **WARNING**: This mock will be available to ALL processes.
   It might cause conflicts when running tests in parallel!
   """
   @spec mock_global((Tesla.Env.t -> Tesla.Env.t | {integer, map, any})) :: no_return
