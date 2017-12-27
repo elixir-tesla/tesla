@@ -2,9 +2,7 @@ defmodule Tesla.Mock.LocalATest do
   use ExUnit.Case, async: true
 
   setup do
-    Tesla.Mock.mock fn
-      _env -> %Tesla.Env{status: 200, body: "AAA"}
-    end
+    Tesla.Mock.mock(fn _env -> %Tesla.Env{status: 200, body: "AAA"} end)
 
     :ok
   end

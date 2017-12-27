@@ -27,8 +27,6 @@ if Code.ensure_loaded?(:fuse) do
     - `:opts` - fuse options (see fuse docs for reference)
     """
 
-
-
     # options borrowed from http://blog.rokkincat.com/circuit-breakers-in-elixir/
     # most probably not valid for your use case
     @defaults {{:standard, 2, 10_000}, {:reset, 60_000}}

@@ -6,12 +6,13 @@ defmodule Tesla.Middleware.MethodOverrideTest do
 
     plug Tesla.Middleware.MethodOverride
 
-    adapter fn (env) ->
-      status = case env do
-        %{method: :get} -> 200
-        %{method: :post} -> 201
-        %{method: _} -> 400
-      end
+    adapter fn env ->
+      status =
+        case env do
+          %{method: :get} -> 200
+          %{method: :post} -> 201
+          %{method: _} -> 400
+        end
 
       %{env | status: status}
     end
@@ -43,12 +44,13 @@ defmodule Tesla.Middleware.MethodOverrideTest do
 
     plug Tesla.Middleware.MethodOverride, override: ~w(put)a
 
-    adapter fn (env) ->
-      status = case env do
-        %{method: :get} -> 200
-        %{method: :post} -> 201
-        %{method: _} -> 400
-      end
+    adapter fn env ->
+      status =
+        case env do
+          %{method: :get} -> 200
+          %{method: :post} -> 201
+          %{method: _} -> 400
+        end
 
       %{env | status: status}
     end
@@ -67,5 +69,4 @@ defmodule Tesla.Middleware.MethodOverrideTest do
     assert response.status == 400
     refute response.headers["x-http-method-override"]
   end
-
 end

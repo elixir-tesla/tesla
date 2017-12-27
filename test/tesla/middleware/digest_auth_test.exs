@@ -6,29 +6,42 @@ defmodule Tesla.Middleware.DigestAuthTest do
 
     adapter fn env ->
       case env do
-        %{url: "/no-digest-auth"} -> env
-        %{headers: %{"authorization" => _}} -> env
+        %{url: "/no-digest-auth"} ->
+          env
+
+        %{headers: %{"authorization" => _}} ->
+          env
+
         _ ->
-          %{env | headers: %{
-            "WWW-Authenticate" => """
-            Digest realm="testrealm@host.com",
-            qop="auth,auth-int",
-            nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
-            opaque="5ccc069c403ebaf9f0171e9517f40e41"
-            """
-          }}
+          %{
+            env
+            | headers: %{
+                "WWW-Authenticate" => """
+                Digest realm="testrealm@host.com",
+                qop="auth,auth-int",
+                nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
+                opaque="5ccc069c403ebaf9f0171e9517f40e41"
+                """
+              }
+          }
       end
     end
 
     def client(username, password, opts \\ %{}) do
-      Tesla.build_client [
-        {Tesla.Middleware.DigestAuth, Map.merge(%{
-          username: username,
-          password: password,
-          cnonce_fn: fn -> "0a4f113b" end,
-          nc: "00000001",
-        }, opts)}
-      ]
+      Tesla.build_client([
+        {
+          Tesla.Middleware.DigestAuth,
+          Map.merge(
+            %{
+              username: username,
+              password: password,
+              cnonce_fn: fn -> "0a4f113b" end,
+              nc: "00000001"
+            },
+            opts
+          )
+        }
+      ])
     end
   end
 
@@ -43,7 +56,9 @@ defmodule Tesla.Middleware.DigestAuthTest do
   end
 
   test "sends request with proper authorization header" do
-    request = DigestClient.client("Mufasa", "Circle Of Life") |> DigestClient.get("/dir/index.html")
+    request =
+      DigestClient.client("Mufasa", "Circle Of Life") |> DigestClient.get("/dir/index.html")
+
     auth_header = request.headers["authorization"]
 
     assert auth_header =~ ~r/^Digest /
@@ -59,7 +74,7 @@ defmodule Tesla.Middleware.DigestAuthTest do
   end
 
   test "has default values for username and cn" do
-    response =  DigestClientWithDefaults.client |> DigestClient.get("/")
+    response = DigestClientWithDefaults.client() |> DigestClient.get("/")
     auth_header = response.headers["authorization"]
 
     assert auth_header =~ "username=\"\""
@@ -67,7 +82,7 @@ defmodule Tesla.Middleware.DigestAuthTest do
   end
 
   test "generates different cnonce with each request by default" do
-    request = fn -> DigestClientWithDefaults.client |> DigestClient.get("/") end
+    request = fn -> DigestClientWithDefaults.client() |> DigestClient.get("/") end
     cnonce_1 = Regex.run(~r/cnonce="(.*?)"/, request.().headers["authorization"]) |> Enum.at(1)
     cnonce_2 = Regex.run(~r/cnonce="(.*?)"/, request.().headers["authorization"]) |> Enum.at(1)
 
@@ -75,12 +90,12 @@ defmodule Tesla.Middleware.DigestAuthTest do
   end
 
   test "works when passing custom opts" do
-    request = DigestClientWithDefaults.client |> DigestClient.get("/", opts: [hodor: "hodor"])
+    request = DigestClientWithDefaults.client() |> DigestClient.get("/", opts: [hodor: "hodor"])
     assert request.opts == [hodor: "hodor"]
   end
 
   test "ignores digest auth when server doesn't respond with www-authenticate header" do
-    response = DigestClientWithDefaults.client |> DigestClient.get("/no-digest-auth")
+    response = DigestClientWithDefaults.client() |> DigestClient.get("/no-digest-auth")
     refute response.headers["authorization"]
   end
 end

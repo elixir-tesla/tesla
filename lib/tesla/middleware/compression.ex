@@ -43,7 +43,7 @@ defmodule Tesla.Middleware.Compression do
     end
   end
 
-  defp compress_body(body, "gzip"),    do: :zlib.gzip(body)
+  defp compress_body(body, "gzip"), do: :zlib.gzip(body)
   defp compress_body(body, "deflate"), do: :zlib.zip(body)
 
   @doc """
@@ -54,9 +54,9 @@ defmodule Tesla.Middleware.Compression do
     |> Map.update!(:body, &decompress_body(&1, env.headers["content-encoding"]))
   end
 
-  defp decompress_body(<<31, 139, 8, _ :: binary>> = body, "gzip"), do: :zlib.gunzip(body)
-  defp decompress_body(body, "deflate"),                            do: :zlib.unzip(body)
-  defp decompress_body(body, _content_encoding),                    do: body
+  defp decompress_body(<<31, 139, 8, _::binary>> = body, "gzip"), do: :zlib.gunzip(body)
+  defp decompress_body(body, "deflate"), do: :zlib.unzip(body)
+  defp decompress_body(body, _content_encoding), do: body
 end
 
 defmodule Tesla.Middleware.CompressRequest do

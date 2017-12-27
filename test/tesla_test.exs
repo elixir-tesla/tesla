@@ -17,13 +17,13 @@ defmodule TeslaTest do
     @http_verbs ~w(head get delete trace options post put patch)a
 
     test "limit generated functions (only)" do
-      functions = OnlyGetClient.__info__(:functions) |> Keyword.keys() |> Enum.uniq
+      functions = OnlyGetClient.__info__(:functions) |> Keyword.keys() |> Enum.uniq()
       assert :get in functions
       refute Enum.any?(@http_verbs -- [:get], &(&1 in functions))
     end
 
     test "limit generated functions (except)" do
-      functions = ExceptDeleteClient.__info__(:functions) |> Keyword.keys() |> Enum.uniq
+      functions = ExceptDeleteClient.__info__(:functions) |> Keyword.keys() |> Enum.uniq()
       refute :delete in functions
       assert Enum.all?(@http_verbs -- [:delete], &(&1 in functions))
     end
@@ -41,8 +41,8 @@ defmodule TeslaTest do
 
     test "do not generate docs for HTTP methods when docs: false" do
       docs = Code.get_docs(TeslaDocsTest.NoDocs, :docs)
-      assert {_, _, _, _, false}  = Enum.find(docs, &match?({{:get, 1}, _, :def, _, _}, &1))
-      assert {_, _, _, _, doc}    = Enum.find(docs, &match?({{:custom, 1}, _, :def, _, _}, &1))
+      assert {_, _, _, _, false} = Enum.find(docs, &match?({{:get, 1}, _, :def, _, _}, &1))
+      assert {_, _, _, _, doc} = Enum.find(docs, &match?({{:custom, 1}, _, :def, _, _}, &1))
       assert doc =~ ~r/something/
     end
   end
@@ -90,19 +90,19 @@ defmodule TeslaTest do
     end
 
     test "defauilt adapter" do
-      assert EmptyClient.__adapter__ == Tesla.default_adapter()
+      assert EmptyClient.__adapter__() == Tesla.default_adapter()
     end
 
     test "adapter as module" do
-      assert ModuleAdapterClient.__adapter__ == {ModuleAdapter, [with: "someopt"]}
+      assert ModuleAdapterClient.__adapter__() == {ModuleAdapter, [with: "someopt"]}
     end
 
     test "adapter as local function" do
-      assert LocalAdapterClient.__adapter__ == {:local_adapter, nil}
+      assert LocalAdapterClient.__adapter__() == {:local_adapter, nil}
     end
 
     test "adapter as anonymous function" do
-      assert is_function(FunAdapterClient.__adapter__)
+      assert is_function(FunAdapterClient.__adapter__())
     end
 
     test "execute module adapter" do
@@ -122,12 +122,12 @@ defmodule TeslaTest do
 
     test "use adapter override from config" do
       Application.put_env(:tesla, EmptyClient, adapter: :mock)
-      assert EmptyClient.__adapter__ == Tesla.Mock
+      assert EmptyClient.__adapter__() == Tesla.Mock
     end
 
     test "prefer config over module setting" do
       Application.put_env(:tesla, ModuleAdapterClient, adapter: :mock)
-      assert ModuleAdapterClient.__adapter__ == Tesla.Mock
+      assert ModuleAdapterClient.__adapter__() == Tesla.Mock
     end
   end
 
@@ -172,12 +172,12 @@ defmodule TeslaTest do
     end
 
     test "middleware list" do
-      assert AppendClient.__middleware__ == [
-        {AppendOne,       nil},
-        {AppendWith,      [with: "1"]},
-        {AppendWith,      [with: "2"]},
-        {:local_middleware,  nil}
-      ]
+      assert AppendClient.__middleware__() == [
+               {AppendOne, nil},
+               {AppendWith, [with: "1"]},
+               {AppendWith, [with: "2"]},
+               {:local_middleware, nil}
+             ]
     end
 
     test "execute middleware top down" do
@@ -204,18 +204,22 @@ defmodule TeslaTest do
     end
 
     test "override adapter - Tesla.build_client" do
-      client = Tesla.build_client([], [
-        fn env, _next ->
-          %{env | body: "new"}
-        end
-      ])
+      client =
+        Tesla.build_client([], [
+          fn env, _next ->
+            %{env | body: "new"}
+          end
+        ])
+
       assert %{body: "new"} = DynamicClient.help(client)
     end
 
     test "override adapter - Tesla.build_adapter" do
-      client = Tesla.build_adapter fn env ->
-        %{env | body: "new"}
-      end
+      client =
+        Tesla.build_adapter(fn env ->
+          %{env | body: "new"}
+        end)
+
       assert %{body: "new"} = DynamicClient.help(client)
     end
 
@@ -236,23 +240,23 @@ defmodule TeslaTest do
 
     test "basic request" do
       response = SimpleClient.request(url: "/", method: :post, query: [page: 1], body: "data")
-      assert response.method  == :post
-      assert response.url     == "/"
-      assert response.query   == [page: 1]
-      assert response.body    == "data"
+      assert response.method == :post
+      assert response.url == "/"
+      assert response.query == [page: 1]
+      assert response.body == "data"
     end
 
     test "shortcut function" do
       response = SimpleClient.get("/get")
-      assert response.method  == :get
-      assert response.url     == "/get"
+      assert response.method == :get
+      assert response.url == "/get"
     end
 
     test "shortcut function with body" do
       response = SimpleClient.post("/post", "some-data")
-      assert response.method  == :post
-      assert response.url     == "/post"
-      assert response.body    == "some-data"
+      assert response.method == :post
+      assert response.url == "/post"
+      assert response.body == "some-data"
     end
 
     test "request with client" do

@@ -6,30 +6,59 @@ defmodule Tesla.Middleware.JsonTest do
 
     plug Tesla.Middleware.JSON
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "/decode" ->
-          {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
-        "/encode" ->
-          {200, %{'Content-Type' => 'application/json'}, env.body |> String.replace("foo", "baz")}
-        "/empty" ->
-          {200, %{'Content-Type' => 'application/json'}, nil}
-        "/empty-string" ->
-          {200, %{'Content-Type' => 'application/json'}, ""}
-        "/invalid-content-type" ->
-          {200, %{'Content-Type' => 'text/plain'}, "hello"}
-        "/invalid-json-format" ->
-          {200, %{'Content-Type' => 'application/json'}, "{\"foo\": bar}"}
-        "/invalid-json-encoding" ->
-          {200, %{'Content-Type' => 'application/json'}, <<123, 34, 102, 111, 111, 34, 58, 32, 34, 98, 225, 114, 34, 125>>}
-        "/facebook" ->
-          {200, %{'Content-Type' => 'text/javascript'}, "{\"friends\": 1000000}"}
-        "/raw" ->
-          {200, %{}, env.body}
-        "/stream" ->
-          list = env.body |> Enum.to_list |> Enum.join("---")
-          {200, %{}, list}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/decode" ->
+            {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
+
+          "/encode" ->
+            {
+              200,
+              %{'Content-Type' => 'application/json'},
+              env.body |> String.replace("foo", "baz")
+            }
+
+          "/empty" ->
+            {200, %{'Content-Type' => 'application/json'}, nil}
+
+          "/empty-string" ->
+            {200, %{'Content-Type' => 'application/json'}, ""}
+
+          "/invalid-content-type" ->
+            {200, %{'Content-Type' => 'text/plain'}, "hello"}
+
+          "/invalid-json-format" ->
+            {200, %{'Content-Type' => 'application/json'}, "{\"foo\": bar}"}
+
+          "/invalid-json-encoding" ->
+            {200, %{'Content-Type' => 'application/json'}, <<
+              123,
+              34,
+              102,
+              111,
+              111,
+              34,
+              58,
+              32,
+              34,
+              98,
+              225,
+              114,
+              34,
+              125
+            >>}
+
+          "/facebook" ->
+            {200, %{'Content-Type' => 'text/javascript'}, "{\"friends\": 1000000}"}
+
+          "/raw" ->
+            {200, %{}, env.body}
+
+          "/stream" ->
+            list = env.body |> Enum.to_list() |> Enum.join("---")
+            {200, %{}, list}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -64,11 +93,11 @@ defmodule Tesla.Middleware.JsonTest do
   end
 
   test "decode if Content-Type is text/javascript" do
-    assert Client.get("/facebook").body == %{"friends" => 1000000}
+    assert Client.get("/facebook").body == %{"friends" => 1_000_000}
   end
 
   test "post json stream" do
-    stream = Stream.map((1..3), fn i -> %{id: i} end)
+    stream = Stream.map(1..3, fn i -> %{id: i} end)
     assert env = Client.post("/stream", stream)
     assert env.body == ~s|{"id":1}\n---{"id":2}\n---{"id":3}\n|
   end
@@ -90,11 +119,12 @@ defmodule Tesla.Middleware.JsonTest do
 
     plug Tesla.Middleware.DecodeJson, engine: Poison, engine_opts: [keys: :atoms]
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "/decode" ->
-          {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/decode" ->
+            {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -109,11 +139,12 @@ defmodule Tesla.Middleware.JsonTest do
 
     plug Tesla.Middleware.JSON, decode_content_types: ["application/x-custom-json"]
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "/decode" ->
-          {200, %{'Content-Type' => 'application/x-custom-json'}, "{\"value\": 123}"}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/decode" ->
+            {200, %{'Content-Type' => 'application/x-custom-json'}, "{\"value\": 123}"}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -130,11 +161,16 @@ defmodule Tesla.Middleware.JsonTest do
     plug Tesla.Middleware.DecodeJson
     plug Tesla.Middleware.EncodeJson
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "/foo2baz" ->
-          {200, %{'Content-Type' => 'application/json'}, env.body |> String.replace("foo", "baz")}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/foo2baz" ->
+            {
+              200,
+              %{'Content-Type' => 'application/json'},
+              env.body |> String.replace("foo", "baz")
+            }
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -150,11 +186,12 @@ defmodule Tesla.Middleware.JsonTest do
 
     plug Tesla.Middleware.JSON
 
-    adapter fn (%{url: url, body: %Tesla.Multipart{}} = env) ->
-      {status, headers, body} = case url do
-        "/upload" ->
-          {200, %{'Content-Type' => 'application/json'}, "{\"status\": \"ok\"}"}
-      end
+    adapter fn %{url: url, body: %Tesla.Multipart{}} = env ->
+      {status, headers, body} =
+        case url do
+          "/upload" ->
+            {200, %{'Content-Type' => 'application/json'}, "{\"status\": \"ok\"}"}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -162,8 +199,10 @@ defmodule Tesla.Middleware.JsonTest do
 
   test "skips encoding multipart bodies" do
     alias Tesla.Multipart
-    mp = Multipart.new
-    |> Multipart.add_field("param", "foo")
+
+    mp =
+      Multipart.new()
+      |> Multipart.add_field("param", "foo")
 
     assert MultipartClient.post("/upload", mp).body == %{"status" => "ok"}
   end

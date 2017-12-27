@@ -123,7 +123,7 @@ defmodule Tesla.Mock do
 
   This mock will only be available to the current process.
   """
-  @spec mock((Tesla.Env.t -> Tesla.Env.t | {integer, map, any})) :: no_return
+  @spec mock((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: no_return
   def mock(fun) when is_function(fun), do: pdict_set(fun)
 
   @doc """
@@ -132,10 +132,8 @@ defmodule Tesla.Mock do
   **WARNING**: This mock will be available to ALL processes.
   It might cause conflicts when running tests in parallel!
   """
-  @spec mock_global((Tesla.Env.t -> Tesla.Env.t | {integer, map, any})) :: no_return
+  @spec mock_global((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: no_return
   def mock_global(fun) when is_function(fun), do: agent_set(fun)
-
-
 
   ## ADAPTER IMPLEMENTATION
 
@@ -143,10 +141,12 @@ defmodule Tesla.Mock do
     case pdict_get() || agent_get() do
       nil ->
         raise Tesla.Mock.Error, env: env
+
       fun ->
         case rescue_call(fun, env) do
           {status, headers, body} ->
             %{env | status: status, headers: headers, body: body}
+
           %Tesla.Env{} = env ->
             env
         end
@@ -157,6 +157,7 @@ defmodule Tesla.Mock do
   defp pdict_get, do: Process.get(__MODULE__)
 
   defp agent_set(fun), do: {:ok, _pid} = Agent.start_link(fn -> fun end, name: __MODULE__)
+
   defp agent_get do
     case Process.whereis(__MODULE__) do
       nil -> nil

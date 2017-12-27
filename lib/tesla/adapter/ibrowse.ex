@@ -30,20 +30,21 @@ if Code.ensure_loaded?(:ibrowse) do
 
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts || []) do
-        %{env | status:   status,
-                headers:  headers,
-                body:     body}
+        %{env | status: status, headers: headers, body: body}
       end
     end
 
     defp request(env, opts) do
       body = env.body || []
-      handle request(
-        Tesla.build_url(env.url, env.query) |> to_charlist,
-        Enum.into(env.headers, []),
-        env.method,
-        body,
-        opts ++ env.opts
+
+      handle(
+        request(
+          Tesla.build_url(env.url, env.query) |> to_charlist,
+          Enum.into(env.headers, []),
+          env.method,
+          body,
+          opts ++ env.opts
+        )
       )
     end
 

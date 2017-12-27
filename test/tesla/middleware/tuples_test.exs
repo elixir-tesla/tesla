@@ -1,8 +1,8 @@
 defmodule Tesla.Middleware.TuplesTest do
   use ExUnit.Case, async: false
 
-  defmodule Custom1, do: defexception message: "Custom 1"
-  defmodule Custom2, do: defexception message: "Custom 2"
+  defmodule(Custom1, do: defexception(message: "Custom 1"))
+  defmodule(Custom2, do: defexception(message: "Custom 2"))
 
   defmodule Client do
     use Tesla
@@ -12,10 +12,10 @@ defmodule Tesla.Middleware.TuplesTest do
 
     adapter fn env ->
       case env.url do
-        "/ok"            -> env
-        "/econnrefused"  -> {:error, :econnrefused}
-        "/custom-1"      -> raise %Custom1{}
-        "/custom-2"      -> raise %Custom2{}
+        "/ok" -> env
+        "/econnrefused" -> {:error, :econnrefused}
+        "/custom-1" -> raise %Custom1{}
+        "/custom-2" -> raise %Custom2{}
       end
     end
   end

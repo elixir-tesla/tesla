@@ -5,16 +5,17 @@ defmodule Tesla.Middleware.RetryTest do
     def start_link, do: Agent.start_link(fn -> 0 end, name: __MODULE__)
 
     def call(env, _opts) do
-      Agent.get_and_update __MODULE__, fn retries ->
-        response = case env.url do
-          "/ok"                     -> env
-          "/maybe" when retries < 5 -> {:error, :econnrefused}
-          "/maybe"                  -> env
-          "/nope"                   -> {:error, :econnrefused}
-        end
+      Agent.get_and_update(__MODULE__, fn retries ->
+        response =
+          case env.url do
+            "/ok" -> env
+            "/maybe" when retries < 5 -> {:error, :econnrefused}
+            "/maybe" -> env
+            "/nope" -> {:error, :econnrefused}
+          end
 
         {response, retries + 1}
-      end
+      end)
     end
   end
 
@@ -27,7 +28,7 @@ defmodule Tesla.Middleware.RetryTest do
   end
 
   setup do
-    {:ok, _} = LaggyAdapter.start_link
+    {:ok, _} = LaggyAdapter.start_link()
     :ok
   end
 

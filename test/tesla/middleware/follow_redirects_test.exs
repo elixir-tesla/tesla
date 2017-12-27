@@ -1,19 +1,21 @@
 defmodule Tesla.Middleware.FollowRedirectsTest do
   use ExUnit.Case
-  
+
   defmodule Client do
     use Tesla
 
     plug Tesla.Middleware.FollowRedirects
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "http://example.com/0" ->
-          {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
-        "http://example.com/" <> n ->
-          next = String.to_integer(n) - 1
-          {301, %{'Location' => 'http://example.com/#{next}'}, ""}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "http://example.com/0" ->
+            {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
+
+          "http://example.com/" <> n ->
+            next = String.to_integer(n) - 1
+            {301, %{'Location' => 'http://example.com/#{next}'}, ""}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -24,7 +26,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
   end
 
   test "raise error when redirect default max redirects is exceeded" do
-    assert_raise(Tesla.Error, "too many redirects", fn-> Client.get("http://example.com/6") end)
+    assert_raise(Tesla.Error, "too many redirects", fn -> Client.get("http://example.com/6") end)
   end
 
   defmodule CustomMaxRedirectsClient do
@@ -32,14 +34,16 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
 
     plug Tesla.Middleware.FollowRedirects, max_redirects: 1
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "http://example.com/0" ->
-          {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
-        "http://example.com/" <> n ->
-          next = String.to_integer(n) - 1
-          {301, %{'Location' => 'http://example.com/#{next}'}, ""}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "http://example.com/0" ->
+            {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
+
+          "http://example.com/" <> n ->
+            next = String.to_integer(n) - 1
+            {301, %{'Location' => 'http://example.com/#{next}'}, ""}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -52,7 +56,9 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
   end
 
   test "raise error when custom max redirects is exceeded" do
-    assert_raise(Tesla.Error, "too many redirects", fn-> CMRClient.get("http://example.com/2") end)
+    assert_raise(Tesla.Error, "too many redirects", fn ->
+      CMRClient.get("http://example.com/2")
+    end)
   end
 
   defmodule RelativeLocationClient do
@@ -60,19 +66,24 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
 
     plug Tesla.Middleware.FollowRedirects
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "https://example.com/pl" ->
-          {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
-        "http://example.com" ->
-          {301, %{'Location' => 'https://example.com'}, ""}
-        "https://example.com" ->
-          {301, %{'Location' => '/pl'}, ""}
-        "https://example.com/" ->
-          {301, %{'Location' => '/pl'}, ""}
-        "https://example.com/article" ->
-          {301, %{'Location' => '/pl'}, ""}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "https://example.com/pl" ->
+            {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
+
+          "http://example.com" ->
+            {301, %{'Location' => 'https://example.com'}, ""}
+
+          "https://example.com" ->
+            {301, %{'Location' => '/pl'}, ""}
+
+          "https://example.com/" ->
+            {301, %{'Location' => '/pl'}, ""}
+
+          "https://example.com/article" ->
+            {301, %{'Location' => '/pl'}, ""}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end

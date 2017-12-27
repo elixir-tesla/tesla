@@ -46,7 +46,7 @@ defmodule Tesla.Middleware.BasicAuth do
   defp authorization_vars(opts) do
     %{
       username: opts[:username] || "",
-      password: opts[:password] || "",
+      password: opts[:password] || ""
     }
   end
 

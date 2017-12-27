@@ -36,7 +36,6 @@ defmodule Tesla.Middleware.JSON do
   - `:decode_content_types` - list of additional decodable content-types
   """
 
-
   # NOTE: text/javascript added to support Facebook Graph API.
   #       see https://github.com/teamon/tesla/pull/13
   @default_content_types ["application/json", "text/javascript"]
@@ -64,18 +63,18 @@ defmodule Tesla.Middleware.JSON do
     end
   end
 
-  defp encode_body(%Stream{} = body, opts),             do: encode_stream(body, opts)
-  defp encode_body(body, opts) when is_function(body),  do: encode_stream(body, opts)
+  defp encode_body(%Stream{} = body, opts), do: encode_stream(body, opts)
+  defp encode_body(body, opts) when is_function(body), do: encode_stream(body, opts)
   defp encode_body(body, opts), do: process(body, :encode, opts)
 
   defp encode_stream(body, opts) do
-    Stream.map body, fn item -> encode_body(item, opts) <> "\n" end
+    Stream.map(body, fn item -> encode_body(item, opts) <> "\n" end)
   end
 
-  defp encodable?(%{body: nil}),                        do: false
-  defp encodable?(%{body: body}) when is_binary(body),  do: false
-  defp encodable?(%{body: %Tesla.Multipart{}}),         do: false
-  defp encodable?(_),                                   do: true
+  defp encodable?(%{body: nil}), do: false
+  defp encodable?(%{body: body}) when is_binary(body), do: false
+  defp encodable?(%{body: %Tesla.Multipart{}}), do: false
+  defp encodable?(_), do: true
 
   @doc """
   Decode response body as JSON. Used by `Tesla.Middleware.DecodeJson`
@@ -91,43 +90,44 @@ defmodule Tesla.Middleware.JSON do
   defp decodable?(env, opts), do: decodable_body?(env) && decodable_content_type?(env, opts)
 
   defp decodable_body?(env) do
-    (is_binary(env.body)  && env.body != "") ||
-    (is_list(env.body)    && env.body != [])
+    (is_binary(env.body) && env.body != "") || (is_list(env.body) && env.body != [])
   end
 
   defp decodable_content_type?(env, opts) do
     case env.headers["content-type"] do
-      nil           -> false
-      content_type  -> Enum.any?(content_types(opts), &String.starts_with?(content_type, &1))
+      nil -> false
+      content_type -> Enum.any?(content_types(opts), &String.starts_with?(content_type, &1))
     end
   end
 
-  defp content_types(opts), do: @default_content_types ++ Keyword.get(opts, :decode_content_types, [])
+  defp content_types(opts),
+    do: @default_content_types ++ Keyword.get(opts, :decode_content_types, [])
 
   defp process(data, op, opts) do
     with {:ok, value} <- do_process(data, op, opts) do
       value
     else
-      {:error, reason} -> raise %Tesla.Error{message: "JSON #{op} error: #{inspect reason}", reason: reason}
+      {:error, reason} ->
+        raise %Tesla.Error{message: "JSON #{op} error: #{inspect(reason)}", reason: reason}
+
       {:error, msg, position} ->
         reason = {msg, position}
-        raise %Tesla.Error{message: "JSON #{op} error: #{inspect reason}", reason: reason}
+        raise %Tesla.Error{message: "JSON #{op} error: #{inspect(reason)}", reason: reason}
     end
   end
 
   defp do_process(data, op, opts) do
-    if fun = opts[op] do # :encode/:decode
+    # :encode/:decode
+    if fun = opts[op] do
       fun.(data)
     else
-      engine  = Keyword.get(opts, :engine, @default_engine)
-      opts    = Keyword.get(opts, :engine_opts, [])
+      engine = Keyword.get(opts, :engine, @default_engine)
+      opts = Keyword.get(opts, :engine_opts, [])
 
       apply(engine, op, [data, opts])
     end
   end
 end
-
-
 
 defmodule Tesla.Middleware.DecodeJson do
   def call(env, next, opts) do

@@ -3,56 +3,57 @@ defmodule Tesla.Error do
 end
 
 defmodule Tesla.Env do
-  @type client      :: Tesla.Client.t | (t,stack -> t)
-  @type method      :: :head | :get | :delete | :trace | :options | :post | :put | :patch
-  @type url         :: binary
-  @type param       :: binary | [{(binary | atom), param}]
-  @type query       :: [{(binary | atom), param}]
-  @type headers     :: %{binary => binary}
-  @type body        :: any #
-  @type status      :: integer
-  @type opts        :: [any]
-  @type __module__  :: atom
-  @type __client__  :: function
+  @type client :: Tesla.Client.t() | (t, stack -> t)
+  @type method :: :head | :get | :delete | :trace | :options | :post | :put | :patch
+  @type url :: binary
+  @type param :: binary | [{binary | atom, param}]
+  @type query :: [{binary | atom, param}]
+  @type headers :: %{binary => binary}
+  #
+  @type body :: any
+  @type status :: integer
+  @type opts :: [any]
+  @type __module__ :: atom
+  @type __client__ :: function
 
-  @type stack       :: [{atom, atom, any} | {atom, atom} | {:fn, (t -> t)} | {:fn, (t,stack -> t)}]
+  @type stack :: [{atom, atom, any} | {atom, atom} | {:fn, (t -> t)} | {:fn, (t, stack -> t)}]
 
   @type t :: %__MODULE__{
-            method:     method,
-            query:      query,
-            url:        url,
-            headers:    headers,
-            body:       body,
-            status:     status,
-            opts:       opts,
-            __module__: __module__,
-            __client__: __client__
-  }
+          method: method,
+          query: query,
+          url: url,
+          headers: headers,
+          body: body,
+          status: status,
+          opts: opts,
+          __module__: __module__,
+          __client__: __client__
+        }
 
-  defstruct method:     nil,
-            url:        "",
-            query:      [],
-            headers:    %{},
-            body:       nil,
-            status:     nil,
-            opts:       [],
+  defstruct method: nil,
+            url: "",
+            query: [],
+            headers: %{},
+            body: nil,
+            status: nil,
+            opts: [],
             __module__: nil,
             __client__: nil
 end
 
 defmodule Tesla.Client do
   @type t :: %__MODULE__{
-            fun:  (Tesla.Env.t, Tesla.Env.stack -> Tesla.Env.t) | nil,
-            pre:  Tesla.Env.stack,
-            post: Tesla.Env.stack
-  }
+          fun: (Tesla.Env.t(), Tesla.Env.stack() -> Tesla.Env.t()) | nil,
+          pre: Tesla.Env.stack(),
+          post: Tesla.Env.stack()
+        }
   defstruct fun: nil,
             pre: [],
             post: []
 end
 
 defmodule Tesla.Middleware do
-  @callback call(env :: Tesla.Env.t, next :: Tesla.Env.stack, options :: any) :: Tesla.Env.t
+  @callback call(env :: Tesla.Env.t(), next :: Tesla.Env.stack(), options :: any) :: Tesla.Env.t()
 end
 
 defmodule Tesla.Builder do
@@ -67,12 +68,13 @@ defmodule Tesla.Builder do
       Module.register_attribute(__MODULE__, :__adapter__, [])
 
       if unquote(docs) do
-        @type option :: {:method,   Tesla.Env.method}  |
-                        {:url,      Tesla.Env.url}     |
-                        {:query,    Tesla.Env.query}   |
-                        {:headers,  Tesla.Env.headers} |
-                        {:body,     Tesla.Env.body}    |
-                        {:opts,     Tesla.Env.opts}
+        @type option ::
+                {:method, Tesla.Env.method()}
+                | {:url, Tesla.Env.url()}
+                | {:query, Tesla.Env.query()}
+                | {:headers, Tesla.Env.headers()}
+                | {:body, Tesla.Env.body()}
+                | {:opts, Tesla.Env.opts()}
 
         @doc """
         Perform a request using client function
@@ -100,10 +102,11 @@ defmodule Tesla.Builder do
 
             myclient |> ExampleApi.post("/users", %{name: "Jon"})
         """
-        @spec request(Tesla.Env.client, [option]) :: Tesla.Env.t
+        @spec request(Tesla.Env.client(), [option]) :: Tesla.Env.t()
       else
         @doc false
       end
+
       def request(%Tesla.Client{} = client, options) do
         Tesla.perform_request(__MODULE__, client, options)
       end
@@ -112,10 +115,11 @@ defmodule Tesla.Builder do
         @doc """
         Perform a request. See `request/2` for available options.
         """
-        @spec request([option]) :: Tesla.Env.t
+        @spec request([option]) :: Tesla.Env.t()
       else
         @doc false
       end
+
       def request(options) do
         Tesla.perform_request(__MODULE__, options)
       end
@@ -154,7 +158,7 @@ defmodule Tesla.Builder do
   defmacro plug(middleware, opts \\ nil) do
     opts = Macro.escape(opts)
     middleware = Tesla.alias(middleware)
-    quote do: @__middleware__ {unquote(middleware), unquote(opts)}
+    quote do: @__middleware__({unquote(middleware), unquote(opts)})
   end
 
   @doc """
@@ -186,19 +190,20 @@ defmodule Tesla.Builder do
   """
   defmacro adapter({:fn, _, _} = adapter) do
     adapter = Macro.escape(adapter)
-    quote do: @__adapter__ unquote(adapter)
+    quote do: @__adapter__(unquote(adapter))
   end
+
   defmacro adapter(adapter, opts \\ nil) do
     adapter = Tesla.alias(adapter)
-    quote do: @__adapter__ {unquote(adapter), unquote(opts)}
+    quote do: @__adapter__({unquote(adapter), unquote(opts)})
   end
 
   defp generate_http_verbs(opts) do
-    only    = Keyword.get(opts, :only,    @http_verbs)
-    except  = Keyword.get(opts, :except,  [])
+    only = Keyword.get(opts, :only, @http_verbs)
+    except = Keyword.get(opts, :except, [])
 
     @http_verbs
-    |> Enum.filter(&(&1 in only && not &1 in except))
+    |> Enum.filter(&(&1 in only && &1 not in except))
     |> Enum.map(&generate_api(&1, Keyword.get(opts, :docs, true)))
   end
 
@@ -206,16 +211,18 @@ defmodule Tesla.Builder do
     quote do
       if unquote(docs) do
         @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase)} request.
+        Perform a #{unquote(method |> to_string |> String.upcase())} request.
         See `request/1` or `request/2` for options definition.
 
         Example
             myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
         """
-        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body, [option]) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url(), Tesla.Env.body(), [option]) ::
+                Tesla.Env.t()
       else
         @doc false
       end
+
       def unquote(method)(%Tesla.Client{} = client, url, body, options) when is_list(options) do
         request(client, [method: unquote(method), url: url, body: body] ++ options)
       end
@@ -227,17 +234,19 @@ defmodule Tesla.Builder do
 
       if unquote(docs) do
         @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase)} request.
+        Perform a #{unquote(method |> to_string |> String.upcase())} request.
         See `request/1` or `request/2` for options definition.
 
         Example
             myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
             ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
         """
-        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, Tesla.Env.body) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url(), Tesla.Env.body()) ::
+                Tesla.Env.t()
       else
         @doc false
       end
+
       def unquote(method)(%Tesla.Client{} = client, url, body) do
         request(client, method: unquote(method), url: url, body: body)
       end
@@ -248,26 +257,28 @@ defmodule Tesla.Builder do
       end
 
       if unquote(docs) do
-        @spec unquote(method)(Tesla.Env.url, Tesla.Env.body, [option]) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.url(), Tesla.Env.body(), [option]) :: Tesla.Env.t()
       else
         @doc false
       end
+
       def unquote(method)(url, body, options) when is_list(options) do
         request([method: unquote(method), url: url, body: body] ++ options)
       end
 
       if unquote(docs) do
         @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase)} request.
+        Perform a #{unquote(method |> to_string |> String.upcase())} request.
         See `request/1` or `request/2` for options definition.
 
         Example
             ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
         """
-        @spec unquote(method)(Tesla.Env.url, Tesla.Env.body) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.url(), Tesla.Env.body()) :: Tesla.Env.t()
       else
         @doc false
       end
+
       def unquote(method)(url, body) do
         request(method: unquote(method), url: url, body: body)
       end
@@ -278,16 +289,17 @@ defmodule Tesla.Builder do
     quote do
       if unquote(docs) do
         @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase)} request.
+        Perform a #{unquote(method |> to_string |> String.upcase())} request.
         See `request/1` or `request/2` for options definition.
 
         Example
             myclient |> ExampleApi.#{unquote(method)}("/users", query: [page: 1])
         """
-        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url, [option]) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url(), [option]) :: Tesla.Env.t()
       else
         @doc false
       end
+
       def unquote(method)(%Tesla.Client{} = client, url, options) when is_list(options) do
         request(client, [method: unquote(method), url: url] ++ options)
       end
@@ -299,17 +311,18 @@ defmodule Tesla.Builder do
 
       if unquote(docs) do
         @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase)} request.
+        Perform a #{unquote(method |> to_string |> String.upcase())} request.
         See `request/1` or `request/2` for options definition.
 
         Example
             myclient |> ExampleApi.#{unquote(method)}("/users")
             ExampleApi.#{unquote(method)}("/users", query: [page: 1])
         """
-        @spec unquote(method)(Tesla.Env.client, Tesla.Env.url) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url()) :: Tesla.Env.t()
       else
         @doc false
       end
+
       def unquote(method)(%Tesla.Client{} = client, url) do
         request(client, method: unquote(method), url: url)
       end
@@ -320,26 +333,28 @@ defmodule Tesla.Builder do
       end
 
       if unquote(docs) do
-        @spec unquote(method)(Tesla.Env.url, [option]) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.url(), [option]) :: Tesla.Env.t()
       else
         @doc false
       end
+
       def unquote(method)(url, options) when is_list(options) do
         request([method: unquote(method), url: url] ++ options)
       end
 
       if unquote(docs) do
         @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase)} request.
+        Perform a #{unquote(method |> to_string |> String.upcase())} request.
         See `request/1` or `request/2` for options definition.
 
         Example
             ExampleApi.#{unquote(method)}("/users")
         """
-        @spec unquote(method)(Tesla.Env.url) :: Tesla.Env.t
+        @spec unquote(method)(Tesla.Env.url()) :: Tesla.Env.t()
       else
         @doc false
       end
+
       def unquote(method)(url) do
         request(method: unquote(method), url: url)
       end
@@ -347,8 +362,8 @@ defmodule Tesla.Builder do
   end
 
   defmacro __before_compile__(env) do
-    adapter     = Module.get_attribute(env.module, :__adapter__)
-    middleware  = Module.get_attribute(env.module, :__middleware__) |> Enum.reverse
+    adapter = Module.get_attribute(env.module, :__adapter__)
+    middleware = Module.get_attribute(env.module, :__middleware__) |> Enum.reverse()
 
     quote do
       def __middleware__, do: unquote(middleware)
@@ -381,32 +396,28 @@ defmodule Tesla do
   end
 
   @aliases [
-    httpc:            Tesla.Adapter.Httpc,
-    hackney:          Tesla.Adapter.Hackney,
-    ibrowse:          Tesla.Adapter.Ibrowse,
-    mock:             Tesla.Mock,
-
-    base_url:         Tesla.Middleware.BaseUrl,
-    headers:          Tesla.Middleware.Headers,
-    query:            Tesla.Middleware.Query,
-    opts:             Tesla.Middleware.Opts,
+    httpc: Tesla.Adapter.Httpc,
+    hackney: Tesla.Adapter.Hackney,
+    ibrowse: Tesla.Adapter.Ibrowse,
+    mock: Tesla.Mock,
+    base_url: Tesla.Middleware.BaseUrl,
+    headers: Tesla.Middleware.Headers,
+    query: Tesla.Middleware.Query,
+    opts: Tesla.Middleware.Opts,
     follow_redirects: Tesla.Middleware.FollowRedirects,
-    method_override:  Tesla.Middleware.MethodOverride,
-    logger:           Tesla.Middleware.Logger,
-    debug_logger:     Tesla.Middleware.DebugLogger,
-
-    form_urlencoded:  Tesla.Middleware.FormUrlencoded,
-    json:             Tesla.Middleware.JSON,
-    compression:      Tesla.Middleware.Compression,
-    decode_rels:      Tesla.Middleware.DecodeRels,
-
-    basic_auth:       Tesla.Middleware.BasicAuth,
-    digest_auth:      Tesla.Middleware.DigestAuth,
-
-    timeout:          Tesla.Middleware.Timeout,
-    retry:            Tesla.Middleware.Retry,
-    fuse:             Tesla.Middleware.Fuse,
-    tuples:           Tesla.Middleware.Tuples
+    method_override: Tesla.Middleware.MethodOverride,
+    logger: Tesla.Middleware.Logger,
+    debug_logger: Tesla.Middleware.DebugLogger,
+    form_urlencoded: Tesla.Middleware.FormUrlencoded,
+    json: Tesla.Middleware.JSON,
+    compression: Tesla.Middleware.Compression,
+    decode_rels: Tesla.Middleware.DecodeRels,
+    basic_auth: Tesla.Middleware.BasicAuth,
+    digest_auth: Tesla.Middleware.DigestAuth,
+    timeout: Tesla.Middleware.Timeout,
+    retry: Tesla.Middleware.Retry,
+    fuse: Tesla.Middleware.Fuse,
+    tuples: Tesla.Middleware.Tuples
   ]
   def alias(key) when is_atom(key), do: Keyword.get(@aliases, key, key)
   def alias(key), do: key
@@ -414,28 +425,28 @@ defmodule Tesla do
   def perform_request(module, client \\ nil, options) do
     %{fun: fun, pre: pre, post: post} = client || %Tesla.Client{}
 
-    stack = pre
-      ++ prepare(module, List.wrap(fun) ++ module.__middleware__ ++ default_middleware())
-      ++ post
-      ++ prepare(module, [module.__adapter__])
+    stack =
+      pre ++
+        prepare(module, List.wrap(fun) ++ module.__middleware__ ++ default_middleware()) ++
+        post ++ prepare(module, [module.__adapter__])
 
     env = struct(Tesla.Env, options ++ [__module__: module, __client__: client])
     run(env, stack)
   end
 
-  @spec prepare(atom, [any]) :: Tesla.Env.stack
+  @spec prepare(atom, [any]) :: Tesla.Env.stack()
   def prepare(module, stack) do
-    Enum.map stack, fn
-      {name, opts}              -> prepare_module(module, name, opts)
-      name when is_atom(name)   -> prepare_module(module, name, nil)
+    Enum.map(stack, fn
+      {name, opts} -> prepare_module(module, name, opts)
+      name when is_atom(name) -> prepare_module(module, name, nil)
       fun when is_function(fun) -> {:fn, fun}
-    end
+    end)
   end
 
   defp prepare_module(module, name, opts) do
     case Atom.to_charlist(name) do
-      ~c"Elixir." ++ _ -> {name,   :call, [opts]}
-      _                -> {module, name}
+      ~c"Elixir." ++ _ -> {name, :call, [opts]}
+      _ -> {module, name}
     end
   end
 
@@ -443,14 +454,14 @@ defmodule Tesla do
   def run(env, []), do: env
 
   # last item in stack is adapter - skip passing rest of stack
-  def run(env, [{:fn, f}]),  do: apply(f, [env])
-  def run(env, [{m,f}]),     do: apply(m, f, [env])
-  def run(env, [{m,f,a}]),   do: apply(m, f, [env | a])
+  def run(env, [{:fn, f}]), do: apply(f, [env])
+  def run(env, [{m, f}]), do: apply(m, f, [env])
+  def run(env, [{m, f, a}]), do: apply(m, f, [env | a])
 
   # for all other elements pass (env, next, opts)
-  def run(env, [{:fn, f} | rest]),  do: apply(f, [env, rest])
-  def run(env, [{m,f} | rest]),     do: apply(m, f, [env, rest])
-  def run(env, [{m,f,a} | rest]),   do: apply(m, f, [env, rest | a])
+  def run(env, [{:fn, f} | rest]), do: apply(f, [env, rest])
+  def run(env, [{m, f} | rest]), do: apply(m, f, [env, rest])
+  def run(env, [{m, f, a} | rest]), do: apply(m, f, [env, rest | a])
 
   # useful helper fuctions
   def put_opt(env, key, value) do
@@ -462,11 +473,11 @@ defmodule Tesla do
   end
 
   defp module_adapter_from_config(module) do
-    Application.get_env(:tesla, module, [])[:adapter] |> Tesla.alias
+    Application.get_env(:tesla, module, [])[:adapter] |> Tesla.alias()
   end
 
   def default_adapter do
-    Application.get_env(:tesla, :adapter, :httpc) |> Tesla.alias
+    Application.get_env(:tesla, :adapter, :httpc) |> Tesla.alias()
   end
 
   def run_default_adapter(env, opts \\ []) do
@@ -476,7 +487,6 @@ defmodule Tesla do
   def default_middleware do
     [{Tesla.Middleware.Normalize, nil}]
   end
-
 
   @doc """
   Dynamically build client from list of middlewares.
@@ -499,7 +509,7 @@ defmodule Tesla do
   defmacro build_client(pre, post \\ []) do
     quote do
       %Tesla.Client{
-        pre:  Tesla.prepare(__MODULE__, unquote(pre)),
+        pre: Tesla.prepare(__MODULE__, unquote(pre)),
         post: Tesla.prepare(__MODULE__, unquote(post))
       }
     end
@@ -510,6 +520,7 @@ defmodule Tesla do
   end
 
   def build_url(url, []), do: url
+
   def build_url(url, query) do
     join = if String.contains?(url, "?"), do: "&", else: "?"
     url <> join <> encode_query(query)
@@ -518,15 +529,16 @@ defmodule Tesla do
   defp encode_query(query) do
     query
     |> Enum.flat_map(&encode_pair/1)
-    |> URI.encode_query
+    |> URI.encode_query()
   end
 
   defp encode_pair({key, value}) when is_list(value) do
     if Keyword.keyword?(value) do
-      Enum.flat_map(value, fn {k,v} -> encode_pair({"#{key}[#{k}]", v}) end)
+      Enum.flat_map(value, fn {k, v} -> encode_pair({"#{key}[#{k}]", v}) end)
     else
       Enum.map(value, fn e -> {"#{key}[]", e} end)
     end
   end
+
   defp encode_pair({key, value}), do: [{key, value}]
 end

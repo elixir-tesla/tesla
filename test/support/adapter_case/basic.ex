@@ -57,7 +57,8 @@ defmodule Tesla.AdapterCase.Basic do
             method: :get,
             url: "#{@url}/get",
             query: [
-              page: 1, sort: "desc",
+              page: 1,
+              sort: "desc",
               status: ["a", "b", "c"],
               user: [name: "Jon", age: 20]
             ]
@@ -72,15 +73,15 @@ defmodule Tesla.AdapterCase.Basic do
 
           assert args["page"] == "1"
           assert args["sort"] == "desc"
-          assert args["status[]"]   == ["a", "b", "c"]
+          assert args["status[]"] == ["a", "b", "c"]
           assert args["user[name]"] == "Jon"
-          assert args["user[age]"]  == "20"
+          assert args["user[age]"] == "20"
         end
 
         test "autoredirects disabled by default" do
           request = %Env{
             method: :get,
-            url: "#{@url}/redirect-to?url=#{@url}/status/200",
+            url: "#{@url}/redirect-to?url=#{@url}/status/200"
           }
 
           assert %Env{} = response = call(request)
@@ -90,7 +91,7 @@ defmodule Tesla.AdapterCase.Basic do
         test "error: connection refused" do
           request = %Env{
             method: :get,
-            url: "http://localhost:1234",
+            url: "http://localhost:1234"
           }
 
           assert_raise Tesla.Error, fn ->

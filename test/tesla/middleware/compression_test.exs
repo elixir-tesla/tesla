@@ -6,11 +6,12 @@ defmodule Tesla.Middleware.CompressionTest do
 
     plug Tesla.Middleware.Compression
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "/" ->
-          {200, %{'Content-Type' => 'text/plain'}, :zlib.gunzip(env.body)}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/" ->
+            {200, %{'Content-Type' => 'text/plain'}, :zlib.gunzip(env.body)}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -25,18 +26,20 @@ defmodule Tesla.Middleware.CompressionTest do
 
     plug Tesla.Middleware.Compression, format: "deflate"
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "/" ->
-          {200, %{'Content-Type' => 'text/plain'}, :zlib.unzip(env.body)}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/" ->
+            {200, %{'Content-Type' => 'text/plain'}, :zlib.unzip(env.body)}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
   end
 
   test "compress request body (deflate)" do
-    assert CompressionDeflateRequestClient.post("/", "compress request").body == "compress request"
+    assert CompressionDeflateRequestClient.post("/", "compress request").body ==
+             "compress request"
   end
 
   defmodule CompressionResponseClient do
@@ -44,15 +47,30 @@ defmodule Tesla.Middleware.CompressionTest do
 
     plug Tesla.Middleware.Compression
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "/response-gzip" ->
-          {200, %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'gzip'}, :zlib.gzip("decompressed gzip")}
-        "/response-deflate" ->
-          {200, %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'deflate'}, :zlib.zip("decompressed deflate")}
-        "/response-identity" ->
-          {200, %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'identity'}, "unchanged"}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/response-gzip" ->
+            {
+              200,
+              %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'gzip'},
+              :zlib.gzip("decompressed gzip")
+            }
+
+          "/response-deflate" ->
+            {
+              200,
+              %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'deflate'},
+              :zlib.zip("decompressed deflate")
+            }
+
+          "/response-identity" ->
+            {
+              200,
+              %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'identity'},
+              "unchanged"
+            }
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -76,11 +94,12 @@ defmodule Tesla.Middleware.CompressionTest do
     plug Tesla.Middleware.CompressRequest
     plug Tesla.Middleware.DecompressResponse
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "/" ->
-          {200, %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'gzip'}, env.body}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/" ->
+            {200, %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'gzip'}, env.body}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end

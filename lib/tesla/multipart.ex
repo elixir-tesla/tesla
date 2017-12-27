@@ -14,40 +14,37 @@ defmodule Tesla.Multipart do
     |> Multipart.add_file_content("sample file content", "sample.txt")
 
     response = client.post(url, mp)
- ```
+  ```
   """
 
-  @boundary_chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" |> String.split("")
+  @boundary_chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                  |> String.split("")
 
-  @type part_stream :: IO.Stream.t | File.Stream.t
-  @type part_value :: String.t | part_stream
+  @type part_stream :: IO.Stream.t() | File.Stream.t()
+  @type part_value :: String.t() | part_stream
 
-  defstruct [
-    parts: [],
-    boundary: nil,
-    content_type_params: []
-  ]
+  defstruct parts: [],
+            boundary: nil,
+            content_type_params: []
 
-  @type t :: %__MODULE__ {
-    parts: list(Part.t),
-    boundary: String.t,
-    content_type_params: [String.t]
-  }
+  @type t :: %__MODULE__{
+          parts: list(Part.t()),
+          boundary: String.t(),
+          content_type_params: [String.t()]
+        }
 
   defmodule Part do
     @moduledoc false
 
-    defstruct [
-      body: nil,
-      dispositions: [],
-      headers: [],
-    ]
+    defstruct body: nil,
+              dispositions: [],
+              headers: []
 
-    @type t :: %__MODULE__ {
-      body: String.t,
-      headers: Keyword.t,
-      dispositions: Keyword.t,
-    }
+    @type t :: %__MODULE__{
+            body: String.t(),
+            headers: Keyword.t(),
+            dispositions: Keyword.t()
+          }
   end
 
   @doc """
@@ -61,7 +58,7 @@ defmodule Tesla.Multipart do
   @doc """
   Add a parameter to the multipart content-type.
   """
-  @spec add_content_type_param(t, String.t) :: t
+  @spec add_content_type_param(t, String.t()) :: t
   def add_content_type_param(%__MODULE__{} = mp, param) do
     %{mp | content_type_params: mp.content_type_params ++ [param]}
   end
@@ -69,7 +66,7 @@ defmodule Tesla.Multipart do
   @doc """
   Add a field part.
   """
-  @spec add_field(t, String.t, part_value, Keyword.t) :: t
+  @spec add_field(t, String.t(), part_value, Keyword.t()) :: t
   def add_field(%__MODULE__{} = mp, name, value, opts \\ []) do
     {headers, opts} = Keyword.pop_first(opts, :headers, [])
 
@@ -78,6 +75,7 @@ defmodule Tesla.Multipart do
       headers: headers,
       dispositions: [{:name, name}] ++ opts
     }
+
     %{mp | parts: mp.parts ++ [part]}
   end
 
@@ -90,22 +88,22 @@ defmodule Tesla.Multipart do
   - `:headers` - additional headers
   - `:detect_content_type` - auto-detect file content-type (defaults to false)
   """
-  @spec add_file(t, String.t, Keyword.t) :: t
+  @spec add_file(t, String.t(), Keyword.t()) :: t
   def add_file(%__MODULE__{} = mp, path, opts \\ []) do
     {filename, opts} = Keyword.pop_first(opts, :filename, Path.basename(path))
     {headers, opts} = Keyword.pop_first(opts, :headers, [])
     {detect_content_type, opts} = Keyword.pop_first(opts, :detect_content_type, false)
 
     # add in detected content-type if necessary
-    headers = case detect_content_type do
-                true -> Keyword.put(headers, :"Content-Type", MIME.from_path(path))
-                false -> headers
-              end
+    headers =
+      case detect_content_type do
+        true -> Keyword.put(headers, :"Content-Type", MIME.from_path(path))
+        false -> headers
+      end
 
     data = File.stream!(path, [:read], 2048)
     add_file_content(mp, data, filename, opts ++ [headers: headers])
   end
-
 
   @doc """
   Add a file part. Same of `add_file/3` but the file content is read from `data` input parameter.
@@ -114,14 +112,14 @@ defmodule Tesla.Multipart do
   - `:name` - name of form param
   - `:headers` - additional headers
   """
-  @spec add_file_content(t, part_value, String.t, Keyword.t) :: t
+  @spec add_file_content(t, part_value, String.t(), Keyword.t()) :: t
   def add_file_content(%__MODULE__{} = mp, data, filename, opts \\ []) do
     {name, opts} = Keyword.pop_first(opts, :name, "file")
     add_field(mp, name, data, opts ++ [filename: filename])
   end
 
   @doc false
-  @spec headers(t) :: Keyword.t
+  @spec headers(t) :: Keyword.t()
   def headers(%__MODULE__{boundary: boundary, content_type_params: params}) do
     ct_params = (["boundary=#{boundary}"] ++ params) |> Enum.join("; ")
     [{:"Content-Type", "multipart/form-data; #{ct_params}"}]
@@ -130,20 +128,24 @@ defmodule Tesla.Multipart do
   @doc false
   @spec body(t) :: part_stream
   def body(%__MODULE__{boundary: boundary, parts: parts}) do
-    part_streams = Enum.map(parts, &(part_as_stream(&1, boundary)))
+    part_streams = Enum.map(parts, &part_as_stream(&1, boundary))
     Stream.concat(part_streams ++ [["--#{boundary}--\r\n"]])
   end
 
   @doc false
-  @spec part_as_stream(t, String.t) :: part_stream
-  def part_as_stream(%Part{body: body, dispositions: dispositions, headers: part_headers}, boundary) do
+  @spec part_as_stream(t, String.t()) :: part_stream
+  def part_as_stream(
+        %Part{body: body, dispositions: dispositions, headers: part_headers},
+        boundary
+      ) do
     part_headers = Enum.map(part_headers, fn {k, v} -> "#{k}: #{v}\r\n" end)
     part_headers = part_headers ++ [part_headers_for_disposition(dispositions)]
 
-    enum_body = case body do
-                  b when is_binary(b)-> [b]
-                  b -> b
-                end
+    enum_body =
+      case body do
+        b when is_binary(b) -> [b]
+        b -> b
+      end
 
     Stream.concat([
       ["--#{boundary}\r\n"],
@@ -155,21 +157,24 @@ defmodule Tesla.Multipart do
   end
 
   @doc false
-  @spec part_headers_for_disposition(Keyword.t) :: [String.t]
+  @spec part_headers_for_disposition(Keyword.t()) :: [String.t()]
   def part_headers_for_disposition([]), do: []
+
   def part_headers_for_disposition(kvs) do
     ds =
       kvs
       |> Enum.map(fn {k, v} -> "#{k}=\"#{v}\"" end)
       |> Enum.join("; ")
+
     ["Content-Disposition: form-data; #{ds}\r\n"]
   end
 
   @doc false
-  @spec unique_string(pos_integer) :: String.t
+  @spec unique_string(pos_integer) :: String.t()
   defp unique_string(length) do
-    Enum.reduce((1..length), [], fn (_i, acc) ->
+    Enum.reduce(1..length, [], fn _i, acc ->
       [Enum.random(@boundary_chars) | acc]
-    end) |> Enum.join("")
+    end)
+    |> Enum.join("")
   end
 end

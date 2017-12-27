@@ -42,12 +42,15 @@ defmodule Tesla.Middleware.Tuples do
   rescue
     ex in Tesla.Error ->
       {:error, ex}
+
     ex ->
       case opts[:rescue_errors] do
         nil ->
           reraise ex, System.stacktrace()
+
         :all ->
           {:error, ex}
+
         list ->
           if ex.__struct__ in list do
             {:error, ex}

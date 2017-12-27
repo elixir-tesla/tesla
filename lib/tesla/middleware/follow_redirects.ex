@@ -29,8 +29,9 @@ defmodule Tesla.Middleware.FollowRedirects do
 
   defp redirect(env, next, left) when left == 0 do
     case Tesla.run(env, next) do
-      %{status: status} = env when not status in @redirect_statuses ->
+      %{status: status} = env when status not in @redirect_statuses ->
         env
+
       _ ->
         raise Tesla.Error, "too many redirects"
     end
@@ -41,6 +42,7 @@ defmodule Tesla.Middleware.FollowRedirects do
       %{status: status, headers: %{"location" => location}} when status in @redirect_statuses ->
         location = parse_location(location, env)
         redirect(%{env | url: location}, next, left - 1)
+
       env ->
         env
     end
@@ -48,9 +50,9 @@ defmodule Tesla.Middleware.FollowRedirects do
 
   defp parse_location("/" <> _rest = location, env) do
     env.url
-    |> URI.parse
+    |> URI.parse()
     |> URI.merge(location)
-    |> URI.to_string
+    |> URI.to_string()
   end
 
   defp parse_location(location, _env), do: location

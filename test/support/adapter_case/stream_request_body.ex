@@ -9,7 +9,7 @@ defmodule Tesla.AdapterCase.StreamRequestBody do
             method: :post,
             url: "#{@url}/post",
             headers: %{"Content-Type" => "text/plain"},
-            body: Stream.map((1..5), &to_string/1)
+            body: Stream.map(1..5, &to_string/1)
           }
 
           assert %Env{} = response = call(request)
@@ -19,9 +19,11 @@ defmodule Tesla.AdapterCase.StreamRequestBody do
 
         test "stream request body: Stream.unfold" do
           body =
-            Stream.unfold(5, fn 0 -> nil; n -> {n,n-1} end)
+            Stream.unfold(5, fn
+              0 -> nil
+              n -> {n, n - 1}
+            end)
             |> Stream.map(&to_string/1)
-
 
           request = %Env{
             method: :post,

@@ -16,26 +16,28 @@ defmodule Tesla.Adapter.Httpc do
 
   def call(env, opts) do
     opts = Keyword.merge(@override_defaults, opts || [])
+
     with {:ok, {status, headers, body}} <- request(env, opts) do
       format_response(env, status, headers, body)
     end
   end
 
   defp format_response(env, {_, status, _}, headers, body) do
-    %{env | status:   status,
-            headers:  headers,
-            body:     body}
+    %{env | status: status, headers: headers, body: body}
   end
 
   defp request(env, opts) do
     content_type = to_charlist(env.headers["content-type"] || "")
-    handle request(
-      env.method || :get,
-      Tesla.build_url(env.url, env.query) |> to_charlist,
-      Enum.into(env.headers, [], fn {k,v} -> {to_charlist(k), to_charlist(v)} end),
-      content_type,
-      env.body,
-      Keyword.split(opts ++ env.opts, @http_opts)
+
+    handle(
+      request(
+        env.method || :get,
+        Tesla.build_url(env.url, env.query) |> to_charlist,
+        Enum.into(env.headers, [], fn {k, v} -> {to_charlist(k), to_charlist(v)} end),
+        content_type,
+        env.body,
+        Keyword.split(opts ++ env.opts, @http_opts)
+      )
     )
   end
 

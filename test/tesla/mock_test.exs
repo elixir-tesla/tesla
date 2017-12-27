@@ -2,10 +2,10 @@ defmodule Tesla.MockTest do
   use ExUnit.Case
 
   defp setup_mock(_) do
-    Tesla.Mock.mock fn
-      %{method: :get,  url: "http://example.com/list"}   -> %Tesla.Env{status: 200, body: "hello"}
+    Tesla.Mock.mock(fn
+      %{method: :get, url: "http://example.com/list"} -> %Tesla.Env{status: 200, body: "hello"}
       %{method: :post, url: "http://example.com/create"} -> {201, %{}, %{id: 42}}
-    end
+    end)
 
     :ok
   end

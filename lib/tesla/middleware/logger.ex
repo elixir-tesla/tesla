@@ -37,7 +37,7 @@ defmodule Tesla.Middleware.Logger do
   end
 
   defp log(env, %Tesla.Error{message: message}) do
-    Logger.error "#{normalize_method(env)} #{env.url} -> #{message}"
+    Logger.error("#{normalize_method(env)} #{env.url} -> #{message}")
   end
 
   defp log(env, time) do
@@ -45,9 +45,9 @@ defmodule Tesla.Middleware.Logger do
     message = "#{normalize_method(env)} #{env.url} -> #{env.status} (#{ms} ms)"
 
     cond do
-      env.status >= 400 -> Logger.error message
-      env.status >= 300 -> Logger.warn message
-      true              -> Logger.info message
+      env.status >= 400 -> Logger.error(message)
+      env.status >= 300 -> Logger.warn(message)
+      true -> Logger.info(message)
     end
   end
 
@@ -55,7 +55,6 @@ defmodule Tesla.Middleware.Logger do
     env.method |> to_string() |> String.upcase()
   end
 end
-
 
 defmodule Tesla.Middleware.DebugLogger do
   @behaviour Tesla.Middleware
@@ -129,59 +128,63 @@ defmodule Tesla.Middleware.DebugLogger do
   end
 
   defp log_request(env) do
-    _ = Logger.debug "> #{env.method |> to_string |> String.upcase} #{env.url}"
+    _ = Logger.debug("> #{env.method |> to_string |> String.upcase()} #{env.url}")
     env
   end
 
   defp log_response(env) do
-    _ = Logger.debug ""
-    _ = Logger.debug "< HTTP/1.1 #{env.status}"
+    _ = Logger.debug("")
+    _ = Logger.debug("< HTTP/1.1 #{env.status}")
     env
   end
 
   defp log_headers(env, prefix) do
-    for {k,v} <- env.headers do
-      _ = Logger.debug "#{prefix}#{k}: #{v}"
+    for {k, v} <- env.headers do
+      _ = Logger.debug("#{prefix}#{k}: #{v}")
     end
+
     env
   end
 
   defp log_params(env, prefix) do
-    for {k,v} <- env.query do
-      _ = Logger.debug "#{prefix} Query Param '#{k}': '#{v}'"
+    for {k, v} <- env.query do
+      _ = Logger.debug("#{prefix} Query Param '#{k}': '#{v}'")
     end
+
     env
   end
 
   defp log_body(%Tesla.Env{} = env, _prefix) do
-    Map.update!(env, :body, & log_body(&1, "> "))
+    Map.update!(env, :body, &log_body(&1, "> "))
   end
+
   defp log_body(nil, _), do: nil
   defp log_body([], _), do: nil
   defp log_body(%Stream{} = stream, prefix), do: log_body_stream(stream, prefix)
   defp log_body(stream, prefix) when is_function(stream), do: log_body_stream(stream, prefix)
   defp log_body(%Tesla.Multipart{} = mp, prefix), do: log_multipart_body(mp, prefix)
+
   defp log_body(data, prefix) when is_binary(data) or is_list(data) do
-    _ = Logger.debug ""
-    _ = Logger.debug prefix <> to_string(data)
+    _ = Logger.debug("")
+    _ = Logger.debug(prefix <> to_string(data))
     data
   end
 
   defp log_body_stream(stream, prefix) do
-    _ = Logger.debug ""
-    Stream.each stream, fn line -> Logger.debug prefix <> line end
+    _ = Logger.debug("")
+    Stream.each(stream, fn line -> Logger.debug(prefix <> line) end)
   end
 
   defp log_multipart_body(%Tesla.Multipart{} = mp, prefix) do
-    _ = Logger.debug ""
-    _ = Logger.debug prefix <> "boundary: " <> mp.boundary
-    _ = Logger.debug prefix <> "content_type_params: " <> inspect mp.content_type_params
-    Enum.each(mp.parts, &(Logger.debug prefix <> inspect &1))
+    _ = Logger.debug("")
+    _ = Logger.debug(prefix <> "boundary: " <> mp.boundary)
+    _ = Logger.debug(prefix <> "content_type_params: " <> inspect(mp.content_type_params))
+    Enum.each(mp.parts, &Logger.debug(prefix <> inspect(&1)))
 
     mp
   end
 
   defp log_exception(%Tesla.Error{message: message, reason: reason}, prefix) do
-    _ = Logger.debug prefix <> message <> " (#{inspect reason})"
+    _ = Logger.debug(prefix <> message <> " (#{inspect(reason)})")
   end
 end

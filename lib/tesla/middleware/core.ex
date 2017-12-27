@@ -8,30 +8,32 @@ defmodule Tesla.Middleware.Normalize do
   end
 
   def normalize({:error, reason}) do
-    raise %Tesla.Error{message: "adapter error: #{inspect reason}", reason: reason}
+    raise %Tesla.Error{message: "adapter error: #{inspect(reason)}", reason: reason}
   end
+
   def normalize(env) do
     env
-    |> Map.update!(:status,   &normalize_status/1)
-    |> Map.update!(:headers,  &normalize_headers/1)
-    |> Map.update!(:body,     &normalize_body/1)
+    |> Map.update!(:status, &normalize_status/1)
+    |> Map.update!(:headers, &normalize_headers/1)
+    |> Map.update!(:body, &normalize_body/1)
   end
 
   def normalize_status(nil), do: nil
   def normalize_status(status) when is_integer(status), do: status
-  def normalize_status(status) when is_binary(status),  do: status |> String.to_integer
-  def normalize_status(status) when is_list(status),    do: status |> to_string |> String.to_integer
+  def normalize_status(status) when is_binary(status), do: status |> String.to_integer()
+
+  def normalize_status(status) when is_list(status),
+    do: status |> to_string |> String.to_integer()
 
   def normalize_headers(headers) when is_map(headers) or is_list(headers) do
-    Enum.into headers, %{}, fn {k,v} ->
-      {k |> to_string |> String.downcase, v |> to_string}
-    end
+    Enum.into(headers, %{}, fn {k, v} ->
+      {k |> to_string |> String.downcase(), v |> to_string}
+    end)
   end
 
   def normalize_body(data) when is_list(data), do: IO.iodata_to_binary(data)
   def normalize_body(data), do: data
 end
-
 
 defmodule Tesla.Middleware.BaseUrl do
   @behaviour Tesla.Middleware
@@ -63,7 +65,8 @@ defmodule Tesla.Middleware.BaseUrl do
 
   defp apply_base(env, base) do
     if Regex.match?(~r/^https?:\/\//, env.url) do
-      env # skip if url is already with scheme
+      # skip if url is already with scheme
+      env
     else
       %{env | url: join(base, env.url)}
     end
@@ -71,15 +74,14 @@ defmodule Tesla.Middleware.BaseUrl do
 
   defp join(base, url) do
     case {String.last(to_string(base)), url} do
-      {nil, url}          -> url
-      {"/", "/" <> rest}  -> base <> rest
-      {"/", rest}         -> base <> rest
-      {_,   "/" <> rest}  -> base <> "/" <> rest
-      {_,   rest}         -> base <> "/" <> rest
+      {nil, url} -> url
+      {"/", "/" <> rest} -> base <> rest
+      {"/", rest} -> base <> rest
+      {_, "/" <> rest} -> base <> "/" <> rest
+      {_, rest} -> base <> "/" <> rest
     end
   end
 end
-
 
 defmodule Tesla.Middleware.Headers do
   @behaviour Tesla.Middleware
@@ -103,11 +105,11 @@ defmodule Tesla.Middleware.Headers do
   end
 
   defp merge(env, nil), do: env
+
   defp merge(env, headers) do
     Map.update!(env, :headers, &Map.merge(&1, headers))
   end
 end
-
 
 defmodule Tesla.Middleware.Query do
   @behaviour Tesla.Middleware
@@ -131,11 +133,11 @@ defmodule Tesla.Middleware.Query do
   end
 
   defp merge(env, nil), do: env
+
   defp merge(env, query) do
-    Map.update!(env, :query, & &1 ++ query)
+    Map.update!(env, :query, &(&1 ++ query))
   end
 end
-
 
 defmodule Tesla.Middleware.Opts do
   @behaviour Tesla.Middleware
@@ -156,7 +158,6 @@ defmodule Tesla.Middleware.Opts do
     Tesla.run(%{env | opts: env.opts ++ opts}, next)
   end
 end
-
 
 defmodule Tesla.Middleware.BaseUrlFromConfig do
   def call(env, next, opts) do

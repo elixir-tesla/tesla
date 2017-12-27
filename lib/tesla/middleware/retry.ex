@@ -19,13 +19,13 @@ defmodule Tesla.Middleware.Retry do
   """
 
   @defaults [
-    delay:        1000,
-    max_retries:  5
+    delay: 1000,
+    max_retries: 5
   ]
 
   def call(env, next, opts) do
-    opts    = opts || []
-    delay       = Keyword.get(opts, :delay,       @defaults[:delay])
+    opts = opts || []
+    delay = Keyword.get(opts, :delay, @defaults[:delay])
     max_retries = Keyword.get(opts, :max_retries, @defaults[:max_retries])
 
     retry(env, next, delay, max_retries)
@@ -41,7 +41,8 @@ defmodule Tesla.Middleware.Retry do
     Tesla.Error ->
       :timer.sleep(delay)
       retry(env, next, delay, retries - 1)
+
     error ->
-      reraise error, System.stacktrace
+      reraise error, System.stacktrace()
   end
 end

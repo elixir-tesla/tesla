@@ -6,13 +6,15 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
 
     plug Tesla.Middleware.FormUrlencoded
 
-    adapter fn (env) ->
-      {status, headers, body} = case env.url do
-        "/post" ->
-          {201, %{'Content-Type' => 'text/html'}, env.body}
-        "/check_incoming_content_type" ->
-          {201, %{'Content-Type' => 'text/html'}, env.headers["content-type"]}
-      end
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/post" ->
+            {201, %{'Content-Type' => 'text/html'}, env.body}
+
+          "/check_incoming_content_type" ->
+            {201, %{'Content-Type' => 'text/html'}, env.headers["content-type"]}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -27,8 +29,8 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
   end
 
   test "check header is set as application/x-www-form-urlencoded" do
-    assert Client.post("/check_incoming_content_type", %{"foo" => "%bar "}).body
-      == "application/x-www-form-urlencoded"
+    assert Client.post("/check_incoming_content_type", %{"foo" => "%bar "}).body ==
+             "application/x-www-form-urlencoded"
   end
 
   defmodule MultipartClient do
@@ -36,11 +38,12 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
 
     plug Tesla.Middleware.FormUrlencoded
 
-    adapter fn (%{url: url, body: %Tesla.Multipart{}} = env) ->
-      {status, headers, body} = case url do
-        "/upload" ->
-          {200, %{'Content-Type' => 'text/html'}, "ok"}
-      end
+    adapter fn %{url: url, body: %Tesla.Multipart{}} = env ->
+      {status, headers, body} =
+        case url do
+          "/upload" ->
+            {200, %{'Content-Type' => 'text/html'}, "ok"}
+        end
 
       %{env | status: status, headers: headers, body: body}
     end
@@ -48,8 +51,10 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
 
   test "skips encoding multipart bodies" do
     alias Tesla.Multipart
-    mp = Multipart.new
-    |> Multipart.add_field("param", "foo")
+
+    mp =
+      Multipart.new()
+      |> Multipart.add_field("param", "foo")
 
     assert MultipartClient.post("/upload", mp).body == "ok"
   end

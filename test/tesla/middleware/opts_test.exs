@@ -5,9 +5,9 @@ defmodule Tesla.Middleware.OptsTest do
     use Tesla
     @api_key "some_key"
 
-    plug Tesla.Middleware.Opts, attr:  %{"Authorization" => @api_key}
-    plug Tesla.Middleware.Opts, list:  ["a", "b", "c"], int: 123
-    plug Tesla.Middleware.Opts, fun:   (fn x -> x*2 end)
+    plug Tesla.Middleware.Opts, attr: %{"Authorization" => @api_key}
+    plug Tesla.Middleware.Opts, list: ["a", "b", "c"], int: 123
+    plug Tesla.Middleware.Opts, fun: fn x -> x * 2 end
 
     adapter fn env -> env end
   end
