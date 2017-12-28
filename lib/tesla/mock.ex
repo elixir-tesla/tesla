@@ -1,6 +1,7 @@
 defmodule Tesla.Mock do
   @moduledoc """
   Mock adapter for better testing.
+  Based on [mox](https://github.com/plataformatec/mox)
 
   ### Setup
 
@@ -69,14 +70,16 @@ defmodule Tesla.Mock do
   it will not use the setup mock.
 
   To solve this issue it is possible to setup a global mock
-  using `mock_global/1` function.
+  using `set_global/0` function.
 
   ```
   defmodule MyTest do
     use ExUnit.Case, async: false # must be false!
 
     setup_all do
-      Tesla.Mock.mock_global fn
+      Tesla.Mock.set_global()
+
+      Tesla.Mock.mock fn
         env -> # ...
       end
 
@@ -91,6 +94,10 @@ defmodule Tesla.Mock do
   (because of fallback to global mock in case local one is not found)
   """
 
+  require Logger
+  @mox Tesla.Mock.AdapterMock
+  Mox.defmock(@mox, for: Tesla.Adapter)
+
   defmodule Error do
     defexception env: nil, ex: nil, stacktrace: []
 
@@ -98,7 +105,6 @@ defmodule Tesla.Mock do
       """
       There is no mock set for process #{inspect(self())}.
       Use Tesla.Mock.mock/1 to mock HTTP requests.
-
       See https://github.com/teamon/tesla#testing
       """
     end
@@ -106,11 +112,17 @@ defmodule Tesla.Mock do
     def message(%__MODULE__{env: env, ex: %FunctionClauseError{} = ex, stacktrace: stacktrace}) do
       """
       Request not mocked
-
       The following request was not mocked:
-
       #{inspect(env, pretty: true)}
+      #{Exception.format(:error, ex, stacktrace)}
+      """
+    end
 
+    def message(%__MODULE__{env: env, ex: %Mox.UnexpectedCallError{} = ex, stacktrace: stacktrace}) do
+      """
+      Mock not set
+      There is no mock set for this client
+      #{inspect(env, pretty: true)}
       #{Exception.format(:error, ex, stacktrace)}
       """
     end
@@ -124,51 +136,36 @@ defmodule Tesla.Mock do
   This mock will only be available to the current process.
   """
   @spec mock((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: no_return
-  def mock(fun) when is_function(fun), do: pdict_set(fun)
+  def mock(fun) do
+    Mox.expect(@mox, :call, fn env, _opts -> wrap(fun.(env), env) end)
+  end
 
   @doc """
-  Setup global mocks.
+  Setup global mock mode.
 
   **WARNING**: This mock will be available to ALL processes.
   It might cause conflicts when running tests in parallel!
   """
-  @spec mock_global((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: no_return
-  def mock_global(fun) when is_function(fun), do: agent_set(fun)
+  def set_global do
+    Mox.set_mox_global()
+  end
+
+  ## DEPRECATED API
+
+  def mock_global(fun) do
+    Logger.warn "DEPRECATED: #{__MODULE__}.mock_global is deprecated. Use #{__MODULE__}.set_global/0 instead"
+    set_global()
+    mock(fun)
+  end
 
   ## ADAPTER IMPLEMENTATION
-
-  def call(env, _opts) do
-    case pdict_get() || agent_get() do
-      nil ->
-        raise Tesla.Mock.Error, env: env
-
-      fun ->
-        case rescue_call(fun, env) do
-          {status, headers, body} ->
-            %{env | status: status, headers: headers, body: body}
-
-          %Tesla.Env{} = env ->
-            env
-        end
-    end
-  end
-
-  defp pdict_set(fun), do: Process.put(__MODULE__, fun)
-  defp pdict_get, do: Process.get(__MODULE__)
-
-  defp agent_set(fun), do: {:ok, _pid} = Agent.start_link(fn -> fun end, name: __MODULE__)
-
-  defp agent_get do
-    case Process.whereis(__MODULE__) do
-      nil -> nil
-      pid -> Agent.get(pid, fn f -> f end)
-    end
-  end
-
-  defp rescue_call(fun, env) do
-    fun.(env)
+  def call(env, opts) do
+    @mox.call(env, opts)
   rescue
-    ex in FunctionClauseError ->
+    ex in [Mox.UnexpectedCallError, FunctionClauseError] ->
       raise Tesla.Mock.Error, env: env, ex: ex, stacktrace: System.stacktrace()
   end
+
+  defp wrap(%Tesla.Env{} = env, _), do: env
+  defp wrap({st, hdrs, body}, env), do: %{env | status: st, headers: hdrs, body: body}
 end

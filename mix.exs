@@ -31,7 +31,7 @@ defmodule Tesla.Mixfile do
     [applications: applications(Mix.env())]
   end
 
-  def applications(:test), do: applications(:dev) ++ [:httparrot, :hackney, :ibrowse]
+  def applications(:test), do: applications(:dev) ++ [:httparrot, :hackney, :ibrowse, :mox]
   def applications(_), do: [:logger, :ssl, :inets]
 
   defp description do
@@ -67,6 +67,7 @@ defmodule Tesla.Mixfile do
       {:fuse, "~> 2.4", optional: true},
 
       # testing & docs
+      {:mox, "~> 0.3", only: :test},
       {:excoveralls, "~> 0.7.2", only: :test},
       {:httparrot, "~> 0.5.0", only: :test},
       {:ex_doc, "~> 0.16.1", only: :dev},
