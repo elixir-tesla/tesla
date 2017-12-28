@@ -1,4 +1,6 @@
 defmodule Tesla.Adapter.Httpc do
+  @behaviour Tesla.Adapter
+
   @moduledoc """
   Adapter for [httpc](http://erlang.org/doc/man/httpc.html)
 

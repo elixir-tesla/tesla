@@ -1,5 +1,7 @@
 if Code.ensure_loaded?(:ibrowse) do
   defmodule Tesla.Adapter.Ibrowse do
+    @behaviour Tesla.Adapter
+    
     @moduledoc """
     Adapter for [ibrowse](https://github.com/cmullaparthi/ibrowse)
 
