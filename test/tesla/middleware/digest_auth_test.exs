@@ -59,7 +59,7 @@ defmodule Tesla.Middleware.DigestAuthTest do
     request =
       DigestClient.client("Mufasa", "Circle Of Life") |> DigestClient.get("/dir/index.html")
 
-    auth_header = request.headers["authorization"]
+    auth_header = Tesla.get_header(request, "authorization")
 
     assert auth_header =~ ~r/^Digest /
     assert auth_header =~ "username=\"Mufasa\""
@@ -75,7 +75,7 @@ defmodule Tesla.Middleware.DigestAuthTest do
 
   test "has default values for username and cn" do
     response = DigestClientWithDefaults.client() |> DigestClient.get("/")
-    auth_header = response.headers["authorization"]
+    auth_header = Tesla.get_header(response, "authorization")
 
     assert auth_header =~ "username=\"\""
     assert auth_header =~ "nc=00000000"
@@ -83,8 +83,8 @@ defmodule Tesla.Middleware.DigestAuthTest do
 
   test "generates different cnonce with each request by default" do
     request = fn -> DigestClientWithDefaults.client() |> DigestClient.get("/") end
-    cnonce_1 = Regex.run(~r/cnonce="(.*?)"/, request.().headers["authorization"]) |> Enum.at(1)
-    cnonce_2 = Regex.run(~r/cnonce="(.*?)"/, request.().headers["authorization"]) |> Enum.at(1)
+    cnonce_1 = Regex.run(~r/cnonce="(.*?)"/, Tesla.get_header(request.(), "authorization")) |> Enum.at(1)
+    cnonce_2 = Regex.run(~r/cnonce="(.*?)"/, Tesla.get_header(request.(), "authorization")) |> Enum.at(1)
 
     assert cnonce_1 != cnonce_2
   end
@@ -96,6 +96,6 @@ defmodule Tesla.Middleware.DigestAuthTest do
 
   test "ignores digest auth when server doesn't respond with www-authenticate header" do
     response = DigestClientWithDefaults.client() |> DigestClient.get("/no-digest-auth")
-    refute response.headers["authorization"]
+    refute Tesla.get_header(response, "authorization")
   end
 end

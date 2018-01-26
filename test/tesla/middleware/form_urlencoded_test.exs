@@ -13,7 +13,7 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
             {201, %{'Content-Type' => 'text/html'}, env.body}
 
           "/check_incoming_content_type" ->
-            {201, %{'Content-Type' => 'text/html'}, env.headers["content-type"]}
+            {201, %{'Content-Type' => 'text/html'}, Tesla.get_header(env, "content-type")}
         end
 
       %{env | status: status, headers: headers, body: body}

@@ -94,7 +94,7 @@ defmodule Tesla.Middleware.JSON do
   end
 
   defp decodable_content_type?(env, opts) do
-    case env.headers["content-type"] do
+    case Tesla.get_header(env, "content-type") do
       nil -> false
       content_type -> Enum.any?(content_types(opts), &String.starts_with?(content_type, &1))
     end

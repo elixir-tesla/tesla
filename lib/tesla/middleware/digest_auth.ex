@@ -36,7 +36,7 @@ defmodule Tesla.Middleware.DigestAuth do
       opts = opts || %{}
 
       env
-      |> Map.update!(:headers, &Map.merge(&1, authorization_header(env, opts)))
+      |> Tesla.put_headers(authorization_header(env, opts))
       |> Tesla.run(next)
     end
   end
@@ -60,7 +60,7 @@ defmodule Tesla.Middleware.DigestAuth do
       username: opts[:username] || "",
       password: opts[:password] || "",
       path: URI.parse(env.url).path,
-      auth: unauthorized_response.headers["www-authenticate"] |> parse_www_authenticate_header,
+      auth: Tesla.get_header(unauthorized_response, "www-authenticate") |> parse_www_authenticate_header,
       method: env.method |> to_string |> String.upcase(),
       client_nonce: (opts[:cnonce_fn] || &cnonce/0).(),
       nc: opts[:nc] || "00000000"

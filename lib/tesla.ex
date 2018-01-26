@@ -439,6 +439,14 @@ defmodule Tesla do
     Map.update!(env, :opts, &Keyword.put(&1, key, value))
   end
 
+  def get_header(%Tesla.Env{headers: headers}, key) do
+    headers[key]
+  end
+
+  def put_headers(env, map) when is_map(map) do
+    %{env | headers: Map.merge(env.headers, map)}
+  end
+
   def adapter(module, custom) do
     module_adapter_from_config(module) || custom || default_adapter()
   end

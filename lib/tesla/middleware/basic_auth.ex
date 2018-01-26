@@ -32,7 +32,7 @@ defmodule Tesla.Middleware.BasicAuth do
     opts = opts || %{}
 
     env
-    |> Map.update!(:headers, &Map.merge(&1, authorization_header(opts)))
+    |> Tesla.put_headers(authorization_header(opts))
     |> Tesla.run(next)
   end
 

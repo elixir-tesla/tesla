@@ -27,7 +27,7 @@ defmodule Tesla.Adapter.Httpc do
   end
 
   defp request(env, opts) do
-    content_type = to_charlist(env.headers["content-type"] || "")
+    content_type = to_charlist(Tesla.get_header(env, "content-type") || "")
 
     handle(
       request(

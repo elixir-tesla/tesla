@@ -281,4 +281,33 @@ defmodule TeslaTest do
       end
     end
   end
+
+  alias Tesla.Env
+  import Tesla
+
+  describe "get_header/2" do
+    test "non existing header" do
+      assert get_header(%Env{}, "some-key") == nil
+    end
+
+    test "fetch existing header" do
+      assert get_header(%Env{headers: %{"server" => "Cowboy"}}, "server") == "Cowboy"
+    end
+  end
+
+  describe "put_headers/2" do
+    test "add headers to env existing header" do
+      env = %Env{}
+      assert get_header(env, "server") == nil
+
+      env = Tesla.put_headers(env, %{"server" => "Cowboy", "content-length" => "100"})
+      assert get_header(env, "server") == "Cowboy"
+      assert get_header(env, "content-length") == "100"
+
+      env = Tesla.put_headers(env, %{"server" => "nginx", "content-type" => "text/plain"})
+      assert get_header(env, "server") == "nginx"
+      assert get_header(env, "content-length") == "100"
+      assert get_header(env, "content-type") == "text/plain"
+    end
+  end
 end

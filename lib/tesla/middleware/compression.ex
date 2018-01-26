@@ -51,7 +51,7 @@ defmodule Tesla.Middleware.Compression do
   """
   def decompress(env) do
     env
-    |> Map.update!(:body, &decompress_body(&1, env.headers["content-encoding"]))
+    |> Map.update!(:body, &decompress_body(&1, Tesla.get_header(env, "content-encoding")))
   end
 
   defp decompress_body(<<31, 139, 8, _::binary>> = body, "gzip"), do: :zlib.gunzip(body)

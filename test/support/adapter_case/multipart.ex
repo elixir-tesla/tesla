@@ -26,7 +26,7 @@ defmodule Tesla.AdapterCase.Multipart do
 
           assert %Env{} = response = call(request)
           assert response.status == 200
-          assert response.headers["content-type"] == "application/json"
+          assert Tesla.get_header(response, "content-type") == "application/json"
 
           response = Tesla.Middleware.JSON.decode(response, [])
 

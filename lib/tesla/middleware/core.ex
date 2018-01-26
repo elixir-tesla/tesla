@@ -100,14 +100,8 @@ defmodule Tesla.Middleware.Headers do
   """
   def call(env, next, headers) do
     env
-    |> merge(headers)
+    |> Tesla.put_headers(headers)
     |> Tesla.run(next)
-  end
-
-  defp merge(env, nil), do: env
-
-  defp merge(env, headers) do
-    Map.update!(env, :headers, &Map.merge(&1, headers))
   end
 end
 

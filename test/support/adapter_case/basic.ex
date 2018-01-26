@@ -34,7 +34,7 @@ defmodule Tesla.AdapterCase.Basic do
 
           assert %Env{} = response = call(request)
           assert response.status == 200
-          assert response.headers["content-type"] == "application/json"
+          assert Tesla.get_header(response, "content-type") == "application/json"
           assert Regex.match?(~r/some-post-data/, response.body)
         end
 
@@ -48,7 +48,7 @@ defmodule Tesla.AdapterCase.Basic do
 
           assert %Env{} = response = call(request)
           assert response.status == 200
-          assert response.headers["content-type"] == "application/json"
+          assert Tesla.get_header(response, "content-type") == "application/json"
           assert Regex.match?(~r/1 ø 2 đ 1 ø 2 đ/, response.body)
         end
 
