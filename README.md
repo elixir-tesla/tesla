@@ -246,14 +246,14 @@ response = MyApiClient.post("http://httpbin.org/post", mp)
 
 ## Testing
 
-You can set the adapter to `:mock` in tests.
+You can set the adapter to `Tesla.Mock` in tests.
 
 ```elixir
 # config/test.exs
 # Use mock adapter for all clients
-config :tesla, adapter: :mock
+config :tesla, adapter: Tesla.Mock
 # or only for one
-config :tesla, MyClient, adapter: :mock
+config :tesla, MyClient, adapter: Tesla.Mock
 ```
 
 Then, mock requests before using your client:
