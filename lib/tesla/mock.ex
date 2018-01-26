@@ -6,10 +6,10 @@ defmodule Tesla.Mock do
 
   ```
   # config/test.exs
-  config :tesla, adapter: :mock
+  config :tesla, adapter: Tesla.Mock
 
   # in case MyClient defines specific adapter with `adapter :specific`
-  config :tesla, MyClient, adapter: :mock
+  config :tesla, MyClient, adapter: Tesla.Mock
   ```
 
   ### Example test

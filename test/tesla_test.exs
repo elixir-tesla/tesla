@@ -121,12 +121,12 @@ defmodule TeslaTest do
     end
 
     test "use adapter override from config" do
-      Application.put_env(:tesla, EmptyClient, adapter: :mock)
+      Application.put_env(:tesla, EmptyClient, adapter: Tesla.Mock)
       assert EmptyClient.__adapter__() == Tesla.Mock
     end
 
     test "prefer config over module setting" do
-      Application.put_env(:tesla, ModuleAdapterClient, adapter: :mock)
+      Application.put_env(:tesla, ModuleAdapterClient, adapter: Tesla.Mock)
       assert ModuleAdapterClient.__adapter__() == Tesla.Mock
     end
   end

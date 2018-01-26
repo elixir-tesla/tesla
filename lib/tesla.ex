@@ -157,7 +157,6 @@ defmodule Tesla.Builder do
   """
   defmacro plug(middleware, opts \\ nil) do
     opts = Macro.escape(opts)
-    middleware = Tesla.alias(middleware)
     quote do: @__middleware__({unquote(middleware), unquote(opts)})
   end
 
@@ -194,7 +193,6 @@ defmodule Tesla.Builder do
   end
 
   defmacro adapter(adapter, opts \\ nil) do
-    adapter = Tesla.alias(adapter)
     quote do: @__adapter__({unquote(adapter), unquote(opts)})
   end
 
@@ -395,33 +393,6 @@ defmodule Tesla do
     end
   end
 
-  @aliases [
-    httpc: Tesla.Adapter.Httpc,
-    hackney: Tesla.Adapter.Hackney,
-    ibrowse: Tesla.Adapter.Ibrowse,
-    mock: Tesla.Mock,
-    base_url: Tesla.Middleware.BaseUrl,
-    headers: Tesla.Middleware.Headers,
-    query: Tesla.Middleware.Query,
-    opts: Tesla.Middleware.Opts,
-    follow_redirects: Tesla.Middleware.FollowRedirects,
-    method_override: Tesla.Middleware.MethodOverride,
-    logger: Tesla.Middleware.Logger,
-    debug_logger: Tesla.Middleware.DebugLogger,
-    form_urlencoded: Tesla.Middleware.FormUrlencoded,
-    json: Tesla.Middleware.JSON,
-    compression: Tesla.Middleware.Compression,
-    decode_rels: Tesla.Middleware.DecodeRels,
-    basic_auth: Tesla.Middleware.BasicAuth,
-    digest_auth: Tesla.Middleware.DigestAuth,
-    timeout: Tesla.Middleware.Timeout,
-    retry: Tesla.Middleware.Retry,
-    fuse: Tesla.Middleware.Fuse,
-    tuples: Tesla.Middleware.Tuples
-  ]
-  def alias(key) when is_atom(key), do: Keyword.get(@aliases, key, key)
-  def alias(key), do: key
-
   def perform_request(module, client \\ nil, options) do
     %{fun: fun, pre: pre, post: post} = client || %Tesla.Client{}
 
@@ -473,11 +444,11 @@ defmodule Tesla do
   end
 
   defp module_adapter_from_config(module) do
-    Application.get_env(:tesla, module, [])[:adapter] |> Tesla.alias()
+    Application.get_env(:tesla, module, [])[:adapter]
   end
 
   def default_adapter do
-    Application.get_env(:tesla, :adapter, :httpc) |> Tesla.alias()
+    Application.get_env(:tesla, :adapter, Tesla.Adapter.Httpc)
   end
 
   def run_default_adapter(env, opts \\ []) do

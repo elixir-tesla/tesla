@@ -2,7 +2,7 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
-config :tesla, adapter: :httpc
+config :tesla, adapter: Tesla.Adapter.Httpc
 
 config :logger, :console,
   level: :debug,
@@ -18,5 +18,5 @@ if Mix.env == :test do
     errlog_type: :error,
     sasl_error_logger: false
 
-  config :tesla, MockClient, adapter: :mock
+  config :tesla, MockClient, adapter: Tesla.Mock
 end
