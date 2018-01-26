@@ -10,7 +10,7 @@ defmodule Tesla.Middleware.CompressionTest do
       {status, headers, body} =
         case env.url do
           "/" ->
-            {200, %{'Content-Type' => 'text/plain'}, :zlib.gunzip(env.body)}
+            {200, [{"content-type", "text/plain"}], :zlib.gunzip(env.body)}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -30,7 +30,7 @@ defmodule Tesla.Middleware.CompressionTest do
       {status, headers, body} =
         case env.url do
           "/" ->
-            {200, %{'Content-Type' => 'text/plain'}, :zlib.unzip(env.body)}
+            {200, [{"content-type", "text/plain"}], :zlib.unzip(env.body)}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -51,25 +51,15 @@ defmodule Tesla.Middleware.CompressionTest do
       {status, headers, body} =
         case env.url do
           "/response-gzip" ->
-            {
-              200,
-              %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'gzip'},
-              :zlib.gzip("decompressed gzip")
-            }
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}],
+             :zlib.gzip("decompressed gzip")}
 
           "/response-deflate" ->
-            {
-              200,
-              %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'deflate'},
-              :zlib.zip("decompressed deflate")
-            }
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "deflate"}],
+             :zlib.zip("decompressed deflate")}
 
           "/response-identity" ->
-            {
-              200,
-              %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'identity'},
-              "unchanged"
-            }
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "identity"}], "unchanged"}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -98,7 +88,7 @@ defmodule Tesla.Middleware.CompressionTest do
       {status, headers, body} =
         case env.url do
           "/" ->
-            {200, %{'Content-Type' => 'text/plain', 'Content-Encoding' => 'gzip'}, env.body}
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], env.body}
         end
 
       %{env | status: status, headers: headers, body: body}

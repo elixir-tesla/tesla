@@ -10,11 +10,11 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
       {status, headers, body} =
         case env.url do
           "http://example.com/0" ->
-            {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
+            {200, [{"content-type", "text/plain"}], "foo bar"}
 
           "http://example.com/" <> n ->
             next = String.to_integer(n) - 1
-            {301, %{'Location' => 'http://example.com/#{next}'}, ""}
+            {301, [{"location", "http://example.com/#{next}"}], ""}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -38,11 +38,11 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
       {status, headers, body} =
         case env.url do
           "http://example.com/0" ->
-            {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
+            {200, [{"content-type", "text/plain"}], "foo bar"}
 
           "http://example.com/" <> n ->
             next = String.to_integer(n) - 1
-            {301, %{'Location' => 'http://example.com/#{next}'}, ""}
+            {301, [{"location", "http://example.com/#{next}"}], ""}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -70,19 +70,19 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
       {status, headers, body} =
         case env.url do
           "https://example.com/pl" ->
-            {200, %{'Content-Type' => 'text/plain'}, "foo bar"}
+            {200, [{"content-type", "text/plain"}], "foo bar"}
 
           "http://example.com" ->
-            {301, %{'Location' => 'https://example.com'}, ""}
+            {301, [{"location", "https://example.com"}], ""}
 
           "https://example.com" ->
-            {301, %{'Location' => '/pl'}, ""}
+            {301, [{"location", "/pl"}], ""}
 
           "https://example.com/" ->
-            {301, %{'Location' => '/pl'}, ""}
+            {301, [{"location", "/pl"}], ""}
 
           "https://example.com/article" ->
-            {301, %{'Location' => '/pl'}, ""}
+            {301, [{"location", "/pl"}], ""}
         end
 
       %{env | status: status, headers: headers, body: body}

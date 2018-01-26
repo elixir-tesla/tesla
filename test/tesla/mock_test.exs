@@ -4,7 +4,7 @@ defmodule Tesla.MockTest do
   defp setup_mock(_) do
     Tesla.Mock.mock(fn
       %{method: :get, url: "http://example.com/list"} -> %Tesla.Env{status: 200, body: "hello"}
-      %{method: :post, url: "http://example.com/create", body: ~s({"some":"data"})} -> {201, %{"Content-Type" => "application/json"}, ~s({"id":42})}
+      %{method: :post, url: "http://example.com/create", body: ~s({"some":"data"})} -> {201, [{"content-type", "application/json"}], ~s"{\"id\":42}"}
     end)
 
     :ok

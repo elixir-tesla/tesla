@@ -10,10 +10,10 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       {status, headers, body} =
         case env.url do
           "/post" ->
-            {201, %{'Content-Type' => 'text/html'}, env.body}
+            {201, [{"content-type", "text/html"}], env.body}
 
           "/check_incoming_content_type" ->
-            {201, %{'Content-Type' => 'text/html'}, Tesla.get_header(env, "content-type")}
+            {201, [{"content-type", "text/html"}], Tesla.get_header(env, "content-type")}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -42,7 +42,7 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       {status, headers, body} =
         case url do
           "/upload" ->
-            {200, %{'Content-Type' => 'text/html'}, "ok"}
+            {200, [{"content-type", "text/html"}], "ok"}
         end
 
       %{env | status: status, headers: headers, body: body}

@@ -10,54 +10,37 @@ defmodule Tesla.Middleware.JsonTest do
       {status, headers, body} =
         case env.url do
           "/decode" ->
-            {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
+            {200, [{"content-type", "application/json"}], "{\"value\": 123}"}
 
           "/encode" ->
-            {
-              200,
-              %{'Content-Type' => 'application/json'},
-              env.body |> String.replace("foo", "baz")
-            }
+            {200, [{"content-type", "application/json"}],
+             env.body |> String.replace("foo", "baz")}
 
           "/empty" ->
-            {200, %{'Content-Type' => 'application/json'}, nil}
+            {200, [{"content-type", "application/json"}], nil}
 
           "/empty-string" ->
-            {200, %{'Content-Type' => 'application/json'}, ""}
+            {200, [{"content-type", "application/json"}], ""}
 
           "/invalid-content-type" ->
-            {200, %{'Content-Type' => 'text/plain'}, "hello"}
+            {200, [{"content-type", "text/plain"}], "hello"}
 
           "/invalid-json-format" ->
-            {200, %{'Content-Type' => 'application/json'}, "{\"foo\": bar}"}
+            {200, [{"content-type", "application/json"}], "{\"foo\": bar}"}
 
           "/invalid-json-encoding" ->
-            {200, %{'Content-Type' => 'application/json'}, <<
-              123,
-              34,
-              102,
-              111,
-              111,
-              34,
-              58,
-              32,
-              34,
-              98,
-              225,
-              114,
-              34,
-              125
-            >>}
+            {200, [{"content-type", "application/json"}],
+             <<123, 34, 102, 111, 111, 34, 58, 32, 34, 98, 225, 114, 34, 125>>}
 
           "/facebook" ->
-            {200, %{'Content-Type' => 'text/javascript'}, "{\"friends\": 1000000}"}
+            {200, [{"content-type", "text/javascript"}], "{\"friends\": 1000000}"}
 
           "/raw" ->
-            {200, %{}, env.body}
+            {200, [], env.body}
 
           "/stream" ->
             list = env.body |> Enum.to_list() |> Enum.join("---")
-            {200, %{}, list}
+            {200, [], list}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -123,7 +106,7 @@ defmodule Tesla.Middleware.JsonTest do
       {status, headers, body} =
         case env.url do
           "/decode" ->
-            {200, %{'Content-Type' => 'application/json'}, "{\"value\": 123}"}
+            {200, [{"content-type", "application/json"}], "{\"value\": 123}"}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -143,7 +126,7 @@ defmodule Tesla.Middleware.JsonTest do
       {status, headers, body} =
         case env.url do
           "/decode" ->
-            {200, %{'Content-Type' => 'application/x-custom-json'}, "{\"value\": 123}"}
+            {200, [{"content-type", "application/x-custom-json"}], "{\"value\": 123}"}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -165,11 +148,8 @@ defmodule Tesla.Middleware.JsonTest do
       {status, headers, body} =
         case env.url do
           "/foo2baz" ->
-            {
-              200,
-              %{'Content-Type' => 'application/json'},
-              env.body |> String.replace("foo", "baz")
-            }
+            {200, [{"content-type", "application/json"}],
+             env.body |> String.replace("foo", "baz")}
         end
 
       %{env | status: status, headers: headers, body: body}
@@ -190,7 +170,7 @@ defmodule Tesla.Middleware.JsonTest do
       {status, headers, body} =
         case url do
           "/upload" ->
-            {200, %{'Content-Type' => 'application/json'}, "{\"status\": \"ok\"}"}
+            {200, [{"content-type", "application/json"}], "{\"status\": \"ok\"}"}
         end
 
       %{env | status: status, headers: headers, body: body}
