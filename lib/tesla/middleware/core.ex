@@ -12,13 +12,6 @@ defmodule Tesla.Middleware.Normalize do
 
   def normalize(env) do
     env
-    |> Map.update!(:headers, &normalize_headers/1)
-  end
-
-  def normalize_headers(headers) when is_map(headers) or is_list(headers) do
-    Enum.into(headers, %{}, fn {k, v} ->
-      {k |> to_string |> String.downcase(), v |> to_string}
-    end)
   end
 end
 

@@ -459,7 +459,12 @@ defmodule Tesla do
   end
 
   def put_headers(env, list) when is_list(list) do
-    headers = Enum.reduce(list, env.headers, fn {k,v}, h -> List.keystore(h, k, 0, {k,v}) end)
+    headers =
+      Enum.reduce(list, env.headers, fn {k, v}, h ->
+        k = String.downcase(k)
+        List.keystore(h, k, 0, {k, v})
+      end)
+
     %{env | headers: headers}
   end
 
