@@ -46,7 +46,7 @@ if Code.ensure_loaded?(:hackney) do
       request(
         env.method,
         Tesla.build_url(env.url, env.query),
-        Enum.into(env.headers, []),
+        env.headers,
         env.body,
         opts ++ env.opts
       )

@@ -2,7 +2,6 @@ defmodule Tesla.Middleware.Normalize do
   @moduledoc false
   def call(env, next, _opts) do
     env
-    |> normalize
     |> Tesla.run(next)
     |> normalize
   end

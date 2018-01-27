@@ -5,25 +5,20 @@ defmodule Tesla.Middleware.DigestAuthTest do
     use Tesla
 
     adapter fn env ->
-      case env do
-        %{url: "/no-digest-auth"} ->
+      cond do
+        env.url == "/no-digest-auth" ->
           env
 
-        %{headers: %{"authorization" => _}} ->
+        Tesla.get_header(env, "authorization") ->
           env
 
-        _ ->
-          %{
-            env
-            | headers: %{
-                "WWW-Authenticate" => """
-                Digest realm="testrealm@host.com",
-                qop="auth,auth-int",
-                nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
-                opaque="5ccc069c403ebaf9f0171e9517f40e41"
-                """
-              }
-          }
+        true ->
+          Tesla.put_headers(env, [{"WWW-Authenticate", """
+          Digest realm="testrealm@host.com",
+          qop="auth,auth-int",
+          nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
+          opaque="5ccc069c403ebaf9f0171e9517f40e41"
+          """}])
       end
     end
 

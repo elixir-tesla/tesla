@@ -54,7 +54,7 @@ if Code.ensure_loaded?(:ibrowse) do
       handle(
         request(
           Tesla.build_url(env.url, env.query) |> to_charlist,
-          Enum.into(env.headers, []),
+          env.headers,
           env.method,
           body,
           opts ++ env.opts

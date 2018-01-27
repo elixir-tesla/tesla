@@ -29,7 +29,7 @@ defmodule Tesla.AdapterCase.Basic do
             method: :post,
             url: "#{@url}/post",
             body: "some-post-data",
-            headers: %{"Content-Type" => "text/plain"}
+            headers: [{"content-type", "text/plain"}]
           }
 
           assert %Env{} = response = call(request)
@@ -43,7 +43,7 @@ defmodule Tesla.AdapterCase.Basic do
             method: :post,
             url: "#{@url}/post",
             body: "1 ø 2 đ 1 \u00F8 2 \u0111",
-            headers: %{"Content-Type" => "text/plain"}
+            headers: [{"content-type", "text/plain"}]
           }
 
           assert %Env{} = response = call(request)

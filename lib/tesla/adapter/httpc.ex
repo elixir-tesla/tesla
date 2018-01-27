@@ -51,7 +51,7 @@ defmodule Tesla.Adapter.Httpc do
       request(
         env.method || :get,
         Tesla.build_url(env.url, env.query) |> to_charlist,
-        Enum.into(env.headers, [], fn {k, v} -> {to_charlist(k), to_charlist(v)} end),
+        Enum.map(env.headers, fn {k, v} -> {to_charlist(k), to_charlist(v)} end),
         content_type,
         env.body,
         Keyword.split(opts ++ env.opts, @http_opts)
