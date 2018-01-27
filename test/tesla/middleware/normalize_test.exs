@@ -45,20 +45,20 @@ defmodule Tesla.Middleware.NormalizeTest do
     end
   end
 
-  describe "headers" do
-    test "when empty list" do
-      env = call(headers: [])
-      assert env.headers == %{}
-    end
-
-    test "when list" do
-      env = call(headers: [a: "1", b: 2])
-      assert env.headers == %{"a" => "1", "b" => "2"}
-    end
-
-    test "when map" do
-      env = call(headers: %{"User-Agent" => "tesla"})
-      assert env.headers == %{"user-agent" => "tesla"}
-    end
-  end
+  # describe "headers" do
+  #   test "when empty list" do
+  #     env = call(headers: [])
+  #     assert env.headers == %{}
+  #   end
+  #
+  #   test "when list" do
+  #     env = call(headers: [a: "1", b: 2])
+  #     assert env.headers == %{"a" => "1", "b" => "2"}
+  #   end
+  #
+  #   test "when map" do
+  #     env = call(headers: %{"User-Agent" => "tesla"})
+  #     assert env.headers == %{"user-agent" => "tesla"}
+  #   end
+  # end
 end

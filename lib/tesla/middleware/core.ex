@@ -5,6 +5,7 @@ defmodule Tesla.Middleware.Normalize do
     |> normalize
     |> Tesla.run(next)
     |> normalize
+    |> Map.update!(:headers, &Map.to_list/1)
   end
 
   def normalize({:error, reason}) do
