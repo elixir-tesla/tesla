@@ -25,14 +25,28 @@ if Code.ensure_loaded?(:ibrowse) do
     ```
     """
 
+    @behaviour Tesla.Adapter
     import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
     alias Tesla.Multipart
 
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts || []) do
-        %{env | status: status, headers: headers, body: body}
+        %{env | status: format_status(status), headers: format_headers(headers), body: format_body(body)}
       end
     end
+
+    defp format_status(status) when is_list(status) do
+      status |> to_string() |> String.to_integer()
+    end
+
+    defp format_headers(headers) do
+      for {key, value} <- headers do
+        {String.downcase(to_string(key)), to_string(value)}
+      end
+    end
+
+    defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
+    defp format_body(data) when is_binary(data), do: data
 
     defp request(env, opts) do
       body = env.body || []

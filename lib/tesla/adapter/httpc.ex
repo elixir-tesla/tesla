@@ -8,6 +8,7 @@ defmodule Tesla.Adapter.Httpc do
   consistency between adapters
   """
 
+  @behaviour Tesla.Adapter
   import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
   alias Tesla.Multipart
 
@@ -23,8 +24,25 @@ defmodule Tesla.Adapter.Httpc do
   end
 
   defp format_response(env, {_, status, _}, headers, body) do
-    %{env | status: status, headers: headers, body: body}
+    %{env | status: status, headers: format_headers(headers), body: format_body(body)}
   end
+
+  # from http://erlang.org/doc/man/httpc.html
+  #   headers() = [header()]
+  #   header() = {field(), value()}
+  #   field() = string()
+  #   value() = string()
+  defp format_headers(headers) do
+    for {key, value} <- headers do
+      {String.downcase(to_string(key)), to_string(value)}
+    end
+  end
+
+  # from http://erlang.org/doc/man/httpc.html
+  #   string() = list of ASCII characters
+  #   Body = string() | binary()
+  defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
+  defp format_body(data) when is_binary(data), do: data
 
   defp request(env, opts) do
     content_type = to_charlist(Tesla.get_header(env, "content-type") || "")

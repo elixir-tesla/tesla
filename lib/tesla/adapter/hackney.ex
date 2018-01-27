@@ -24,14 +24,23 @@ if Code.ensure_loaded?(:hackney) do
     end
     ```
     """
-
+    @behaviour Tesla.Adapter
     alias Tesla.Multipart
 
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts || []) do
-        %{env | status: status, headers: headers, body: body}
+        %{env | status: status, headers: format_headers(headers), body: format_body(body)}
       end
     end
+
+    defp format_headers(headers) do
+      for {key, value} <- headers do
+        {String.downcase(to_string(key)), to_string(value)}
+      end
+    end
+
+    defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
+    defp format_body(data) when is_binary(data), do: data
 
     defp request(env, opts) do
       request(
