@@ -31,9 +31,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
     if encodable?(env) do
       env
       |> Map.update!(:body, &encode_body(&1, opts))
-      |> Tesla.Middleware.Headers.call([], %{
-        "content-type" => "application/x-www-form-urlencoded"
-      })
+      |> Tesla.put_headers([{"content-type", "application/x-www-form-urlencoded"}])
     else
       env
     end

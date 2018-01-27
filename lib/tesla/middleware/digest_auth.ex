@@ -88,7 +88,7 @@ defmodule Tesla.Middleware.DigestAuth do
   defp single_header_val({k, v}) when k in ~w(nc qop algorithm), do: "#{k}=#{v}"
   defp single_header_val({k, v}), do: "#{k}=\"#{v}\""
 
-  defp create_header([]), do: %{}
+  defp create_header([]), do: []
 
   defp create_header(calculated_authorization_values) do
     vals =
@@ -96,7 +96,7 @@ defmodule Tesla.Middleware.DigestAuth do
       |> Enum.reduce([], fn val, acc -> [single_header_val(val) | acc] end)
       |> Enum.join(", ")
 
-    %{"Authorization" => "Digest #{vals}"}
+    [{"Authorization", "Digest #{vals}"}]
   end
 
   defp ha1(%{username: username, auth: %{"realm" => realm}, password: password}) do

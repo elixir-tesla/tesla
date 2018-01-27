@@ -443,19 +443,11 @@ defmodule Tesla do
     Map.update!(env, :opts, &Keyword.put(&1, key, value))
   end
 
-  def get_header(%Tesla.Env{headers: headers}, key) when is_map(headers) do
-    headers[key]
-  end
-
   def get_header(%Tesla.Env{headers: headers}, key) when is_list(headers) do
     case List.keyfind(headers, key, 0) do
       {_, value} -> value
       _ -> nil
     end
-  end
-
-  def put_headers(%Tesla.Env{headers: headers} = env, map) when is_list(headers) and is_map(map) do
-    put_headers(env, Map.to_list(map))
   end
 
   def put_headers(env, list) when is_list(list) do

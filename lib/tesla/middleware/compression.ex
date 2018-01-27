@@ -37,7 +37,7 @@ defmodule Tesla.Middleware.Compression do
 
       env
       |> Map.update!(:body, &compress_body(&1, format))
-      |> Tesla.Middleware.Headers.call([], %{"Content-Encoding" => format})
+      |> Tesla.put_headers([{"content-encoding", format}])
     else
       env
     end

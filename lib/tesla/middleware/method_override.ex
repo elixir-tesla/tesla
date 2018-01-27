@@ -34,7 +34,7 @@ defmodule Tesla.Middleware.MethodOverride do
 
   defp override(env) do
     env
-    |> Tesla.Middleware.Headers.call([], %{"X-Http-Method-Override" => "#{env.method}"})
+    |> Tesla.put_headers([{"x-http-method-override", "#{env.method}"}])
     |> Map.put(:method, :post)
   end
 

@@ -57,7 +57,7 @@ defmodule Tesla.Middleware.JSON do
     if encodable?(env) do
       env
       |> Map.update!(:body, &encode_body(&1, opts))
-      |> Tesla.Middleware.Headers.call([], %{"content-type" => "application/json"})
+      |> Tesla.put_headers([{"content-type", "application/json"}])
     else
       env
     end
