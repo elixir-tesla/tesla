@@ -5,7 +5,7 @@ defmodule Tesla.AdapterCase do
       @url "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
 
       defp call(env, opts \\ []) do
-        Tesla.Middleware.Normalize.call(env, [{@adapter, :call, [opts]}], [])
+        @adapter.call(env, opts)
       end
     end
   end

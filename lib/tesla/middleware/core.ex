@@ -1,20 +1,3 @@
-defmodule Tesla.Middleware.Normalize do
-  @moduledoc false
-  def call(env, next, _opts) do
-    env
-    |> Tesla.run(next)
-    |> normalize
-  end
-
-  def normalize({:error, reason}) do
-    raise %Tesla.Error{message: "adapter error: #{inspect(reason)}", reason: reason}
-  end
-
-  def normalize(env) do
-    env
-  end
-end
-
 defmodule Tesla.Middleware.BaseUrl do
   @behaviour Tesla.Middleware
 
