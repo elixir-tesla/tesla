@@ -60,320 +60,6 @@ defmodule Tesla.Adapter do
   @callback call(env :: Tesla.Env.t(), options :: any) :: Tesla.Env.t()
 end
 
-defmodule Tesla.Builder do
-  @http_verbs ~w(head get delete trace options post put patch)a
-
-  defmacro __using__(opts \\ []) do
-    opts = Macro.prewalk(opts, &Macro.expand(&1, __CALLER__))
-    docs = Keyword.get(opts, :docs, true)
-
-    quote do
-      Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
-      Module.register_attribute(__MODULE__, :__adapter__, [])
-
-      if unquote(docs) do
-        @type option ::
-                {:method, Tesla.Env.method()}
-                | {:url, Tesla.Env.url()}
-                | {:query, Tesla.Env.query()}
-                | {:headers, Tesla.Env.headers()}
-                | {:body, Tesla.Env.body()}
-                | {:opts, Tesla.Env.opts()}
-
-        @doc """
-        Perform a request using client function
-
-        Options:
-        - `:method`   - the request method, one of [:head, :get, :delete, :trace, :options, :post, :put, :patch]
-        - `:url`      - either full url e.g. "http://example.com/some/path" or just "/some/path" if using `Tesla.Middleware.BaseUrl`
-        - `:query`    - a keyword list of query params, e.g. `[page: 1, per_page: 100]`
-        - `:headers`  - a keyworld list of headers, e.g. `[{"content-type", "text/plain"}]`
-        - `:body`     - depends on used middleware:
-            - by default it can be a binary
-            - if using e.g. JSON encoding middleware it can be a nested map
-            - if adapter supports it it can be a Stream with any of the above
-        - `:opts`     - custom, per-request middleware or adapter options
-
-        Examples:
-
-            ExampleApi.request(method: :get, url: "/users/path")
-
-        You can also use shortcut methods like:
-
-            ExampleApi.get("/users/1")
-
-        or
-
-            myclient |> ExampleApi.post("/users", %{name: "Jon"})
-        """
-        @spec request(Tesla.Env.client(), [option]) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def request(%Tesla.Client{} = client, options) do
-        Tesla.perform_request(__MODULE__, client, options)
-      end
-
-      if unquote(docs) do
-        @doc """
-        Perform a request. See `request/2` for available options.
-        """
-        @spec request([option]) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def request(options) do
-        Tesla.perform_request(__MODULE__, options)
-      end
-
-      unquote(generate_http_verbs(opts))
-
-      import Tesla.Builder, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
-      @before_compile Tesla.Builder
-    end
-  end
-
-  @doc """
-  Attach middleware to your API client
-
-  ```ex
-  defmodule ExampleApi do
-    use Tesla
-
-    # plug middleware module with options
-    plug Tesla.Middleware.BaseUrl, "http://api.example.com"
-    plug Tesla.Middleware.JSON, engine: Poison
-
-    # plug middleware function
-    plug :handle_errors
-
-    # middleware function gets two parameters: Tesla.Env and the rest of middleware call stack
-    # and must return Tesla.Env
-    def handle_errors(env, next) do
-      env
-      |> modify_env_before_request
-      |> Tesla.run(next)            # run the rest of stack
-      |> modify_env_after_request
-    end
-  end
-  """
-  defmacro plug(middleware, opts \\ nil) do
-    opts = Macro.escape(opts)
-    quote do: @__middleware__({unquote(middleware), unquote(opts)})
-  end
-
-  @doc """
-  Choose adapter for your API client
-
-  ```ex
-  defmodule ExampleApi do
-    use Tesla
-
-    # set adapter as module
-    adapter Tesla.Adapter.Hackney
-
-    # set adapter as function
-    adapter :local_adapter
-
-    # set adapter as anonymous function
-    adapter fn env ->
-      ...
-      env
-    end
-
-
-    # adapter function gets Tesla.Env as parameter and must return Tesla.Env
-    def local_adapter(env) do
-      ...
-      env
-    end
-  end
-  """
-  defmacro adapter({:fn, _, _} = adapter) do
-    adapter = Macro.escape(adapter)
-    quote do: @__adapter__(unquote(adapter))
-  end
-
-  defmacro adapter(adapter, opts \\ nil) do
-    quote do: @__adapter__({unquote(adapter), unquote(opts)})
-  end
-
-  defp generate_http_verbs(opts) do
-    only = Keyword.get(opts, :only, @http_verbs)
-    except = Keyword.get(opts, :except, [])
-
-    @http_verbs
-    |> Enum.filter(&(&1 in only && not &1 in except))
-    |> Enum.map(&generate_api(&1, Keyword.get(opts, :docs, true)))
-  end
-
-  defp generate_api(method, docs) when method in [:post, :put, :patch] do
-    quote do
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
-        """
-        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url(), Tesla.Env.body(), [option]) ::
-                Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(%Tesla.Client{} = client, url, body, options) when is_list(options) do
-        request(client, [method: unquote(method), url: url, body: body] ++ options)
-      end
-
-      # fallback to keep backward compatibility
-      def unquote(method)(fun, url, body, options) when is_function(fun) and is_list(options) do
-        unquote(method)(%Tesla.Client{fun: fun}, url, body, options)
-      end
-
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
-            ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
-        """
-        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url(), Tesla.Env.body()) ::
-                Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(%Tesla.Client{} = client, url, body) do
-        request(client, method: unquote(method), url: url, body: body)
-      end
-
-      # fallback to keep backward compatibility
-      def unquote(method)(fun, url, body) when is_function(fun) do
-        unquote(method)(%Tesla.Client{fun: fun}, url, body)
-      end
-
-      if unquote(docs) do
-        @spec unquote(method)(Tesla.Env.url(), Tesla.Env.body(), [option]) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(url, body, options) when is_list(options) do
-        request([method: unquote(method), url: url, body: body] ++ options)
-      end
-
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
-        """
-        @spec unquote(method)(Tesla.Env.url(), Tesla.Env.body()) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(url, body) do
-        request(method: unquote(method), url: url, body: body)
-      end
-    end
-  end
-
-  defp generate_api(method, docs) when method in [:head, :get, :delete, :trace, :options] do
-    quote do
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            myclient |> ExampleApi.#{unquote(method)}("/users", query: [page: 1])
-        """
-        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url(), [option]) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(%Tesla.Client{} = client, url, options) when is_list(options) do
-        request(client, [method: unquote(method), url: url] ++ options)
-      end
-
-      # fallback to keep backward compatibility
-      def unquote(method)(fun, url, options) when is_function(fun) and is_list(options) do
-        unquote(method)(%Tesla.Client{fun: fun}, url, options)
-      end
-
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            myclient |> ExampleApi.#{unquote(method)}("/users")
-            ExampleApi.#{unquote(method)}("/users", query: [page: 1])
-        """
-        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url()) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(%Tesla.Client{} = client, url) do
-        request(client, method: unquote(method), url: url)
-      end
-
-      # fallback to keep backward compatibility
-      def unquote(method)(fun, url) when is_function(fun) do
-        unquote(method)(%Tesla.Client{fun: fun}, url)
-      end
-
-      if unquote(docs) do
-        @spec unquote(method)(Tesla.Env.url(), [option]) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(url, options) when is_list(options) do
-        request([method: unquote(method), url: url] ++ options)
-      end
-
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            ExampleApi.#{unquote(method)}("/users")
-        """
-        @spec unquote(method)(Tesla.Env.url()) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(url) do
-        request(method: unquote(method), url: url)
-      end
-    end
-  end
-
-  defmacro __before_compile__(env) do
-    adapter = Module.get_attribute(env.module, :__adapter__)
-    middleware = Module.get_attribute(env.module, :__middleware__) |> Enum.reverse()
-
-    quote do
-      def __middleware__, do: unquote(middleware)
-      def __adapter__, do: Tesla.adapter(__MODULE__, unquote(adapter))
-    end
-  end
-end
-
 defmodule Tesla do
   use Tesla.Builder
 
@@ -400,42 +86,24 @@ defmodule Tesla do
   def perform_request(module, client \\ nil, options) do
     %{fun: fun, pre: pre, post: post} = client || %Tesla.Client{}
 
-    stack =
-      pre ++
-        prepare(module, List.wrap(fun) ++ module.__middleware__) ++
-        post ++ prepare(module, [module.__adapter__])
+    stack = pre ++ wrapfun(fun) ++ module.__middleware__ ++ post ++ [module.__adapter__]
 
     env = struct(Tesla.Env, options ++ [__module__: module, __client__: client])
     run(env, stack)
   end
 
-  @spec prepare(atom, [any]) :: Tesla.Env.stack()
-  def prepare(module, stack) do
-    Enum.map(stack, fn
-      {name, opts} -> prepare_module(module, name, opts)
-      name when is_atom(name) -> prepare_module(module, name, nil)
-      fun when is_function(fun) -> {:fn, fun}
-    end)
-  end
-
-  defp prepare_module(module, name, opts) do
-    case Atom.to_charlist(name) do
-      ~c"Elixir." ++ _ -> {name, :call, [opts]}
-      _ -> {module, name}
-    end
-  end
+  defp wrapfun(nil), do: []
+  defp wrapfun(fun), do: [{:fn, fun}]
 
   # empty stack case is useful for reusing/testing middlewares (just pass [] as next)
   def run(env, []), do: env
 
   # last item in stack is adapter - skip passing rest of stack
   def run(env, [{:fn, f}]), do: apply(f, [env])
-  def run(env, [{m, f}]), do: apply(m, f, [env])
   def run(env, [{m, f, a}]), do: apply(m, f, [env | a])
 
   # for all other elements pass (env, next, opts)
   def run(env, [{:fn, f} | rest]), do: apply(f, [env, rest])
-  def run(env, [{m, f} | rest]), do: apply(m, f, [env, rest])
   def run(env, [{m, f, a} | rest]), do: apply(m, f, [env, rest | a])
 
   # useful helper fuctions
@@ -474,7 +142,11 @@ defmodule Tesla do
   end
 
   def adapter(module, custom) do
-    module_adapter_from_config(module) || custom || default_adapter()
+    cond do
+      mod = module_adapter_from_config(module) -> {mod, :call, [[]]}
+      custom -> custom
+      true -> {default_adapter(), :call, [[]]}
+    end
   end
 
   defp module_adapter_from_config(module) do
@@ -509,10 +181,8 @@ defmodule Tesla do
   """
   defmacro build_client(pre, post \\ []) do
     quote do
-      %Tesla.Client{
-        pre: Tesla.prepare(__MODULE__, unquote(pre)),
-        post: Tesla.prepare(__MODULE__, unquote(post))
-      }
+      require Tesla.Builder
+      Tesla.Builder.client(unquote(pre), unquote(post))
     end
   end
 

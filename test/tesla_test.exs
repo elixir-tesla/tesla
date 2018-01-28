@@ -5,48 +5,6 @@ defmodule TeslaTest do
 
   @url "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
 
-  describe "use Tesla options" do
-    defmodule OnlyGetClient do
-      use Tesla, only: [:get]
-    end
-
-    defmodule ExceptDeleteClient do
-      use Tesla.Builder, except: ~w(delete)a
-    end
-
-    @http_verbs ~w(head get delete trace options post put patch)a
-
-    test "limit generated functions (only)" do
-      functions = OnlyGetClient.__info__(:functions) |> Keyword.keys() |> Enum.uniq()
-      assert :get in functions
-      refute Enum.any?(@http_verbs -- [:get], &(&1 in functions))
-    end
-
-    test "limit generated functions (except)" do
-      functions = ExceptDeleteClient.__info__(:functions) |> Keyword.keys() |> Enum.uniq()
-      refute :delete in functions
-      assert Enum.all?(@http_verbs -- [:delete], &(&1 in functions))
-    end
-  end
-
-  describe "Docs" do
-    # Code.get_docs/2 requires .beam file of given module to exist in file system
-    # See test/support/docs.ex file for definitions of TeslaDocsTest.* modules
-
-    test "generate docs by default" do
-      docs = Code.get_docs(TeslaDocsTest.Default, :docs)
-      assert {_, _, _, _, doc} = Enum.find(docs, &match?({{:get, 1}, _, :def, _, _}, &1))
-      assert doc != false
-    end
-
-    test "do not generate docs for HTTP methods when docs: false" do
-      docs = Code.get_docs(TeslaDocsTest.NoDocs, :docs)
-      assert {_, _, _, _, false} = Enum.find(docs, &match?({{:get, 1}, _, :def, _, _}, &1))
-      assert {_, _, _, _, doc} = Enum.find(docs, &match?({{:custom, 1}, _, :def, _, _}, &1))
-      assert doc =~ ~r/something/
-    end
-  end
-
   describe "Adapters" do
     defmodule ModuleAdapter do
       def call(env, opts \\ []) do
@@ -90,19 +48,7 @@ defmodule TeslaTest do
     end
 
     test "defauilt adapter" do
-      assert EmptyClient.__adapter__() == Tesla.default_adapter()
-    end
-
-    test "adapter as module" do
-      assert ModuleAdapterClient.__adapter__() == {ModuleAdapter, [with: "someopt"]}
-    end
-
-    test "adapter as local function" do
-      assert LocalAdapterClient.__adapter__() == {:local_adapter, nil}
-    end
-
-    test "adapter as anonymous function" do
-      assert is_function(FunAdapterClient.__adapter__())
+      assert EmptyClient.__adapter__() == {Tesla.Adapter.Httpc, :call, [[]]}
     end
 
     test "execute module adapter" do
@@ -122,12 +68,12 @@ defmodule TeslaTest do
 
     test "use adapter override from config" do
       Application.put_env(:tesla, EmptyClient, adapter: Tesla.Mock)
-      assert EmptyClient.__adapter__() == Tesla.Mock
+      assert EmptyClient.__adapter__() == {Tesla.Mock, :call, [[]]}
     end
 
     test "prefer config over module setting" do
       Application.put_env(:tesla, ModuleAdapterClient, adapter: Tesla.Mock)
-      assert ModuleAdapterClient.__adapter__() == Tesla.Mock
+      assert ModuleAdapterClient.__adapter__() == {Tesla.Mock, :call, [[]]}
     end
   end
 
@@ -169,15 +115,6 @@ defmodule TeslaTest do
         |> Tesla.run(next)
         |> Map.update!(:url, fn url -> url <> "/LA" end)
       end
-    end
-
-    test "middleware list" do
-      assert AppendClient.__middleware__() == [
-               {AppendOne, nil},
-               {AppendWith, [with: "1"]},
-               {AppendWith, [with: "2"]},
-               {:local_middleware, nil}
-             ]
     end
 
     test "execute middleware top down" do
