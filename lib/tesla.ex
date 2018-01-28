@@ -402,7 +402,7 @@ defmodule Tesla do
 
     stack =
       pre ++
-        prepare(module, List.wrap(fun) ++ module.__middleware__ ++ default_middleware()) ++
+        prepare(module, List.wrap(fun) ++ module.__middleware__) ++
         post ++ prepare(module, [module.__adapter__])
 
     env = struct(Tesla.Env, options ++ [__module__: module, __client__: client])
@@ -487,10 +487,6 @@ defmodule Tesla do
 
   def run_default_adapter(env, opts \\ []) do
     apply(default_adapter(), :call, [env, opts])
-  end
-
-  def default_middleware do
-    []
   end
 
   @doc """
