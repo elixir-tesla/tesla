@@ -20,6 +20,9 @@ defmodule Tesla.Adapter.Httpc do
 
     with {:ok, {status, headers, body}} <- request(env, opts) do
       format_response(env, status, headers, body)
+    else
+      {:error, reason} ->
+        raise %Tesla.Error{message: "adapter error: #{inspect(reason)}", reason: reason}
     end
   end
 
