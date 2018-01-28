@@ -98,7 +98,7 @@ defmodule Tesla.Builder do
   end
   """
   defmacro plug(middleware, opts \\ nil) do
-    quote do: @__middleware__ {unquote(Macro.escape(middleware)), unquote(Macro.escape(opts))}
+    quote do: @__middleware__({unquote(Macro.escape(middleware)), unquote(Macro.escape(opts))})
   end
 
   @doc """
@@ -129,7 +129,7 @@ defmodule Tesla.Builder do
   end
   """
   defmacro adapter(adapter, opts \\ nil) do
-    quote do: @__adapter__ {unquote(Macro.escape(adapter)), unquote(Macro.escape(opts))}
+    quote do: @__adapter__({unquote(Macro.escape(adapter)), unquote(Macro.escape(opts))})
   end
 
   defp generate_http_verbs(opts) do
@@ -137,7 +137,7 @@ defmodule Tesla.Builder do
     except = Keyword.get(opts, :except, [])
 
     @http_verbs
-    |> Enum.filter(&(&1 in only && not &1 in except))
+    |> Enum.filter(&(&1 in only && &1 not in except))
     |> Enum.map(&generate_api(&1, Keyword.get(opts, :docs, true)))
   end
 
@@ -325,7 +325,10 @@ defmodule Tesla.Builder do
   defp prepare(list) when is_list(list), do: Enum.map(list, &prepare/1)
   defp prepare(nil), do: nil
   defp prepare({{:fn, _, _} = fun, nil}), do: {:fn, fun}
-  defp prepare({{:__aliases__, _, _} = name, opts}), do: quote do: {unquote(name), :call, [unquote(opts)]}
-  defp prepare({name, nil}) when is_atom(name), do: quote do: {__MODULE__, unquote(name), []}
+
+  defp prepare({{:__aliases__, _, _} = name, opts}),
+    do: quote(do: {unquote(name), :call, [unquote(opts)]})
+
+  defp prepare({name, nil}) when is_atom(name), do: quote(do: {__MODULE__, unquote(name), []})
   defp prepare(name), do: prepare({name, nil})
 end

@@ -12,10 +12,17 @@ defmodule Tesla.Middleware.TuplesTest do
 
     adapter fn env ->
       case env.url do
-        "/ok" -> env
-        "/econnrefused" -> raise %Tesla.Error{message: "adapter error: :econnrefused}", reason: :econnrefused}
-        "/custom-1" -> raise %Custom1{}
-        "/custom-2" -> raise %Custom2{}
+        "/ok" ->
+          env
+
+        "/econnrefused" ->
+          raise %Tesla.Error{message: "adapter error: :econnrefused}", reason: :econnrefused}
+
+        "/custom-1" ->
+          raise %Custom1{}
+
+        "/custom-2" ->
+          raise %Custom2{}
       end
     end
   end

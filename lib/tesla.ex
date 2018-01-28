@@ -9,12 +9,10 @@ defmodule Tesla.Env do
   @type param :: binary | [{binary | atom, param}]
   @type query :: [{binary | atom, param}]
   @type headers :: %{binary => binary}
-  #
+
   @type body :: any
   @type status :: integer
   @type opts :: [any]
-  @type __module__ :: atom
-  @type __client__ :: function
 
   @type stack :: [{atom, atom, any} | {atom, atom} | {:fn, (t -> t)} | {:fn, (t, stack -> t)}]
 
@@ -26,8 +24,8 @@ defmodule Tesla.Env do
           body: body,
           status: status,
           opts: opts,
-          __module__: __module__,
-          __client__: __client__
+          __module__: atom,
+          __client__: client
         }
 
   defstruct method: nil,
@@ -63,6 +61,8 @@ end
 defmodule Tesla do
   use Tesla.Builder
 
+  alias Tesla.Env
+
   @default_adapter Tesla.Adapter.Httpc
 
   @moduledoc """
@@ -87,7 +87,7 @@ defmodule Tesla do
 
   @doc false
   def execute(module, %{fun: fun, pre: pre, post: post} = client, options) do
-    env = struct(Tesla.Env, options ++ [__module__: module, __client__: client])
+    env = struct(Env, options ++ [__module__: module, __client__: client])
     stack = pre ++ wrapfun(fun) ++ module.__middleware__ ++ post ++ [effective_adapter(module)]
     run(env, stack)
   end
@@ -132,7 +132,6 @@ defmodule Tesla do
     apply(@default_adapter, :call, [env, opts])
   end
 
-
   # empty stack case is useful for reusing/testing middlewares (just pass [] as next)
   def run(env, []), do: env
 
@@ -149,33 +148,33 @@ defmodule Tesla do
     Map.update!(env, :opts, &Keyword.put(&1, key, value))
   end
 
-  @spec get_header(Tesla.Env.t, binary) :: binary | nil
-  def get_header(%Tesla.Env{headers: headers}, key) when is_list(headers) do
+  @spec get_header(Env.t(), binary) :: binary | nil
+  def get_header(%Env{headers: headers}, key) do
     case List.keyfind(headers, key, 0) do
       {_, value} -> value
       _ -> nil
     end
   end
 
-  @spec get_headers(Tesla.Env.t, binary) :: [binary]
-  def get_headers(%Tesla.Env{headers: headers}, key) do
-    for {k,v} <- headers, k == key, do: v
+  @spec get_headers(Env.t(), binary) :: [binary]
+  def get_headers(%Env{headers: headers}, key) do
+    for {k, v} <- headers, k == key, do: v
   end
 
-  @spec put_header(Tesla.Env.t, binary, binary) :: Tesla.Env.t
-  def put_header(env, key, value) do
+  @spec put_header(Env.t(), binary, binary) :: Env.t()
+  def put_header(%Env{} = env, key, value) do
     headers = List.keystore(env.headers, key, 0, {key, value})
     %{env | headers: headers}
   end
 
-  @spec put_headers(Tesla.Env.t, [{binary, binary}]) :: Tesla.Env.t
-  def put_headers(env, list) when is_list(list) do
+  @spec put_headers(Env.t(), [{binary, binary}]) :: Env.t()
+  def put_headers(%Env{} = env, list) when is_list(list) do
     %{env | headers: env.headers ++ list}
   end
 
-  @spec delete_header(Tesla.Env.t, binary) :: Tesla.Env.t
-  def delete_header(env, key) do
-    headers = for {k,v} <- env.headers, k != key, do: {k,v}
+  @spec delete_header(Env.t(), binary) :: Env.t()
+  def delete_header(%Env{} = env, key) do
+    headers = for {k, v} <- env.headers, k != key, do: {k, v}
     %{env | headers: headers}
   end
 

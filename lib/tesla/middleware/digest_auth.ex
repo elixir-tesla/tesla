@@ -60,7 +60,9 @@ defmodule Tesla.Middleware.DigestAuth do
       username: opts[:username] || "",
       password: opts[:password] || "",
       path: URI.parse(env.url).path,
-      auth: Tesla.get_header(unauthorized_response, "www-authenticate") |> parse_www_authenticate_header,
+      auth:
+        Tesla.get_header(unauthorized_response, "www-authenticate")
+        |> parse_www_authenticate_header,
       method: env.method |> to_string |> String.upcase(),
       client_nonce: (opts[:cnonce_fn] || &cnonce/0).(),
       nc: opts[:nc] || "00000000"

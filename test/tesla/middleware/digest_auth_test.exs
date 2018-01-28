@@ -81,8 +81,12 @@ defmodule Tesla.Middleware.DigestAuthTest do
 
   test "generates different cnonce with each request by default" do
     request = fn -> DigestClientWithDefaults.client() |> DigestClient.get("/") end
-    cnonce_1 = Regex.run(~r/cnonce="(.*?)"/, Tesla.get_header(request.(), "authorization")) |> Enum.at(1)
-    cnonce_2 = Regex.run(~r/cnonce="(.*?)"/, Tesla.get_header(request.(), "authorization")) |> Enum.at(1)
+
+    cnonce_1 =
+      Regex.run(~r/cnonce="(.*?)"/, Tesla.get_header(request.(), "authorization")) |> Enum.at(1)
+
+    cnonce_2 =
+      Regex.run(~r/cnonce="(.*?)"/, Tesla.get_header(request.(), "authorization")) |> Enum.at(1)
 
     assert cnonce_1 != cnonce_2
   end

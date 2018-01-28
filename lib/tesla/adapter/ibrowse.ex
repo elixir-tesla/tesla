@@ -31,7 +31,12 @@ if Code.ensure_loaded?(:ibrowse) do
 
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts || []) do
-        %{env | status: format_status(status), headers: format_headers(headers), body: format_body(body)}
+        %{
+          env
+          | status: format_status(status),
+            headers: format_headers(headers),
+            body: format_body(body)
+        }
       else
         {:error, reason} ->
           raise %Tesla.Error{message: "adapter error: #{inspect(reason)}", reason: reason}

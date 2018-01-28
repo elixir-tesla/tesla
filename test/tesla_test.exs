@@ -205,7 +205,7 @@ defmodule TeslaTest do
 
       response = SimpleClient.get("/")
       assert response.url == "/"
-      refute response.__client__
+      assert response.__client__ == %Tesla.Client{}
 
       response = client |> SimpleClient.get("/")
       assert response.url == "/prefix/"
