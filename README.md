@@ -23,7 +23,7 @@ defmodule GitHub do
   use Tesla
 
   plug Tesla.Middleware.BaseUrl, "https://api.github.com"
-  plug Tesla.Middleware.Headers, [{"Authorization" => "token xyz"}]
+  plug Tesla.Middleware.Headers, [{"authorization" => "token xyz"}]
   plug Tesla.Middleware.JSON
 
   def user_repos(login) do
@@ -113,7 +113,7 @@ This allow to use convenient syntax for modifying the behaviour in runtime.
 
 Consider the following case: GitHub API can be accessed using OAuth token authorization.
 
-We can't use `plug Tesla.Middleware.Headers, [{"Authorization", "token here"}]`
+We can't use `plug Tesla.Middleware.Headers, [{"authorization", "token here"}]`
 since this would be compiled only once and there is no way to insert dynamic user token.
 
 Instead, we can use `Tesla.build_client` to create a dynamic middleware function:
@@ -135,7 +135,7 @@ defmodule GitHub do
   # build dynamic client based on runtime arguments
   def client(token) do
     Tesla.build_client [
-      {Tesla.Middleware.Headers, [{"Authorization", "token: " <> token }]}
+      {Tesla.Middleware.Headers, [{"authorization", "token: " <> token }]}
     ]
   end
 end
