@@ -43,9 +43,9 @@ defmodule Tesla.BuilderTest do
       assert is_function(fun)
     end
 
-    # test "generate __adapter__/0 - adapter not set" do
-    #   assert TestClientPlug.__adapter__ == nil
-    # end
+    test "generate __adapter__/0 - adapter not set" do
+      assert TestClientPlug.__adapter__ == nil
+    end
 
     test "generate __adapter__/0 - adapter as module" do
       assert TestClientModule.__adapter__ == {TheAdapter, :call, [[hello: "world"]]}

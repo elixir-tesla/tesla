@@ -63,6 +63,8 @@ end
 defmodule Tesla do
   use Tesla.Builder
 
+  @default_adapter Tesla.Adapter.Httpc
+
   @moduledoc """
   A HTTP toolkit for building API clients using middlewares
 
@@ -83,17 +85,53 @@ defmodule Tesla do
     end
   end
 
-  def perform_request(module, client \\ nil, options) do
-    %{fun: fun, pre: pre, post: post} = client || %Tesla.Client{}
-
-    stack = pre ++ wrapfun(fun) ++ module.__middleware__ ++ post ++ [module.__adapter__]
-
+  @doc false
+  def execute(module, %{fun: fun, pre: pre, post: post} = client, options) do
     env = struct(Tesla.Env, options ++ [__module__: module, __client__: client])
+    stack = pre ++ wrapfun(fun) ++ module.__middleware__ ++ post ++ [effective_adapter(module)]
     run(env, stack)
   end
 
   defp wrapfun(nil), do: []
   defp wrapfun(fun), do: [{:fn, fun}]
+
+  @doc false
+  def effective_adapter(module) do
+    with nil <- adapter_per_module_from_config(module),
+         nil <- adapter_per_module(module),
+         nil <- adapter_from_config() do
+      adapter_default()
+    end
+  end
+
+  defp adapter_per_module_from_config(module) do
+    case Application.get_env(:tesla, module, [])[:adapter] do
+      nil -> nil
+      {adapter, opts} -> {adapter, :call, [opts]}
+      adapter -> {adapter, :call, [[]]}
+    end
+  end
+
+  defp adapter_per_module(module) do
+    module.__adapter__
+  end
+
+  defp adapter_from_config do
+    case Application.get_env(:tesla, :adapter) do
+      nil -> nil
+      {adapter, opts} -> {adapter, :call, [opts]}
+      adapter -> {adapter, :call, [[]]}
+    end
+  end
+
+  defp adapter_default do
+    {@default_adapter, :call, [[]]}
+  end
+
+  def run_default_adapter(env, opts \\ []) do
+    apply(@default_adapter, :call, [env, opts])
+  end
+
 
   # empty stack case is useful for reusing/testing middlewares (just pass [] as next)
   def run(env, []), do: env
@@ -139,26 +177,6 @@ defmodule Tesla do
   def delete_header(env, key) do
     headers = for {k,v} <- env.headers, k != key, do: {k,v}
     %{env | headers: headers}
-  end
-
-  def adapter(module, custom) do
-    cond do
-      mod = module_adapter_from_config(module) -> {mod, :call, [[]]}
-      custom -> custom
-      true -> {default_adapter(), :call, [[]]}
-    end
-  end
-
-  defp module_adapter_from_config(module) do
-    Application.get_env(:tesla, module, [])[:adapter]
-  end
-
-  def default_adapter do
-    Application.get_env(:tesla, :adapter, Tesla.Adapter.Httpc)
-  end
-
-  def run_default_adapter(env, opts \\ []) do
-    apply(default_adapter(), :call, [env, opts])
   end
 
   @doc """

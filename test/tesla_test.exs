@@ -48,7 +48,7 @@ defmodule TeslaTest do
     end
 
     test "defauilt adapter" do
-      assert EmptyClient.__adapter__() == {Tesla.Adapter.Httpc, :call, [[]]}
+      assert Tesla.effective_adapter(EmptyClient) == {Tesla.Adapter.Httpc, :call, [[]]}
     end
 
     test "execute module adapter" do
@@ -68,12 +68,12 @@ defmodule TeslaTest do
 
     test "use adapter override from config" do
       Application.put_env(:tesla, EmptyClient, adapter: Tesla.Mock)
-      assert EmptyClient.__adapter__() == {Tesla.Mock, :call, [[]]}
+      assert Tesla.effective_adapter(EmptyClient) == {Tesla.Mock, :call, [[]]}
     end
 
     test "prefer config over module setting" do
       Application.put_env(:tesla, ModuleAdapterClient, adapter: Tesla.Mock)
-      assert ModuleAdapterClient.__adapter__() == {Tesla.Mock, :call, [[]]}
+      assert Tesla.effective_adapter(ModuleAdapterClient) == {Tesla.Mock, :call, [[]]}
     end
   end
 

@@ -50,7 +50,7 @@ defmodule Tesla.Builder do
       end
 
       def request(%Tesla.Client{} = client, options) do
-        Tesla.perform_request(__MODULE__, client, options)
+        Tesla.execute(__MODULE__, client, options)
       end
 
       if unquote(docs) do
@@ -63,7 +63,7 @@ defmodule Tesla.Builder do
       end
 
       def request(options) do
-        Tesla.perform_request(__MODULE__, options)
+        Tesla.execute(__MODULE__, %Tesla.Client{}, options)
       end
 
       unquote(generate_http_verbs(opts))
@@ -309,7 +309,7 @@ defmodule Tesla.Builder do
 
     quote do
       def __middleware__, do: unquote(middleware)
-      def __adapter__, do: Tesla.adapter(__MODULE__, unquote(adapter))
+      def __adapter__, do: unquote(adapter)
     end
   end
 
