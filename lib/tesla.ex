@@ -443,6 +443,7 @@ defmodule Tesla do
     Map.update!(env, :opts, &Keyword.put(&1, key, value))
   end
 
+  @spec get_header(Tesla.Env.t, binary) :: binary | nil
   def get_header(%Tesla.Env{headers: headers}, key) when is_list(headers) do
     case List.keyfind(headers, key, 0) do
       {_, value} -> value
@@ -450,13 +451,25 @@ defmodule Tesla do
     end
   end
 
-  def put_headers(env, list) when is_list(list) do
-    headers =
-      Enum.reduce(list, env.headers, fn {k, v}, h ->
-        k = String.downcase(k)
-        List.keystore(h, k, 0, {k, v})
-      end)
+  @spec get_headers(Tesla.Env.t, binary) :: [binary]
+  def get_headers(%Tesla.Env{headers: headers}, key) do
+    for {k,v} <- headers, k == key, do: v
+  end
 
+  @spec put_header(Tesla.Env.t, binary, binary) :: Tesla.Env.t
+  def put_header(env, key, value) do
+    headers = List.keystore(env.headers, key, 0, {key, value})
+    %{env | headers: headers}
+  end
+
+  @spec put_headers(Tesla.Env.t, [{binary, binary}]) :: Tesla.Env.t
+  def put_headers(env, list) when is_list(list) do
+    %{env | headers: env.headers ++ list}
+  end
+
+  @spec delete_header(Tesla.Env.t, binary) :: Tesla.Env.t
+  def delete_header(env, key) do
+    headers = for {k,v} <- env.headers, k != key, do: {k,v}
     %{env | headers: headers}
   end
 

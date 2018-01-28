@@ -96,7 +96,7 @@ defmodule Tesla.Middleware.DigestAuth do
       |> Enum.reduce([], fn val, acc -> [single_header_val(val) | acc] end)
       |> Enum.join(", ")
 
-    [{"Authorization", "Digest #{vals}"}]
+    [{"authorization", "Digest #{vals}"}]
   end
 
   defp ha1(%{username: username, auth: %{"realm" => realm}, password: password}) do

@@ -51,7 +51,7 @@ defmodule Tesla.Middleware.BasicAuth do
   end
 
   defp create_header(auth) do
-    [{"Authorization", "Basic #{auth}"}]
+    [{"authorization", "Basic #{auth}"}]
   end
 
   defp encode(%{username: username, password: password}) do

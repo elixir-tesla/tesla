@@ -287,11 +287,44 @@ defmodule TeslaTest do
 
   describe "get_header/2" do
     test "non existing header" do
-      assert get_header(%Env{}, "some-key") == nil
+      env = %Env{headers: [{"server", "Cowboy"}]}
+      assert get_header(env, "some-key") == nil
     end
 
-    test "fetch existing header" do
-      assert get_header(%Env{headers: [{"server", "Cowboy"}]}, "server") == "Cowboy"
+    test "existing header" do
+      env = %Env{headers: [{"server", "Cowboy"}]}
+      assert get_header(env, "server") == "Cowboy"
+    end
+
+    test "first of multiple headers with the same name" do
+      env = %Env{headers: [{"cookie", "chocolate"}, {"cookie", "biscuits"}]}
+      assert get_header(env, "cookie") == "chocolate"
+    end
+  end
+
+  describe "get_headers/2" do
+    test "none matching" do
+      env = %Env{headers: [{"server", "Cowboy"}]}
+      assert get_headers(env, "cookie") == []
+    end
+
+    test "multiple matches matching" do
+      env = %Env{headers: [{"cookie", "chocolate"}, {"cookie", "biscuits"}]}
+      assert get_headers(env, "cookie") == ["chocolate", "biscuits"]
+    end
+  end
+
+  describe "put_header/3" do
+    test "add new header" do
+      env = %Env{}
+      env = put_header(env, "server", "Cowboy")
+      assert get_header(env, "server") == "Cowboy"
+    end
+
+    test "override existing header" do
+      env = %Env{headers: [{"server", "Cowboy"}]}
+      env = put_header(env, "server", "nginx")
+      assert get_header(env, "server") == "nginx"
     end
   end
 
@@ -305,9 +338,24 @@ defmodule TeslaTest do
       assert get_header(env, "content-length") == "100"
 
       env = Tesla.put_headers(env, [{"server", "nginx"}, {"content-type", "text/plain"}])
-      assert get_header(env, "server") == "nginx"
+      assert get_header(env, "server") == "Cowboy"
       assert get_header(env, "content-length") == "100"
       assert get_header(env, "content-type") == "text/plain"
+    end
+
+    test "add multiple headers with the same name" do
+      env = %Env{}
+      env = Tesla.put_headers(env, [{"cookie", "chocolate"}, {"cookie", "biscuits"}])
+      assert get_headers(env, "cookie") == ["chocolate", "biscuits"]
+    end
+  end
+
+  describe "delete_header/2" do
+    test "delete all headers with given name" do
+      env = %Env{headers: [{"cookie", "chocolate"}, {"server", "Cowboy"}, {"cookie", "biscuits"}]}
+      env = delete_header(env, "cookie")
+      assert get_header(env, "cookie") == nil
+      assert get_header(env, "server") == "Cowboy"
     end
   end
 end

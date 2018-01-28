@@ -10,7 +10,7 @@ defmodule Tesla.Middleware.DecodeRelsTest do
       case env.url do
         "/rels" ->
           Tesla.put_headers(env, [
-            {"Link", ~s(<https://api.github.com/resource?page=2>; rel="next",
+            {"link", ~s(<https://api.github.com/resource?page=2>; rel="next",
                <https://api.github.com/resource?page=5>; rel="last")}
           ])
 

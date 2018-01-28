@@ -14,7 +14,7 @@ defmodule Tesla.Middleware.DigestAuthTest do
 
         true ->
           Tesla.put_headers(env, [
-            {"WWW-Authenticate",
+            {"www-authenticate",
              """
              Digest realm="testrealm@host.com",
              qop="auth,auth-int",
