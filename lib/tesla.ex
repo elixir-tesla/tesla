@@ -490,7 +490,7 @@ defmodule Tesla do
   end
 
   def default_middleware do
-    [{Tesla.Middleware.Normalize, nil}]
+    []
   end
 
   @doc """

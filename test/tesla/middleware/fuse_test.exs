@@ -15,7 +15,7 @@ defmodule Tesla.Middleware.FuseTest do
     adapter fn env ->
       case env.url do
         "/ok" -> env
-        "/unavailable" -> {:error, :econnrefused}
+        "/unavailable" -> raise %Tesla.Error{message: "adapter error: :econnrefused}", reason: :econnrefused}
       end
     end
   end

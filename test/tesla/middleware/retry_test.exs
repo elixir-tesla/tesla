@@ -16,6 +16,10 @@ defmodule Tesla.Middleware.RetryTest do
 
         {response, retries + 1}
       end)
+      |> case do
+        {:error, :econnrefused} -> raise %Tesla.Error{message: "adapter error: :econnrefused}", reason: :econnrefused}
+        env -> env
+      end
     end
   end
 
