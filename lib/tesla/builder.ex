@@ -98,8 +98,11 @@ defmodule Tesla.Builder do
   end
   """
   defmacro plug(middleware, opts \\ nil) do
-    Tesla.Migration.raise_if_atom!(:plug, Tesla.Middleware, middleware)
-    quote do: @__middleware__({unquote(Macro.escape(middleware)), unquote(Macro.escape(opts))})
+    quote do: @__middleware__({
+      unquote(Macro.escape(middleware)),
+      unquote(Macro.escape(opts)),
+      unquote(Macro.escape(__CALLER__))
+    })
   end
 
   @doc """
@@ -130,8 +133,11 @@ defmodule Tesla.Builder do
   end
   """
   defmacro adapter(adapter, opts \\ nil) do
-    Tesla.Migration.raise_if_atom!(:adapter, Tesla.Adapter, adapter)
-    quote do: @__adapter__({unquote(Macro.escape(adapter)), unquote(Macro.escape(opts))})
+    quote do: @__adapter__({
+      unquote(Macro.escape(adapter)),
+      unquote(Macro.escape(opts)),
+      unquote(Macro.escape(__CALLER__))
+    })
   end
 
   defp generate_http_verbs(opts) do
@@ -298,18 +304,18 @@ defmodule Tesla.Builder do
   end
 
   defmacro __before_compile__(env) do
-    Tesla.Migration.raise_if_atom_in_config!(env.module)
+    Tesla.Migration.breaking_alias_in_config!(env.module)
 
     adapter =
       env.module
       |> Module.get_attribute(:__adapter__)
-      |> prepare()
+      |> prepare(:adapter)
 
     middleware =
       env.module
       |> Module.get_attribute(:__middleware__)
       |> Enum.reverse()
-      |> prepare()
+      |> prepare(:middleware)
 
     quote do
       def __middleware__, do: unquote(middleware)
@@ -326,13 +332,20 @@ defmodule Tesla.Builder do
     end
   end
 
-  defp prepare(list) when is_list(list), do: Enum.map(list, &prepare/1)
-  defp prepare(nil), do: nil
-  defp prepare({{:fn, _, _} = fun, nil}), do: {:fn, fun}
+  defp prepare(list, kind \\ :middleware)
+  defp prepare(list, kind) when is_list(list), do: Enum.map(list, &prepare(&1, kind))
+  defp prepare(nil, _), do: nil
+  defp prepare({{:fn, _, _} = fun, nil, _}, _), do: {:fn, fun}
 
-  defp prepare({{:__aliases__, _, _} = name, opts}),
+  defp prepare({{:__aliases__, _, _} = name, opts, _}, _),
     do: quote(do: {unquote(name), :call, [unquote(opts)]})
 
-  defp prepare({name, nil}) when is_atom(name), do: quote(do: {__MODULE__, unquote(name), []})
-  defp prepare(name), do: prepare({name, nil})
+  defp prepare({name, nil, nil}, _) when is_atom(name), do: quote(do: {__MODULE__, unquote(name), []})
+
+  defp prepare({name, nil, caller}, kind) when is_atom(name) do
+    Tesla.Migration.breaking_alias!(kind, name, caller)
+    quote(do: {__MODULE__, unquote(name), []})
+  end
+  defp prepare({name, opts}, kind), do: prepare({name, opts, nil}, kind)
+  defp prepare(name, kind), do: prepare({name, nil, nil}, kind)
 end

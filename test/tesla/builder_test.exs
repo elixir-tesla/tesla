@@ -14,6 +14,8 @@ defmodule Tesla.BuilderTest do
       plug ThirdMiddleware
       plug :local_middleware
       plug fn env, _next -> env end
+
+      def local_middleware(env, next), do: Tesla.run(env, next)
     end
 
     defmodule TestClientModule do
@@ -24,6 +26,8 @@ defmodule Tesla.BuilderTest do
     defmodule TestClientFunction do
       use Tesla.Builder
       adapter :local_adapter
+
+      def local_adapter(env), do: env
     end
 
     defmodule TestClientAnon do
