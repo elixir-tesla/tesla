@@ -14,6 +14,17 @@ It embraces the concept of middleware when processing the request/response cycle
   released version on Hex. See [the documentation](http://hexdocs.pm/tesla) for
   the documentation of the version you're using.
 
+<hr/>
+## [`0.x` to `1.0` Migration Guide](https://github.com/teamon/tesla/wiki/0.x-to-1.0-Migration-Guide)
+
+```ex
+defp deps do
+  [{:tesla, github: "teamon/tesla", branch: "1.0"}]
+end
+```
+
+<hr/>
+
 ## HTTP Client example
 
 Define module with `use Tesla` and choose from a variety of middleware.
@@ -23,7 +34,7 @@ defmodule GitHub do
   use Tesla
 
   plug Tesla.Middleware.BaseUrl, "https://api.github.com"
-  plug Tesla.Middleware.Headers, [{"authorization" => "token xyz"}]
+  plug Tesla.Middleware.Headers, [{"authorization", "token xyz"}]
   plug Tesla.Middleware.JSON
 
   def user_repos(login) do
@@ -38,7 +49,7 @@ Then use it like this:
 response = GitHub.user_repos("teamon")
 response.status  # => 200
 response.body    # => [%{…}, …]
-response.headers # => [{"content-type" => "application/json"}, ...]
+response.headers # => [{"content-type", "application/json"}, ...]
 ```
 
 See below for documentation.
