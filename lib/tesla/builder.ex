@@ -98,6 +98,7 @@ defmodule Tesla.Builder do
   end
   """
   defmacro plug(middleware, opts \\ nil) do
+    Tesla.Migration.raise_if_atom!(:plug, Tesla.Middleware, middleware)
     quote do: @__middleware__({unquote(Macro.escape(middleware)), unquote(Macro.escape(opts))})
   end
 
@@ -129,6 +130,7 @@ defmodule Tesla.Builder do
   end
   """
   defmacro adapter(adapter, opts \\ nil) do
+    Tesla.Migration.raise_if_atom!(:adapter, Tesla.Adapter, adapter)
     quote do: @__adapter__({unquote(Macro.escape(adapter)), unquote(Macro.escape(opts))})
   end
 
@@ -296,6 +298,8 @@ defmodule Tesla.Builder do
   end
 
   defmacro __before_compile__(env) do
+    Tesla.Migration.raise_if_atom_in_config!(env.module)
+
     adapter =
       env.module
       |> Module.get_attribute(:__adapter__)
