@@ -26,7 +26,7 @@ defmodule Tesla.Middleware.LoggerTest do
             {200, "ok"}
         end
 
-      %{env | status: status, headers: %{"content-type" => "text/plain"}, body: body}
+      %{env | status: status, headers: [{"content-type", "text/plain"}], body: body}
     end
   end
 
