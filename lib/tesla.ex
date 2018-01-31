@@ -63,6 +63,7 @@ defmodule Tesla do
 
   alias Tesla.Env
 
+  require Tesla.Adapter.Httpc
   @default_adapter Tesla.Adapter.Httpc
 
   @moduledoc """
