@@ -15,6 +15,7 @@ It embraces the concept of middleware when processing the request/response cycle
   the documentation of the version you're using.
 
 <hr/>
+
 ## [`0.x` to `1.0` Migration Guide](https://github.com/teamon/tesla/wiki/0.x-to-1.0-Migration-Guide)
 
 ```ex
