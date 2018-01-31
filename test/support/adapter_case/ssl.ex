@@ -7,7 +7,7 @@ defmodule Tesla.AdapterCase.SSL do
         test "GET request" do
           request = %Env{
             method: :get,
-            url: "https://httpbin.org"
+            url: "https://github.com/teamon/tesla"
           }
 
           assert %Env{} = response = call(request)
