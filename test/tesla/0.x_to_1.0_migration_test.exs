@@ -55,4 +55,26 @@ defmodule MigrationTest do
       end
     end
   end
+
+  describe "Use keyword list to store headers #160" do
+    test "compile error when passing a map to Headers middleware" do
+      assert_raise CompileError, fn ->
+        Code.compile_quoted(quote do
+          defmodule Client6 do
+            use Tesla
+            plug Tesla.Middleware.Headers, %{"User-Agent" => "tesla"}
+          end
+        end)
+      end
+    end
+
+    test "no error when passing a list to Headers middleware" do
+      Code.compile_quoted(quote do
+        defmodule Client7 do
+          use Tesla
+          plug Tesla.Middleware.Headers, [{"user-agent", "tesla"}]
+        end
+      end)
+    end
+  end
 end

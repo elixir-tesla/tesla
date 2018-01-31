@@ -98,6 +98,7 @@ defmodule Tesla.Builder do
   end
   """
   defmacro plug(middleware, opts \\ nil) do
+    Tesla.Migration.breaking_headers_map!(middleware, opts, __CALLER__)
     quote do: @__middleware__({
       unquote(Macro.escape(middleware)),
       unquote(Macro.escape(opts)),
