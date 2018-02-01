@@ -16,6 +16,18 @@ defmodule Tesla.BuilderTest do
       plug fn env, _next -> env end
 
       def local_middleware(env, next), do: Tesla.run(env, next)
+
+      def new do
+        Tesla.Builder.client(
+          [
+            FirstMiddleware,
+            {SecondMiddleware, options: :are, fun: 1},
+            :local_middleware,
+            fn env, _next -> env end
+          ],
+          []
+        )
+      end
     end
 
     defmodule TestClientModule do
@@ -61,6 +73,19 @@ defmodule Tesla.BuilderTest do
 
     test "generate __adapter__/0 - adapter as anonymous function" do
       assert {:fn, fun} = TestClientAnon.__adapter__()
+      assert is_function(fun)
+    end
+
+    test "dynamic client" do
+      client = TestClientPlug.new()
+
+      assert [
+               {FirstMiddleware, :call, [nil]},
+               {SecondMiddleware, :call, [[options: :are, fun: 1]]},
+               {TestClientPlug, :local_middleware, []},
+               {:fn, fun}
+             ] = client.pre
+
       assert is_function(fun)
     end
   end

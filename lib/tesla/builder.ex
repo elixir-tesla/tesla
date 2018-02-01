@@ -97,13 +97,23 @@ defmodule Tesla.Builder do
     end
   end
   """
-  defmacro plug(middleware, opts \\ nil) do
-    Tesla.Migration.breaking_headers_map!(middleware, opts, __CALLER__)
-    quote do: @__middleware__({
-      unquote(Macro.escape(middleware)),
-      unquote(Macro.escape(opts)),
-      unquote(Macro.escape(__CALLER__))
-    })
+
+  defmacro plug(middleware, opts) do
+    quote do
+      @__middleware__ {
+        {unquote(Macro.escape(middleware)), unquote(Macro.escape(opts))},
+        {:middleware, unquote(Macro.escape(__CALLER__))}
+      }
+    end
+  end
+
+  defmacro plug(middleware) do
+    quote do
+      @__middleware__ {
+        unquote(Macro.escape(middleware)),
+        {:middleware, unquote(Macro.escape(__CALLER__))}
+      }
+    end
   end
 
   @doc """
@@ -125,7 +135,6 @@ defmodule Tesla.Builder do
       env
     end
 
-
     # adapter function gets Tesla.Env as parameter and must return Tesla.Env
     def local_adapter(env) do
       ...
@@ -133,12 +142,22 @@ defmodule Tesla.Builder do
     end
   end
   """
-  defmacro adapter(adapter, opts \\ nil) do
-    quote do: @__adapter__({
-      unquote(Macro.escape(adapter)),
-      unquote(Macro.escape(opts)),
-      unquote(Macro.escape(__CALLER__))
-    })
+  defmacro adapter(name, opts) do
+    quote do
+      @__adapter__ {
+        {unquote(Macro.escape(name)), unquote(Macro.escape(opts))},
+        {:adapter, unquote(Macro.escape(__CALLER__))}
+      }
+    end
+  end
+
+  defmacro adapter(name) do
+    quote do
+      @__adapter__ {
+        unquote(Macro.escape(name)),
+        {:adapter, unquote(Macro.escape(__CALLER__))}
+      }
+    end
   end
 
   defp generate_http_verbs(opts) do
@@ -146,7 +165,7 @@ defmodule Tesla.Builder do
     except = Keyword.get(opts, :except, [])
 
     @http_verbs
-    |> Enum.filter(&(&1 in only && not &1 in except))
+    |> Enum.filter(&(&1 in only && &1 not in except))
     |> Enum.map(&generate_api(&1, Keyword.get(opts, :docs, true)))
   end
 
@@ -310,13 +329,13 @@ defmodule Tesla.Builder do
     adapter =
       env.module
       |> Module.get_attribute(:__adapter__)
-      |> prepare(:adapter)
+      |> compile()
 
     middleware =
       env.module
       |> Module.get_attribute(:__middleware__)
       |> Enum.reverse()
-      |> prepare(:middleware)
+      |> compile()
 
     quote do
       def __middleware__, do: unquote(middleware)
@@ -325,28 +344,49 @@ defmodule Tesla.Builder do
   end
 
   defmacro client(pre, post) do
+    context = {:middleware, __CALLER__}
+
     quote do
       %Tesla.Client{
-        pre: unquote(prepare(pre)),
-        post: unquote(prepare(post))
+        pre: unquote(compile_context(pre, context)),
+        post: unquote(compile_context(post, context))
       }
     end
   end
 
-  defp prepare(list, kind \\ :middleware)
-  defp prepare(list, kind) when is_list(list), do: Enum.map(list, &prepare(&1, kind))
-  defp prepare(nil, _), do: nil
-  defp prepare({{:fn, _, _} = fun, nil, _}, _), do: {:fn, fun}
+  defp compile(nil), do: nil
+  defp compile(list) when is_list(list), do: Enum.map(list, &compile/1)
 
-  defp prepare({{:__aliases__, _, _} = name, opts, _}, _),
-    do: quote(do: {unquote(name), :call, [unquote(opts)]})
-
-  defp prepare({name, nil, nil}, _) when is_atom(name), do: quote(do: {__MODULE__, unquote(name), []})
-
-  defp prepare({name, nil, caller}, kind) when is_atom(name) do
-    Tesla.Migration.breaking_alias!(kind, name, caller)
-    quote(do: {__MODULE__, unquote(name), []})
+  # {Tesla.Middleware.Something, opts}
+  defp compile({{{:__aliases__, _, _} = ast_mod, ast_opts}, {_kind, caller}}) do
+    Tesla.Migration.breaking_headers_map!(ast_mod, ast_opts, caller)
+    quote do: {unquote(ast_mod), :call, [unquote(ast_opts)]}
   end
-  defp prepare({name, opts}, kind), do: prepare({name, opts, nil}, kind)
-  defp prepare(name, kind), do: prepare({name, nil, nil}, kind)
+
+  # :local_middleware, opts
+  defp compile({{name, _opts}, {kind, caller}}) when is_atom(name) do
+    Tesla.Migration.breaking_alias!(kind, name, caller)
+  end
+
+  # Tesla.Middleware.Something
+  defp compile({{:__aliases__, _, _} = ast_mod, {_kind, _caller}}) do
+    quote do: {unquote(ast_mod), :call, [nil]}
+  end
+
+  # fn env -> ... end
+  defp compile({{:fn, _, _} = ast_fun, {_kind, _caller}}) do
+    quote do: {:fn, unquote(ast_fun)}
+  end
+
+  # :local_middleware
+  defp compile({name, {kind, caller}}) when is_atom(name) do
+    Tesla.Migration.breaking_alias!(kind, name, caller)
+    quote do: {__MODULE__, unquote(name), []}
+  end
+
+  defp compile_context(list, context) do
+    list
+    |> Enum.map(&{&1, context})
+    |> compile()
+  end
 end
