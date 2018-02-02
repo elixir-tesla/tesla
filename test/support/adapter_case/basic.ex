@@ -7,7 +7,7 @@ defmodule Tesla.AdapterCase.Basic do
         test "HEAD request" do
           request = %Env{
             method: :head,
-            url: "#{@url}/ip"
+            url: "#{@http}/ip"
           }
 
           assert %Env{} = response = call(request)
@@ -17,7 +17,7 @@ defmodule Tesla.AdapterCase.Basic do
         test "GET request" do
           request = %Env{
             method: :get,
-            url: "#{@url}/ip"
+            url: "#{@http}/ip"
           }
 
           assert %Env{} = response = call(request)
@@ -27,7 +27,7 @@ defmodule Tesla.AdapterCase.Basic do
         test "POST request" do
           request = %Env{
             method: :post,
-            url: "#{@url}/post",
+            url: "#{@http}/post",
             body: "some-post-data",
             headers: [{"content-type", "text/plain"}]
           }
@@ -41,7 +41,7 @@ defmodule Tesla.AdapterCase.Basic do
         test "unicode" do
           request = %Env{
             method: :post,
-            url: "#{@url}/post",
+            url: "#{@http}/post",
             body: "1 ø 2 đ 1 \u00F8 2 \u0111",
             headers: [{"content-type", "text/plain"}]
           }
@@ -55,7 +55,7 @@ defmodule Tesla.AdapterCase.Basic do
         test "passing query params" do
           request = %Env{
             method: :get,
-            url: "#{@url}/get",
+            url: "#{@http}/get",
             query: [
               page: 1,
               sort: "desc",
@@ -81,7 +81,7 @@ defmodule Tesla.AdapterCase.Basic do
         test "autoredirects disabled by default" do
           request = %Env{
             method: :get,
-            url: "#{@url}/redirect-to?url=#{@url}/status/200"
+            url: "#{@http}/redirect-to?url=#{@http}/status/200"
           }
 
           assert %Env{} = response = call(request)

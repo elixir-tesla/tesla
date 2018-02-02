@@ -20,7 +20,7 @@ defmodule Tesla.AdapterCase.Multipart do
 
           request = %Env{
             method: :post,
-            url: "#{@url}/post",
+            url: "#{@http}/post",
             body: mp
           }
 

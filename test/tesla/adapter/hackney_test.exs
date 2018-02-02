@@ -12,7 +12,7 @@ defmodule Tesla.Adapter.HackneyTest do
   test "get with `with_body: true` option" do
     request = %Env{
       method: :get,
-      url: "#{@url}/ip"
+      url: "#{@http}/ip"
     }
 
     assert %Env{} = response = call(request, with_body: true)

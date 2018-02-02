@@ -7,7 +7,7 @@ defmodule Tesla.AdapterCase.StreamRequestBody do
         test "stream request body: Stream.map" do
           request = %Env{
             method: :post,
-            url: "#{@url}/post",
+            url: "#{@http}/post",
             headers: [{"content-type", "text/plain"}],
             body: Stream.map(1..5, &to_string/1)
           }
@@ -27,7 +27,7 @@ defmodule Tesla.AdapterCase.StreamRequestBody do
 
           request = %Env{
             method: :post,
-            url: "#{@url}/post",
+            url: "#{@http}/post",
             headers: [{"content-type", "text/plain"}],
             body: body
           }
