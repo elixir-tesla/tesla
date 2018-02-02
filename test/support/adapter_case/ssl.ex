@@ -1,5 +1,5 @@
 defmodule Tesla.AdapterCase.SSL do
-  defmacro __using__(_) do
+  defmacro __using__(opts) do
     quote do
       alias Tesla.Env
 
@@ -7,10 +7,10 @@ defmodule Tesla.AdapterCase.SSL do
         test "GET request" do
           request = %Env{
             method: :get,
-            url: "https://github.com/teamon/tesla"
+            url: "#{@https}/ip"
           }
 
-          assert %Env{} = response = call(request)
+          assert %Env{} = response = call(request, unquote(opts))
           assert response.status == 200
         end
       end

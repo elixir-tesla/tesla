@@ -5,7 +5,9 @@ defmodule Tesla.Adapter.HackneyTest do
   use Tesla.AdapterCase.Basic
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
-  use Tesla.AdapterCase.SSL
+  use Tesla.AdapterCase.SSL, ssl_options: [
+    cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
+  ]
 
   alias Tesla.Env
 

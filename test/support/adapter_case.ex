@@ -3,6 +3,7 @@ defmodule Tesla.AdapterCase do
     quote do
       @adapter unquote(adapter)
       @http "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
+      @https "https://localhost:#{Application.get_env(:httparrot, :https_port)}"
 
       defp call(env, opts \\ []) do
         @adapter.call(env, opts)

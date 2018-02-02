@@ -10,8 +10,9 @@ config :logger, :console,
 
 if Mix.env == :test do
   config :httparrot,
-    http_port: 8888,
-    ssl: false,
+    http_port: 5080,
+    https_port: 5443,
+    ssl: true,
     unix_socket: false
 
   config :sasl,
