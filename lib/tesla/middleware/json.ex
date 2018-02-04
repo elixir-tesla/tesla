@@ -44,31 +44,37 @@ defmodule Tesla.Middleware.JSON do
   def call(env, next, opts) do
     opts = opts || []
 
-    env
-    |> encode(opts)
-    |> Tesla.run(next)
-    |> decode(opts)
+    with {:ok, env} <- encode(env, opts),
+         {:ok, env} <- Tesla.run(env, next) do
+      decode(env, opts)
+    end
   end
 
   @doc """
   Encode request body as JSON. Used by `Tesla.Middleware.EncodeJson`
   """
   def encode(env, opts) do
-    if encodable?(env) do
-      env
-      |> Map.update!(:body, &encode_body(&1, opts))
-      |> Tesla.put_headers([{"content-type", "application/json"}])
+    with true <- encodable?(env),
+         {:ok, body} <- encode_body(env.body, opts) do
+      {:ok,
+       env
+       |> Tesla.put_body(body)
+       |> Tesla.put_headers([{"content-type", "application/json"}])}
     else
-      env
+      false -> {:ok, env}
+      error -> error
     end
   end
 
-  defp encode_body(%Stream{} = body, opts), do: encode_stream(body, opts)
-  defp encode_body(body, opts) when is_function(body), do: encode_stream(body, opts)
+  defp encode_body(%Stream{} = body, opts), do: {:ok, encode_stream(body, opts)}
+  defp encode_body(body, opts) when is_function(body), do: {:ok, encode_stream(body, opts)}
   defp encode_body(body, opts), do: process(body, :encode, opts)
 
   defp encode_stream(body, opts) do
-    Stream.map(body, fn item -> encode_body(item, opts) <> "\n" end)
+    Stream.map(body, fn item ->
+      {:ok, body} = encode_body(item, opts)
+      body <> "\n"
+    end)
   end
 
   defp encodable?(%{body: nil}), do: false
@@ -80,12 +86,16 @@ defmodule Tesla.Middleware.JSON do
   Decode response body as JSON. Used by `Tesla.Middleware.DecodeJson`
   """
   def decode(env, opts) do
-    if decodable?(env, opts) do
-      Map.update!(env, :body, &process(&1, :decode, opts))
+    with true <- decodable?(env, opts),
+         {:ok, body} <- decode_body(env.body, opts) do
+      {:ok, %{env | body: body}}
     else
-      env
+      false -> {:ok, env}
+      error -> error
     end
   end
+
+  defp decode_body(body, opts), do: process(body, :decode, opts)
 
   defp decodable?(env, opts), do: decodable_body?(env) && decodable_content_type?(env, opts)
 
@@ -104,15 +114,10 @@ defmodule Tesla.Middleware.JSON do
     do: @default_content_types ++ Keyword.get(opts, :decode_content_types, [])
 
   defp process(data, op, opts) do
-    with {:ok, value} <- do_process(data, op, opts) do
-      value
-    else
-      {:error, reason} ->
-        raise %Tesla.Error{message: "JSON #{op} error: #{inspect(reason)}", reason: reason}
-
-      {:error, msg, position} ->
-        reason = {msg, position}
-        raise %Tesla.Error{message: "JSON #{op} error: #{inspect(reason)}", reason: reason}
+    case do_process(data, op, opts) do
+      {:ok, data} -> {:ok, data}
+      {:error, reason} -> {:error, {__MODULE__, op, reason}}
+      {:error, reason, _pos} -> {:error, {__MODULE__, op, reason}}
     end
   end
 
@@ -133,9 +138,9 @@ defmodule Tesla.Middleware.DecodeJson do
   def call(env, next, opts) do
     opts = opts || []
 
-    env
-    |> Tesla.run(next)
-    |> Tesla.Middleware.JSON.decode(opts)
+    with {:ok, env} <- Tesla.run(env, next) do
+      Tesla.Middleware.JSON.decode(env, opts)
+    end
   end
 end
 
@@ -143,8 +148,8 @@ defmodule Tesla.Middleware.EncodeJson do
   def call(env, next, opts) do
     opts = opts || []
 
-    env
-    |> Tesla.Middleware.JSON.encode(opts)
-    |> Tesla.run(next)
+    with {:ok, env} <- Tesla.Middleware.JSON.encode(env, opts) do
+      Tesla.run(env, next)
+    end
   end
 end

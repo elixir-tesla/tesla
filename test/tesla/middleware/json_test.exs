@@ -43,58 +43,66 @@ defmodule Tesla.Middleware.JsonTest do
             {200, [], list}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "decode JSON body" do
-    assert Client.get("/decode").body == %{"value" => 123}
+    assert {:ok, env} = Client.get("/decode")
+    assert env.body == %{"value" => 123}
   end
 
   test "do not decode empty body" do
-    assert Client.get("/empty").body == nil
+    assert {:ok, env} = Client.get("/empty")
+    assert env.body == nil
   end
 
   test "do not decode empty string body" do
-    assert Client.get("/empty-string").body == ""
+    assert {:ok, env} = Client.get("/empty-string")
+    assert env.body == ""
   end
 
   test "decode only if Content-Type is application/json or test/json" do
-    assert Client.get("/invalid-content-type").body == "hello"
+    assert {:ok, env} = Client.get("/invalid-content-type")
+    assert env.body == "hello"
   end
 
   test "encode body as JSON" do
-    assert Client.post("/encode", %{"foo" => "bar"}).body == %{"baz" => "bar"}
+    assert {:ok, env} = Client.post("/encode", %{"foo" => "bar"})
+    assert env.body == %{"baz" => "bar"}
   end
 
   test "do not encode nil body" do
-    assert Client.post("/raw", nil).body == nil
+    assert {:ok, env} = Client.post("/raw", nil)
+    assert env.body == nil
   end
 
   test "do not encode binary body" do
-    assert Client.post("/raw", "raw-string").body == "raw-string"
+    assert {:ok, env} = Client.post("/raw", "raw-string")
+    assert env.body == "raw-string"
+  end
+
+  test "return error on encoding error" do
+    assert {:error, {Tesla.Middleware.JSON, :encode, _}} = Client.post("/encode", %{pid: self()})
   end
 
   test "decode if Content-Type is text/javascript" do
-    assert Client.get("/facebook").body == %{"friends" => 1_000_000}
+    assert {:ok, env} = Client.get("/facebook")
+    assert env.body == %{"friends" => 1_000_000}
   end
 
   test "post json stream" do
     stream = Stream.map(1..3, fn i -> %{id: i} end)
-    assert env = Client.post("/stream", stream)
+    assert {:ok, env} = Client.post("/stream", stream)
     assert env.body == ~s|{"id":1}\n---{"id":2}\n---{"id":3}\n|
   end
 
-  test "raise error when decoding invalid json format" do
-    assert_raise Tesla.Error, ~r/JSON decode error:/, fn ->
-      Client.get("/invalid-json-format")
-    end
+  test "return error when decoding invalid json format" do
+    assert {:error, {Tesla.Middleware.JSON, :decode, _}} = Client.get("/invalid-json-format")
   end
 
   test "raise error when decoding non-utf8 json" do
-    assert_raise Tesla.Error, ~r/JSON decode error:/, fn ->
-      Client.get("/invalid-json-encoding")
-    end
+    assert {:error, {Tesla.Middleware.JSON, :decode, _}} = Client.get("/invalid-json-encoding")
   end
 
   defmodule CustomClient do
@@ -109,12 +117,13 @@ defmodule Tesla.Middleware.JsonTest do
             {200, [{"content-type", "application/json"}], "{\"value\": 123}"}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "decode with custom engine options" do
-    assert CustomClient.get("/decode").body == %{value: 123}
+    assert {:ok, env} = CustomClient.get("/decode")
+    assert env.body == %{value: 123}
   end
 
   defmodule CustomContentTypeClient do
@@ -129,13 +138,13 @@ defmodule Tesla.Middleware.JsonTest do
             {200, [{"content-type", "application/x-custom-json"}], "{\"value\": 123}"}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "decode if Content-Type specified in :decode_content_types" do
-    alias CustomContentTypeClient, as: CCTClient
-    assert CCTClient.get("/decode").body == %{"value" => 123}
+    assert {:ok, env} = CustomContentTypeClient.get("/decode")
+    assert env.body == %{"value" => 123}
   end
 
   defmodule EncodeDecodeJsonClient do
@@ -152,13 +161,13 @@ defmodule Tesla.Middleware.JsonTest do
              env.body |> String.replace("foo", "baz")}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "EncodeJson / DecodeJson work without options" do
-    alias EncodeDecodeJsonClient, as: EDJClient
-    assert EDJClient.post("/foo2baz", %{"foo" => "bar"}).body == %{"baz" => "bar"}
+    assert {:ok, env} = EncodeDecodeJsonClient.post("/foo2baz", %{"foo" => "bar"})
+    assert env.body == %{"baz" => "bar"}
   end
 
   defmodule MultipartClient do
@@ -173,7 +182,7 @@ defmodule Tesla.Middleware.JsonTest do
             {200, [{"content-type", "application/json"}], "{\"status\": \"ok\"}"}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
@@ -184,6 +193,7 @@ defmodule Tesla.Middleware.JsonTest do
       Multipart.new()
       |> Multipart.add_field("param", "foo")
 
-    assert MultipartClient.post("/upload", mp).body == %{"status" => "ok"}
+    assert {:ok, env} = MultipartClient.post("/upload", mp)
+    assert env.body == %{"status" => "ok"}
   end
 end

@@ -179,6 +179,9 @@ defmodule Tesla do
     %{env | headers: headers}
   end
 
+  @spec put_body(Env.t(), Env.body()) :: Env.t()
+  def put_body(%Env{} = env, body), do: %{env | body: body}
+
   @doc """
   Dynamically build client from list of middlewares.
 
