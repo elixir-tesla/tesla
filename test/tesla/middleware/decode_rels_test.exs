@@ -7,7 +7,7 @@ defmodule Tesla.Middleware.DecodeRelsTest do
     plug Tesla.Middleware.DecodeRels
 
     adapter fn env ->
-      case env.url do
+      {:ok, case env.url do
         "/rels" ->
           Tesla.put_headers(env, [
             {"link", ~s(<https://api.github.com/resource?page=2>; rel="next",
@@ -16,12 +16,12 @@ defmodule Tesla.Middleware.DecodeRelsTest do
 
         _ ->
           env
-      end
+      end}
     end
   end
 
   test "deocde rels" do
-    env = Client.get("/rels")
+    assert {:ok, env} = Client.get("/rels")
 
     assert env.opts[:rels] == %{
              "next" => "https://api.github.com/resource?page=2",
@@ -30,7 +30,7 @@ defmodule Tesla.Middleware.DecodeRelsTest do
   end
 
   test "skip if no Link header" do
-    env = Client.get("/")
+    assert {:ok, env} = Client.get("/")
 
     assert env.opts[:rels] == nil
   end
