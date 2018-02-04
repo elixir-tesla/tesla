@@ -13,12 +13,13 @@ defmodule Tesla.Middleware.CompressionTest do
             {200, [{"content-type", "text/plain"}], :zlib.gunzip(env.body)}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "compress request body (gzip)" do
-    assert CompressionGzipRequestClient.post("/", "compress request").body == "compress request"
+    assert {:ok, env} = CompressionGzipRequestClient.post("/", "compress request")
+    assert env.body == "compress request"
   end
 
   defmodule CompressionDeflateRequestClient do
@@ -33,13 +34,13 @@ defmodule Tesla.Middleware.CompressionTest do
             {200, [{"content-type", "text/plain"}], :zlib.unzip(env.body)}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "compress request body (deflate)" do
-    assert CompressionDeflateRequestClient.post("/", "compress request").body ==
-             "compress request"
+    assert {:ok, env} = CompressionDeflateRequestClient.post("/", "compress request")
+    assert env.body == "compress request"
   end
 
   defmodule CompressionResponseClient do
@@ -62,20 +63,23 @@ defmodule Tesla.Middleware.CompressionTest do
             {200, [{"content-type", "text/plain"}, {"content-encoding", "identity"}], "unchanged"}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "decompress response body (gzip)" do
-    assert CompressionResponseClient.get("/response-gzip").body == "decompressed gzip"
+    assert {:ok, env} = CompressionResponseClient.get("/response-gzip")
+    assert env.body == "decompressed gzip"
   end
 
   test "decompress response body (deflate)" do
-    assert CompressionResponseClient.get("/response-deflate").body == "decompressed deflate"
+    assert {:ok, env} = CompressionResponseClient.get("/response-deflate")
+    assert env.body == "decompressed deflate"
   end
 
   test "return unchanged response for unsupported content-encoding" do
-    assert CompressionResponseClient.get("/response-identity").body == "unchanged"
+    assert {:ok, env} = CompressionResponseClient.get("/response-identity")
+    assert env.body == "unchanged"
   end
 
   defmodule CompressRequestDecompressResponseClient do
@@ -91,12 +95,13 @@ defmodule Tesla.Middleware.CompressionTest do
             {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], env.body}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "CompressRequest / DecompressResponse work without options" do
     alias CompressRequestDecompressResponseClient, as: CRDRClient
-    assert CRDRClient.post("/", "foo bar").body == "foo bar"
+    assert {:ok, env} = CRDRClient.post("/", "foo bar")
+    assert env.body == "foo bar"
   end
 end

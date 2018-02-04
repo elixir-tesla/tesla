@@ -36,7 +36,7 @@ defmodule Tesla.Middleware.Compression do
       format = Keyword.get(opts || [], :format, "gzip")
 
       env
-      |> Map.update!(:body, &compress_body(&1, format))
+      |> Tesla.put_body(compress_body(env.body, format))
       |> Tesla.put_headers([{"content-encoding", format}])
     else
       env
@@ -49,9 +49,11 @@ defmodule Tesla.Middleware.Compression do
   @doc """
   Decompress response, used by `Tesla.Middleware.DecompressResponse`
   """
+  def decompress({:ok, env}), do: {:ok, decompress(env)}
+  def decompress({:error, reasonn}), do: {:error, reasonn}
   def decompress(env) do
     env
-    |> Map.update!(:body, &decompress_body(&1, Tesla.get_header(env, "content-encoding")))
+    |> Tesla.put_body(decompress_body(env.body, Tesla.get_header(env, "content-encoding")))
   end
 
   defp decompress_body(<<31, 139, 8, _::binary>> = body, "gzip"), do: :zlib.gunzip(body)
