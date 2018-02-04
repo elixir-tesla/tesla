@@ -5,7 +5,7 @@ defmodule Tesla.Middleware.HeadersTest do
   @middleware Tesla.Middleware.Headers
 
   test "merge headers" do
-    env =
+    assert {:ok, env} =
       @middleware.call(%Env{headers: [{"authorization", "secret"}]}, [], [
         {"content-type", "text/plain"}
       ])
