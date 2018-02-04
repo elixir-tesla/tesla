@@ -29,10 +29,7 @@ if Code.ensure_loaded?(:hackney) do
 
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts || []) do
-        %{env | status: status, headers: format_headers(headers), body: format_body(body)}
-      else
-        {:error, reason} ->
-          raise %Tesla.Error{message: "adapter error: #{inspect(reason)}", reason: reason}
+        {:ok, %{env | status: status, headers: format_headers(headers), body: format_body(body)}}
       end
     end
 

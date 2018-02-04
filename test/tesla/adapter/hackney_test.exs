@@ -17,7 +17,7 @@ defmodule Tesla.Adapter.HackneyTest do
       url: "#{@http}/ip"
     }
 
-    assert %Env{} = response = call(request, with_body: true)
+    assert {:ok, %Env{} = response} = call(request, with_body: true)
     assert response.status == 200
   end
 end

@@ -12,7 +12,7 @@ defmodule Tesla.AdapterCase.StreamRequestBody do
             body: Stream.map(1..5, &to_string/1)
           }
 
-          assert %Env{} = response = call(request)
+          assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
           assert Regex.match?(~r/12345/, to_string(response.body))
         end
@@ -32,7 +32,7 @@ defmodule Tesla.AdapterCase.StreamRequestBody do
             body: body
           }
 
-          assert %Env{} = response = call(request)
+          assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
           assert Regex.match?(~r/54321/, to_string(response.body))
         end

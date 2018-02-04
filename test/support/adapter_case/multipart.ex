@@ -24,11 +24,11 @@ defmodule Tesla.AdapterCase.Multipart do
             body: mp
           }
 
-          assert %Env{} = response = call(request)
+          assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
           assert Tesla.get_header(response, "content-type") == "application/json"
 
-          response = Tesla.Middleware.JSON.decode(response, [])
+          assert {:ok, %Env{} = response} = Tesla.Middleware.JSON.decode(response, [])
 
           assert Regex.match?(
                    ~r[multipart/form-data; boundary=#{mp.boundary}; charset=utf-8$],

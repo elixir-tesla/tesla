@@ -10,7 +10,7 @@ defmodule Tesla.AdapterCase.Basic do
             url: "#{@http}/ip"
           }
 
-          assert %Env{} = response = call(request)
+          assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
         end
 
@@ -20,7 +20,7 @@ defmodule Tesla.AdapterCase.Basic do
             url: "#{@http}/ip"
           }
 
-          assert %Env{} = response = call(request)
+          assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
         end
 
@@ -32,7 +32,7 @@ defmodule Tesla.AdapterCase.Basic do
             headers: [{"content-type", "text/plain"}]
           }
 
-          assert %Env{} = response = call(request)
+          assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
           assert Tesla.get_header(response, "content-type") == "application/json"
           assert Regex.match?(~r/some-post-data/, response.body)
@@ -46,7 +46,7 @@ defmodule Tesla.AdapterCase.Basic do
             headers: [{"content-type", "text/plain"}]
           }
 
-          assert %Env{} = response = call(request)
+          assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
           assert Tesla.get_header(response, "content-type") == "application/json"
           assert Regex.match?(~r/1 ø 2 đ 1 ø 2 đ/, response.body)
@@ -64,10 +64,10 @@ defmodule Tesla.AdapterCase.Basic do
             ]
           }
 
-          assert %Env{} = response = call(request)
+          assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
 
-          response = Tesla.Middleware.JSON.decode(response, [])
+          assert {:ok, %Env{} = response} = Tesla.Middleware.JSON.decode(response, [])
 
           args = response.body["args"]
 
@@ -84,7 +84,7 @@ defmodule Tesla.AdapterCase.Basic do
             url: "#{@http}/redirect-to?url=#{@http}/status/200"
           }
 
-          assert %Env{} = response = call(request)
+          assert {:ok, %Env{} = response} = call(request)
           assert response.status == 301
         end
 
@@ -94,9 +94,7 @@ defmodule Tesla.AdapterCase.Basic do
             url: "http://localhost:1234"
           }
 
-          assert_raise Tesla.Error, fn ->
-            call(request)
-          end
+          assert {:error, _} = call(request)
         end
       end
     end

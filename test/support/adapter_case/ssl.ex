@@ -10,7 +10,7 @@ defmodule Tesla.AdapterCase.SSL do
             url: "#{@https}/ip"
           }
 
-          assert %Env{} = response = call(request, unquote(opts))
+          assert {:ok, %Env{} = response} = call(request, unquote(opts))
           assert response.status == 200
         end
       end
