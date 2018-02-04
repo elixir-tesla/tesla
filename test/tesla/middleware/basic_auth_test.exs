@@ -6,7 +6,7 @@ defmodule Tesla.Middleware.BasicAuthTest do
 
     adapter fn env ->
       case env.url do
-        "/basic-auth" -> env
+        "/basic-auth" -> {:ok, env}
       end
     end
 
@@ -36,7 +36,7 @@ defmodule Tesla.Middleware.BasicAuthTest do
 
     adapter fn env ->
       case env.url do
-        "/basic-auth" -> env
+        "/basic-auth" -> {:ok, env}
       end
     end
   end
@@ -48,7 +48,7 @@ defmodule Tesla.Middleware.BasicAuthTest do
     base_64_encoded = Base.encode64("#{username}:#{password}")
     assert base_64_encoded == "QWxhZGRpbjpPcGVuU2VzYW1l"
 
-    request = BasicClient.client(username, password) |> BasicClient.get("/basic-auth")
+    {:ok, request} = BasicClient.client(username, password) |> BasicClient.get("/basic-auth")
     auth_header = Tesla.get_header(request, "authorization")
 
     assert auth_header == "Basic #{base_64_encoded}"
@@ -58,7 +58,7 @@ defmodule Tesla.Middleware.BasicAuthTest do
     base_64_encoded = Base.encode64(":")
     assert base_64_encoded == "Og=="
 
-    request = BasicClient.client() |> BasicClient.get("/basic-auth")
+    {:ok, request} = BasicClient.client() |> BasicClient.get("/basic-auth")
     auth_header = Tesla.get_header(request, "authorization")
 
     assert auth_header == "Basic #{base_64_encoded}"
@@ -71,7 +71,7 @@ defmodule Tesla.Middleware.BasicAuthTest do
     base_64_encoded = Base.encode64("#{username}:#{password}")
     assert base_64_encoded == "QXV0aDpUZXN0"
 
-    request = BasicClientPlugOptions.get("/basic-auth")
+    {:ok, request} = BasicClientPlugOptions.get("/basic-auth")
     auth_header = Tesla.get_header(request, "authorization")
 
     assert auth_header == "Basic #{base_64_encoded}"
