@@ -8,21 +8,14 @@ defmodule Tesla.Middleware.RetryTest do
       Agent.get_and_update(__MODULE__, fn retries ->
         response =
           case env.url do
-            "/ok" -> env
+            "/ok" -> {:ok, env}
             "/maybe" when retries < 5 -> {:error, :econnrefused}
-            "/maybe" -> env
+            "/maybe" -> {:ok, env}
             "/nope" -> {:error, :econnrefused}
           end
 
         {response, retries + 1}
       end)
-      |> case do
-        {:error, :econnrefused} ->
-          raise %Tesla.Error{message: "adapter error: :econnrefused}", reason: :econnrefused}
-
-        env ->
-          env
-      end
     end
   end
 
@@ -40,15 +33,15 @@ defmodule Tesla.Middleware.RetryTest do
   end
 
   test "pass on successful request" do
-    assert %Tesla.Env{url: "/ok", method: :get} = Client.get("/ok")
+    assert {:ok, %Tesla.Env{url: "/ok", method: :get}} = Client.get("/ok")
   end
 
   test "finally pass on laggy request" do
-    assert %Tesla.Env{url: "/maybe", method: :get} = Client.get("/maybe")
+    assert {:ok, %Tesla.Env{url: "/maybe", method: :get}} = Client.get("/maybe")
   end
 
   test "raise if max_retries is exceeded" do
-    assert_raise Tesla.Error, fn -> Client.get("/nope") end
+    assert {:error, :econnrefused} = Client.get("/nope")
   end
 
   defmodule DefunctClient do
