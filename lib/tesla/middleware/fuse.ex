@@ -49,10 +49,10 @@ if Code.ensure_loaded?(:fuse) do
     end
 
     defp run(env, next, name) do
-      try do
-        Tesla.run(env, next)
-      rescue
-        _error ->
+      case Tesla.run(env, next) do
+        {:ok, env} ->
+          {:ok, env}
+        {:error, reason} ->
           :fuse.melt(name)
           {:error, :unavailable}
       end

@@ -15,10 +15,10 @@ defmodule Tesla.Middleware.FuseTest do
     adapter fn env ->
       case env.url do
         "/ok" ->
-          env
+          {:ok, env}
 
         "/unavailable" ->
-          raise %Tesla.Error{message: "adapter error: :econnrefused}", reason: :econnrefused}
+          {:error, :econnrefused}
       end
     end
   end
@@ -31,7 +31,7 @@ defmodule Tesla.Middleware.FuseTest do
   end
 
   test "regular endpoint" do
-    assert %Tesla.Env{url: "/ok"} = Client.get("/ok")
+    assert {:ok, %Tesla.Env{url: "/ok"}} = Client.get("/ok")
   end
 
   test "unavailable endpoint" do
