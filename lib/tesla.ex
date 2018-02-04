@@ -134,7 +134,7 @@ defmodule Tesla do
   end
 
   # empty stack case is useful for reusing/testing middlewares (just pass [] as next)
-  def run(env, []), do: env
+  def run(env, []), do: {:ok, env}
 
   # last item in stack is adapter - skip passing rest of stack
   def run(env, [{:fn, f}]), do: apply(f, [env])
