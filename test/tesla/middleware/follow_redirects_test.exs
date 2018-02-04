@@ -17,16 +17,17 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
             {301, [{"location", "http://example.com/#{next}"}], ""}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "redirects if default max redirects isn't exceeded" do
-    assert Client.get("http://example.com/5").status == 200
+    assert {:ok, env} =  Client.get("http://example.com/5")
+    assert env.status == 200
   end
 
   test "raise error when redirect default max redirects is exceeded" do
-    assert_raise(Tesla.Error, "too many redirects", fn -> Client.get("http://example.com/6") end)
+    assert {:error, {Tesla.Middleware.FollowRedirects, :too_many_redirects}} == Client.get("http://example.com/6")
   end
 
   defmodule CustomMaxRedirectsClient do
@@ -45,20 +46,19 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
             {301, [{"location", "http://example.com/#{next}"}], ""}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   alias CustomMaxRedirectsClient, as: CMRClient
 
   test "redirects if custom max redirects isn't exceeded" do
-    assert CMRClient.get("http://example.com/1").status == 200
+    assert {:ok, env} = CMRClient.get("http://example.com/1")
+    assert env.status == 200
   end
 
   test "raise error when custom max redirects is exceeded" do
-    assert_raise(Tesla.Error, "too many redirects", fn ->
-      CMRClient.get("http://example.com/2")
-    end)
+    assert {:error, {Tesla.Middleware.FollowRedirects, :too_many_redirects}} == CMRClient.get("http://example.com/2")
   end
 
   defmodule RelativeLocationClient do
@@ -85,21 +85,24 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
             {301, [{"location", "/pl"}], ""}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   alias RelativeLocationClient, as: RLClient
 
   test "supports relative address in location header" do
-    assert RLClient.get("http://example.com").status == 200
+    assert {:ok, env} = RLClient.get("http://example.com")
+    assert env.status == 200
   end
 
   test "doesn't create double slashes inside new url" do
-    assert RLClient.get("https://example.com/").url == "https://example.com/pl"
+    assert {:ok, env} = RLClient.get("https://example.com/")
+    assert env.url == "https://example.com/pl"
   end
 
   test "rewrites URLs to their root" do
-    assert RLClient.get("https://example.com/article").url == "https://example.com/pl"
+    assert {:ok, env} = RLClient.get("https://example.com/article")
+    assert env.url == "https://example.com/pl"
   end
 end
