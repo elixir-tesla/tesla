@@ -3,6 +3,7 @@ defmodule Tesla.Middleware.Normalize do
   def call(env, next, _opts) do
     env
     |> normalize
+    |> capture_query_params
     |> Tesla.run(next)
     |> normalize
   end
@@ -30,6 +31,27 @@ defmodule Tesla.Middleware.Normalize do
 
   def normalize_body(data) when is_list(data), do: IO.iodata_to_binary(data)
   def normalize_body(data), do: data
+
+  defp capture_query_params(%Tesla.Env{url: url} = env) do
+    query_string = URI.parse(url).query
+
+    if query_string do
+      query =
+        query_string
+        |> URI.query_decoder
+        |> Enum.to_list
+        |> Enum.group_by(fn(x) -> elem(x, 0) end, fn(x) -> elem(x, 1) end)
+        |> Enum.map(&decode_pair/1)
+        |> Enum.into(%{})
+
+      %{env | query: query}
+    else
+      env
+    end
+  end
+
+  defp decode_pair({key, value}) when length(value) === 1, do: {key, value |> Enum.at(0)}
+  defp decode_pair({key, value}),                          do: {key, value}
 end
 
 

@@ -61,4 +61,20 @@ defmodule Tesla.Middleware.NormalizeTest do
       assert env.headers == %{"user-agent" => "tesla"}
     end
   end
+
+  describe "capture query params" do
+    test "empty query" do
+      env = call(url: "https://test.com/test")
+      assert env.query == []
+    end
+
+    test "non-empty query" do
+      env = call(url: "https://test.com/get?page=1&sort=desc&status[]=a&status[]=b&status[]=c&user[name]=Jon&user[age]=20")
+      assert env.query["page"] == "1"
+      assert env.query["sort"] == "desc"
+      assert env.query["status[]"] == ["a", "b", "c"]
+      assert env.query["user[name]"] == "Jon"
+      assert env.query["user[age]"] == "20"
+    end
+  end
 end

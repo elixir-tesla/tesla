@@ -77,7 +77,7 @@ defmodule Tesla.AdapterCase.Basic do
           assert args["user[age]"]  == "20"
         end
 
-        test "capturing GET query params from url/path when there is nothing to capture" do
+        test "capturing query params from url/path when there is nothing to capture" do
           request = %Env{
             method: :get,
             url: "#{@url}/get"
@@ -92,7 +92,7 @@ defmodule Tesla.AdapterCase.Basic do
           assert query == []
         end
 
-        test "capturing GET query params from url/path" do
+        test "capturing query params from url/path" do
           request = %Env{
             method: :get,
             url: "#{@url}/get?page=1&sort=desc&status[]=a&status[]=b&status[]=c&user[name]=Jon&user[age]=20"
