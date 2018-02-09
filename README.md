@@ -47,7 +47,7 @@ end
 Then use it like this:
 
 ```elixir
-response = GitHub.user_repos("teamon")
+{:ok, response} = GitHub.user_repos("teamon")
 response.status  # => 200
 response.body    # => [%{…}, …]
 response.headers # => [{"content-type", "application/json"}, ...]
@@ -176,7 +176,7 @@ def new(user) do
   Tesla.build_client [], [
     fn env, next ->
       case my_private_cache.fetch(user, env) do
-        {:ok, env} -> env               # return cached response
+        {:ok, env} -> {:ok, env}        # return cached response
         :error -> Tesla.run(env, next)  # make real request
       end
     end
@@ -287,7 +287,7 @@ defmodule MyAppTest do
   end
 
   test "list things" do
-    assert %Tesla.Env{} = env = MyApp.get("/hello")
+    assert {:ok, %Tesla.Env{} = env} = MyApp.get("/hello")
     assert env.status == 200
     assert env.body == "hello"
   end
@@ -385,18 +385,18 @@ This however won’t include any middleware.
 
 ```elixir
 # Example get request
-response = Tesla.get("http://httpbin.org/ip")
+{:ok, response} = Tesla.get("http://httpbin.org/ip")
 response.status   # => 200
 response.body     # => "{\n  "origin": "87.205.72.203"\n}\n"
 response.headers  # => [{"Content-Type", "application/json" ...}]
 
 
-response = Tesla.get("http://httpbin.org/get", query: [a: 1, b: "foo"])
+{:ok, response} = Tesla.get("http://httpbin.org/get", query: [a: 1, b: "foo"])
 response.url     # => "http://httpbin.org/get?a=1&b=foo"
 
 
 # Example post request
-response = Tesla.post("http://httpbin.org/post", "data", headers: [{"Content-Type", "application/json"}])
+{:ok, response} = Tesla.post("http://httpbin.org/post", "data", headers: [{"Content-Type", "application/json"}])
 ```
 
 
