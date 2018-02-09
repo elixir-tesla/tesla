@@ -115,14 +115,3 @@ defmodule Tesla.Middleware.Opts do
     Tesla.run(%{env | opts: env.opts ++ opts}, next)
   end
 end
-
-defmodule Tesla.Middleware.BaseUrlFromConfig do
-  def call(env, next, opts) do
-    base = config(opts)[:base_url]
-    Tesla.Middleware.BaseUrl.call(env, next, base)
-  end
-
-  defp config(opts) do
-    Application.get_env(Keyword.fetch!(opts, :otp_app), Keyword.fetch!(opts, :module))
-  end
-end
