@@ -26,21 +26,16 @@ defmodule Tesla.Middleware.Logger do
   require Logger
 
   def call(env, next, _opts) do
-    {time, env} = :timer.tc(Tesla, :run, [env, next])
-    _ = log(env, time)
-    env
-  rescue
-    ex in Tesla.Error ->
-      stacktrace = System.stacktrace()
-      _ = log(env, ex)
-      reraise ex, stacktrace
+    {time, result} = :timer.tc(Tesla, :run, [env, next])
+    _ = log(env, result, time)
+    result
   end
 
-  defp log(env, %Tesla.Error{message: message}) do
-    Logger.error("#{normalize_method(env)} #{env.url} -> #{message}")
+  defp log(env, {:error, reason}, _time) do
+    Logger.error("#{normalize_method(env)} #{env.url} -> #{inspect reason}")
   end
 
-  defp log(env, time) do
+  defp log(_env, {:ok, env}, time) do
     ms = :io_lib.format("~.3f", [time / 1000])
     message = "#{normalize_method(env)} #{env.url} -> #{env.status} (#{ms} ms)"
 
@@ -117,14 +112,17 @@ defmodule Tesla.Middleware.DebugLogger do
     |> log_params("> ")
     |> log_body("> ")
     |> Tesla.run(next)
-    |> log_response
-    |> log_headers("< ")
-    |> log_body("< ")
-  rescue
-    ex in Tesla.Error ->
-      stacktrace = System.stacktrace()
-      _ = log_exception(ex, "< ")
-      reraise ex, stacktrace
+    |> case do
+      {:ok, env} ->
+        env
+        |> log_response
+        |> log_headers("< ")
+        |> log_body("< ")
+        {:ok, env}
+      {:error, reason} ->
+        log_exception(reason, "< ")
+        {:error, reason}
+    end
   end
 
   defp log_request(env) do
@@ -184,7 +182,7 @@ defmodule Tesla.Middleware.DebugLogger do
     mp
   end
 
-  defp log_exception(%Tesla.Error{message: message, reason: reason}, prefix) do
-    _ = Logger.debug(prefix <> message <> " (#{inspect(reason)})")
+  defp log_exception(reason, prefix) do
+    _ = Logger.debug(prefix <> " (#{inspect(reason)})")
   end
 end

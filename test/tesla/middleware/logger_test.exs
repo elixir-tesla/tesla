@@ -8,25 +8,24 @@ defmodule Tesla.Middleware.LoggerTest do
     plug Tesla.Middleware.DebugLogger
 
     adapter fn env ->
-      {status, body} =
-        case env.url do
-          "/connection-error" ->
-            raise %Tesla.Error{message: "adapter error: :econnrefused", reason: :econnrefused}
+      env = Tesla.put_header(env, "content-type", "text/plain")
 
-          "/server-error" ->
-            {500, "error"}
+      case env.url do
+        "/connection-error" ->
+          {:error, :econnrefused}
 
-          "/client-error" ->
-            {404, "error"}
+        "/server-error" ->
+          {:ok, %{env | status: 500, body: "error"}}
 
-          "/redirect" ->
-            {301, "moved"}
+        "/client-error" ->
+          {:ok, %{env | status: 404, body: "error"}}
 
-          "/ok" ->
-            {200, "ok"}
-        end
+        "/redirect" ->
+          {:ok, %{env | status: 301, body: "moved"}}
 
-      %{env | status: status, headers: [{"content-type", "text/plain"}], body: body}
+        "/ok" ->
+          {:ok, %{env | status: 200, body: "ok"}}
+      end
     end
   end
 
@@ -35,10 +34,10 @@ defmodule Tesla.Middleware.LoggerTest do
   test "connection error" do
     log =
       capture_log(fn ->
-        assert_raise Tesla.Error, fn -> Client.get("/connection-error") end
+        assert {:error, _} = Client.get("/connection-error")
       end)
 
-    assert log =~ "/connection-error -> adapter error: :econnrefused"
+    assert log =~ "/connection-error -> :econnrefused"
   end
 
   test "server error" do
