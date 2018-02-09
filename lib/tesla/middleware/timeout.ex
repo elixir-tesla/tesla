@@ -17,11 +17,6 @@ defmodule Tesla.Middleware.Timeout do
   - `:timeout` - number of milliseconds a request is allowed to take (defaults to 1000)
   """
 
-  @timeout_error %Tesla.Error{
-    reason: :timeout,
-    message: "#{__MODULE__}: Request timeout."
-  }
-
   @default_timeout 1_000
 
   def call(env, next, opts) do
@@ -36,14 +31,8 @@ defmodule Tesla.Middleware.Timeout do
       |> repass_error
     catch
       :exit, {:timeout, _} ->
-        if Version.match?(System.version(), ">= 1.4.0") do
-          Task.shutdown(task, 0)
-        else
-          Process.unlink(task.pid)
-          Process.exit(task.pid, :kill)
-        end
-
-        raise @timeout_error
+        Task.shutdown(task, 0)
+        {:error, :timeout}
     end
   end
 
@@ -53,7 +42,7 @@ defmodule Tesla.Middleware.Timeout do
         {:ok, func.()}
       rescue
         e in _ ->
-          {:error, e}
+          {:exception, e}
       catch
         type, value ->
           {type, value}
@@ -61,7 +50,7 @@ defmodule Tesla.Middleware.Timeout do
     end)
   end
 
-  defp repass_error({:error, error}), do: raise(error)
+  defp repass_error({:exception, error}), do: raise(error)
 
   defp repass_error({:throw, value}), do: throw(value)
 
