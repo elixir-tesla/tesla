@@ -8,7 +8,7 @@ defmodule Tesla.Mock.GlobalATest do
   end
 
   test "mock get request" do
-    assert %Tesla.Env{} = env = MockClient.get("/")
+    assert {:ok, %Tesla.Env{} = env} = MockClient.get("/")
     assert env.body == "AAA"
   end
 end

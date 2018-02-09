@@ -8,7 +8,7 @@ defmodule TeslaTest do
   describe "Adapters" do
     defmodule ModuleAdapter do
       def call(env, opts \\ []) do
-        Map.put(env, :url, env.url <> "/module/" <> opts[:with])
+        {:ok, Map.put(env, :url, env.url <> "/module/" <> opts[:with])}
       end
     end
 
@@ -28,7 +28,7 @@ defmodule TeslaTest do
       adapter :local_adapter
 
       def local_adapter(env) do
-        Map.put(env, :url, env.url <> "/local")
+        {:ok, Map.put(env, :url, env.url <> "/local")}
       end
     end
 
@@ -36,7 +36,7 @@ defmodule TeslaTest do
       use Tesla
 
       adapter fn env ->
-        Map.put(env, :url, env.url <> "/anon")
+        {:ok, Map.put(env, :url, env.url <> "/anon")}
       end
     end
 
@@ -51,21 +51,6 @@ defmodule TeslaTest do
       assert Tesla.effective_adapter(EmptyClient) == {Tesla.Adapter.Httpc, :call, [[]]}
     end
 
-    test "execute module adapter" do
-      response = ModuleAdapterClient.request(url: "test")
-      assert response.url == "test/module/someopt"
-    end
-
-    test "execute local function adapter" do
-      response = LocalAdapterClient.request(url: "test")
-      assert response.url == "test/local"
-    end
-
-    test "execute anonymous function adapter" do
-      response = FunAdapterClient.request(url: "test")
-      assert response.url == "test/anon"
-    end
-
     test "use adapter override from config" do
       Application.put_env(:tesla, EmptyClient, adapter: Tesla.Mock)
       assert Tesla.effective_adapter(EmptyClient) == {Tesla.Mock, :call, [[]]}
@@ -74,6 +59,21 @@ defmodule TeslaTest do
     test "prefer config over module setting" do
       Application.put_env(:tesla, ModuleAdapterClient, adapter: Tesla.Mock)
       assert Tesla.effective_adapter(ModuleAdapterClient) == {Tesla.Mock, :call, [[]]}
+    end
+
+    test "execute module adapter" do
+      assert {:ok, response} = ModuleAdapterClient.request(url: "test")
+      assert response.url == "test/module/someopt"
+    end
+
+    test "execute local function adapter" do
+      assert {:ok, response} = LocalAdapterClient.request(url: "test")
+      assert response.url == "test/local"
+    end
+
+    test "execute anonymous function adapter" do
+      assert {:ok, response} = FunAdapterClient.request(url: "test")
+      assert response.url == "test/anon"
     end
   end
 
@@ -95,7 +95,12 @@ defmodule TeslaTest do
         env
         |> Map.update!(:url, fn url -> url <> "/MB" <> opts[:with] end)
         |> Tesla.run(next)
-        |> Map.update!(:url, fn url -> url <> "/MA" <> opts[:with] end)
+        |> case do
+          {:ok, env} ->
+            {:ok, Map.update!(env, :url, fn url -> url <> "/MA" <> opts[:with] end)}
+          error ->
+            error
+        end
       end
     end
 
@@ -107,18 +112,23 @@ defmodule TeslaTest do
       plug AppendWith, with: "2"
       plug :local_middleware
 
-      adapter fn env -> env end
+      adapter fn env -> {:ok, env} end
 
       def local_middleware(env, next) do
         env
         |> Map.update!(:url, fn url -> url <> "/LB" end)
         |> Tesla.run(next)
-        |> Map.update!(:url, fn url -> url <> "/LA" end)
+        |> case do
+          {:ok, env} ->
+            {:ok, Map.update!(env, :url, fn url -> url <> "/LA" end)}
+          error ->
+            error
+        end
       end
     end
 
     test "execute middleware top down" do
-      response = AppendClient.get("one")
+      assert {:ok, response} = AppendClient.get("one")
       assert response.url == "one/1/MB1/MB2/LB/LA/MA2/MA1"
     end
   end
@@ -129,7 +139,7 @@ defmodule TeslaTest do
 
       adapter fn env ->
         if String.ends_with?(env.url, "/cached") do
-          %{env | body: "cached", status: 304}
+          {:ok, %{env | body: "cached", status: 304}}
         else
           Tesla.run_default_adapter(env)
         end
@@ -144,25 +154,25 @@ defmodule TeslaTest do
       client =
         Tesla.build_client([], [
           fn env, _next ->
-            %{env | body: "new"}
+            {:ok, %{env | body: "new"}}
           end
         ])
 
-      assert %{body: "new"} = DynamicClient.help(client)
+      assert {:ok, %{body: "new"}} = DynamicClient.help(client)
     end
 
     test "override adapter - Tesla.build_adapter" do
       client =
         Tesla.build_adapter(fn env ->
-          %{env | body: "new"}
+          {:ok, %{env | body: "new"}}
         end)
 
-      assert %{body: "new"} = DynamicClient.help(client)
+      assert {:ok, %{body: "new"}} = DynamicClient.help(client)
     end
 
     test "statically override adapter" do
-      assert %{status: 200} = DynamicClient.get(@url <> "/ip")
-      assert %{status: 304} = DynamicClient.get(@url <> "/cached")
+      assert {:ok, %{status: 200}} = DynamicClient.get(@url <> "/ip")
+      assert {:ok, %{status: 304}} = DynamicClient.get(@url <> "/cached")
     end
   end
 
@@ -171,12 +181,12 @@ defmodule TeslaTest do
       use Tesla
 
       adapter fn env ->
-        env
+        {:ok, env}
       end
     end
 
     test "basic request" do
-      response = SimpleClient.request(url: "/", method: :post, query: [page: 1], body: "data")
+      assert {:ok, response} = SimpleClient.request(url: "/", method: :post, query: [page: 1], body: "data")
       assert response.method == :post
       assert response.url == "/"
       assert response.query == [page: 1]
@@ -184,13 +194,13 @@ defmodule TeslaTest do
     end
 
     test "shortcut function" do
-      response = SimpleClient.get("/get")
+      assert {:ok, response} = SimpleClient.get("/get")
       assert response.method == :get
       assert response.url == "/get"
     end
 
     test "shortcut function with body" do
-      response = SimpleClient.post("/post", "some-data")
+      assert {:ok, response} = SimpleClient.post("/post", "some-data")
       assert response.method == :post
       assert response.url == "/post"
       assert response.body == "some-data"
@@ -203,11 +213,11 @@ defmodule TeslaTest do
         |> Tesla.run(next)
       end
 
-      response = SimpleClient.get("/")
+      assert {:ok, response} = SimpleClient.get("/")
       assert response.url == "/"
       assert response.__client__ == %Tesla.Client{}
 
-      response = client |> SimpleClient.get("/")
+      assert {:ok, response} = client |> SimpleClient.get("/")
       assert response.url == "/prefix/"
       assert response.__client__ == %Tesla.Client{fun: client}
     end

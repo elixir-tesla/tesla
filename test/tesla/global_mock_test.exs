@@ -14,6 +14,6 @@ defmodule Tesla.GlobalMockTest do
     pid = self()
     spawn(fn -> send(pid, MockClient.list()) end)
 
-    assert_receive %Tesla.Env{status: 200, body: "hello"}
+    assert_receive {:ok, %Tesla.Env{status: 200, body: "hello"}}
   end
 end

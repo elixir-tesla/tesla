@@ -145,10 +145,16 @@ defmodule Tesla.Mock do
       fun ->
         case rescue_call(fun, env) do
           {status, headers, body} ->
-            %{env | status: status, headers: headers, body: body}
+            {:ok, %{env | status: status, headers: headers, body: body}}
 
           %Tesla.Env{} = env ->
-            env
+            {:ok, env}
+
+          {:ok, %Tesla.Env{} = env} ->
+            {:ok, env}
+
+          {:error, reason} ->
+            {:error, reason}
         end
     end
   end

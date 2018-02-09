@@ -17,7 +17,7 @@ defmodule Tesla.MockTest do
     setup :setup_mock
 
     test "mock get request" do
-      assert %Tesla.Env{} = env = MockClient.list()
+      assert {:ok, %Tesla.Env{} = env} = MockClient.list()
       assert env.status == 200
       assert env.body == "hello"
     end
@@ -29,7 +29,7 @@ defmodule Tesla.MockTest do
     end
 
     test "mock post request" do
-      assert %Tesla.Env{} = env = MockClient.create(%{"some" => "data"})
+      assert {:ok, %Tesla.Env{} = env} = MockClient.create(%{"some" => "data"})
       assert env.status == 201
       assert env.body == %{"id" => 42}
     end
