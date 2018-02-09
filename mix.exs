@@ -63,7 +63,6 @@ defmodule Tesla.Mixfile do
 
       # json parsers
       {:poison, ">= 1.0.0", optional: true},
-
       {:fuse, "~> 2.4", optional: true},
 
       # testing & docs

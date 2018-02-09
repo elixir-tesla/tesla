@@ -51,7 +51,8 @@ defmodule Tesla.Client do
 end
 
 defmodule Tesla.Middleware do
-  @callback call(env :: Tesla.Env.t(), next :: Tesla.Env.stack(), options :: any) :: {:ok, Tesla.Env.t()} | {:error, any}
+  @callback call(env :: Tesla.Env.t(), next :: Tesla.Env.stack(), options :: any) ::
+              {:ok, Tesla.Env.t()} | {:error, any}
 end
 
 defmodule Tesla.Adapter do

@@ -27,6 +27,7 @@ defmodule Tesla.Middleware.DecodeRels do
 
   defp parse_rels({:ok, env}), do: {:ok, parse_rels(env)}
   defp parse_rels({:error, reason}), do: {:error, reason}
+
   defp parse_rels(env) do
     if link = Tesla.get_header(env, "link") do
       Tesla.put_opt(env, :rels, rels(link))

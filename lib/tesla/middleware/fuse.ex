@@ -52,6 +52,7 @@ if Code.ensure_loaded?(:fuse) do
       case Tesla.run(env, next) do
         {:ok, env} ->
           {:ok, env}
+
         {:error, reason} ->
           :fuse.melt(name)
           {:error, :unavailable}

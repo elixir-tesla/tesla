@@ -98,6 +98,7 @@ defmodule TeslaTest do
         |> case do
           {:ok, env} ->
             {:ok, Map.update!(env, :url, fn url -> url <> "/MA" <> opts[:with] end)}
+
           error ->
             error
         end
@@ -121,6 +122,7 @@ defmodule TeslaTest do
         |> case do
           {:ok, env} ->
             {:ok, Map.update!(env, :url, fn url -> url <> "/LA" end)}
+
           error ->
             error
         end
@@ -186,7 +188,9 @@ defmodule TeslaTest do
     end
 
     test "basic request" do
-      assert {:ok, response} = SimpleClient.request(url: "/", method: :post, query: [page: 1], body: "data")
+      assert {:ok, response} =
+               SimpleClient.request(url: "/", method: :post, query: [page: 1], body: "data")
+
       assert response.method == :post
       assert response.url == "/"
       assert response.query == [page: 1]

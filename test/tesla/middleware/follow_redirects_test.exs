@@ -22,12 +22,13 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
   end
 
   test "redirects if default max redirects isn't exceeded" do
-    assert {:ok, env} =  Client.get("http://example.com/5")
+    assert {:ok, env} = Client.get("http://example.com/5")
     assert env.status == 200
   end
 
   test "raise error when redirect default max redirects is exceeded" do
-    assert {:error, {Tesla.Middleware.FollowRedirects, :too_many_redirects}} == Client.get("http://example.com/6")
+    assert {:error, {Tesla.Middleware.FollowRedirects, :too_many_redirects}} ==
+             Client.get("http://example.com/6")
   end
 
   defmodule CustomMaxRedirectsClient do
@@ -58,7 +59,8 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
   end
 
   test "raise error when custom max redirects is exceeded" do
-    assert {:error, {Tesla.Middleware.FollowRedirects, :too_many_redirects}} == CMRClient.get("http://example.com/2")
+    assert {:error, {Tesla.Middleware.FollowRedirects, :too_many_redirects}} ==
+             CMRClient.get("http://example.com/2")
   end
 
   defmodule RelativeLocationClient do

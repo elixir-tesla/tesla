@@ -29,7 +29,7 @@ defmodule Tesla.Middleware.FollowRedirects do
 
   defp redirect(env, next, left) when left == 0 do
     case Tesla.run(env, next) do
-      {:ok, %{status: status} = env} when not status in @redirect_statuses ->
+      {:ok, %{status: status} = env} when not (status in @redirect_statuses) ->
         {:ok, env}
 
       {:ok, env} ->
@@ -46,6 +46,7 @@ defmodule Tesla.Middleware.FollowRedirects do
         case Tesla.get_header(env, "location") do
           nil ->
             {:ok, env}
+
           location ->
             location = parse_location(location, env)
             redirect(%{env | url: location}, next, left - 1)

@@ -51,6 +51,7 @@ defmodule Tesla.Middleware.Compression do
   """
   def decompress({:ok, env}), do: {:ok, decompress(env)}
   def decompress({:error, reasonn}), do: {:error, reasonn}
+
   def decompress(env) do
     env
     |> Tesla.put_body(decompress_body(env.body, Tesla.get_header(env, "content-encoding")))

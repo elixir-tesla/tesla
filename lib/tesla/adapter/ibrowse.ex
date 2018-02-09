@@ -31,12 +31,13 @@ if Code.ensure_loaded?(:ibrowse) do
 
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts || []) do
-        {:ok, %{
-          env
-          | status: format_status(status),
-            headers: format_headers(headers),
-            body: format_body(body)
-        }}
+        {:ok,
+         %{
+           env
+           | status: format_status(status),
+             headers: format_headers(headers),
+             body: format_body(body)
+         }}
       end
     end
 
