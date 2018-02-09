@@ -16,21 +16,23 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
             {201, [{"content-type", "text/html"}], Tesla.get_header(env, "content-type")}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
   test "encode body as application/x-www-form-urlencoded" do
-    assert URI.decode_query(Client.post("/post", %{"foo" => "%bar "}).body) == %{"foo" => "%bar "}
+    assert {:ok, env} = Client.post("/post", %{"foo" => "%bar "})
+    assert URI.decode_query(env.body) == %{"foo" => "%bar "}
   end
 
   test "leave body alone if binary" do
-    assert Client.post("/post", "data").body == "data"
+    assert {:ok, env} = Client.post("/post", "data")
+    assert env.body == "data"
   end
 
   test "check header is set as application/x-www-form-urlencoded" do
-    assert Client.post("/check_incoming_content_type", %{"foo" => "%bar "}).body ==
-             "application/x-www-form-urlencoded"
+    assert {:ok, env} = Client.post("/check_incoming_content_type", %{"foo" => "%bar "})
+    assert env.body == "application/x-www-form-urlencoded"
   end
 
   defmodule MultipartClient do
@@ -45,7 +47,7 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
             {200, [{"content-type", "text/html"}], "ok"}
         end
 
-      %{env | status: status, headers: headers, body: body}
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
@@ -56,6 +58,7 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       Multipart.new()
       |> Multipart.add_field("param", "foo")
 
-    assert MultipartClient.post("/upload", mp).body == "ok"
+    assert {:ok, env} = MultipartClient.post("/upload", mp)
+    assert env.body == "ok"
   end
 end
