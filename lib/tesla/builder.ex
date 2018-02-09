@@ -165,7 +165,7 @@ defmodule Tesla.Builder do
     except = Keyword.get(opts, :except, [])
 
     @http_verbs
-    |> Enum.filter(&(&1 in only && &1 not in except))
+    |> Enum.filter(&(&1 in only && not &1 in except))
     |> Enum.map(&generate_api(&1, Keyword.get(opts, :docs, true)))
   end
 
