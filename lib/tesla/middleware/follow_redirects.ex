@@ -32,7 +32,7 @@ defmodule Tesla.Middleware.FollowRedirects do
       {:ok, %{status: status} = env} when not (status in @redirect_statuses) ->
         {:ok, env}
 
-      {:ok, env} ->
+      {:ok, _env} ->
         {:error, {__MODULE__, :too_many_redirects}}
 
       error ->

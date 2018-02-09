@@ -40,7 +40,7 @@ defmodule Tesla.Middleware.Retry do
       {:ok, env} ->
         {:ok, env}
 
-      {:error, reason} ->
+      {:error, _reason} ->
         :timer.sleep(delay)
         retry(env, next, delay, retries - 1)
     end

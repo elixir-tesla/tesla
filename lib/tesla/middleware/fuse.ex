@@ -53,7 +53,7 @@ if Code.ensure_loaded?(:fuse) do
         {:ok, env} ->
           {:ok, env}
 
-        {:error, reason} ->
+        {:error, _reason} ->
           :fuse.melt(name)
           {:error, :unavailable}
       end
