@@ -32,7 +32,7 @@ defmodule Tesla.Middleware.Logger do
   end
 
   defp log(env, {:error, reason}, _time) do
-    Logger.error("#{normalize_method(env)} #{env.url} -> #{inspect reason}")
+    Logger.error("#{normalize_method(env)} #{env.url} -> #{inspect(reason)}")
   end
 
   defp log(_env, {:ok, env}, time) do
@@ -118,7 +118,9 @@ defmodule Tesla.Middleware.DebugLogger do
         |> log_response
         |> log_headers("< ")
         |> log_body("< ")
+
         {:ok, env}
+
       {:error, reason} ->
         log_exception(reason, "< ")
         {:error, reason}
