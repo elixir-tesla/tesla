@@ -14,26 +14,26 @@ defmodule Tesla.Middleware.MethodOverrideTest do
           %{method: _} -> 400
         end
 
-      %{env | status: status}
+      {:ok, %{env | status: status}}
     end
   end
 
   test "when method is get" do
-    response = Client.get("/")
+    assert {:ok, response} = Client.get("/")
 
     assert response.status == 200
     refute Tesla.get_header(response, "x-http-method-override")
   end
 
   test "when method is post" do
-    response = Client.post("/", "")
+    assert {:ok, response} = Client.post("/", "")
 
     assert response.status == 201
     refute Tesla.get_header(response, "x-http-method-override")
   end
 
   test "when method isn't get or post" do
-    response = Client.put("/", "")
+    assert {:ok, response} = Client.put("/", "")
 
     assert response.status == 201
     assert Tesla.get_header(response, "x-http-method-override") == "put"
@@ -52,19 +52,19 @@ defmodule Tesla.Middleware.MethodOverrideTest do
           %{method: _} -> 400
         end
 
-      %{env | status: status}
+      {:ok, %{env | status: status}}
     end
   end
 
   test "when method in override list" do
-    response = CustomClient.put("/", "")
+    assert {:ok, response} = CustomClient.put("/", "")
 
     assert response.status == 201
     assert Tesla.get_header(response, "x-http-method-override") == "put"
   end
 
   test "when method not in override list" do
-    response = CustomClient.patch("/", "")
+    assert {:ok, response} = CustomClient.patch("/", "")
 
     assert response.status == 400
     refute Tesla.get_header(response, "x-http-method-override")
