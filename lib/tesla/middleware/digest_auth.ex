@@ -35,38 +35,43 @@ defmodule Tesla.Middleware.DigestAuth do
     else
       opts = opts || %{}
 
-      env
-      |> Tesla.put_headers(authorization_header(env, opts))
-      |> Tesla.run(next)
+      with {:ok, headers} <- authorization_header(env, opts) do
+        env
+        |> Tesla.put_headers(headers)
+        |> Tesla.run(next)
+      end
     end
   end
 
   defp authorization_header(env, opts) do
-    env
-    |> authorization_vars(opts)
-    |> calculated_authorization_values
-    |> create_header
+    with {:ok, vars} <- authorization_vars(env, opts) do
+      {:ok,
+       vars
+       |> calculated_authorization_values
+       |> create_header}
+    end
   end
 
   defp authorization_vars(env, opts) do
-    unauthorized_response =
-      env.__module__.get(
-        env.__client__,
-        env.url,
-        opts: Keyword.put(env.opts || [], :digest_auth_handshake, true)
-      )
-
-    %{
-      username: opts[:username] || "",
-      password: opts[:password] || "",
-      path: URI.parse(env.url).path,
-      auth:
-        Tesla.get_header(unauthorized_response, "www-authenticate")
-        |> parse_www_authenticate_header,
-      method: env.method |> to_string |> String.upcase(),
-      client_nonce: (opts[:cnonce_fn] || &cnonce/0).(),
-      nc: opts[:nc] || "00000000"
-    }
+    with {:ok, unauthorized_response} <-
+           env.__module__.get(
+             env.__client__,
+             env.url,
+             opts: Keyword.put(env.opts || [], :digest_auth_handshake, true)
+           ) do
+      {:ok,
+       %{
+         username: opts[:username] || "",
+         password: opts[:password] || "",
+         path: URI.parse(env.url).path,
+         auth:
+           Tesla.get_header(unauthorized_response, "www-authenticate")
+           |> parse_www_authenticate_header,
+         method: env.method |> to_string |> String.upcase(),
+         client_nonce: (opts[:cnonce_fn] || &cnonce/0).(),
+         nc: opts[:nc] || "00000000"
+       }}
+    end
   end
 
   defp calculated_authorization_values(%{auth: auth}) when auth == %{}, do: []
