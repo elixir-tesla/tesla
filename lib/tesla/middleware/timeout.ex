@@ -51,9 +51,6 @@ defmodule Tesla.Middleware.Timeout do
     Task.async(fn ->
       try do
         {:ok, func.()}
-      rescue
-        e in _ ->
-          {:error, e}
       catch
         type, value ->
           {type, value}
