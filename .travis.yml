@@ -23,6 +23,7 @@ matrix:
       otp_release: 20.0
       install: skip
       script: mix format --check-formatted --dry-run
+      after_script: skip
 env:
   - MIX_ENV=test
 script: mix coveralls.json
