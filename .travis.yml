@@ -19,6 +19,10 @@ matrix:
     - elixir: 1.5
       otp_release: 20.0
       env: MIX_ENV=test LOCKFILE=poison3
+    - elixir: 1.6
+      otp_release: 20.0
+      install: skip
+      script: mix format --check-formatted --dry-run
 env:
   - MIX_ENV=test
 script: mix coveralls.json
