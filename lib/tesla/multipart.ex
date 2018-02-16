@@ -8,7 +8,7 @@ defmodule Tesla.Multipart do
     Multipart.new
     |> Multipart.add_content_type_param("charset=utf-8")
     |> Multipart.add_field("field1", "foo")
-    |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
+    |> Multipart.add_field("field2", "bar", headers: [{"content-id", "1"}, {"content-type", "text/plain"}])
     |> Multipart.add_file("test/tesla/multipart_test_file.sh")
     |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
     |> Multipart.add_file_content("sample file content", "sample.txt")
@@ -17,10 +17,24 @@ defmodule Tesla.Multipart do
   ```
   """
 
+  defmodule Part do
+    @moduledoc false
+
+    defstruct body: nil,
+              dispositions: [],
+              headers: []
+
+    @type t :: %__MODULE__{
+            body: String.t(),
+            headers: Tesla.Env.headers(),
+            dispositions: Keyword.t()
+          }
+  end
+
   @boundary_chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
                   |> String.split("")
 
-  @type part_stream :: IO.Stream.t() | File.Stream.t()
+  @type part_stream :: IO.Stream.t() | File.Stream.t() | Enumerable.t()
   @type part_value :: String.t() | part_stream
 
   defstruct parts: [],
@@ -32,20 +46,6 @@ defmodule Tesla.Multipart do
           boundary: String.t(),
           content_type_params: [String.t()]
         }
-
-  defmodule Part do
-    @moduledoc false
-
-    defstruct body: nil,
-              dispositions: [],
-              headers: []
-
-    @type t :: %__MODULE__{
-            body: String.t(),
-            headers: Keyword.t(),
-            dispositions: Keyword.t()
-          }
-  end
 
   @doc """
   Create a new Multipart struct to be used for a request body.
@@ -97,7 +97,7 @@ defmodule Tesla.Multipart do
     # add in detected content-type if necessary
     headers =
       case detect_content_type do
-        true -> Keyword.put(headers, :"Content-Type", MIME.from_path(path))
+        true -> List.keystore(headers, "content-type", 0, {"content-type", MIME.from_path(path)})
         false -> headers
       end
 
@@ -119,10 +119,10 @@ defmodule Tesla.Multipart do
   end
 
   @doc false
-  @spec headers(t) :: Keyword.t()
+  @spec headers(t) :: Tesla.Env.headers()
   def headers(%__MODULE__{boundary: boundary, content_type_params: params}) do
     ct_params = (["boundary=#{boundary}"] ++ params) |> Enum.join("; ")
-    [{:"Content-Type", "multipart/form-data; #{ct_params}"}]
+    [{"content-type", "multipart/form-data; #{ct_params}"}]
   end
 
   @doc false
@@ -133,7 +133,7 @@ defmodule Tesla.Multipart do
   end
 
   @doc false
-  @spec part_as_stream(t, String.t()) :: part_stream
+  @spec part_as_stream(Part.t(), String.t()) :: part_stream
   def part_as_stream(
         %Part{body: body, dispositions: dispositions, headers: part_headers},
         boundary
@@ -166,7 +166,7 @@ defmodule Tesla.Multipart do
       |> Enum.map(fn {k, v} -> "#{k}=\"#{v}\"" end)
       |> Enum.join("; ")
 
-    ["Content-Disposition: form-data; #{ds}\r\n"]
+    ["content-disposition: form-data; #{ds}\r\n"]
   end
 
   @doc false

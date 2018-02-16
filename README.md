@@ -247,7 +247,7 @@ mp =
   Multipart.new
   |> Multipart.add_content_type_param("charset=utf-8")
   |> Multipart.add_field("field1", "foo")
-  |> Multipart.add_field("field2", "bar", headers: [{:"Content-Id", 1}, {:"Content-Type", "text/plain"}])
+  |> Multipart.add_field("field2", "bar", headers: [{"content-id", "1"}, {"content-type", "text/plain"}])
   |> Multipart.add_file("test/tesla/multipart_test_file.sh")
   |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
   |> Multipart.add_file_content("sample file content", "sample.txt")
