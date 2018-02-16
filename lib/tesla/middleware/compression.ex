@@ -4,7 +4,7 @@ defmodule Tesla.Middleware.Compression do
   @moduledoc """
   Compress requests and decompress responses.
 
-  Supports "gizp" and "deflate" encodings using erlang's built-in `:zlib` module.
+  Supports "gzip" and "deflate" encodings using erlang's built-in `:zlib` module.
 
   ### Example usage
   ```
@@ -16,7 +16,7 @@ defmodule Tesla.Middleware.Compression do
   ```
 
   ### Options
-  - `:format` - request compression format, `"gzip"` (default) or `"defalte"`
+  - `:format` - request compression format, `"gzip"` (default) or `"deflate"`
   """
 
   def call(env, next, opts) do
