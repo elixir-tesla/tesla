@@ -49,7 +49,7 @@ defmodule Tesla.Adapter.Httpc do
 
     handle(
       request(
-        env.method || :get,
+        env.method,
         Tesla.build_url(env.url, env.query) |> to_charlist,
         Enum.map(env.headers, fn {k, v} -> {to_charlist(k), to_charlist(v)} end),
         content_type,
