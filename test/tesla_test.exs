@@ -22,16 +22,6 @@ defmodule TeslaTest do
       adapter ModuleAdapter, with: "someopt"
     end
 
-    defmodule LocalAdapterClient do
-      use Tesla
-
-      adapter :local_adapter
-
-      def local_adapter(env) do
-        {:ok, Map.put(env, :url, env.url <> "/local")}
-      end
-    end
-
     defmodule FunAdapterClient do
       use Tesla
 
@@ -64,11 +54,6 @@ defmodule TeslaTest do
     test "execute module adapter" do
       assert {:ok, response} = ModuleAdapterClient.request(url: "test")
       assert response.url == "test/module/someopt"
-    end
-
-    test "execute local function adapter" do
-      assert {:ok, response} = LocalAdapterClient.request(url: "test")
-      assert response.url == "test/local"
     end
 
     test "execute anonymous function adapter" do
@@ -111,27 +96,13 @@ defmodule TeslaTest do
       plug AppendOne
       plug AppendWith, with: "1"
       plug AppendWith, with: "2"
-      plug :local_middleware
 
       adapter fn env -> {:ok, env} end
-
-      def local_middleware(env, next) do
-        env
-        |> Map.update!(:url, fn url -> url <> "/LB" end)
-        |> Tesla.run(next)
-        |> case do
-          {:ok, env} ->
-            {:ok, Map.update!(env, :url, fn url -> url <> "/LA" end)}
-
-          error ->
-            error
-        end
-      end
     end
 
     test "execute middleware top down" do
       assert {:ok, response} = AppendClient.get("one")
-      assert response.url == "one/1/MB1/MB2/LB/LA/MA2/MA1"
+      assert response.url == "one/1/MB1/MB2/MA2/MA1"
     end
   end
 

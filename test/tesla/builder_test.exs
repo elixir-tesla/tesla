@@ -12,17 +12,13 @@ defmodule Tesla.BuilderTest do
       plug FirstMiddleware, @attr
       plug SecondMiddleware, options: :are, fun: 1
       plug ThirdMiddleware
-      plug :local_middleware
       plug fn env, _next -> env end
-
-      def local_middleware(env, next), do: Tesla.run(env, next)
 
       def new do
         Tesla.Builder.client(
           [
             FirstMiddleware,
             {SecondMiddleware, options: :are, fun: 1},
-            :local_middleware,
             fn env, _next -> env end
           ],
           []
@@ -35,13 +31,6 @@ defmodule Tesla.BuilderTest do
       adapter TheAdapter, hello: "world"
     end
 
-    defmodule TestClientFunction do
-      use Tesla.Builder
-      adapter :local_adapter
-
-      def local_adapter(env), do: env
-    end
-
     defmodule TestClientAnon do
       use Tesla.Builder
       adapter fn env -> env end
@@ -52,7 +41,6 @@ defmodule Tesla.BuilderTest do
                {FirstMiddleware, :call, ["value"]},
                {SecondMiddleware, :call, [[options: :are, fun: 1]]},
                {ThirdMiddleware, :call, [nil]},
-               {TestClientPlug, :local_middleware, []},
                {:fn, fun}
              ] = TestClientPlug.__middleware__()
 
@@ -67,10 +55,6 @@ defmodule Tesla.BuilderTest do
       assert TestClientModule.__adapter__() == {TheAdapter, :call, [[hello: "world"]]}
     end
 
-    test "generate __adapter__/0 - adapter as module function" do
-      assert TestClientFunction.__adapter__() == {TestClientFunction, :local_adapter, []}
-    end
-
     test "generate __adapter__/0 - adapter as anonymous function" do
       assert {:fn, fun} = TestClientAnon.__adapter__()
       assert is_function(fun)
@@ -82,7 +66,6 @@ defmodule Tesla.BuilderTest do
       assert [
                {FirstMiddleware, :call, [nil]},
                {SecondMiddleware, :call, [[options: :are, fun: 1]]},
-               {TestClientPlug, :local_middleware, []},
                {:fn, fun}
              ] = client.pre
 

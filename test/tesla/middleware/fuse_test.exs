@@ -1,16 +1,18 @@
 defmodule Tesla.Middleware.FuseTest do
   use ExUnit.Case, async: false
 
+  defmodule Report do
+    def call(env, next, _) do
+      send(self(), :request_made)
+      Tesla.run(env, next)
+    end
+  end
+
   defmodule Client do
     use Tesla
 
     plug Tesla.Middleware.Fuse
-    plug :report
-
-    def report(env, next) do
-      send(self(), :request_made)
-      Tesla.run(env, next)
-    end
+    plug Report
 
     adapter fn env ->
       case env.url do

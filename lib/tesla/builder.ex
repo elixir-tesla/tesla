@@ -82,19 +82,12 @@ defmodule Tesla.Builder do
 
     # plug middleware module with options
     plug Tesla.Middleware.BaseUrl, "http://api.example.com"
-    plug Tesla.Middleware.JSON, engine: Poison
 
-    # plug middleware function
-    plug :handle_errors
+    # or without options
+    plug Tesla.Middleware.JSON
 
-    # middleware function gets two parameters: Tesla.Env and the rest of middleware call stack
-    # and must return Tesla.Env
-    def handle_errors(env, next) do
-      env
-      |> modify_env_before_request
-      |> Tesla.run(next)            # run the rest of stack
-      |> modify_env_after_request
-    end
+    # or a custom middleware
+    plug MyProject.CustomMiddleware
   end
   """
 
@@ -126,17 +119,8 @@ defmodule Tesla.Builder do
     # set adapter as module
     adapter Tesla.Adapter.Hackney
 
-    # set adapter as function
-    adapter :local_adapter
-
     # set adapter as anonymous function
     adapter fn env ->
-      ...
-      env
-    end
-
-    # adapter function gets Tesla.Env as parameter and must return Tesla.Env
-    def local_adapter(env) do
       ...
       env
     end
@@ -381,7 +365,6 @@ defmodule Tesla.Builder do
   # :local_middleware
   defp compile({name, {kind, caller}}) when is_atom(name) do
     Tesla.Migration.breaking_alias!(kind, name, caller)
-    quote do: {__MODULE__, unquote(name), []}
   end
 
   defp compile_context(list, context) do

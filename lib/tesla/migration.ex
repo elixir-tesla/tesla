@@ -7,26 +7,19 @@ defmodule Tesla.Migration do
   def breaking_alias!(_kind, _name, nil), do: nil
 
   def breaking_alias!(kind, name, caller) do
-    arity = local_function_arity(kind)
+    raise CompileError,
+      file: caller.file,
+      line: caller.line,
+      description: """
 
-    unless Module.defines?(caller.module, {name, arity}) do
-      raise CompileError,
-        file: caller.file,
-        line: caller.line,
-        description: """
+          #{kind |> to_string |> String.capitalize()} aliases and local functions has been removed.
+          Use full #{kind} name or define a middleware module #{name |> to_string() |> String.capitalize()}
 
-            #{kind |> to_string |> String.capitalize()} aliases has been removed.
-            Use full #{kind} name or define a local function #{name}/#{arity}
+            #{snippet(caller)}
 
-              #{snippet(caller)}
-
-            See #{@breaking_alias}
-        """
-    end
+          See #{@breaking_alias}
+      """
   end
-
-  defp local_function_arity(:adapter), do: 1
-  defp local_function_arity(:middleware), do: 2
 
   def breaking_alias_in_config!(module) do
     check_config(

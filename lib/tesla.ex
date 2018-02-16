@@ -192,7 +192,7 @@ defmodule Tesla do
 
     def new(token) do
       Tesla.build_client([
-        {Tesla.Middleware.Headers, %{"Authorization" => token}}
+        {Tesla.Middleware.Headers, [{"authorization", token}]
       ])
     end
   end
