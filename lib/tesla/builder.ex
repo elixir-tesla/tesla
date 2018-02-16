@@ -175,7 +175,7 @@ defmodule Tesla.Builder do
 
       # fallback to keep backward compatibility
       def unquote(method)(fun, url, body, options) when is_function(fun) and is_list(options) do
-        unquote(method)(%Tesla.Client{fun: fun}, url, body, options)
+        Tesla.Migration.client_function!()
       end
 
       if unquote(docs) do
@@ -199,7 +199,7 @@ defmodule Tesla.Builder do
 
       # fallback to keep backward compatibility
       def unquote(method)(fun, url, body) when is_function(fun) do
-        unquote(method)(%Tesla.Client{fun: fun}, url, body)
+        Tesla.Migration.client_function!()
       end
 
       if unquote(docs) do
@@ -252,7 +252,7 @@ defmodule Tesla.Builder do
 
       # fallback to keep backward compatibility
       def unquote(method)(fun, url, options) when is_function(fun) and is_list(options) do
-        unquote(method)(%Tesla.Client{fun: fun}, url, options)
+        Tesla.Migration.client_function!()
       end
 
       if unquote(docs) do
@@ -275,7 +275,7 @@ defmodule Tesla.Builder do
 
       # fallback to keep backward compatibility
       def unquote(method)(fun, url) when is_function(fun) do
-        unquote(method)(%Tesla.Client{fun: fun}, url)
+        Tesla.Migration.client_function!()
       end
 
       if unquote(docs) do

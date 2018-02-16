@@ -181,22 +181,6 @@ defmodule TeslaTest do
       assert response.body == "some-data"
     end
 
-    test "request with client" do
-      client = fn env, next ->
-        env
-        |> Map.put(:url, "/prefix" <> env.url)
-        |> Tesla.run(next)
-      end
-
-      assert {:ok, response} = SimpleClient.get("/")
-      assert response.url == "/"
-      assert response.__client__ == %Tesla.Client{}
-
-      assert {:ok, response} = client |> SimpleClient.get("/")
-      assert response.url == "/prefix/"
-      assert response.__client__ == %Tesla.Client{fun: client}
-    end
-
     test "better errors when given nil opts" do
       assert_raise FunctionClauseError, fn ->
         Tesla.get("/", nil)

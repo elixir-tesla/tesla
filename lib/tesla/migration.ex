@@ -3,6 +3,7 @@ defmodule Tesla.Migration do
 
   @breaking_alias "https://github.com/teamon/tesla/wiki/0.x-to-1.0-Migration-Guide#dropped-aliases-support-159"
   @breaking_headers_map "https://github.com/teamon/tesla/wiki/0.x-to-1.0-Migration-Guide#headers-are-now-a-list-160"
+  @breaking_client_fun "https://github.com/teamon/tesla/wiki/0.x-to-1.0-Migration-Guide#dropped-client-as-function-176"
 
   def breaking_alias!(_kind, _name, nil), do: nil
 
@@ -79,6 +80,19 @@ defmodule Tesla.Migration do
   end
 
   def breaking_headers_map!(_middleware, _opts, _caller), do: nil
+
+  ## CLIENT FUNCTION
+
+  def client_function! do
+    raise RuntimeError,
+      message: """
+
+        Using anonymous function as client has been removed.
+        Use `Tesla.build_client` instead
+
+        See #{@breaking_client_fun}
+      """
+  end
 
   ## UTILS
 

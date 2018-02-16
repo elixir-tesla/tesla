@@ -3,7 +3,7 @@ defmodule Tesla.Error do
 end
 
 defmodule Tesla.Env do
-  @type client :: Tesla.Client.t() | (t, stack -> t)
+  @type client :: Tesla.Client.t()
   @type method :: :head | :get | :delete | :trace | :options | :post | :put | :patch
   @type url :: binary
   @type param :: binary | [{binary | atom, param}]
@@ -41,7 +41,6 @@ end
 
 defmodule Tesla.Client do
   @type t :: %__MODULE__{
-          fun: (Tesla.Env.t(), Tesla.Env.stack() -> Tesla.Env.t()) | nil,
           pre: Tesla.Env.stack(),
           post: Tesla.Env.stack()
         }
@@ -88,14 +87,11 @@ defmodule Tesla do
   end
 
   @doc false
-  def execute(module, %{fun: fun, pre: pre, post: post} = client, options) do
+  def execute(module, %{pre: pre, post: post} = client, options) do
     env = struct(Env, options ++ [__module__: module, __client__: client])
-    stack = pre ++ wrapfun(fun) ++ module.__middleware__ ++ post ++ [effective_adapter(module)]
+    stack = pre ++ module.__middleware__ ++ post ++ [effective_adapter(module)]
     run(env, stack)
   end
-
-  defp wrapfun(nil), do: []
-  defp wrapfun(fun), do: [{:fn, fun}]
 
   @doc false
   def effective_adapter(module) do
