@@ -48,7 +48,7 @@ defmodule Tesla.Adapter.Httpc do
   defp request(method, url, headers, _content_type, %Multipart{} = mp, opts) do
     headers = headers ++ Multipart.headers(mp)
     headers = for {key, value} <- headers, do: {to_charlist(key), to_charlist(value)}
-    {content_type, headers} = Keyword.pop_first(headers, 'Content-Type', 'text/plain')
+    {{_, content_type}, headers} = list_pop_first(headers, 'Content-Type', 'text/plain')
     body = stream_to_fun(Multipart.body(mp))
 
     request(method, url, headers, to_charlist(content_type), body, opts)
@@ -70,4 +70,8 @@ defmodule Tesla.Adapter.Httpc do
 
   defp handle({:error, {:failed_connect, _}}), do: {:error, :econnrefused}
   defp handle(response), do: response
+
+  defp list_pop_first(collection, key, default_value) do
+    List.keytake(collection, key, 0) || {{key, default_value}, collection}
+  end
 end
