@@ -28,7 +28,7 @@ defmodule Tesla.Multipart do
             content_type_params: []
 
   @type t :: %__MODULE__{
-          parts: list(Part.t()),
+          parts: list(Tesla.Multipart.Part.t()),
           boundary: String.t(),
           content_type_params: [String.t()]
         }
