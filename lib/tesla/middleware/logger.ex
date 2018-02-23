@@ -41,8 +41,7 @@ defmodule Tesla.Middleware.Logger do
   end
 
   defp log(env, time) do
-    ms = :io_lib.format("~.3f", [time / 1000])
-    message = "#{normalize_method(env)} #{env.url} -> #{env.status} (#{ms} ms)"
+    message = normalize_message(env, time)
 
     cond do
       env.status >= 400 -> Logger.error(message)
@@ -52,7 +51,18 @@ defmodule Tesla.Middleware.Logger do
   end
 
   defp normalize_method(env) do
-    env.method |> to_string() |> String.upcase()
+    env.method
+    |> to_string
+    |> String.upcase
+  end
+
+  defp normalize_message(env, time) do
+    if Application.get_env(:tesla, :log_request_duration) do
+      ms = :io_lib.format("~.3f", [time / 1000])
+      "#{normalize_method(env)} #{env.url} -> #{env.status} (#{ms} ms)"
+    else
+      "#{normalize_method(env)} #{env.url} -> #{env.status}"
+    end
   end
 end
 

@@ -2,7 +2,9 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
-config :tesla, adapter: :httpc
+config :tesla,
+  adapter: :httpc,
+  log_request_duration: true
 
 config :logger, :console,
   level: :debug,
