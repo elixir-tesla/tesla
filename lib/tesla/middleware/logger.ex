@@ -20,7 +20,7 @@ defmodule Tesla.Middleware.Logger do
   defmodule MyClient do
     use Tesla
 
-    plug Tesla.Middleware.Logger, [{200, :info}, {300, :warn}, {400, :info}, {500, :error}]
+    plug Tesla.Middleware.Logger, %{404 => :info}
   end
   ```
 
@@ -34,12 +34,7 @@ defmodule Tesla.Middleware.Logger do
 
   require Logger
 
-  @default_log_levels %{
-    200 => :info,
-    300 => :warn,
-    400 => :error,
-    500 => :error
-  }
+  @default_log_levels %{200 => :info, 300 => :warn, 400 => :error, 500 => :error}
 
   def call(env, next, opts) do
     {time, result} = :timer.tc(Tesla, :run, [env, next])
@@ -56,6 +51,7 @@ defmodule Tesla.Middleware.Logger do
     ms = :io_lib.format("~.3f", [time / 1000])
     message = "#{normalize_method(env)} #{env.url} -> #{env.status} (#{ms} ms)"
     log_level = log_level(env.status, log_levels)
+
     case log_level do
       :warn -> Logger.warn(message)
       :error -> Logger.error(message)
