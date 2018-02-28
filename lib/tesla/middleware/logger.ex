@@ -15,6 +15,15 @@ defmodule Tesla.Middleware.Logger do
   end
   ```
 
+  ### Customize logging levels
+  ```
+  defmodule MyClient do
+    use Tesla
+
+    plug Tesla.Middleware.Logger, [{200, :info}, {300, :warn}, {400, :info}, {500, :error}]
+  end
+  ```
+
   ### Logger output
   ```
   2017-09-30 13:39:06.663 [info] GET http://example.com -> 200 (736.988 ms)
@@ -25,26 +34,45 @@ defmodule Tesla.Middleware.Logger do
 
   require Logger
 
-  def call(env, next, _opts) do
+  @default_log_levels %{
+    200 => :info,
+    300 => :warn,
+    400 => :error,
+    500 => :error
+  }
+
+  def call(env, next, opts) do
     {time, result} = :timer.tc(Tesla, :run, [env, next])
-    _ = log(env, result, time)
+    log_levels = Keyword.get(opts || [], :log_levels, @default_log_levels)
+    _ = log(env, result, time, log_levels)
     result
   end
 
-  defp log(env, {:error, reason}, _time) do
+  defp log(env, {:error, reason}, _time, _) do
     Logger.error("#{normalize_method(env)} #{env.url} -> #{inspect(reason)}")
   end
 
-  defp log(_env, {:ok, env}, time) do
+  defp log(_env, {:ok, env}, time, log_levels) do
     ms = :io_lib.format("~.3f", [time / 1000])
     message = "#{normalize_method(env)} #{env.url} -> #{env.status} (#{ms} ms)"
-
-    cond do
-      env.status >= 400 -> Logger.error(message)
-      env.status >= 300 -> Logger.warn(message)
-      true -> Logger.info(message)
+    log_level = log_level(env.status, log_levels)
+    case log_level do
+      :warn -> Logger.warn(message)
+      :error -> Logger.error(message)
+      _ -> Logger.info(message)
     end
   end
+
+  defp log_level(status, log_levels) when is_map(log_levels) do
+    case log_levels[status] do
+      nil -> log_level(status, Map.to_list(log_levels))
+      log_level -> log_level
+    end
+  end
+
+  defp log_level(_, [{_, l}]), do: l
+  defp log_level(status, [{s1, l1} | [{s2, _} | _]]) when status in s1..(s2 - 1), do: l1
+  defp log_level(status, [_ | t]), do: log_level(status, t)
 
   defp normalize_method(env) do
     env.method |> to_string() |> String.upcase()
