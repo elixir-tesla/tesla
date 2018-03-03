@@ -147,7 +147,9 @@ defmodule Tesla.Middleware.DebugLogger do
   end
 
   defp log_params(env, prefix) do
-    for {k, v} <- env.query do
+    encoded_query = Enum.flat_map(env.query, &Tesla.encode_pair/1)
+
+    for {k, v} <- encoded_query do
       _ = Logger.debug("#{prefix} Query Param '#{k}': '#{v}'")
     end
 
