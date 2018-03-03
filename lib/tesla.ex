@@ -532,7 +532,8 @@ defmodule Tesla do
     |> URI.encode_query()
   end
 
-  defp encode_pair({key, value}) when is_list(value) do
+  @doc false
+  def encode_pair({key, value}) when is_list(value) do
     if Keyword.keyword?(value) do
       Enum.flat_map(value, fn {k, v} -> encode_pair({"#{key}[#{k}]", v}) end)
     else
@@ -540,5 +541,6 @@ defmodule Tesla do
     end
   end
 
-  defp encode_pair({key, value}), do: [{key, value}]
+  @doc false
+  def encode_pair({key, value}), do: [{key, value}]
 end
