@@ -52,10 +52,6 @@ defmodule Tesla.Client do
             post: []
 end
 
-defmodule Tesla.Middleware do
-  @callback call(env :: Tesla.Env.t(), next :: Tesla.Env.stack(), options :: any) :: Tesla.Env.t()
-end
-
 defmodule Tesla.Builder do
   @http_verbs ~w(head get delete trace options post put patch)a
 
