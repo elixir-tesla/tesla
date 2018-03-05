@@ -1,5 +1,7 @@
 if Code.ensure_loaded?(:hackney) do
   defmodule Tesla.Adapter.Hackney do
+    @behaviour Tesla.Adapter
+    
     @moduledoc """
     Adapter for [hackney](https://github.com/benoitc/hackney)
 
