@@ -32,22 +32,8 @@ defmodule Tesla.Middleware.JsonTest do
             {200, %{'Content-Type' => 'application/json'}, "{\"foo\": bar}"}
 
           "/invalid-json-encoding" ->
-            {200, %{'Content-Type' => 'application/json'}, <<
-              123,
-              34,
-              102,
-              111,
-              111,
-              34,
-              58,
-              32,
-              34,
-              98,
-              225,
-              114,
-              34,
-              125
-            >>}
+            binary = <<123, 34, 102, 111, 111, 34, 58, 32, 34, 98, 225, 114, 34, 125>>
+            {200, %{'Content-Type' => 'application/json'}, binary}
 
           "/facebook" ->
             {200, %{'Content-Type' => 'text/javascript'}, "{\"friends\": 1000000}"}
