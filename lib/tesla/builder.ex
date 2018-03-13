@@ -327,16 +327,9 @@ defmodule Tesla.Builder do
     end
   end
 
-  defmacro client(pre, post) do
-    context = {:middleware, __CALLER__}
+  def client(pre, post), do: %Tesla.Client{pre: runtime(pre), post: runtime(post)}
 
-    quote do
-      %Tesla.Client{
-        pre: unquote(compile_context(pre, context)),
-        post: unquote(compile_context(post, context))
-      }
-    end
-  end
+  @default_opts []
 
   defp compile(nil), do: nil
   defp compile(list) when is_list(list), do: Enum.map(list, &compile/1)
@@ -354,7 +347,7 @@ defmodule Tesla.Builder do
 
   # Tesla.Middleware.Something
   defp compile({{:__aliases__, _, _} = ast_mod, {_kind, _caller}}) do
-    quote do: {unquote(ast_mod), :call, [nil]}
+    quote do: {unquote(ast_mod), :call, [unquote(@default_opts)]}
   end
 
   # fn env -> ... end
@@ -367,9 +360,8 @@ defmodule Tesla.Builder do
     Tesla.Migration.breaking_alias!(kind, name, caller)
   end
 
-  defp compile_context(list, context) do
-    list
-    |> Enum.map(&{&1, context})
-    |> compile()
-  end
+  defp runtime(list) when is_list(list), do: Enum.map(list, &runtime/1)
+  defp runtime({module, opts}) when is_atom(module), do: {module, :call, [opts]}
+  defp runtime(fun) when is_function(fun), do: {:fn, fun}
+  defp runtime(module) when is_atom(module), do: {module, :call, [@default_opts]}
 end

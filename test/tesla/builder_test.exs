@@ -24,6 +24,10 @@ defmodule Tesla.BuilderTest do
           []
         )
       end
+
+      def new(middlewares) do
+        Tesla.Builder.client(middlewares, [])
+      end
     end
 
     defmodule TestClientModule do
@@ -40,7 +44,7 @@ defmodule Tesla.BuilderTest do
       assert [
                {FirstMiddleware, :call, ["value"]},
                {SecondMiddleware, :call, [[options: :are, fun: 1]]},
-               {ThirdMiddleware, :call, [nil]},
+               {ThirdMiddleware, :call, [[]]},
                {:fn, fun}
              ] = TestClientPlug.__middleware__()
 
@@ -64,7 +68,25 @@ defmodule Tesla.BuilderTest do
       client = TestClientPlug.new()
 
       assert [
-               {FirstMiddleware, :call, [nil]},
+               {FirstMiddleware, :call, [[]]},
+               {SecondMiddleware, :call, [[options: :are, fun: 1]]},
+               {:fn, fun}
+             ] = client.pre
+
+      assert is_function(fun)
+    end
+
+    test "client from module attribute" do
+      middlewares = [
+        FirstMiddleware,
+        {SecondMiddleware, options: :are, fun: 1},
+        fn env, _next -> env end
+      ]
+
+      client = TestClientPlug.new(middlewares)
+
+      assert [
+               {FirstMiddleware, :call, [[]]},
                {SecondMiddleware, :call, [[options: :are, fun: 1]]},
                {:fn, fun}
              ] = client.pre

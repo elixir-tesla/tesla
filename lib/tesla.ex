@@ -197,16 +197,9 @@ defmodule Tesla do
   client |> ExampleAPI.get("/me")
   ```
   """
-  defmacro build_client(pre, post \\ []) do
-    quote do
-      require Tesla.Builder
-      Tesla.Builder.client(unquote(pre), unquote(post))
-    end
-  end
+  def build_client(pre, post \\ []), do: Tesla.Builder.client(pre, post)
 
-  def build_adapter(fun) do
-    %Tesla.Client{post: [{:fn, fn env, _next -> fun.(env) end}]}
-  end
+  def build_adapter(fun), do: Tesla.Builder.client([], [fn env, _next -> fun.(env) end])
 
   def build_url(url, []), do: url
 
