@@ -15,6 +15,7 @@ defmodule Tesla.Env do
   @type opts :: [any]
 
   @type stack :: [{atom, atom, any} | {atom, atom} | {:fn, (t -> t)} | {:fn, (t, stack -> t)}]
+  @type result :: {:ok, t()} | {:error, any}
 
   @type t :: %__MODULE__{
           method: method,
@@ -51,11 +52,11 @@ end
 
 defmodule Tesla.Middleware do
   @callback call(env :: Tesla.Env.t(), next :: Tesla.Env.stack(), options :: any) ::
-              {:ok, Tesla.Env.t()} | {:error, any}
+              Tesla.Env.result()
 end
 
 defmodule Tesla.Adapter do
-  @callback call(env :: Tesla.Env.t(), options :: any) :: {:ok, Tesla.Env.t()} | {:error, any}
+  @callback call(env :: Tesla.Env.t(), options :: any) :: Tesla.Env.result()
 
   def opts(defaults \\ [], env, opts) do
     defaults
@@ -97,6 +98,14 @@ defmodule Tesla do
     env = struct(Env, options ++ [__module__: module, __client__: client])
     stack = pre ++ module.__middleware__ ++ post ++ [effective_adapter(module)]
     run(env, stack)
+  end
+
+  @doc false
+  def execute!(module, client, options) do
+    case execute(module, client, options) do
+      {:ok, env} -> env
+      error -> raise error
+    end
   end
 
   @doc false

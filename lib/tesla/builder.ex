@@ -1,5 +1,6 @@
 defmodule Tesla.Builder do
   @http_verbs ~w(head get delete trace options post put patch)a
+  @body ~w(post put patch)a
 
   defmacro __using__(opts \\ []) do
     opts = Macro.prewalk(opts, &Macro.expand(&1, __CALLER__))
@@ -44,26 +45,17 @@ defmodule Tesla.Builder do
 
             myclient |> ExampleApi.post("/users", %{name: "Jon"})
         """
-        @spec request(Tesla.Env.client(), [option]) :: Tesla.Env.t()
+        @spec request(Tesla.Env.client(), [option]) :: Tesla.Env.result()
       else
         @doc false
       end
 
-      def request(%Tesla.Client{} = client, options) do
+      def request(%Tesla.Client{} = client \\ %Tesla.Client{}, options) do
         Tesla.execute(__MODULE__, client, options)
       end
 
-      if unquote(docs) do
-        @doc """
-        Perform a request. See `request/2` for available options.
-        """
-        @spec request([option]) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def request(options) do
-        Tesla.execute(__MODULE__, %Tesla.Client{}, options)
+      def request!(%Tesla.Client{} = client \\ %Tesla.Client{}, options) do
+        Tesla.execute!(__MODULE__, client, options)
       end
 
       unquote(generate_http_verbs(opts))
@@ -144,169 +136,6 @@ defmodule Tesla.Builder do
     end
   end
 
-  defp generate_http_verbs(opts) do
-    only = Keyword.get(opts, :only, @http_verbs)
-    except = Keyword.get(opts, :except, [])
-
-    @http_verbs
-    |> Enum.filter(&(&1 in only && not (&1 in except)))
-    |> Enum.map(&generate_api(&1, Keyword.get(opts, :docs, true)))
-  end
-
-  defp generate_api(method, docs) when method in [:post, :put, :patch] do
-    quote do
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
-        """
-        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url(), Tesla.Env.body(), [option]) ::
-                Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(%Tesla.Client{} = client, url, body, options) when is_list(options) do
-        request(client, [method: unquote(method), url: url, body: body] ++ options)
-      end
-
-      # fallback to keep backward compatibility
-      def unquote(method)(fun, url, body, options) when is_function(fun) and is_list(options) do
-        Tesla.Migration.client_function!()
-      end
-
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            myclient |> ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
-            ExampleApi.#{unquote(method)}("/users", %{name: "Jon"}, query: [scope: "admin"])
-        """
-        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url(), Tesla.Env.body()) ::
-                Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(%Tesla.Client{} = client, url, body) do
-        request(client, method: unquote(method), url: url, body: body)
-      end
-
-      # fallback to keep backward compatibility
-      def unquote(method)(fun, url, body) when is_function(fun) do
-        Tesla.Migration.client_function!()
-      end
-
-      if unquote(docs) do
-        @spec unquote(method)(Tesla.Env.url(), Tesla.Env.body(), [option]) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(url, body, options) when is_list(options) do
-        request([method: unquote(method), url: url, body: body] ++ options)
-      end
-
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            ExampleApi.#{unquote(method)}("/users", %{name: "Jon"})
-        """
-        @spec unquote(method)(Tesla.Env.url(), Tesla.Env.body()) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(url, body) do
-        request(method: unquote(method), url: url, body: body)
-      end
-    end
-  end
-
-  defp generate_api(method, docs) when method in [:head, :get, :delete, :trace, :options] do
-    quote do
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            myclient |> ExampleApi.#{unquote(method)}("/users", query: [page: 1])
-        """
-        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url(), [option]) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(%Tesla.Client{} = client, url, options) when is_list(options) do
-        request(client, [method: unquote(method), url: url] ++ options)
-      end
-
-      # fallback to keep backward compatibility
-      def unquote(method)(fun, url, options) when is_function(fun) and is_list(options) do
-        Tesla.Migration.client_function!()
-      end
-
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            myclient |> ExampleApi.#{unquote(method)}("/users")
-            ExampleApi.#{unquote(method)}("/users", query: [page: 1])
-        """
-        @spec unquote(method)(Tesla.Env.client(), Tesla.Env.url()) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(%Tesla.Client{} = client, url) do
-        request(client, method: unquote(method), url: url)
-      end
-
-      # fallback to keep backward compatibility
-      def unquote(method)(fun, url) when is_function(fun) do
-        Tesla.Migration.client_function!()
-      end
-
-      if unquote(docs) do
-        @spec unquote(method)(Tesla.Env.url(), [option]) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(url, options) when is_list(options) do
-        request([method: unquote(method), url: url] ++ options)
-      end
-
-      if unquote(docs) do
-        @doc """
-        Perform a #{unquote(method |> to_string |> String.upcase())} request.
-        See `request/1` or `request/2` for options definition.
-
-        Example
-            ExampleApi.#{unquote(method)}("/users")
-        """
-        @spec unquote(method)(Tesla.Env.url()) :: Tesla.Env.t()
-      else
-        @doc false
-      end
-
-      def unquote(method)(url) do
-        request(method: unquote(method), url: url)
-      end
-    end
-  end
-
   defmacro __before_compile__(env) do
     Tesla.Migration.breaking_alias_in_config!(env.module)
 
@@ -321,7 +150,7 @@ defmodule Tesla.Builder do
       |> Enum.reverse()
       |> compile()
 
-    quote do
+    quote location: :keep do
       def __middleware__, do: unquote(middleware)
       def __adapter__, do: unquote(adapter)
     end
@@ -364,4 +193,133 @@ defmodule Tesla.Builder do
   defp runtime({module, opts}) when is_atom(module), do: {module, :call, [opts]}
   defp runtime(fun) when is_function(fun), do: {:fn, fun}
   defp runtime(module) when is_atom(module), do: {module, :call, [@default_opts]}
+
+  defp generate_http_verbs(opts) do
+    only = Keyword.get(opts, :only, @http_verbs)
+    except = Keyword.get(opts, :except, [])
+    docs = Keyword.get(opts, :docs, true)
+
+    for method <- @http_verbs do
+      for bang <- [:safe, :bang],
+          client <- [:client, :noclient],
+          opts <- [:opts, :noopts],
+          method in only && method not in except do
+        gen(method, bang, client, opts, docs)
+      end
+    end
+  end
+
+  defp gen(method, safe, client, opts, docs) do
+    quote location: :keep do
+      unquote(gen_doc(method, safe, client, opts, docs))
+      unquote(gen_fun(method, safe, client, opts))
+      unquote(gen_deprecated(method, safe, client, opts))
+    end
+  end
+
+  defp gen_doc(method, safe, :client, :opts, true) do
+    request = to_string(req(safe))
+    name = name(method, safe)
+    body = if method in @body, do: ~s|, %{name: "Jon"}|, else: ""
+
+    quote location: :keep do
+      @doc """
+      Perform a #{unquote(method |> to_string |> String.upcase())} request.
+      See `#{unquote(request)}/1` or `#{unquote(request)}/2` for options definition.
+
+          #{unquote(name)}("/users"#{unquote(body)})
+          #{unquote(name)}("/users"#{unquote(body)}, query: [scope: "admin"])
+          #{unquote(name)}(client, "/users"#{unquote(body)})
+          #{unquote(name)}(client, "/users"#{unquote(body)}, query: [scope: "admin"])
+      """
+      @spec unquote(name)(unquote_splicing(input_types(method, :client, :opts))) ::
+              unquote(output_type(safe))
+    end
+  end
+
+  defp gen_doc(method, safe, client, opts, true) do
+    name = name(method, safe)
+
+    quote location: :keep do
+      @doc false
+      @spec unquote(name)(unquote_splicing(input_types(method, client, opts))) ::
+              unquote(output_type(safe))
+    end
+  end
+
+  defp gen_doc(_method, _bang, _client, _opts, false) do
+    quote location: :keep do
+      @doc false
+    end
+  end
+
+  defp input_types(method, client, opts) do
+    type(client) ++ type(:url) ++ type(method) ++ type(opts)
+  end
+
+  defp type(:client), do: [quote(do: Tesla.Env.client())]
+  defp type(:noclient), do: []
+  defp type(:opts), do: [quote(do: [option])]
+  defp type(:noopts), do: []
+  defp type(:url), do: [quote(do: Tesla.Env.url())]
+  defp type(method) when method in @body, do: [quote(do: Tesla.Env.body())]
+  defp type(_method), do: []
+
+  defp output_type(:safe), do: quote(do: Tesla.Env.result())
+  defp output_type(:bang), do: quote(do: Tesla.Env.t() | no_return)
+
+  defp gen_fun(method, safe, client, opts) do
+    quote location: :keep do
+      def unquote(name(method, safe))(unquote_splicing(inputs(method, client, opts))) do
+        unquote(req(safe))(unquote_splicing(outputs(method, client, opts)))
+      end
+    end
+    |> gen_guards(opts)
+  end
+
+  defp gen_guards({:def, _, [head, [do: body]]}, :opts) do
+    quote do
+      def unquote(head) when is_list(opts), do: unquote(body)
+    end
+  end
+
+  defp gen_guards(def, _opts), do: def
+
+  defp gen_deprecated(method, safe, :client, opts) do
+    inputs = [quote(do: client) | inputs(method, :noclient, opts)]
+
+    quote location: :keep do
+      def unquote(name(method, safe))(unquote_splicing(inputs)) when is_function(client) do
+        Tesla.Migration.client_function!()
+      end
+    end
+  end
+
+  defp gen_deprecated(_method, _safe, _, _opts), do: nil
+
+  defp name(method, :safe), do: method
+  defp name(method, :bang), do: String.to_atom("#{method}!")
+
+  defp req(:safe), do: :request
+  defp req(:bang), do: :request!
+
+  defp inputs(method, client, opts) do
+    input(client) ++ input(:url) ++ input(method) ++ input(opts)
+  end
+
+  defp input(:client), do: [quote(do: %Tesla.Client{} = client)]
+  defp input(:noclient), do: []
+  defp input(:opts), do: [quote(do: opts)]
+  defp input(:noopts), do: []
+  defp input(:url), do: [quote(do: url)]
+  defp input(method) when method in @body, do: [quote(do: body)]
+  defp input(_method), do: []
+
+  defp outputs(method, client, opts), do: output(client) ++ [output(output(method), opts)]
+  defp output(:client), do: [quote(do: client)]
+  defp output(:noclient), do: []
+  defp output(m) when m in @body, do: quote(do: [method: unquote(m), url: url, body: body])
+  defp output(m), do: quote(do: [method: unquote(m), url: url])
+  defp output(prev, :opts), do: quote(do: unquote(prev) ++ opts)
+  defp output(prev, :noopts), do: prev
 end
