@@ -30,7 +30,7 @@ if Code.ensure_loaded?(:ibrowse) do
     alias Tesla.Multipart
 
     def call(env, opts) do
-      with {:ok, status, headers, body} <- request(env, opts || []) do
+      with {:ok, status, headers, body} <- request(env, opts) do
         {:ok,
          %{
            env
@@ -63,7 +63,7 @@ if Code.ensure_loaded?(:ibrowse) do
           env.headers,
           env.method,
           body,
-          opts ++ env.opts
+          Tesla.Adapter.opts(env, opts)
         )
       )
     end

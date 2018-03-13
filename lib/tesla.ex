@@ -56,6 +56,12 @@ end
 
 defmodule Tesla.Adapter do
   @callback call(env :: Tesla.Env.t(), options :: any) :: {:ok, Tesla.Env.t()} | {:error, any}
+
+  def opts(defaults \\ [], env, opts) do
+    defaults
+    |> Keyword.merge(opts || [])
+    |> Keyword.merge(env.opts[:adapter] || [])
+  end
 end
 
 defmodule Tesla do

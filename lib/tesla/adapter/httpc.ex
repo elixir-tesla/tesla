@@ -16,7 +16,7 @@ defmodule Tesla.Adapter.Httpc do
   @http_opts ~w(timeout connect_timeout ssl essl autoredirect proxy_auth version relaxed url_encode)a
 
   def call(env, opts) do
-    opts = Keyword.merge(@override_defaults, opts || [])
+    opts = Tesla.Adapter.opts(@override_defaults, env, opts)
 
     with {:ok, {status, headers, body}} <- request(env, opts) do
       {:ok, format_response(env, status, headers, body)}
@@ -54,7 +54,7 @@ defmodule Tesla.Adapter.Httpc do
         Enum.map(env.headers, fn {k, v} -> {to_charlist(k), to_charlist(v)} end),
         content_type,
         env.body,
-        Keyword.split(opts ++ env.opts, @http_opts)
+        Keyword.split(opts, @http_opts)
       )
     )
   end

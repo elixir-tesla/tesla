@@ -7,7 +7,7 @@ defmodule TeslaTest do
 
   describe "Adapters" do
     defmodule ModuleAdapter do
-      def call(env, opts \\ []) do
+      def call(env, opts) do
         {:ok, Map.put(env, :url, env.url <> "/module/" <> opts[:with])}
       end
     end
@@ -28,6 +28,17 @@ defmodule TeslaTest do
       adapter fn env ->
         {:ok, Map.put(env, :url, env.url <> "/anon")}
       end
+    end
+
+    defmodule OptsAdapter do
+      def call(env, opts) do
+        {:ok, %{env | body: Tesla.Adapter.opts(env, opts)}}
+      end
+    end
+
+    defmodule OptsClient do
+      use Tesla
+      adapter OptsAdapter, static: :always
     end
 
     setup do
@@ -59,6 +70,20 @@ defmodule TeslaTest do
     test "execute anonymous function adapter" do
       assert {:ok, response} = FunAdapterClient.request(url: "test")
       assert response.url == "test/anon"
+    end
+
+    test "pass only :adapter opts to adapter" do
+      assert {:ok, env} = OptsClient.get("/")
+      assert env.body == [static: :always]
+
+      assert {:ok, env} = OptsClient.get("/", opts: [ignore: :me])
+      assert env.body == [static: :always]
+
+      assert {:ok, env} = OptsClient.get("/", opts: [adapter: [include: :me]])
+      assert env.body == [static: :always, include: :me]
+
+      assert {:ok, env} = OptsClient.get("/", opts: [adapter: [static: :override]])
+      assert env.body == [static: :override]
     end
   end
 

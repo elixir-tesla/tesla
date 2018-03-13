@@ -28,7 +28,7 @@ if Code.ensure_loaded?(:hackney) do
     alias Tesla.Multipart
 
     def call(env, opts) do
-      with {:ok, status, headers, body} <- request(env, opts || []) do
+      with {:ok, status, headers, body} <- request(env, opts) do
         {:ok, %{env | status: status, headers: format_headers(headers), body: format_body(body)}}
       end
     end
@@ -48,7 +48,7 @@ if Code.ensure_loaded?(:hackney) do
         Tesla.build_url(env.url, env.query),
         env.headers,
         env.body,
-        opts ++ env.opts
+        Tesla.Adapter.opts(env, opts)
       )
     end
 
