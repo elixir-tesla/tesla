@@ -4,10 +4,10 @@ defmodule Tesla.Middleware.JSON do
   @moduledoc """
   Encode requests and decode responses as JSON.
 
-  This middleware requires [poison](https://hex.pm/packages/poison) (or other engine) as dependency.
+  This middleware requires [jason](https://hex.pm/packages/jason) (or other engine) as dependency.
 
-  Remember to add `{:poison, ">= 1.0"}` to dependencies (and `:poison` to applications in `mix.exs`)
-  Also, you need to recompile tesla after adding `:poison` dependency:
+  Remember to add `{:jason, ">= 1.0"}` to dependencies (and `:jason` to applications in `mix.exs`)
+  Also, you need to recompile tesla after adding `:jason` dependency:
 
   ```
   mix deps.clean tesla
@@ -20,9 +20,11 @@ defmodule Tesla.Middleware.JSON do
   defmodule MyClient do
     use Tesla
 
-    plug Tesla.Middleware.JSON # use poison engine
+    plug Tesla.Middleware.JSON # use jason engine
     # or
     plug Tesla.Middleware.JSON, engine: JSX, engine_opts: [strict: [:comments]]
+    # or
+    plug Tesla.Middleware.JSON, engine: Poison, engine_opts: [keys: :atoms]
     # or
     plug Tesla.Middleware.JSON, decode: &JSX.decode/1, encode: &JSX.encode/1
   end
@@ -31,7 +33,7 @@ defmodule Tesla.Middleware.JSON do
   ### Options
   - `:decode` - decoding function
   - `:encode` - encoding function
-  - `:engine` - encode/decode engine, e.g `Poison` or `JSX`  (defaults to Poison)
+  - `:engine` - encode/decode engine, e.g `Jason`, `Poison` or `JSX`  (defaults to Jason)
   - `:engine_opts` - optional engine options
   - `:decode_content_types` - list of additional decodable content-types
   """
@@ -39,7 +41,7 @@ defmodule Tesla.Middleware.JSON do
   # NOTE: text/javascript added to support Facebook Graph API.
   #       see https://github.com/teamon/tesla/pull/13
   @default_content_types ["application/json", "text/javascript"]
-  @default_engine Poison
+  @default_engine Jason
 
   def call(env, next, opts) do
     opts = opts || []
@@ -119,6 +121,9 @@ defmodule Tesla.Middleware.JSON do
       {:error, reason} -> {:error, {__MODULE__, op, reason}}
       {:error, reason, _pos} -> {:error, {__MODULE__, op, reason}}
     end
+  rescue
+    ex in Protocol.UndefinedError ->
+      {:error, {__MODULE__, op, ex}}
   end
 
   defp do_process(data, op, opts) do
