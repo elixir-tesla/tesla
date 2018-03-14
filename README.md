@@ -252,7 +252,7 @@ mp =
   |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
   |> Multipart.add_file_content("sample file content", "sample.txt")
 
-response = MyApiClient.post("http://httpbin.org/post", mp)
+{:ok, response} = MyApiClient.post("http://httpbin.org/post", mp)
 ```
 
 
@@ -265,7 +265,7 @@ You can set the adapter to `Tesla.Mock` in tests.
 # Use mock adapter for all clients
 config :tesla, adapter: Tesla.Mock
 # or only for one
-config :tesla, MyClient, adapter: Tesla.Mock
+config :tesla, MyApi, adapter: Tesla.Mock
 ```
 
 Then, mock requests before using your client:
@@ -482,4 +482,4 @@ end
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
-Copyright (c) 2015-2017 [Tymon Tobolski](http://teamon.eu/about/)
+Copyright (c) 2015-2018 [Tymon Tobolski](http://teamon.eu/about/)
