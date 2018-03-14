@@ -8,7 +8,7 @@ defmodule Tesla.Mixfile do
       description: description(),
       package: package(),
       source_url: "https://github.com/teamon/tesla",
-      elixir: "~> 1.3",
+      elixir: "~> 1.4",
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       lockfile: lockfile(System.get_env("LOCKFILE")),
