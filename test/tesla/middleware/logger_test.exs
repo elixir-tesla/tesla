@@ -65,6 +65,12 @@ defmodule Tesla.Middleware.LoggerTest do
     assert log =~ "Query Param 'test': 'true'"
   end
 
+  test "ok with list params" do
+    log = capture_log(fn -> Client.get("/ok", query: %{"test" => ["first", "second"]}) end)
+    assert log =~ "Query Param 'test[]': 'first'"
+    assert log =~ "Query Param 'test[]': 'second'"
+  end
+
   test "multipart" do
     mp = Tesla.Multipart.new() |> Tesla.Multipart.add_field("field1", "foo")
     log = capture_log(fn -> Client.post("/ok", mp) end)
