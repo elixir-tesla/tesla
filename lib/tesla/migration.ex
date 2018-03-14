@@ -14,7 +14,9 @@ defmodule Tesla.Migration do
       description: """
 
           #{kind |> to_string |> String.capitalize()} aliases and local functions has been removed.
-          Use full #{kind} name or define a middleware module #{name |> to_string() |> String.capitalize()}
+          Use full #{kind} name or define a middleware module #{
+        name |> to_string() |> String.capitalize()
+      }
 
             #{snippet(caller)}
 

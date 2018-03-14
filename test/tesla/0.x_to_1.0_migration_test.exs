@@ -113,6 +113,7 @@ defmodule MigrationTest do
   describe "Drop client as function #176" do
     test "error when passing a function as client" do
       client = fn env, next -> Tesla.run(env, next) end
+
       assert_raise RuntimeError, fn ->
         Tesla.get(client, "/")
       end
