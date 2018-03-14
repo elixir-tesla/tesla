@@ -125,13 +125,13 @@ defmodule Tesla.BuilderTest do
 
     test "generate docs by default" do
       docs = Code.get_docs(TeslaDocsTest.Default, :docs)
-      assert {_, _, _, _, doc} = Enum.find(docs, &match?({{:get, 1}, _, :def, _, _}, &1))
+      assert {_, _, _, _, doc} = Enum.find(docs, &match?({{:get, 3}, _, :def, _, _}, &1))
       assert doc != false
     end
 
     test "do not generate docs for HTTP methods when docs: false" do
       docs = Code.get_docs(TeslaDocsTest.NoDocs, :docs)
-      assert {_, _, _, _, false} = Enum.find(docs, &match?({{:get, 1}, _, :def, _, _}, &1))
+      assert {_, _, _, _, false} = Enum.find(docs, &match?({{:get, 3}, _, :def, _, _}, &1))
       assert {_, _, _, _, doc} = Enum.find(docs, &match?({{:custom, 1}, _, :def, _, _}, &1))
       assert doc =~ ~r/something/
     end
