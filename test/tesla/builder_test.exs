@@ -1,8 +1,6 @@
 defmodule Tesla.BuilderTest do
   use ExUnit.Case
 
-  alias Tesla.Builder
-
   describe "Compilation" do
     defmodule TestClientPlug do
       use Tesla.Builder
@@ -95,13 +93,39 @@ defmodule Tesla.BuilderTest do
     end
   end
 
+  describe "Function generation" do
+    defmodule TestClient do
+      use Tesla.Builder
+    end
+
+    test "generate multiple variants for HTTP methods" do
+      assert function_exported?(TestClient, :get, 1)
+      assert function_exported?(TestClient, :get, 2)
+      assert function_exported?(TestClient, :get, 3)
+
+      assert function_exported?(TestClient, :post, 2)
+      assert function_exported?(TestClient, :post, 3)
+      assert function_exported?(TestClient, :post, 4)
+    end
+
+    test "generate bang variants for HTTP methods" do
+      assert function_exported?(TestClient, :get!, 1)
+      assert function_exported?(TestClient, :get!, 2)
+      assert function_exported?(TestClient, :get!, 3)
+
+      assert function_exported?(TestClient, :post!, 2)
+      assert function_exported?(TestClient, :post!, 3)
+      assert function_exported?(TestClient, :post!, 4)
+    end
+  end
+
   describe ":only/:except options" do
     defmodule OnlyGetClient do
-      use Builder, only: [:get]
+      use Tesla.Builder, only: [:get]
     end
 
     defmodule ExceptDeleteClient do
-      use Builder, except: ~w(delete)a
+      use Tesla.Builder, except: ~w(delete)a
     end
 
     @http_verbs ~w(head get delete trace options post put patch)a
