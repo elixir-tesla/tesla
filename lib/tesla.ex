@@ -1,5 +1,9 @@
 defmodule Tesla.Error do
-  defexception message: "", reason: nil
+  defexception env: nil, stack: [], reason: nil
+
+  def message(%Tesla.Error{env: %{url: url, method: method}, reason: reason}) do
+    "#{inspect(reason)} (#{method |> to_string |> String.upcase()} #{url})"
+  end
 end
 
 defmodule Tesla.Env do
@@ -94,18 +98,25 @@ defmodule Tesla do
   end
 
   @doc false
-  def execute(module, %{pre: pre, post: post} = client, options) do
-    env = struct(Env, options ++ [__module__: module, __client__: client])
-    stack = pre ++ module.__middleware__ ++ post ++ [effective_adapter(module)]
+  def execute(module, client, options) do
+    {env, stack} = prepare(module, client, options)
     run(env, stack)
   end
 
   @doc false
   def execute!(module, client, options) do
-    case execute(module, client, options) do
+    {env, stack} = prepare(module, client, options)
+
+    case run(env, stack) do
       {:ok, env} -> env
-      error -> raise error
+      {:error, error} -> raise Tesla.Error, env: env, stack: stack, reason: error
     end
+  end
+
+  defp prepare(module, %{pre: pre, post: post} = client, options) do
+    env = struct(Env, options ++ [__module__: module, __client__: client])
+    stack = pre ++ module.__middleware__ ++ post ++ [effective_adapter(module)]
+    {env, stack}
   end
 
   @doc false

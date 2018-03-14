@@ -178,8 +178,9 @@ defmodule TeslaTest do
     defmodule SimpleClient do
       use Tesla
 
-      adapter fn env ->
-        {:ok, env}
+      adapter fn
+        %{url: "/error"} -> {:error, :generic}
+        env -> {:ok, env}
       end
     end
 
@@ -208,7 +209,17 @@ defmodule TeslaTest do
 
     test "better errors when given nil opts" do
       assert_raise FunctionClauseError, fn ->
-        Tesla.get("/", nil)
+        SimpleClient.get("/", nil)
+      end
+    end
+
+    test "return error tuple for normal functions" do
+      assert {:error, :generic} = SimpleClient.get("/error")
+    end
+
+    test "raise for bang variants" do
+      assert_raise Tesla.Error, ~r//, fn ->
+        SimpleClient.get!("/error")
       end
     end
   end

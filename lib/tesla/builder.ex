@@ -10,17 +10,17 @@ defmodule Tesla.Builder do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
       Module.register_attribute(__MODULE__, :__adapter__, [])
 
-      if unquote(docs) do
-        @type option ::
-                {:method, Tesla.Env.method()}
-                | {:url, Tesla.Env.url()}
-                | {:query, Tesla.Env.query()}
-                | {:headers, Tesla.Env.headers()}
-                | {:body, Tesla.Env.body()}
-                | {:opts, Tesla.Env.opts()}
+      @type option ::
+              {:method, Tesla.Env.method()}
+              | {:url, Tesla.Env.url()}
+              | {:query, Tesla.Env.query()}
+              | {:headers, Tesla.Env.headers()}
+              | {:body, Tesla.Env.body()}
+              | {:opts, Tesla.Env.opts()}
 
+      if unquote(docs) do
         @doc """
-        Perform a request using client function
+        Perform a request
 
         Options:
         - `:method`   - the request method, one of [:head, :get, :delete, :trace, :options, :post, :put, :patch]
@@ -43,17 +43,25 @@ defmodule Tesla.Builder do
 
         or
 
-            myclient |> ExampleApi.post("/users", %{name: "Jon"})
+            ExampleApi.post(client, "/users", %{name: "Jon"})
         """
-        @spec request(Tesla.Env.client(), [option]) :: Tesla.Env.result()
       else
         @doc false
       end
 
+      @spec request(Tesla.Env.client(), [option]) :: Tesla.Env.result()
       def request(%Tesla.Client{} = client \\ %Tesla.Client{}, options) do
         Tesla.execute(__MODULE__, client, options)
       end
 
+      @doc """
+      Perform request and raise in case of error.
+
+      This is similar to `request/2` behaviour from Tesla 0.x
+
+      See `request/2` for list of available options.
+      """
+      @spec request!(Tesla.Env.client(), [option]) :: Tesla.Env.t() | no_return
       def request!(%Tesla.Client{} = client \\ %Tesla.Client{}, options) do
         Tesla.execute!(__MODULE__, client, options)
       end
@@ -212,6 +220,7 @@ defmodule Tesla.Builder do
   defp gen(method, safe, client, opts, docs) do
     quote location: :keep do
       unquote(gen_doc(method, safe, client, opts, docs))
+      unquote(gen_spec(method, safe, client, opts))
       unquote(gen_fun(method, safe, client, opts))
       unquote(gen_deprecated(method, safe, client, opts))
     end
@@ -225,6 +234,7 @@ defmodule Tesla.Builder do
     quote location: :keep do
       @doc """
       Perform a #{unquote(method |> to_string |> String.upcase())} request.
+
       See `#{unquote(request)}/1` or `#{unquote(request)}/2` for options definition.
 
           #{unquote(name)}("/users"#{unquote(body)})
@@ -232,41 +242,21 @@ defmodule Tesla.Builder do
           #{unquote(name)}(client, "/users"#{unquote(body)})
           #{unquote(name)}(client, "/users"#{unquote(body)}, query: [scope: "admin"])
       """
-      @spec unquote(name)(unquote_splicing(input_types(method, :client, :opts))) ::
-              unquote(output_type(safe))
     end
   end
 
-  defp gen_doc(method, safe, client, opts, true) do
-    name = name(method, safe)
-
-    quote location: :keep do
-      @doc false
-      @spec unquote(name)(unquote_splicing(input_types(method, client, opts))) ::
-              unquote(output_type(safe))
-    end
-  end
-
-  defp gen_doc(_method, _bang, _client, _opts, false) do
+  defp gen_doc(_method, _bang, _client, _opts, _) do
     quote location: :keep do
       @doc false
     end
   end
 
-  defp input_types(method, client, opts) do
-    type(client) ++ type(:url) ++ type(method) ++ type(opts)
+  defp gen_spec(method, safe, client, opts) do
+    quote location: :keep do
+      @spec unquote(name(method, safe))(unquote_splicing(types(method, client, opts))) ::
+              unquote(type(safe))
+    end
   end
-
-  defp type(:client), do: [quote(do: Tesla.Env.client())]
-  defp type(:noclient), do: []
-  defp type(:opts), do: [quote(do: [option])]
-  defp type(:noopts), do: []
-  defp type(:url), do: [quote(do: Tesla.Env.url())]
-  defp type(method) when method in @body, do: [quote(do: Tesla.Env.body())]
-  defp type(_method), do: []
-
-  defp output_type(:safe), do: quote(do: Tesla.Env.result())
-  defp output_type(:bang), do: quote(do: Tesla.Env.t() | no_return)
 
   defp gen_fun(method, safe, client, opts) do
     quote location: :keep do
@@ -303,9 +293,21 @@ defmodule Tesla.Builder do
   defp req(:safe), do: :request
   defp req(:bang), do: :request!
 
-  defp inputs(method, client, opts) do
-    input(client) ++ input(:url) ++ input(method) ++ input(opts)
-  end
+  defp types(method, client, opts), do: type(client) ++ type(:url) ++ type(method) ++ type(opts)
+
+  defp type(:safe), do: quote(do: Tesla.Env.result())
+  defp type(:bang), do: quote(do: Tesla.Env.t() | no_return)
+
+  defp type(:client), do: [quote(do: Tesla.Env.client())]
+  defp type(:noclient), do: []
+  defp type(:opts), do: [quote(do: [option])]
+  defp type(:noopts), do: []
+  defp type(:url), do: [quote(do: Tesla.Env.url())]
+  defp type(method) when method in @body, do: [quote(do: Tesla.Env.body())]
+  defp type(_method), do: []
+
+  defp inputs(method, client, opts),
+    do: input(client) ++ input(:url) ++ input(method) ++ input(opts)
 
   defp input(:client), do: [quote(do: %Tesla.Client{} = client)]
   defp input(:noclient), do: []
