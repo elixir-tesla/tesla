@@ -211,7 +211,7 @@ defmodule Tesla.Builder do
       for bang <- [:safe, :bang],
           client <- [:client, :noclient],
           opts <- [:opts, :noopts],
-          method in only && not method in except do
+          method in only && not (method in except) do
         gen(method, bang, client, opts, docs)
       end
     end
