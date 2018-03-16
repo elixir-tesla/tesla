@@ -64,6 +64,21 @@ defmodule Tesla.Multipart do
   end
 
   @doc """
+  Add a part.
+  """
+  @spec add_part(t, part_value, Keyword.t()) :: t
+  def add_part(%__MODULE__{} = mp, body, opts \\ []) do
+    {headers, opts} = Keyword.pop_first(opts, :headers, [])
+
+    part = %Part{
+      body: body,
+      headers: headers,
+    }
+
+    %{mp | parts: mp.parts ++ [part]}
+  end
+
+  @doc """
   Add a field part.
   """
   @spec add_field(t, String.t(), part_value, Keyword.t()) :: t

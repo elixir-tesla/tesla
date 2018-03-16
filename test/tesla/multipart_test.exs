@@ -37,6 +37,37 @@ defmodule Tesla.MultipartTest do
            ]
   end
 
+  test "add_part" do
+    mp =
+      Multipart.new()
+      |> Multipart.add_part("some random content")
+
+    body = Multipart.body(mp) |> Enum.join()
+
+    assert body == """
+           --#{mp.boundary}\r
+           \r
+           some random content\r
+           --#{mp.boundary}--\r
+           """
+  end  
+
+  test "add_part (with headers)" do
+    mp =
+      Multipart.new()
+      |> Multipart.add_part("some random content", headers: ["Content-Type": "x-test-content"])
+
+    body = Multipart.body(mp) |> Enum.join()
+
+    assert body == """
+           --#{mp.boundary}\r
+           Content-Type: x-test-content\r
+           \r
+           some random content\r
+           --#{mp.boundary}--\r
+           """
+  end  
+
   test "add_field" do
     mp =
       Multipart.new()
