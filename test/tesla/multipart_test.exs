@@ -37,20 +37,15 @@ defmodule Tesla.MultipartTest do
            ]
   end
 
-  test "add_part" do
+  test "add_part (without headers)" do
     mp =
       Multipart.new()
       |> Multipart.add_part("some random content")
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           \r
-           some random content\r
-           --#{mp.boundary}--\r
-           """
-  end  
+    assert body == "--#{mp.boundary}\r\n\r\nsome random content\r\n--#{mp.boundary}--"
+  end
 
   test "add_part (with headers)" do
     mp =
@@ -59,14 +54,11 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Type: x-test-content\r
-           \r
-           some random content\r
-           --#{mp.boundary}--\r
-           """
-  end  
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Type: x-test-content\r\n\r\nsome random content\r\n--#{
+               mp.boundary
+             }--"
+  end
 
   test "add_field" do
     mp =
@@ -75,13 +67,10 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Disposition: form-data; name="foo"\r
-           \r
-           bar\r
-           --#{mp.boundary}--\r
-           """
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Disposition: form-data; name=\"foo\"\r\n\r\nbar\r\n--#{
+               mp.boundary
+             }--"
   end
 
   test "add_field with extra headers" do
@@ -95,15 +84,10 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Id: 1\r
-           Content-Type: text/plain\r
-           Content-Disposition: form-data; name="foo"\r
-           \r
-           bar\r
-           --#{mp.boundary}--\r
-           """
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Id: 1\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"foo\"\r\n\r\nbar\r\n--#{
+               mp.boundary
+             }--"
   end
 
   test "add_file (filename only)" do
@@ -113,15 +97,10 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Disposition: form-data; name="file"; filename="multipart_test_file.sh"\r
-           \r
-           #!/usr/bin/env bash
-           echo "test multipart file"
-           \r
-           --#{mp.boundary}--\r
-           """
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart_test_file.sh\"\r\n\r\n#!/usr/bin/env bash\necho \"test multipart file\"\n\r\n--#{
+               mp.boundary
+             }--"
   end
 
   test "add_file (filename with name)" do
@@ -131,15 +110,10 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Disposition: form-data; name="foobar"; filename="multipart_test_file.sh"\r
-           \r
-           #!/usr/bin/env bash
-           echo "test multipart file"
-           \r
-           --#{mp.boundary}--\r
-           """
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Disposition: form-data; name=\"foobar\"; filename=\"multipart_test_file.sh\"\r\n\r\n#!/usr/bin/env bash\necho \"test multipart file\"\n\r\n--#{
+               mp.boundary
+             }--"
   end
 
   test "add_file (custom filename)" do
@@ -149,15 +123,10 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Disposition: form-data; name="file"; filename="custom.png"\r
-           \r
-           #!/usr/bin/env bash
-           echo "test multipart file"
-           \r
-           --#{mp.boundary}--\r
-           """
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"custom.png\"\r\n\r\n#!/usr/bin/env bash\necho \"test multipart file\"\n\r\n--#{
+               mp.boundary
+             }--"
   end
 
   test "add_file (filename with name, extra headers)" do
@@ -171,17 +140,10 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Id: 1\r
-           Content-Type: text/plain\r
-           Content-Disposition: form-data; name="foobar"; filename="multipart_test_file.sh"\r
-           \r
-           #!/usr/bin/env bash
-           echo "test multipart file"
-           \r
-           --#{mp.boundary}--\r
-           """
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Id: 1\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"foobar\"; filename=\"multipart_test_file.sh\"\r\n\r\n#!/usr/bin/env bash\necho \"test multipart file\"\n\r\n--#{
+               mp.boundary
+             }--"
   end
 
   test "add_file (detect content type)" do
@@ -191,16 +153,10 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Type: application/x-sh\r
-           Content-Disposition: form-data; name="file"; filename="multipart_test_file.sh"\r
-           \r
-           #!/usr/bin/env bash
-           echo "test multipart file"
-           \r
-           --#{mp.boundary}--\r
-           """
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Type: application/x-sh\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart_test_file.sh\"\r\n\r\n#!/usr/bin/env bash\necho \"test multipart file\"\n\r\n--#{
+               mp.boundary
+             }--"
   end
 
   test "add_file (detect content type overrides given header)" do
@@ -214,16 +170,10 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Type: application/x-sh\r
-           Content-Disposition: form-data; name="file"; filename="multipart_test_file.sh"\r
-           \r
-           #!/usr/bin/env bash
-           echo "test multipart file"
-           \r
-           --#{mp.boundary}--\r
-           """
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Type: application/x-sh\r\nContent-Disposition: form-data; name=\"file\"; filename=\"multipart_test_file.sh\"\r\n\r\n#!/usr/bin/env bash\necho \"test multipart file\"\n\r\n--#{
+               mp.boundary
+             }--"
   end
 
   test "add_file_content" do
@@ -233,13 +183,10 @@ defmodule Tesla.MultipartTest do
 
     body = Multipart.body(mp) |> Enum.join()
 
-    assert body == """
-           --#{mp.boundary}\r
-           Content-Disposition: form-data; name="file"; filename="data.gif"\r
-           \r
-           file-data\r
-           --#{mp.boundary}--\r
-           """
+    assert body ==
+             "--#{mp.boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"data.gif\"\r\n\r\nfile-data\r\n--#{
+               mp.boundary
+             }--"
   end
 
   test "add non-existing file" do
