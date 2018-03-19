@@ -60,7 +60,7 @@ defmodule Tesla.Middleware.DebugLogger do
   @behaviour Tesla.Middleware
 
   @moduledoc """
-  Log full reqeust/response content
+  Log full request/response content
 
 
   ### Example usage
