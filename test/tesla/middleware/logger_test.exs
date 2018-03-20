@@ -83,4 +83,51 @@ defmodule Tesla.Middleware.LoggerTest do
     log = capture_log(fn -> Client.post("/ok", stream) end)
     assert log =~ "/ok -> 200"
   end
+
+  describe "with log_level" do
+    defmodule ClientWithLogLevel do
+      use Tesla
+
+      require Logger
+
+      plug Tesla.Middleware.Logger, log_level: &log_level/1
+
+      defp log_level(env) do
+        cond do
+          env.status == 404 -> :info
+          true -> Tesla.Middleware.Logger.default_log_level(env)
+        end
+      end
+
+      adapter fn env ->
+        env = Tesla.put_header(env, "content-type", "text/plain")
+
+        case env.url do
+          "/bad-request" ->
+            {:ok, %{env | status: 400, body: "bad request"}}
+
+          "/not-found" ->
+            {:ok, %{env | status: 404, body: "not found"}}
+
+          "/ok" ->
+            {:ok, %{env | status: 200, body: "ok"}}
+        end
+      end
+    end
+
+    test "not found" do
+      log = capture_log(fn -> ClientWithLogLevel.get("/not-found") end)
+      assert log =~ "[info] GET /not-found -> 404"
+    end
+
+    test "bad request" do
+      log = capture_log(fn -> ClientWithLogLevel.get("/bad-request") end)
+      assert log =~ "[error] GET /bad-request -> 400"
+    end
+
+    test "ok" do
+      log = capture_log(fn -> ClientWithLogLevel.get("/ok") end)
+      assert log =~ "[info] GET /ok -> 200"
+    end
+  end
 end
