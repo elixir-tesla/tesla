@@ -15,6 +15,22 @@ defmodule Tesla.Middleware.Logger do
   end
   ```
 
+  ### Custom log levels
+  ```
+  defmodule MyClient do
+    use Tesla
+
+    plug Tesla.Middleware.Logger, log_level: &my_log_level/1
+  end
+
+  def my_log_level(env) do
+    case env.status do
+      404 -> :info
+      _ -> Tesla.Middleware.Logger.default_log_level(env)
+    end
+  end
+  ```
+
   ### Logger output
   ```
   2017-09-30 13:39:06.663 [info] GET http://example.com -> 200 (736.988 ms)
@@ -23,26 +39,38 @@ defmodule Tesla.Middleware.Logger do
   See `Tesla.Middleware.DebugLogger` to log request/response body
   """
 
+  @type log_level :: :info | :warn | :error
+
   require Logger
 
-  def call(env, next, _opts) do
+  def call(env, next, opts) do
+    log_level = Keyword.get(opts, :log_level, &default_log_level/1)
     {time, result} = :timer.tc(Tesla, :run, [env, next])
-    _ = log(env, result, time)
+    _ = log(env, result, time, log_level)
     result
   end
 
-  defp log(env, {:error, reason}, _time) do
+  defp log(env, {:error, reason}, _time, _log_level) do
     Logger.error("#{normalize_method(env)} #{env.url} -> #{inspect(reason)}")
   end
 
-  defp log(_env, {:ok, env}, time) do
+  defp log(_env, {:ok, env}, time, log_level) do
     ms = :io_lib.format("~.3f", [time / 1000])
     message = "#{normalize_method(env)} #{env.url} -> #{env.status} (#{ms} ms)"
 
+    case log_level.(env) do
+      :info -> Logger.info(message)
+      :warn -> Logger.warn(message)
+      :error -> Logger.error(message)
+    end
+  end
+
+  @spec default_log_level(Tesla.Env.t()) :: log_level
+  def default_log_level(env) do
     cond do
-      env.status >= 400 -> Logger.error(message)
-      env.status >= 300 -> Logger.warn(message)
-      true -> Logger.info(message)
+      env.status >= 400 -> :error
+      env.status >= 300 -> :warn
+      true -> :info
     end
   end
 
