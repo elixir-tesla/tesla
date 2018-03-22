@@ -66,14 +66,6 @@ defp deps do
 end
 ```
 
-Also, unless using Elixir `>= 1.4`, add `:tesla` to the `applications` list:
-
-```ex
-def application do
-  [applications: [:tesla, ...], ...]
-end
-```
-
 ## Documentation
 - [Middleware](#middleware)
 - [Runtime middleware](#runtime-middleware)
