@@ -107,7 +107,6 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 - [`Tesla.Middleware.Timeout`](https://hexdocs.pm/tesla/Tesla.Middleware.Timeout.html) - timeout request after X milliseconds despite of server response
 - [`Tesla.Middleware.Retry`](https://hexdocs.pm/tesla/Tesla.Middleware.Retry.html) - retry few times in case of connection refused
 - [`Tesla.Middleware.Fuse`](https://hexdocs.pm/tesla/Tesla.Middleware.Fuse.html) - fuse circuit breaker integration
-- [`Tesla.Middleware.Tuples`](https://hexdocs.pm/tesla/Tesla.Middleware.Tuples.html) - return `{:ok, env} | {:error, reason}` instead of raising exception
 
 
 ## Runtime middleware
