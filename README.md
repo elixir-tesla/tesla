@@ -184,21 +184,13 @@ Tesla supports multiple HTTP adapter that do the actual HTTP request processing.
 - [`Tesla.Adapter.Hackney`](https://hexdocs.pm/tesla/Tesla.Adapter.Hackney.html) - [hackney](https://github.com/benoitc/hackney), "simple HTTP client in Erlang"
 - [`Tesla.Adapter.Ibrowse`](https://hexdocs.pm/tesla/Tesla.Adapter.Ibrowse.html) - [ibrowse](https://github.com/cmullaparthi/ibrowse), "Erlang HTTP client"
 
-When using ibrowse or hackney adapters remember to alter applications list in `mix.exs` (for Elixir < 1.4)
-
-```elixir
-def application do
-  [applications: [:tesla, :ibrowse, ...], ...] # or :hackney
-end
-```
-
-and add it to the dependency list
+When using ibrowse or hackney adapters remember to it to the dependencies list in `mix.exs`
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 0.7.0"},
-   {:ibrowse, "~> 4.2"}, # or :hackney
-   {:poison, ">= 1.0.0"}] # for JSON middleware
+  [{:tesla, "~> 1.0.0"},
+   {:jason, ">= 1.0.0"}, # optional, required by JSON middleware
+   {:hackney, "~> 1.10"}] # or :ibrowse
 end
 ```
 
