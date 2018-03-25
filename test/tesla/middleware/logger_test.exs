@@ -5,7 +5,6 @@ defmodule Tesla.Middleware.LoggerTest do
     use Tesla
 
     plug Tesla.Middleware.Logger
-    plug Tesla.Middleware.DebugLogger
 
     adapter fn env ->
       env = Tesla.put_header(env, "content-type", "text/plain")
@@ -31,64 +30,74 @@ defmodule Tesla.Middleware.LoggerTest do
 
   import ExUnit.CaptureLog
 
-  test "connection error" do
-    log =
-      capture_log(fn ->
-        assert {:error, _} = Client.get("/connection-error")
-      end)
+  describe "Logger" do
+    setup do
+      Logger.configure(level: :info)
 
-    assert log =~ "/connection-error -> :econnrefused"
+      :ok
+    end
+
+    test "connection error" do
+      log = capture_log(fn -> Client.get("/connection-error") end)
+      assert log =~ "/connection-error -> error: :econnrefused"
+    end
+
+    test "server error" do
+      log = capture_log(fn -> Client.get("/server-error") end)
+      assert log =~ "/server-error -> 500"
+    end
+
+    test "client error" do
+      log = capture_log(fn -> Client.get("/client-error") end)
+      assert log =~ "/client-error -> 404"
+    end
+
+    test "redirect" do
+      log = capture_log(fn -> Client.get("/redirect") end)
+      assert log =~ "/redirect -> 301"
+    end
+
+    test "ok" do
+      log = capture_log(fn -> Client.get("/ok") end)
+      assert log =~ "/ok -> 200"
+    end
   end
 
-  test "server error" do
-    log = capture_log(fn -> Client.get("/server-error") end)
-    assert log =~ "/server-error -> 500"
-  end
+  describe "Debug mode" do
+    setup do
+      Logger.configure(level: :debug)
+      :ok
+    end
 
-  test "client error" do
-    log = capture_log(fn -> Client.get("/client-error") end)
-    assert log =~ "/client-error -> 404"
-  end
+    test "ok with params" do
+      log = capture_log(fn -> Client.get("/ok", query: %{"test" => "true"}) end)
+      assert log =~ "Query: test: true"
+    end
 
-  test "redirect" do
-    log = capture_log(fn -> Client.get("/redirect") end)
-    assert log =~ "/redirect -> 301"
-  end
+    test "ok with list params" do
+      log = capture_log(fn -> Client.get("/ok", query: %{"test" => ["first", "second"]}) end)
+      assert log =~ "Query: test[]: first"
+      assert log =~ "Query: test[]: second"
+    end
 
-  test "ok" do
-    log = capture_log(fn -> Client.get("/ok") end)
-    assert log =~ "/ok -> 200"
-  end
+    test "multipart" do
+      mp = Tesla.Multipart.new() |> Tesla.Multipart.add_field("field1", "foo")
+      log = capture_log(fn -> Client.post("/ok", mp) end)
+      assert log =~ "boundary: #{mp.boundary}"
+      assert log =~ inspect(List.first(mp.parts))
+    end
 
-  test "ok with params" do
-    log = capture_log(fn -> Client.get("/ok", query: %{"test" => "true"}) end)
-    assert log =~ "Query Param 'test': 'true'"
-  end
-
-  test "ok with list params" do
-    log = capture_log(fn -> Client.get("/ok", query: %{"test" => ["first", "second"]}) end)
-    assert log =~ "Query Param 'test[]': 'first'"
-    assert log =~ "Query Param 'test[]': 'second'"
-  end
-
-  test "multipart" do
-    mp = Tesla.Multipart.new() |> Tesla.Multipart.add_field("field1", "foo")
-    log = capture_log(fn -> Client.post("/ok", mp) end)
-    assert log =~ "boundary: #{mp.boundary}"
-    assert log =~ inspect(List.first(mp.parts))
-  end
-
-  test "stream" do
-    stream = Stream.map(1..10, fn i -> "chunk: #{i}" end)
-    log = capture_log(fn -> Client.post("/ok", stream) end)
-    assert log =~ "/ok -> 200"
+    test "stream" do
+      stream = Stream.map(1..10, fn i -> "chunk: #{i}" end)
+      log = capture_log(fn -> Client.post("/ok", stream) end)
+      assert log =~ "/ok -> 200"
+      assert log =~ "Stream"
+    end
   end
 
   describe "with log_level" do
     defmodule ClientWithLogLevel do
       use Tesla
-
-      require Logger
 
       plug Tesla.Middleware.Logger, log_level: &log_level/1
 
@@ -100,8 +109,6 @@ defmodule Tesla.Middleware.LoggerTest do
       end
 
       adapter fn env ->
-        env = Tesla.put_header(env, "content-type", "text/plain")
-
         case env.url do
           "/bad-request" ->
             {:ok, %{env | status: 400, body: "bad request"}}
@@ -128,6 +135,47 @@ defmodule Tesla.Middleware.LoggerTest do
     test "ok" do
       log = capture_log(fn -> ClientWithLogLevel.get("/ok") end)
       assert log =~ "[info] GET /ok -> 200"
+    end
+  end
+
+  alias Tesla.Middleware.Logger.Formatter
+
+  describe "Formatter: compile/1" do
+    test "compile default format" do
+      assert is_list(Formatter.compile(nil))
+    end
+
+    test "comppile pattern" do
+      assert Formatter.compile("$method $url => $status") == [:method, " ", :url, " => ", :status]
+    end
+
+    test "raise compile-time error when pattern not found" do
+      assert_raise ArgumentError, fn ->
+        Formatter.compile("$method $nope")
+      end
+    end
+  end
+
+  describe "Formatter: format/2" do
+    setup do
+      format = Formatter.compile("$method $url -> $status | $time")
+      {:ok, format: format}
+    end
+
+    test "format error", %{format: format} do
+      req = %Tesla.Env{method: :get, url: "/error"}
+      res = {:error, :econnrefused}
+
+      assert IO.chardata_to_string(Formatter.format(req, res, 200_000, format)) ==
+               "GET /error -> error: :econnrefused | 200.000"
+    end
+
+    test "format ok response", %{format: format} do
+      req = %Tesla.Env{method: :get, url: "/ok"}
+      res = {:ok, %Tesla.Env{method: :get, url: "/ok", status: 201}}
+
+      assert IO.chardata_to_string(Formatter.format(req, res, 200_000, format)) ==
+               "GET /ok -> 201 | 200.000"
     end
   end
 end

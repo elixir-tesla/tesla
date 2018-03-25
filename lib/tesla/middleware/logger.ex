@@ -1,10 +1,47 @@
+defmodule Tesla.Middleware.Logger.Formatter do
+  @moduledoc false
+
+  # Heavily based on Elixir's Logger.Formatter
+  # https://github.com/elixir-lang/elixir/blob/v1.6.4/lib/logger/lib/logger/formatter.ex
+
+  @default_format "$method $url -> $status ($time ms)"
+  @keys ~w(method url status time)
+
+  @type format :: [atom | binary]
+
+  @spec compile(binary | nil) :: format
+  def compile(nil), do: compile(@default_format)
+
+  def compile(binary) do
+    ~r/(?<h>)\$[a-z]+(?<t>)/
+    |> Regex.split(binary, on: [:h, :t], trim: true)
+    |> Enum.map(&compile_key/1)
+  end
+
+  defp compile_key("$" <> key) when key in @keys, do: String.to_atom(key)
+  defp compile_key("$" <> key), do: raise(ArgumentError, "$#{key} is an invalid format pattern.")
+  defp compile_key(part), do: part
+
+  @spec format(Tesla.Env.t(), Tesla.Env.result(), integer, format) :: IO.chardata()
+  def format(request, response, time, format) do
+    Enum.map(format, &output(&1, request, response, time))
+  end
+
+  defp output(:method, env, _, _), do: env.method |> to_string() |> String.upcase()
+  defp output(:url, env, _, _), do: env.url
+  defp output(:status, _, {:ok, env}, _), do: to_string(env.status)
+  defp output(:status, _, {:error, reason}, _), do: "error: " <> inspect(reason)
+  defp output(:time, _, _, time), do: :io_lib.format("~.3f", [time / 1000])
+  defp output(binary, _, _, _), do: binary
+end
+
 defmodule Tesla.Middleware.Logger do
   @behaviour Tesla.Middleware
 
   @moduledoc """
-  Log requests as single line.
+  Log requests using Elixir's Logger.
 
-  Logs request method, url, response status and time taken in milliseconds.
+  With the default settings it logs request method, url, response status and time taken in milliseconds.
 
   ### Example usage
   ```
@@ -15,53 +52,84 @@ defmodule Tesla.Middleware.Logger do
   end
   ```
 
-  ### Custom log levels
+  ### Options
+  - `:log_level` - custom function for calculating log level (see below)
+
+
+  ## Custom log format
+
+  The default log format is `"$method $url -> $status ($time ms)"`
+  which shows in logs like:
+
+  ```
+  2018-03-25 18:32:40.397 [info]  GET https://bitebot.io -> 200 (88.074 ms)
+  ```
+
+  Because log format is processed during compile time it needs to be set in config:
+
+  ```
+  config :tesla, Tesla.Middleware.Logger, format: "$method $url ====> $status / time=$time"
+  ```
+
+  ## Custom log levels
+
+  By default, the following log levels will be used:
+  - `:error` - for errors, 5xx and 4xx responses
+  - `:warn` - for 3xx responses
+  - `:info` - for 2xx responses
+
+  You can custimize this setting by providing your own `log_level/1` function:
+
   ```
   defmodule MyClient do
     use Tesla
 
     plug Tesla.Middleware.Logger, log_level: &my_log_level/1
-  end
 
-  def my_log_level(env) do
-    case env.status do
-      404 -> :info
-      _ -> Tesla.Middleware.Logger.default_log_level(env)
+    def my_log_level(env) do
+      case env.status do
+        404 -> :info
+        _ -> :default
+      end
     end
   end
   ```
 
-  ### Logger output
-  ```
-  2017-09-30 13:39:06.663 [info] GET http://example.com -> 200 (736.988 ms)
-  ```
+  ### Logger Debug output
 
-  See `Tesla.Middleware.DebugLogger` to log request/response body
+  When the Elixir Logger log level is set to `:debug`
+  Tesla Logger will show full request & response.
   """
+
+
+  alias Tesla.Middleware.Logger.Formatter
+
+  @config Application.get_env(:tesla, __MODULE__, [])
+  @format Formatter.compile(@config[:format])
 
   @type log_level :: :info | :warn | :error
 
   require Logger
 
   def call(env, next, opts) do
-    log_level = Keyword.get(opts, :log_level, &default_log_level/1)
-    {time, result} = :timer.tc(Tesla, :run, [env, next])
-    _ = log(env, result, time, log_level)
-    result
+    {time, response} = :timer.tc(Tesla, :run, [env, next])
+    level = log_level(response, opts)
+    Logger.log(level, fn -> Formatter.format(env, response, time, @format) end)
+    Logger.debug(fn -> debug(env, response) end)
+    response
   end
 
-  defp log(env, {:error, reason}, _time, _log_level) do
-    Logger.error("#{normalize_method(env)} #{env.url} -> #{inspect(reason)}")
-  end
+  defp log_level({:error, _}, _), do: :error
 
-  defp log(_env, {:ok, env}, time, log_level) do
-    ms = :io_lib.format("~.3f", [time / 1000])
-    message = "#{normalize_method(env)} #{env.url} -> #{env.status} (#{ms} ms)"
-
-    case log_level.(env) do
-      :info -> Logger.info(message)
-      :warn -> Logger.warn(message)
-      :error -> Logger.error(message)
+  defp log_level({:ok, env}, opts) do
+    case Keyword.get(opts, :log_level) do
+      nil -> default_log_level(env)
+      fun when is_function(fun) ->
+        case fun.(env) do
+          :default -> default_log_level(env)
+          level -> level
+        end
+      atom when is_atom(atom) -> atom
     end
   end
 
@@ -74,147 +142,47 @@ defmodule Tesla.Middleware.Logger do
     end
   end
 
-  defp normalize_method(env) do
-    env.method |> to_string() |> String.upcase()
+  @debug_no_query "(no query)"
+  @debug_no_headers "(no headers)"
+  @debug_no_body "(no body)"
+  @debug_stream "[Elixir.Stream]"
+
+  defp debug(request, {:ok, response}) do
+    [
+      "\n>>> REQUEST >>>\n",
+      debug_query(request.query), ?\n,
+      debug_headers(request.headers), ?\n,
+      debug_body(request.body), ?\n,
+      "\n<<< RESPONSE <<<\n",
+      debug_headers(response.headers), ?\n,
+      debug_body(response.body),
+    ]
   end
-end
+  defp debug(_request, _error), do: []
 
-defmodule Tesla.Middleware.DebugLogger do
-  @behaviour Tesla.Middleware
-
-  @moduledoc """
-  Log full reqeust/response content
-
-
-  ### Example usage
-  ```
-  defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.DebugLogger
-  end
-  ```
-
-  ### Logger output
-  ```
-  2017-09-30 13:41:56.281 [debug] > POST https://httpbin.org/post
-  2017-09-30 13:41:56.281 [debug]
-  2017-09-30 13:41:56.281 [debug] > a=3
-  2017-09-30 13:41:56.432 [debug]
-  2017-09-30 13:41:56.432 [debug] < HTTP/1.1 200
-  2017-09-30 13:41:56.432 [debug] < access-control-allow-credentials: true
-  2017-09-30 13:41:56.432 [debug] < access-control-allow-origin: *
-  2017-09-30 13:41:56.432 [debug] < connection: keep-alive
-  2017-09-30 13:41:56.432 [debug] < content-length: 280
-  2017-09-30 13:41:56.432 [debug] < content-type: application/json
-  2017-09-30 13:41:56.432 [debug] < date: Sat, 30 Sep 2017 11:41:55 GMT
-  2017-09-30 13:41:56.432 [debug] < server: meinheld/0.6.1
-  2017-09-30 13:41:56.432 [debug] < via: 1.1 vegur
-  2017-09-30 13:41:56.432 [debug] < x-powered-by: Flask
-  2017-09-30 13:41:56.432 [debug] < x-processed-time: 0.0011260509491
-  2017-09-30 13:41:56.432 [debug]
-  2017-09-30 13:41:56.432 [debug] > {
-    "args": {},
-    "data": "a=3",
-    "files": {},
-    "form": {},
-    "headers": {
-      "Connection": "close",
-      "Content-Length": "3",
-      "Content-Type": "",
-      "Host": "httpbin.org"
-    },
-    "json": null,
-    "origin": "0.0.0.0",
-    "url": "https://httpbin.org/post"
-  }
-  ```
-  """
-
-  require Logger
-
-  def call(env, next, _opts) do
-    env
-    |> log_request
-    |> log_headers("> ")
-    |> log_params("> ")
-    |> log_body("> ")
-    |> Tesla.run(next)
-    |> case do
-      {:ok, env} ->
-        env
-        |> log_response
-        |> log_headers("< ")
-        |> log_body("< ")
-
-        {:ok, env}
-
-      {:error, reason} ->
-        log_exception(reason, "< ")
-        {:error, reason}
-    end
+  defp debug_query([]), do: @debug_no_query
+  defp debug_query(query) do
+    query
+    |> Enum.flat_map(&Tesla.encode_pair/1)
+    |> Enum.map(fn {k,v} -> ["Query: ", to_string(k), ": ", to_string(v), ?\n] end)
   end
 
-  defp log_request(env) do
-    _ = Logger.debug("> #{env.method |> to_string |> String.upcase()} #{env.url}")
-    env
+  defp debug_headers([]), do: @debug_no_headers
+  defp debug_headers(headers), do: Enum.map(headers, fn {k,v} -> [k, ": ", v, ?\n] end)
+
+  defp debug_body(nil), do: @debug_no_body
+  defp debug_body([]), do: @debug_no_body
+  defp debug_body(%Stream{}), do: @debug_stream
+  defp debug_body(stream) when is_function(stream), do: @debug_stream
+
+  defp debug_body(%Tesla.Multipart{} = mp) do
+    [
+      "[Tesla.Multipart]\n",
+      "boundary: ", mp.boundary, ?\n,
+      "content_type_params: ", inspect(mp.content_type_params), ?\n
+      | Enum.map(mp.parts, &([inspect(&1), ?\n]))
+    ]
   end
 
-  defp log_response(env) do
-    _ = Logger.debug("")
-    _ = Logger.debug("< HTTP/1.1 #{env.status}")
-    env
-  end
-
-  defp log_headers(env, prefix) do
-    for {k, v} <- env.headers do
-      _ = Logger.debug("#{prefix}#{k}: #{v}")
-    end
-
-    env
-  end
-
-  defp log_params(env, prefix) do
-    encoded_query = Enum.flat_map(env.query, &Tesla.encode_pair/1)
-
-    for {k, v} <- encoded_query do
-      _ = Logger.debug("#{prefix} Query Param '#{k}': '#{v}'")
-    end
-
-    env
-  end
-
-  defp log_body(%Tesla.Env{} = env, _prefix) do
-    Map.update!(env, :body, &log_body(&1, "> "))
-  end
-
-  defp log_body(nil, _), do: nil
-  defp log_body([], _), do: nil
-  defp log_body(%Stream{} = stream, prefix), do: log_body_stream(stream, prefix)
-  defp log_body(stream, prefix) when is_function(stream), do: log_body_stream(stream, prefix)
-  defp log_body(%Tesla.Multipart{} = mp, prefix), do: log_multipart_body(mp, prefix)
-
-  defp log_body(data, prefix) when is_binary(data) or is_list(data) do
-    _ = Logger.debug("")
-    _ = Logger.debug(prefix <> to_string(data))
-    data
-  end
-
-  defp log_body_stream(stream, prefix) do
-    _ = Logger.debug("")
-    Stream.each(stream, fn line -> Logger.debug(prefix <> line) end)
-  end
-
-  defp log_multipart_body(%Tesla.Multipart{} = mp, prefix) do
-    _ = Logger.debug("")
-    _ = Logger.debug(prefix <> "boundary: " <> mp.boundary)
-    _ = Logger.debug(prefix <> "content_type_params: " <> inspect(mp.content_type_params))
-    Enum.each(mp.parts, &Logger.debug(prefix <> inspect(&1)))
-
-    mp
-  end
-
-  defp log_exception(reason, prefix) do
-    _ = Logger.debug(prefix <> " (#{inspect(reason)})")
-  end
+  defp debug_body(data) when is_binary(data) or is_list(data), do: data
 end
