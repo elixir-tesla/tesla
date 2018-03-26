@@ -101,7 +101,6 @@ defmodule Tesla.Middleware.Logger do
   Tesla Logger will show full request & response.
   """
 
-
   alias Tesla.Middleware.Logger.Formatter
 
   @config Application.get_env(:tesla, __MODULE__, [])
@@ -123,13 +122,17 @@ defmodule Tesla.Middleware.Logger do
 
   defp log_level({:ok, env}, opts) do
     case Keyword.get(opts, :log_level) do
-      nil -> default_log_level(env)
+      nil ->
+        default_log_level(env)
+
       fun when is_function(fun) ->
         case fun.(env) do
           :default -> default_log_level(env)
           level -> level
         end
-      atom when is_atom(atom) -> atom
+
+      atom when is_atom(atom) ->
+        atom
     end
   end
 
@@ -150,25 +153,31 @@ defmodule Tesla.Middleware.Logger do
   defp debug(request, {:ok, response}) do
     [
       "\n>>> REQUEST >>>\n",
-      debug_query(request.query), ?\n,
-      debug_headers(request.headers), ?\n,
-      debug_body(request.body), ?\n,
+      debug_query(request.query),
+      ?\n,
+      debug_headers(request.headers),
+      ?\n,
+      debug_body(request.body),
+      ?\n,
       "\n<<< RESPONSE <<<\n",
-      debug_headers(response.headers), ?\n,
-      debug_body(response.body),
+      debug_headers(response.headers),
+      ?\n,
+      debug_body(response.body)
     ]
   end
+
   defp debug(_request, _error), do: []
 
   defp debug_query([]), do: @debug_no_query
+
   defp debug_query(query) do
     query
     |> Enum.flat_map(&Tesla.encode_pair/1)
-    |> Enum.map(fn {k,v} -> ["Query: ", to_string(k), ": ", to_string(v), ?\n] end)
+    |> Enum.map(fn {k, v} -> ["Query: ", to_string(k), ": ", to_string(v), ?\n] end)
   end
 
   defp debug_headers([]), do: @debug_no_headers
-  defp debug_headers(headers), do: Enum.map(headers, fn {k,v} -> [k, ": ", v, ?\n] end)
+  defp debug_headers(headers), do: Enum.map(headers, fn {k, v} -> [k, ": ", v, ?\n] end)
 
   defp debug_body(nil), do: @debug_no_body
   defp debug_body([]), do: @debug_no_body
@@ -178,9 +187,13 @@ defmodule Tesla.Middleware.Logger do
   defp debug_body(%Tesla.Multipart{} = mp) do
     [
       "[Tesla.Multipart]\n",
-      "boundary: ", mp.boundary, ?\n,
-      "content_type_params: ", inspect(mp.content_type_params), ?\n
-      | Enum.map(mp.parts, &([inspect(&1), ?\n]))
+      "boundary: ",
+      mp.boundary,
+      ?\n,
+      "content_type_params: ",
+      inspect(mp.content_type_params),
+      ?\n
+      | Enum.map(mp.parts, &[inspect(&1), ?\n])
     ]
   end
 
