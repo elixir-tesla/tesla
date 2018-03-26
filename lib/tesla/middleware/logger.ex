@@ -99,6 +99,15 @@ defmodule Tesla.Middleware.Logger do
 
   When the Elixir Logger log level is set to `:debug`
   Tesla Logger will show full request & response.
+
+  If you want to disable detailed request/response logging
+  but keep the `:debug` log level (i.e. in development)
+  you can set `debug: false` in your config:
+
+  ```
+  # config/dev.local.exs
+  config :tesla, Tesla.Middleware.Logger, debug: false
+  ```
   """
 
   alias Tesla.Middleware.Logger.Formatter
@@ -114,7 +123,11 @@ defmodule Tesla.Middleware.Logger do
     {time, response} = :timer.tc(Tesla, :run, [env, next])
     level = log_level(response, opts)
     Logger.log(level, fn -> Formatter.format(env, response, time, @format) end)
-    Logger.debug(fn -> debug(env, response) end)
+
+    if Keyword.get(@config, :debug, true) do
+      Logger.debug(fn -> debug(env, response) end)
+    end
+
     response
   end
 
