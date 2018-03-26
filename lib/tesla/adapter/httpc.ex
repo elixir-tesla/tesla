@@ -59,6 +59,11 @@ defmodule Tesla.Adapter.Httpc do
     )
   end
 
+  # fix for # see https://github.com/teamon/tesla/issues/147
+  defp request(:delete, url, headers, content_type, nil, {http_opts, opts}) do
+    request(:delete, url, headers, content_type, "", {http_opts, opts})
+  end
+
   defp request(method, url, headers, _content_type, nil, {http_opts, opts}) do
     :httpc.request(method, {url, headers}, http_opts, opts)
   end
