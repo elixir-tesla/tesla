@@ -166,7 +166,19 @@ defmodule Tesla.Middleware.Logger do
     ]
   end
 
-  defp debug(_request, _error), do: []
+  defp debug(request, {:error, error}) do
+    [
+      "\n>>> REQUEST >>>\n",
+      debug_query(request.query),
+      ?\n,
+      debug_headers(request.headers),
+      ?\n,
+      debug_body(request.body),
+      ?\n,
+      "\n<<< RESPONSE ERROR <<<\n",
+      inspect(error)
+    ]
+  end
 
   defp debug_query([]), do: @debug_no_query
 
