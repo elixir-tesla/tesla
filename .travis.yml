@@ -3,23 +3,23 @@ elixir:
   - 1.4.5
   - 1.5.2
   - 1.5.3
-  - 1.6.2
   - 1.6.3
+  - 1.6.4
 otp_release:
   - 18.3
   - 19.3
   - 20.2
 matrix:
   exclude:
-    - elixir: 1.6.2
-      otp_release: 18.3
     - elixir: 1.6.3
+      otp_release: 18.3
+    - elixir: 1.6.4
       otp_release: 18.3
   include:
     - elixir: 1.5.3
       otp_release: 20.2
       env: MIX_ENV=test LOCKFILE=poison3
-    - elixir: 1.6.3
+    - elixir: 1.6.4
       otp_release: 20.2
       install: skip
       script: mix format --check-formatted --dry-run
