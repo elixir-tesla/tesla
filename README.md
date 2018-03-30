@@ -259,12 +259,14 @@ Then, mock requests before using your client:
 defmodule MyAppTest do
   use ExUnit.Case
 
+  import Tesla.Mock
+
   setup do
-    Tesla.Mock.mock fn
+    mock fn
       %{method: :get, url: "http://example.com/hello"} ->
         %Tesla.Env{status: 200, body: "hello"}
       %{method: :post, url: "http://example.com/world"} ->
-        %Tesla.Env{status: 200, body: "hi!"}
+        json(%{"my" => "data"})
     end
 
     :ok

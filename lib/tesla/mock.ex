@@ -135,6 +135,48 @@ defmodule Tesla.Mock do
   @spec mock_global((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: no_return
   def mock_global(fun) when is_function(fun), do: agent_set(fun)
 
+  ## HELPERS
+
+  @doc """
+  Return json response.
+
+  Example
+
+      import Tesla.Mock
+
+      mock fn
+        %{url: "/ok"} -> json(%{"some" => "data"})
+        %{url: "/404"} -> json(%{"some" => "data"}, status: 404)
+      end
+  """
+  @spec json(body :: term, opts :: [Tesla.option()]) :: Tesla.Env.t()
+  def json(body, opts \\ []), do: response(json_encode(body), "application/json", opts)
+
+  defp json_encode(body) do
+    engine = Keyword.get(Application.get_env(:tesla, Tesla.Mock, []), :json_engine, Jason)
+    engine.encode!(body)
+  end
+
+  @doc """
+  Return text response.
+
+  Example
+
+      import Tesla.Mock
+
+      mock fn
+        %{url: "/ok"} -> text(%{"some" => "data"})
+        %{url: "/404"} -> text(%{"some" => "data"}, status: 404)
+      end
+  """
+  @spec text(body :: term, opts :: [Tesla.option()]) :: Tesla.Env.t()
+  def text(body, opts \\ []), do: response(body, "test/plain", opts)
+
+  defp response(body, content_type, opts) do
+    defaults = [status: 200, headers: [{"content-type", content_type}]]
+    struct(Tesla.Env, Keyword.merge(defaults, [{:body, body} | opts]))
+  end
+
   ## ADAPTER IMPLEMENTATION
 
   def call(env, _opts) do
@@ -155,6 +197,9 @@ defmodule Tesla.Mock do
 
           {:error, reason} ->
             {:error, reason}
+
+          error ->
+            {:error, error}
         end
     end
   end

@@ -3,8 +3,8 @@ defmodule Tesla.GlobalMockTest do
 
   setup_all do
     Tesla.Mock.mock_global(fn
-      %{method: :get, url: "http://example.com/list"} -> %Tesla.Env{status: 200, body: "hello"}
-      %{method: :post, url: "http://example.com/create"} -> {201, %{}, %{id: 42}}
+      %{method: :get, url: "/list"} -> %Tesla.Env{status: 200, body: "hello"}
+      %{method: :post, url: "/create"} -> {201, %{}, %{id: 42}}
     end)
 
     :ok
@@ -12,7 +12,7 @@ defmodule Tesla.GlobalMockTest do
 
   test "mock request from spawned process" do
     pid = self()
-    spawn(fn -> send(pid, MockClient.list()) end)
+    spawn(fn -> send(pid, MockClient.get("/list")) end)
 
     assert_receive {:ok, %Tesla.Env{status: 200, body: "hello"}}
   end
