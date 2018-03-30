@@ -20,9 +20,11 @@ It embraces the concept of middleware when processing the request/response cycle
 
 ```ex
 defp deps do
-  [{:tesla, github: "teamon/tesla", branch: "1.0"}]
+  [{:tesla, "1.0.0-beta.1"}]
 end
 ```
+
+[Documentation for 0.x branch](https://github.com/teamon/tesla/tree/0.x)
 
 <hr/>
 
