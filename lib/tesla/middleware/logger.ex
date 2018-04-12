@@ -78,7 +78,7 @@ defmodule Tesla.Middleware.Logger do
   - `:warn` - for 3xx responses
   - `:info` - for 2xx responses
 
-  You can custimize this setting by providing your own `log_level/1` function:
+  You can customize this setting by providing your own `log_level/1` function:
 
   ```
   defmodule MyClient do
