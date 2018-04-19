@@ -5,7 +5,7 @@
 [![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dw/tesla.svg)](https://hex.pm/packages/tesla)
 [![codecov](https://codecov.io/gh/teamon/tesla/branch/master/graph/badge.svg)](https://codecov.io/gh/teamon/tesla)
-[![Inline docs](http://inch-ci.org/github/teamon/tesla.svg)](http://inch-ci.org/github/teamon/tesla)
+[![Inline docs](https://inch-ci.org/github/teamon/tesla.svg)](http://inch-ci.org/github/teamon/tesla)
 
 Tesla is an HTTP client loosely based on [Faraday](https://github.com/lostisland/faraday).
 It embraces the concept of middleware when processing the request/response cycle.
