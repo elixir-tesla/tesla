@@ -57,7 +57,7 @@ defmodule Tesla.Middleware.Headers do
   defmodule Myclient do
     use Tesla
 
-    plug Tesla.Middleware.Headers, [{"user-agent", "Tesla"]
+    plug Tesla.Middleware.Headers, [{"user-agent", "Tesla"}]
   end
   ```
   """
