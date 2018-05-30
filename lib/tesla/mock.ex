@@ -27,7 +27,7 @@ defmodule Tesla.Mock do
     end
 
     test "list things" do
-      assert %Tesla.Env{} = env = MyApp.get("...")
+      assert {:ok, env} = MyApp.get("...")
       assert env.status == 200
       assert env.body == "hello"
     end
@@ -207,7 +207,12 @@ defmodule Tesla.Mock do
   defp pdict_set(fun), do: Process.put(__MODULE__, fun)
   defp pdict_get, do: Process.get(__MODULE__)
 
-  defp agent_set(fun), do: {:ok, _pid} = Agent.start_link(fn -> fun end, name: __MODULE__)
+  defp agent_set(fun) do
+    case Process.whereis(__MODULE__) do
+      nil -> Agent.start_link(fn -> fun end, name: __MODULE__)
+      pid -> Agent.update(pid, fn _ -> fun end)
+    end
+  end
 
   defp agent_get do
     case Process.whereis(__MODULE__) do
