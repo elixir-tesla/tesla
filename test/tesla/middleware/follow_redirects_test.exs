@@ -107,4 +107,65 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
     assert {:ok, env} = RLClient.get("https://example.com/article")
     assert env.url == "https://example.com/pl"
   end
+
+  defmodule CustomRewriteMethodClient do
+    use Tesla
+
+    plug Tesla.Middleware.FollowRedirects
+
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "http://example.com/0" ->
+            {200, [{"content-type", "text/plain"}], "foo bar"}
+
+          "http://example.com/" <> n ->
+            next = String.to_integer(n) - 1
+            {303, [{"location", "http://example.com/#{next}"}], ""}
+        end
+
+      {:ok, %{env | status: status, headers: headers, body: body}}
+    end
+  end
+
+  alias CustomRewriteMethodClient, as: CRMClient
+
+  test "rewrites method to get for 303 requests" do
+    assert {:ok, env} = CRMClient.post("http://example.com/1", "")
+    assert env.method == :get
+  end
+
+  defmodule CustomPreservesRequestClient do
+    use Tesla
+
+    plug Tesla.Middleware.FollowRedirects
+
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "http://example.com/0" ->
+            {200, env.headers, env.body}
+
+          "http://example.com/" <> n ->
+            next = String.to_integer(n) - 1
+            {301, [{"location", "http://example.com/#{next}"}], ""}
+        end
+
+      {:ok, %{env | status: status, headers: headers, body: body}}
+    end
+  end
+
+  alias CustomPreservesRequestClient, as: CPRClient
+
+  test "Preserves original request" do
+    assert {:ok, env} =
+             CPRClient.post(
+               "http://example.com/1",
+               "Body data",
+               headers: [{"X-Custom-Header", "custom value"}]
+             )
+
+    assert env.body == "Body data"
+    assert env.headers == [{"X-Custom-Header", "custom value"}]
+  end
 end
