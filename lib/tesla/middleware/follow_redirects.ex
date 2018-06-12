@@ -19,7 +19,7 @@ defmodule Tesla.Middleware.FollowRedirects do
   """
 
   @max_redirects 5
-  @redirect_statuses [301, 302, 307, 308]
+  @redirect_statuses [301, 302, 303, 307, 308]
 
   def call(env, next, opts \\ []) do
     max = Keyword.get(opts || [], :max_redirects, @max_redirects)
