@@ -54,13 +54,18 @@ defmodule Tesla.Builder do
         Tesla.execute(__MODULE__, client, options)
       end
 
-      @doc """
-      Perform request and raise in case of error.
+      if unquote(docs) do
+        @doc """
+        Perform request and raise in case of error.
 
-      This is similar to `request/2` behaviour from Tesla 0.x
+        This is similar to `request/2` behaviour from Tesla 0.x
 
-      See `request/2` for list of available options.
-      """
+        See `request/2` for list of available options.
+        """
+      else
+        @doc false
+      end
+
       @spec request!(Tesla.Env.client(), [option]) :: Tesla.Env.t() | no_return
       def request!(%Tesla.Client{} = client \\ %Tesla.Client{}, options) do
         Tesla.execute!(__MODULE__, client, options)
