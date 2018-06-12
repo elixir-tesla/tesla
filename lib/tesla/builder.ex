@@ -10,13 +10,13 @@ defmodule Tesla.Builder do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
       Module.register_attribute(__MODULE__, :__adapter__, [])
 
-      @type option ::
-              {:method, Tesla.Env.method()}
-              | {:url, Tesla.Env.url()}
-              | {:query, Tesla.Env.query()}
-              | {:headers, Tesla.Env.headers()}
-              | {:body, Tesla.Env.body()}
-              | {:opts, Tesla.Env.opts()}
+      @typep option ::
+               {:method, Tesla.Env.method()}
+               | {:url, Tesla.Env.url()}
+               | {:query, Tesla.Env.query()}
+               | {:headers, Tesla.Env.headers()}
+               | {:body, Tesla.Env.body()}
+               | {:opts, Tesla.Env.opts()}
 
       if unquote(docs) do
         @doc """
