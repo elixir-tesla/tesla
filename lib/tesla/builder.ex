@@ -10,6 +10,11 @@ defmodule Tesla.Builder do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
       Module.register_attribute(__MODULE__, :__adapter__, [])
 
+      if unquote(docs) do
+      else
+        @typedoc false
+      end
+
       @type option ::
               {:method, Tesla.Env.method()}
               | {:url, Tesla.Env.url()}
