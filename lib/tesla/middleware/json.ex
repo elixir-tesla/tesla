@@ -33,6 +33,7 @@ defmodule Tesla.Middleware.JSON do
   ### Options
   - `:decode` - decoding function
   - `:encode` - encoding function
+  - `:encode_content_type` - content-type to be used in request header
   - `:engine` - encode/decode engine, e.g `Jason`, `Poison` or `JSX`  (defaults to Jason)
   - `:engine_opts` - optional engine options
   - `:decode_content_types` - list of additional decodable content-types
@@ -41,6 +42,7 @@ defmodule Tesla.Middleware.JSON do
   # NOTE: text/javascript added to support Facebook Graph API.
   #       see https://github.com/teamon/tesla/pull/13
   @default_content_types ["application/json", "text/javascript"]
+  @default_encode_content_type "application/json"
   @default_engine Jason
 
   def call(env, next, opts) do
@@ -61,7 +63,7 @@ defmodule Tesla.Middleware.JSON do
       {:ok,
        env
        |> Tesla.put_body(body)
-       |> Tesla.put_headers([{"content-type", "application/json"}])}
+       |> Tesla.put_headers([{"content-type", encode_content_type(opts)}])}
     else
       false -> {:ok, env}
       error -> error
@@ -71,6 +73,9 @@ defmodule Tesla.Middleware.JSON do
   defp encode_body(%Stream{} = body, opts), do: {:ok, encode_stream(body, opts)}
   defp encode_body(body, opts) when is_function(body), do: {:ok, encode_stream(body, opts)}
   defp encode_body(body, opts), do: process(body, :encode, opts)
+
+  defp encode_content_type(opts),
+    do: Keyword.get(opts, :encode_content_type, @default_encode_content_type)
 
   defp encode_stream(body, opts) do
     Stream.map(body, fn item ->
