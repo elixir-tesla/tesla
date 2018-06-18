@@ -129,6 +129,17 @@ defmodule Tesla.Middleware.JsonTest do
       assert {:ok, env} = CustomContentTypeClient.get("/decode")
       assert env.body == %{"value" => 123}
     end
+
+    test "set custom request Content-Type header specified in :encode_content_type" do
+      assert {:ok, env} =
+               Tesla.Middleware.JSON.call(
+                 %Tesla.Env{body: %{"foo" => "bar"}},
+                 [],
+                 encode_content_type: "application/x-other-custom-json"
+               )
+
+      assert Tesla.get_header(env, "content-type") == "application/x-other-custom-json"
+    end
   end
 
   describe "EncodeJson / DecodeJson" do
