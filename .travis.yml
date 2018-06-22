@@ -24,6 +24,8 @@ matrix:
       install: skip
       script: mix format --check-formatted --dry-run
       after_script: skip
+    - elixir: 1.6.6
+      otp_release: 21.0
 env:
   - MIX_ENV=test
 script: mix coveralls.json
