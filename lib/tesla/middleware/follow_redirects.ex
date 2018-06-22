@@ -64,8 +64,8 @@ defmodule Tesla.Middleware.FollowRedirects do
   # requested resource is not available, however a related resource (or another redirect)
   # available via GET is available at the specified location.
   # https://tools.ietf.org/html/rfc7231#section-6.4.4
-  defp new_request(%{status: 303} = env, new_location), do: %{env | url: new_location, method: :get}
-  defp new_request(env, new_location), do: %{env | url: new_location}
+  defp new_request(%{status: 303} = env, location), do: %{env | url: location, method: :get}
+  defp new_request(env, location), do: %{env | url: location}
 
   defp parse_location("/" <> _rest = location, env) do
     env.url
