@@ -32,8 +32,14 @@ defmodule Tesla.Middleware.Retry do
   end
 
   defp retry(env, next, delay, :infinity) do
-    :timer.sleep(delay)
-    retry(env, next, delay, :infinity)
+    case Tesla.run(env, next) do
+      {:ok, env} ->
+        {:ok, env}
+
+      {:error, _reason} ->
+        :timer.sleep(delay)
+        retry(env, next, delay, :infinity)
+    end
   end
 
   defp retry(env, next, _delay, retries) when retries <= 1 do
