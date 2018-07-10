@@ -27,6 +27,14 @@ defmodule Tesla.Middleware.RetryTest do
     adapter LaggyAdapter
   end
 
+  defmodule Client2 do
+    use Tesla
+
+    plug Tesla.Middleware.Retry, delay: 10, max_retries: :infinity
+
+    adapter LaggyAdapter
+  end
+
   setup do
     {:ok, _} = LaggyAdapter.start_link()
     :ok
@@ -34,10 +42,12 @@ defmodule Tesla.Middleware.RetryTest do
 
   test "pass on successful request" do
     assert {:ok, %Tesla.Env{url: "/ok", method: :get}} = Client.get("/ok")
+    assert {:ok, %Tesla.Env{url: "/ok", method: :get}} = Client2.get("/ok")
   end
 
   test "finally pass on laggy request" do
     assert {:ok, %Tesla.Env{url: "/maybe", method: :get}} = Client.get("/maybe")
+    assert {:ok, %Tesla.Env{url: "/maybe", method: :get}} = Client2.get("/maybe")
   end
 
   test "raise if max_retries is exceeded" do
