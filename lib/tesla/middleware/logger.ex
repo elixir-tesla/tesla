@@ -223,4 +223,5 @@ defmodule Tesla.Middleware.Logger do
   end
 
   defp debug_body(data) when is_binary(data) or is_list(data), do: data
+  defp debug_body(term), do: inspect(term)
 end

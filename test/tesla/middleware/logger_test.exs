@@ -95,6 +95,45 @@ defmodule Tesla.Middleware.LoggerTest do
     end
   end
 
+  describe "Debug mode with custom structs" do
+    # An example of such use case is google-elixir-apis
+
+    setup do
+      Logger.configure(level: :debug)
+      :ok
+    end
+
+    defmodule CustomStruct do
+      defstruct [:data]
+
+      def call(env, next, _opts) do
+        env = %{env | body: encode(env.body)}
+
+        with {:ok, env} <- Tesla.run(env, next) do
+          {:ok, %{env | body: decode(env.body)}}
+        end
+      end
+
+      defp encode(%__MODULE__{data: body}), do: body
+      defp decode(body), do: %__MODULE__{data: body}
+    end
+
+    defmodule CustomStructClient do
+      use Tesla
+
+      plug Tesla.Middleware.Logger
+      plug CustomStruct
+
+      adapter fn env -> {:ok, %{env | status: 200, body: "ok"}} end
+    end
+
+    test "when used with custom encoders" do
+      body = %CustomStruct{data: "some data"}
+      log = capture_log(fn -> CustomStructClient.post("/", body) end)
+      assert log =~ "CustomStruct{data"
+    end
+  end
+
   describe "with log_level" do
     defmodule ClientWithLogLevel do
       use Tesla
