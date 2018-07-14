@@ -42,6 +42,7 @@ matrix:
     - elixir: 1.6.6
       otp_release: 21.0
       before_script: git checkout v1.0.0 -- test
+      env: MIX_ENV=test LABEL=v1.0.0-compat
 script: mix coveralls.json
 after_script:
   - bash <(curl -s https://codecov.io/bash)
