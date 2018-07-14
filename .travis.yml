@@ -1,33 +1,44 @@
 language: elixir
-elixir:
-  - 1.4.5
-  - 1.5.2
-  - 1.5.3
-  - 1.6.3
-  - 1.6.4
-otp_release:
-  - 18.3
-  - 19.3
-  - 20.2
+env:
+  - MIX_ENV=test
 matrix:
-  exclude:
-    - elixir: 1.6.3
-      otp_release: 18.3
-    - elixir: 1.6.4
-      otp_release: 18.3
   include:
+    - elixir: 1.4.5
+      otp_release: 18.3
+    - elixir: 1.4.5
+      otp_release: 19.3
+    - elixir: 1.4.5
+      otp_release: 20.3
+    - elixir: 1.5.3
+      otp_release: 18.3
+    - elixir: 1.5.3
+      otp_release: 19.3
+    - elixir: 1.5.3
+      otp_release: 20.3
+    - elixir: 1.6.5
+      otp_release: 19.3
+    - elixir: 1.6.5
+      otp_release: 20.3
+    - elixir: 1.6.6
+      otp_release: 19.3
+    - elixir: 1.6.6
+      otp_release: 20.3
+    - elixir: 1.6.6
+      otp_release: 21.0
+    - elixir: 1.7.0-rc.0
+      otp_release: 19.3
+    - elixir: 1.7.0-rc.0
+      otp_release: 20.3
+    - elixir: 1.7.0-rc.0
+      otp_release: 21.0
     - elixir: 1.5.3
       otp_release: 20.2
       env: MIX_ENV=test LOCKFILE=poison3
-    - elixir: 1.6.4
-      otp_release: 20.2
+    - elixir: 1.6.6
+      otp_release: 21.0
       install: skip
       script: mix format --check-formatted --dry-run
       after_script: skip
-    - elixir: 1.6.6
-      otp_release: 21.0
-env:
-  - MIX_ENV=test
 script: mix coveralls.json
 after_script:
   - bash <(curl -s https://codecov.io/bash)
