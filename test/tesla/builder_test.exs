@@ -151,17 +151,24 @@ defmodule Tesla.BuilderTest do
       # Use Code.fetch_docs/1 for elixir 1.7+
       test "generate docs by default" do
         {:docs_v1, _, :elixir, _, _, _, docs} = Code.fetch_docs(TeslaDocsTest.Default)
-        assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:function, :get, 3}, _, _, _, _}, &1))
+
+        assert {_, _, _, doc, _} =
+                 Enum.find(docs, &match?({{:function, :get, 3}, _, _, _, _}, &1))
+
         assert doc != :hidden
       end
 
       test "do not generate docs for HTTP methods when docs: false" do
         {:docs_v1, _, :elixir, _, _, _, docs} = Code.fetch_docs(TeslaDocsTest.NoDocs)
 
-        assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:function, :get, 3}, _, _, _, _}, &1))
+        assert {_, _, _, doc, _} =
+                 Enum.find(docs, &match?({{:function, :get, 3}, _, _, _, _}, &1))
+
         assert doc == :hidden
 
-        assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:function, :custom, 1}, _, _, _, _}, &1))
+        assert {_, _, _, doc, _} =
+                 Enum.find(docs, &match?({{:function, :custom, 1}, _, _, _, _}, &1))
+
         assert doc["en"] =~ ~r/something/
       end
     else
