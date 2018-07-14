@@ -147,20 +147,37 @@ defmodule Tesla.BuilderTest do
     # Code.fetch_docs/1 requires .beam file of given module to exist in file system
     # See test/support/docs.ex file for definitions of TeslaDocsTest.* modules
 
-    test "generate docs by default" do
-      {:docs_v1, _, :elixir, _, _, _, docs} = Code.fetch_docs(TeslaDocsTest.Default)
-      assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:function, :get, 3}, _, _, _, _}, &1))
-      assert doc != :hidden
-    end
+    if Version.match?(System.version(), ">= 1.7.0-rc.0") do
+      # Use Code.fetch_docs/1 for elixir 1.7+
+      test "generate docs by default" do
+        {:docs_v1, _, :elixir, _, _, _, docs} = Code.fetch_docs(TeslaDocsTest.Default)
+        assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:function, :get, 3}, _, _, _, _}, &1))
+        assert doc != :hidden
+      end
 
-    test "do not generate docs for HTTP methods when docs: false" do
-      {:docs_v1, _, :elixir, _, _, _, docs} = Code.fetch_docs(TeslaDocsTest.NoDocs)
+      test "do not generate docs for HTTP methods when docs: false" do
+        {:docs_v1, _, :elixir, _, _, _, docs} = Code.fetch_docs(TeslaDocsTest.NoDocs)
 
-      assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:function, :get, 3}, _, _, _, _}, &1))
-      assert doc == :hidden
+        assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:function, :get, 3}, _, _, _, _}, &1))
+        assert doc == :hidden
 
-      assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:function, :custom, 1}, _, _, _, _}, &1))
-      assert doc["en"] =~ ~r/something/
+        assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:function, :custom, 1}, _, _, _, _}, &1))
+        assert doc["en"] =~ ~r/something/
+      end
+    else
+      # Use Code.get_docs/2 for elixir <1.7
+      test "generate docs by default" do
+        docs = Code.get_docs(TeslaDocsTest.Default, :docs)
+        assert {_, _, _, _, doc} = Enum.find(docs, &match?({{:get, 3}, _, :def, _, _}, &1))
+        assert doc != false
+      end
+
+      test "do not generate docs for HTTP methods when docs: false" do
+        docs = Code.get_docs(TeslaDocsTest.NoDocs, :docs)
+        assert {_, _, _, _, false} = Enum.find(docs, &match?({{:get, 3}, _, :def, _, _}, &1))
+        assert {_, _, _, _, doc} = Enum.find(docs, &match?({{:custom, 1}, _, :def, _, _}, &1))
+        assert doc =~ ~r/something/
+      end
     end
   end
 end
