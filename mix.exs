@@ -17,10 +17,7 @@ defmodule Tesla.Mixfile do
         plt_add_apps: [:inets],
         plt_add_deps: :project
       ],
-      docs: [
-        main: "readme",
-        extras: ["README.md"]
-      ]
+      docs: Code.eval_file("docs.exs") |> elem(0)
     ]
   end
 
