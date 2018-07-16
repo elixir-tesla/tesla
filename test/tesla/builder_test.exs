@@ -147,7 +147,7 @@ defmodule Tesla.BuilderTest do
     # Code.fetch_docs/1 requires .beam file of given module to exist in file system
     # See test/support/docs.ex file for definitions of TeslaDocsTest.* modules
 
-    if Version.match?(System.version(), ">= 1.7.0-rc.0") do
+    if function_exported?(Code, :fetch_docs, 1) do
       # Use Code.fetch_docs/1 for elixir 1.7+
       test "generate docs by default" do
         {:docs_v1, _, :elixir, _, _, _, docs} = Code.fetch_docs(TeslaDocsTest.Default)
