@@ -81,7 +81,7 @@ defmodule Tesla.Builder do
   @doc """
   Attach middleware to your API client
 
-  ```ex
+  ```
   defmodule ExampleApi do
     use Tesla
 
@@ -117,7 +117,7 @@ defmodule Tesla.Builder do
   @doc """
   Choose adapter for your API client
 
-  ```ex
+  ```
   defmodule ExampleApi do
     use Tesla
 
