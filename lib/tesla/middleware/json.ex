@@ -6,7 +6,7 @@ defmodule Tesla.Middleware.JSON do
 
   This middleware requires [jason](https://hex.pm/packages/jason) (or other engine) as dependency.
 
-  Remember to add `{:jason, ">= 1.0"}` to dependencies (and `:jason` to applications in `mix.exs`)
+  Remember to add `{:jason, ">= 1.0"}` to dependencies
   Also, you need to recompile tesla after adding `:jason` dependency:
 
   ```
