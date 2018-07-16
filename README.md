@@ -18,7 +18,7 @@ It embraces the concept of middleware when processing the request/response cycle
 
 ## [`0.x` to `1.0` Migration Guide](https://github.com/teamon/tesla/wiki/0.x-to-1.0-Migration-Guide)
 
-```ex
+```elixir
 defp deps do
   [{:tesla, "~> 1.0.0"}]
 end

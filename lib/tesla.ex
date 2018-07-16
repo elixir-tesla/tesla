@@ -82,7 +82,7 @@ defmodule Tesla do
 
   Include Tesla module in your api client:
 
-  ```ex
+  ```
   defmodule ExampleApi do
     use Tesla
 
@@ -208,7 +208,7 @@ defmodule Tesla do
   @doc """
   Dynamically build client from list of middlewares.
 
-  ```ex
+  ```
   defmodule ExampleAPI do
     use Tesla
 
