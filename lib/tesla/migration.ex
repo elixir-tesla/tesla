@@ -1,4 +1,5 @@
 defmodule Tesla.Migration do
+  @moduledoc false
   ## ALIASES
 
   @breaking_alias "https://github.com/teamon/tesla/wiki/0.x-to-1.0-Migration-Guide#dropped-aliases-support-159"
