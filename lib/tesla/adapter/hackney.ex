@@ -3,7 +3,7 @@ if Code.ensure_loaded?(:hackney) do
     @moduledoc """
     Adapter for [hackney](https://github.com/benoitc/hackney)
 
-    Remember to add `{:hackney, "~> 1.6"}` to dependencies (and `:hackney` to applications in `mix.exs`)
+    Remember to add `{:hackney, "~> 1.13"}` to dependencies (and `:hackney` to applications in `mix.exs`)
     Also, you need to recompile tesla after adding `:hackney` dependency:
 
     ```
@@ -14,13 +14,13 @@ if Code.ensure_loaded?(:hackney) do
     ### Example usage
     ```
     # set globally in config/config.exs
-    config :tesla, :adapter, :hackney
+    config :tesla, :adapter, Tesla.Adapter.Hackney
 
     # set per module
     defmodule MyClient do
       use Tesla
 
-      adapter :hackney
+      adapter Tesla.Adapter.Hackney
     end
     ```
     """
