@@ -67,10 +67,10 @@ defmodule Tesla.Mixfile do
       {:fuse, "~> 2.4", optional: true},
 
       # testing & docs
-      {:excoveralls, "~> 0.8.0", only: :test},
+      {:excoveralls, "~> 0.8", only: :test},
       {:httparrot, "~> 1.0", only: :test},
-      {:ex_doc, "~> 0.18.0", only: :dev},
-      {:mix_test_watch, "~> 0.5.0", only: :dev},
+      {:ex_doc, "~> 0.19", only: :dev},
+      {:mix_test_watch, "~> 0.5", only: :dev},
       {:dialyxir, "~> 0.5.0", only: :dev},
       {:inch_ex, "~> 0.5.6", only: :docs}
     ]
