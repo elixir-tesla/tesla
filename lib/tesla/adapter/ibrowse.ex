@@ -14,13 +14,13 @@ if Code.ensure_loaded?(:ibrowse) do
     ### Example usage
     ```
     # set globally in config/config.exs
-    config :tesla, :adapter, :ibrowse
+    config :tesla, :adapter, Tesla.Adapter.Ibrowse
 
     # set per module
     defmodule MyClient do
       use Tesla
 
-      adapter :ibrowse
+      adapter Tesla.Adapter.Ibrowse
     end
     ```
     """
