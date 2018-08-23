@@ -6,3 +6,4 @@ erl_crash.dump
 /cover
 .tool-versions
 /sandbox
+.elixir_ls
