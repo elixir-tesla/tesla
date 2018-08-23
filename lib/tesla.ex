@@ -18,7 +18,7 @@ defmodule Tesla.Env do
       Example: `[{"param", "value"}]` will be translated to `?params=value`.
       Note: query params passed in url (e.g. `"/get?param=value"`) are not parsed to `query` field.
     * `:headers` - list of request/response headers.
-      Example: `[{"content-type", "application/json"}].
+      Example: `[{"content-type", "application/json"}]`.
       Note: request headers are overriden by response headers when adapter is called.
     * `:body` - request/response body.
       Note: request body is overriden by response body when adapter is called.
@@ -74,6 +74,53 @@ defmodule Tesla.Client do
 end
 
 defmodule Tesla.Middleware do
+  @moduledoc """
+  The middleware specification
+
+  Middleware is an extension of basic `Tesla` functionality. It is a module that must
+  export `call/3` function.
+
+  ## Middleware options
+
+  Options can be passed to middleware in second param of `Tesla.Builder.plug/2` macro:
+
+      plug Tesla.Middleware.BaseUrl, "https://example.com"
+
+  or inside tuple in case of dynamic middleware (`Tesla.build_client/2`)
+
+      Tesla.build_client([{Tesla.Middleware.BaseUrl, "https://example.com"}])
+
+  ## Writing custom middleware
+
+  Writing custom middleware is as simple as creating a module with `call/3` function that:
+    * (optionally) read and/or writes request data
+    * calls `Tesla.run/2`
+    * (optionally) read and/or writes response data
+
+  `call/3` params:
+    * env - `Tesla.Env` struct that stores request/response data
+    * stack - middlewares that should be called after current one
+    * options - middleware options provided by user
+
+  #### Example
+
+      defmodule MyProject.InspectHeadersMiddleware do
+        @behaviour Tesla.Middleware
+
+        @impl true
+        def call(env, next, options) do
+          env
+          |> inspect_headers(options)
+          |> Tesla.run(next)
+          |> inspect_headers(options)
+        end
+
+        defp inspect_headers(env, options) do
+          IO.inspect(env.headers, options)
+        end
+      end
+
+  """
   @callback call(env :: Tesla.Env.t(), next :: Tesla.Env.stack(), options :: any) ::
               Tesla.Env.result()
 end
