@@ -207,15 +207,71 @@ defmodule Tesla do
   @moduledoc """
   A HTTP toolkit for building API clients using middlewares
 
-  Include Tesla module in your api client:
+  ## Building API client
 
-  ```
-  defmodule ExampleApi do
-    use Tesla
+  `use Tesla` macro will generate basic http functions (e.g. get, post) inside your module.
+  It supports following options:
+    * `:only` - builder will generate only functions included in list given in this option
+    * `:except` - builder won't generate functions included in list given in this option
+    * `:docs` - when set to false builder will won't add documentation to generated functions
 
-    plug Tesla.Middleware.BaseUrl, "http://api.example.com"
-    plug Tesla.Middleware.JSON
-  end
+  #### Example
+
+      defmodule ExampleApi do
+        use Tesla, only: [:get], docs: false
+
+        plug Tesla.Middleware.BaseUrl, "http://api.example.com"
+        plug Tesla.Middleware.JSON
+
+        def fetch_data do
+          get("/data")
+        end
+      end
+
+  In example above `ExampleApi.fetch_data/0` is equivalent of `ExampleApi.get("/data")`
+
+  ## Direct usage
+
+  It is also possible to do request directly with `Tesla` module.
+
+      Tesla.get("https://example.com")
+
+  #### Common pitfalls
+
+  Direct usage won't include any middlewares.
+
+  In following example:
+
+      defmodule ExampleApi do
+        use Tesla, only: [:get], docs: false
+
+        plug Tesla.Middleware.BaseUrl, "http://api.example.com"
+        plug Tesla.Middleware.JSON
+
+        def fetch_data do
+          Tesla.get("/data")
+        end
+      end
+
+  call to `ExampleApi.fetch_data/0` will fail, because request will be missing base url.
+
+  ## Default adapter
+
+  By default `Tesla` is using `Tesla.Adapter.Httpc`, because `:httpc` is included in Erlang/OTP and
+  doen not require installation of any additional dependency. It can be changed globally with config
+
+      config :tesla, :adapter, Tesla.Adapter.Hackney
+
+  or by `Tesla.Builder.adapter/2` macro for given API client module
+
+      defmodule ExampleApi do
+        use Tesla
+
+        adapter Tesla.Adapter.Hackney
+
+        ...
+      end
+
   """
 
   defmacro __using__(opts \\ []) do
