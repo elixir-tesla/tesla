@@ -37,8 +37,14 @@ defmodule Tesla.Middleware.Timeout do
   end
 
   defp safe_async(func) do
+    mock_fun = Process.get(Tesla.Mock)
+
     Task.async(fn ->
       try do
+        if(is_function(mock_fun)) do
+          Process.put(Tesla.Mock, mock_fun)
+        end
+
         {:ok, func.()}
       rescue
         e in _ ->
