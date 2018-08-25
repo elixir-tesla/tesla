@@ -104,7 +104,7 @@ defmodule Tesla.Middleware.TimeoutTest do
 
   describe "using Tesla.Mock and timeouts" do
     test "should return the mocked response instead of mock error" do
-      Application.put_env(:tesla, :adapter, Tesla.Mock)
+      Application.put_env(:tesla, MockedClient, adapter: Tesla.Mock)
 
       Tesla.Mock.mock(fn %{method: :get, url: "https://mocked.test.com/path"} ->
         %Tesla.Env{status: 200}
