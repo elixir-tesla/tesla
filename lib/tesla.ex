@@ -350,7 +350,18 @@ defmodule Tesla do
   def run(env, [{:fn, f} | rest]), do: apply(f, [env, rest])
   def run(env, [{m, f, a} | rest]), do: apply(m, f, [env, rest | a])
 
-  # useful helper fuctions
+  @doc """
+  Adds given key/value pair to `:opts` field in `Tesla.Env`
+
+  Useful when there's need to store additional middleware data in `Tesla.Env`
+
+  ## Example
+
+      iex> %Tesla.Env{opts: []} |> Tesla.put_opt(:option, "value")
+      %Tesla.Env{opts: [option: "value"]}
+
+  """
+  @spec put_opt(Tesla.Env.t(), atom, any) :: Tesla.Env.t()
   def put_opt(env, key, value) do
     Map.update!(env, :opts, &Keyword.put(&1, key, value))
   end
