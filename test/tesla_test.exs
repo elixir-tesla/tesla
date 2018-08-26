@@ -1,5 +1,6 @@
 defmodule TeslaTest do
   use ExUnit.Case
+  doctest Tesla
 
   require Tesla
 
@@ -226,23 +227,6 @@ defmodule TeslaTest do
 
   alias Tesla.Env
   import Tesla
-
-  describe "get_header/2" do
-    test "non existing header" do
-      env = %Env{headers: [{"server", "Cowboy"}]}
-      assert get_header(env, "some-key") == nil
-    end
-
-    test "existing header" do
-      env = %Env{headers: [{"server", "Cowboy"}]}
-      assert get_header(env, "server") == "Cowboy"
-    end
-
-    test "first of multiple headers with the same name" do
-      env = %Env{headers: [{"cookie", "chocolate"}, {"cookie", "biscuits"}]}
-      assert get_header(env, "cookie") == "chocolate"
-    end
-  end
 
   describe "get_headers/2" do
     test "none matching" do

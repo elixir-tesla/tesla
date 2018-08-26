@@ -366,6 +366,27 @@ defmodule Tesla do
     Map.update!(env, :opts, &Keyword.put(&1, key, value))
   end
 
+  @doc """
+  Returns value of header specified by `key` from `:headers` field in `Tesla.Env`
+
+  ## Examples
+
+      # non existing header
+      iex> env = %Tesla.Env{headers: [{"server", "Cowboy"}]}
+      iex> Tesla.get_header(env, "some-key")
+      nil
+
+      # existing header
+      iex> env = %Tesla.Env{headers: [{"server", "Cowboy"}]}
+      iex> Tesla.get_header(env, "server")
+      "Cowboy"
+
+      # first of multiple headers with the same name
+      iex> env = %Tesla.Env{headers: [{"cookie", "chocolate"}, {"cookie", "biscuits"}]}
+      iex> Tesla.get_header(env, "cookie")
+      "chocolate"
+
+  """
   @spec get_header(Env.t(), binary) :: binary | nil
   def get_header(%Env{headers: headers}, key) do
     case List.keyfind(headers, key, 0) do
