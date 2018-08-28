@@ -131,7 +131,7 @@ defmodule Tesla.Adapter do
 
   Adapter is a module that denormalize request data stored in `Tesla.Env` in order to make
   request with lower level http client (e.g. `:httpc` or `:hackney`) and normalize response data
-  in order to store it back to `Tesla.Env`. It have to export `call/2` function.
+  in order to store it back to `Tesla.Env`. It has to export `call/2` function.
 
   ## Writing custom adapter
 
