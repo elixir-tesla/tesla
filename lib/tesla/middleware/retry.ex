@@ -15,7 +15,7 @@ defmodule Tesla.Middleware.Retry do
 
   ### Options
   - `:delay`        - number of milliseconds to wait before retrying (defaults to 1000)
-  - `:max_retries`  - maximum number of retries (defaults to 5)
+  - `:max_retries`  - maximum number of retries or :infinity (defaults to 5)
   """
 
   @defaults [
@@ -29,6 +29,17 @@ defmodule Tesla.Middleware.Retry do
     max_retries = Keyword.get(opts, :max_retries, @defaults[:max_retries])
 
     retry(env, next, delay, max_retries)
+  end
+
+  defp retry(env, next, delay, :infinity) do
+    case Tesla.run(env, next) do
+      {:ok, env} ->
+        {:ok, env}
+
+      {:error, _reason} ->
+        :timer.sleep(delay)
+        retry(env, next, delay, :infinity)
+    end
   end
 
   defp retry(env, next, _delay, retries) when retries <= 1 do
