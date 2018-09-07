@@ -169,7 +169,9 @@ defmodule Tesla.Builder do
     end
   end
 
-  def client(pre, post), do: %Tesla.Client{pre: runtime(pre), post: runtime(post)}
+  def client(pre, post, adapter \\ nil) do
+    %Tesla.Client{pre: runtime(pre), post: runtime(post), adapter: runtime(adapter)}
+  end
 
   @default_opts []
 
@@ -202,6 +204,7 @@ defmodule Tesla.Builder do
     Tesla.Migration.breaking_alias!(kind, name, caller)
   end
 
+  defp runtime(nil), do: nil
   defp runtime(list) when is_list(list), do: Enum.map(list, &runtime/1)
   defp runtime({module, opts}) when is_atom(module), do: {module, :call, [opts]}
   defp runtime(fun) when is_function(fun), do: {:fn, fun}
