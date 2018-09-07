@@ -91,7 +91,7 @@ defmodule Tesla.Migration do
       message: """
 
         Using anonymous function as client has been removed.
-        Use `Tesla.build_client` instead
+        Use `Tesla.client/2` instead
 
         See #{@breaking_client_fun}
       """

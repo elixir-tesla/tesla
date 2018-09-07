@@ -91,9 +91,9 @@ defmodule Tesla.Middleware do
 
       plug Tesla.Middleware.BaseUrl, "https://example.com"
 
-  or inside tuple in case of dynamic middleware (`Tesla.build_client/2`)
+  or inside tuple in case of dynamic middleware (`Tesla.client/1`)
 
-      Tesla.build_client([{Tesla.Middleware.BaseUrl, "https://example.com"}])
+      Tesla.client([{Tesla.Middleware.BaseUrl, "https://example.com"}])
 
   ## Writing custom middleware
 
@@ -476,24 +476,6 @@ defmodule Tesla do
   @spec client([Tesla.Client.middleware()], Tesla.Client.adapter()) :: Tesla.Client.t()
   def client(middleware, adapter \\ nil), do: Tesla.Builder.client(middleware, [], adapter)
 
-  @doc """
-  Dynamically build client from list of middlewares.
-
-  ```
-  defmodule ExampleAPI do
-    use Tesla
-
-    def new(token) do
-      Tesla.build_client([
-        {Tesla.Middleware.Headers, [{"authorization", token}]
-      ])
-    end
-  end
-
-  client = ExampleAPI.new(token: "abc")
-  client |> ExampleAPI.get("/me")
-  ```
-  """
   @deprecated "Use client/1 or client/2 instead"
   def build_client(pre, post \\ []), do: Tesla.Builder.client(pre, post)
 

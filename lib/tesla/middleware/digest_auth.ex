@@ -15,7 +15,7 @@ defmodule Tesla.Middleware.DigestAuth do
     use Tesla
 
     def client(username, password, opts \\ %{}) do
-      Tesla.build_client [
+      Tesla.client [
         {Tesla.Middleware.DigestAuth, Map.merge(%{username: username, password: password}, opts)}
       ]
     end

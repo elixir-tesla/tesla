@@ -16,7 +16,7 @@ defmodule Tesla.Middleware.BasicAuth do
 
     # dynamic user & pass
     def new(username, password, opts \\\\ %{}) do
-      Tesla.build_client [
+      Tesla.client [
         {Tesla.Middleware.BasicAuth, Map.merge(%{username: username, password: password}, opts)}
       ]
     end
