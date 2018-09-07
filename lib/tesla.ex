@@ -64,8 +64,8 @@ defmodule Tesla.Env do
 end
 
 defmodule Tesla.Client do
-  @type adapter :: atom | {atom, Tesla.Env.opts()}
-  @type middleware :: atom | {atom, Tesla.Env.opts()}
+  @type adapter :: module | {atom, Tesla.Env.opts()}
+  @type middleware :: module | {atom, Tesla.Env.opts()}
 
   @type t :: %__MODULE__{
           pre: Tesla.Env.stack(),
