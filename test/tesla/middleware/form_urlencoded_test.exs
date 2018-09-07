@@ -14,6 +14,10 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
 
           "/check_incoming_content_type" ->
             {201, [{"content-type", "text/html"}], Tesla.get_header(env, "content-type")}
+
+          "/decode_response" ->
+            {200, [{"content-type", "application/x-www-form-urlencoded; charset=utf-8"}],
+             "x=1&y=2"}
         end
 
       {:ok, %{env | status: status, headers: headers, body: body}}
@@ -33,6 +37,11 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
   test "check header is set as application/x-www-form-urlencoded" do
     assert {:ok, env} = Client.post("/check_incoming_content_type", %{"foo" => "%bar "})
     assert env.body == "application/x-www-form-urlencoded"
+  end
+
+  test "decode response" do
+    assert {:ok, env} = Client.get("/decode_response")
+    assert env.body == %{"x" => "1", "y" => "2"}
   end
 
   defmodule MultipartClient do
