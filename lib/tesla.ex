@@ -441,7 +441,7 @@ defmodule Tesla do
 
   # complete module example
   defmodule MyApi do
-    # not there is no need for use Tesla
+    # note there is no need for `use Tesla`
 
     @middleware [
       {Tesla.Middleware.BaseUrl, "https://example.com"},
@@ -470,6 +470,9 @@ defmodule Tesla do
       # ...
     end
   end
+
+  client = MyApi.new(username: "admin", password: "secret")
+  MyApi.get_something(client, 42)
   ```
   """
   @since "1.2.0"
