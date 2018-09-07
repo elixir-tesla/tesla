@@ -11,7 +11,7 @@ defmodule Tesla.Middleware.BasicAuthTest do
     end
 
     def client(username, password, opts \\ %{}) do
-      Tesla.build_client([
+      Tesla.client([
         {
           Tesla.Middleware.BasicAuth,
           Map.merge(
@@ -26,7 +26,7 @@ defmodule Tesla.Middleware.BasicAuthTest do
     end
 
     def client() do
-      Tesla.build_client([Tesla.Middleware.BasicAuth])
+      Tesla.client([Tesla.Middleware.BasicAuth])
     end
   end
 

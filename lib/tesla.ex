@@ -64,13 +64,18 @@ defmodule Tesla.Env do
 end
 
 defmodule Tesla.Client do
+  @type adapter :: atom | {atom, Tesla.Env.opts()}
+  @type middleware :: atom | {atom, Tesla.Env.opts()}
+
   @type t :: %__MODULE__{
           pre: Tesla.Env.stack(),
-          post: Tesla.Env.stack()
+          post: Tesla.Env.stack(),
+          adapter: adapter | nil
         }
   defstruct fun: nil,
             pre: [],
-            post: []
+            post: [],
+            adapter: nil
 end
 
 defmodule Tesla.Middleware do
@@ -298,13 +303,14 @@ defmodule Tesla do
 
   defp prepare(module, %{pre: pre, post: post} = client, options) do
     env = struct(Env, options ++ [__module__: module, __client__: client])
-    stack = pre ++ module.__middleware__ ++ post ++ [effective_adapter(module)]
+    stack = pre ++ module.__middleware__ ++ post ++ [effective_adapter(module, client)]
     {env, stack}
   end
 
   @doc false
-  def effective_adapter(module) do
-    with nil <- adapter_per_module_from_config(module),
+  def effective_adapter(module, client \\ %Tesla.Client{}) do
+    with nil <- client.adapter,
+         nil <- adapter_per_module_from_config(module),
          nil <- adapter_per_module(module),
          nil <- adapter_from_config() do
       adapter_default()
@@ -421,6 +427,56 @@ defmodule Tesla do
   def put_body(%Env{} = env, body), do: %{env | body: body}
 
   @doc """
+  Dynamically build client from list of middlewares and/or adapter.
+
+  ```
+  # add dynamic middleware
+  client = Tesla.client([{Tesla.Middleware.Headers, [{"authorization", token}]}])
+  Tesla.get(client, "/path")
+
+  # configure adapter in runtime
+  client = Tesla.client([], Tesla.Adapter.Hackney)
+  client = Tesla.client([], {Tesla.Adapter.Hackney, pool: :my_pool)
+  Tesla.get(client, "/path")
+
+  # complete module example
+  defmodule MyApi do
+    # not there is no need for use Tesla
+
+    @middleware [
+      {Tesla.Middleware.BaseUrl, "https://example.com"},
+      Tesla.Middleware.JSON,
+      Tesla.Middleware.Logger
+    ]
+
+    @adapter Tesla.Adapter.Hackney
+
+    def new(opts) do
+      # do any middleware manipulation you need
+      middleware = [
+        {Tesla.Middleware.BasicAuth, username: opts[:username], password: opts[:password]}
+      ] ++ @middleware
+
+      # allow configuring adapter in runtime
+      adapter = opts[:adapter] || @adapter
+
+      # use Tesla.client/2 to put it all together
+      Tesla.client(middleware, adapter)
+    end
+
+    def get_something(client, id) do
+      # pass client directly to Tesla.get/2
+      Tesla.get(client, "/something/\#{id}")
+      # ...
+    end
+  end
+  ```
+  """
+  @since "1.2.0"
+  @spec client([Tesla.Client.middleware()], Tesla.Client.adapter()) :: Tesla.Client.t()
+  def client(middleware, adapter \\ nil), do: Tesla.Builder.client(middleware, [], adapter)
+
+  @doc """
   Dynamically build client from list of middlewares.
 
   ```
@@ -438,9 +494,11 @@ defmodule Tesla do
   client |> ExampleAPI.get("/me")
   ```
   """
+  @deprecated "Use client/1 or client/2 instead"
   def build_client(pre, post \\ []), do: Tesla.Builder.client(pre, post)
 
-  def build_adapter(fun), do: Tesla.Builder.client([], [fn env, _next -> fun.(env) end])
+  @deprecated "Use client/1 or client/2 instead"
+  def build_adapter(fun), do: Tesla.Builder.client([], [], fun)
 
   def build_url(url, []), do: url
 
