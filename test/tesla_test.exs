@@ -151,12 +151,9 @@ defmodule TeslaTest do
 
     test "override adapter - Tesla.client" do
       client =
-        Tesla.client(
-          [],
-          fn env ->
-            {:ok, %{env | body: "new"}}
-          end
-        )
+        Tesla.client([], fn env ->
+          {:ok, %{env | body: "new"}}
+        end)
 
       assert {:ok, %{body: "new"}} = DynamicClient.help(client)
     end

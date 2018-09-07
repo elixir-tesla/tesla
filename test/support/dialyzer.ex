@@ -12,6 +12,7 @@ defmodule Tesla.Dialyzer do
       {Tesla.Middleware.Headers, []},
       Tesla.Middleware.JSON
     ]
+
     Tesla.client(middleware)
   end
 end
