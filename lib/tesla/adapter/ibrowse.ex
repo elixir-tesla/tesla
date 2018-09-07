@@ -87,7 +87,8 @@ if Code.ensure_loaded?(:ibrowse) do
     end
 
     defp request(url, headers, method, body, opts) do
-      :ibrowse.send_req(url, headers, method, body, opts)
+      {timeout, opts} = opts |> Keyword.pop(:timeout, 30_000)
+      :ibrowse.send_req(url, headers, method, body, opts, timeout)
     end
 
     defp handle({:error, {:conn_failed, error}}), do: error
