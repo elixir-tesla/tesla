@@ -121,7 +121,7 @@ Consider the following case: GitHub API can be accessed using OAuth token author
 We can't use `plug Tesla.Middleware.Headers, [{"authorization", "token here"}]`
 since this would be compiled only once and there is no way to insert dynamic user token.
 
-Instead, we can use `Tesla.build_client` to create a dynamic middleware function:
+Instead, we can use `Tesla.client` to create a dynamic middleware function:
 
 ```elixir
 defmodule GitHub do
@@ -139,9 +139,9 @@ defmodule GitHub do
 
   # build dynamic client based on runtime arguments
   def client(token) do
-    Tesla.build_client [
+    Tesla.client([
       {Tesla.Middleware.Headers, [{"authorization", "token: " <> token }]}
-    ]
+    ])
   end
 end
 ```
@@ -156,27 +156,6 @@ client |> GitHub.get("/me")
 GitHub.issues()
 client |> GitHub.issues()
 ```
-
-The `Tesla.build_client` function can take two arguments: `pre` and `post` middleware.
-The first list (`pre`) will be included before any other middleware. In case there is a need
-to inject middleware at the end you can pass a second list (`post`). It will be put just
-before adapter. In fact, one can even dynamically override the adapter.
-
-For example, a private (per user) cache could be implemented as:
-
-```elixir
-def new(user) do
-  Tesla.build_client [], [
-    fn env, next ->
-      case my_private_cache.fetch(user, env) do
-        {:ok, env} -> {:ok, env}        # return cached response
-        :error -> Tesla.run(env, next)  # make real request
-      end
-    end
-  end
-end
-```
-
 
 ## Adapters
 
