@@ -436,7 +436,7 @@ defmodule Tesla do
 
   # configure adapter in runtime
   client = Tesla.client([], Tesla.Adapter.Hackney)
-  client = Tesla.client([], {Tesla.Adapter.Hackney, pool: :my_pool)
+  client = Tesla.client([], {Tesla.Adapter.Hackney, pool: :my_pool})
   Tesla.get(client, "/path")
 
   # complete module example
