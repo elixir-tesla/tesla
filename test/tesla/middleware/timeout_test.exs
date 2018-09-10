@@ -49,6 +49,12 @@ defmodule Tesla.Middleware.TimeoutTest do
     end
   end
 
+  defmodule MockedClient do
+    use Tesla
+
+    plug Tesla.Middleware.Timeout
+  end
+
   describe "using custom timeout (100ms)" do
     test "should return timeout error when the stack timeout" do
       assert {:error, :timeout} = Client.get("/sleep_150ms")
@@ -93,6 +99,18 @@ defmodule Tesla.Middleware.TimeoutTest do
 
     test "should repass exit value" do
       assert catch_exit(Client.get("/exit")) == :exit_value
+    end
+  end
+
+  describe "using Tesla.Mock and timeouts" do
+    test "should return the mocked response instead of mock error" do
+      Application.put_env(:tesla, MockedClient, adapter: Tesla.Mock)
+
+      Tesla.Mock.mock(fn %{method: :get, url: "https://mocked.test.com/path"} ->
+        %Tesla.Env{status: 200}
+      end)
+
+      assert {:ok, %Tesla.Env{status: 200}} = MockedClient.get("https://mocked.test.com/path")
     end
   end
 end
