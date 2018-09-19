@@ -70,4 +70,57 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     assert {:ok, env} = MultipartClient.post("/upload", mp)
     assert env.body == "ok"
   end
+
+  defmodule NewEncoderClient do
+    use Tesla
+
+    def encoder(_data) do
+      "iamencoded"
+    end
+
+    plug Tesla.Middleware.FormUrlencoded, encode: &encoder/1
+
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/post" ->
+            {201, [{"content-type", "text/html"}], env.body}
+        end
+
+      {:ok, %{env | status: status, headers: headers, body: body}}
+    end
+  end
+
+  test "uses encoder configured in options" do
+    {:ok, env} = NewEncoderClient.post("/post", %{"foo" => "bar"})
+
+    assert env.body == "iamencoded"
+  end
+
+  defmodule NewDecoderClient do
+    use Tesla
+
+    def decoder(_data) do
+      "decodedbody"
+    end
+
+    plug Tesla.Middleware.FormUrlencoded, decode: &decoder/1
+
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/post" ->
+            {200, [{"content-type", "application/x-www-form-urlencoded; charset=utf-8"}],
+             "x=1&y=2"}
+        end
+
+      {:ok, %{env | status: status, headers: headers, body: body}}
+    end
+  end
+
+  test "uses decoder configured in options" do
+    {:ok, env} = NewDecoderClient.post("/post", %{"foo" => "bar"})
+
+    assert env.body == "decodedbody"
+  end
 end

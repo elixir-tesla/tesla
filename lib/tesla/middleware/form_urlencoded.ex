@@ -2,9 +2,12 @@ defmodule Tesla.Middleware.FormUrlencoded do
   @behaviour Tesla.Middleware
 
   @moduledoc """
-  Send request body as application/x-www-form-urlencoded
-
-  Longer description, including e.g. additional dependencies.
+  Send request body as `application/x-www-form-urlencoded`.
+  Performs encoding of `body` from a `Map` such as `%{"foo" => "bar"}` into
+  url encoded data.
+  Performs decoding of the response into a map when urlencoded and content-type
+  is `application/x-www-form-urlencoded`, so `"foo=bar"` becomes
+  `%{"foo" => "bar"}`.
 
 
   ### Example usage
@@ -17,24 +20,45 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   Myclient.post("/url", %{key: :value})
   ```
+
+  ### Options
+  - `:decode` - decoding function, defaults to `URI.decode_query`
+  - `:encode` - encoding function, defaults to `URI.encode_query`
+
+  ### Nested Maps
+  Natively, nested maps are not supported in the body, so
+  `%{"foo" => %{"bar" => "baz"}}` won't be encoded and raise an error.
+  Support for this specific case is obtained by configuring the middleware to
+  encode (and decode) with `Plug.Conn.Query`
+
+  ```
+  defmodule Myclient do
+    use Tesla
+
+    plug Tesla.Middleware.FormUrlencoded,
+      encode: &Plug.Conn.Query.encode/1,
+      decode: &Plug.Conn.Query.decode/1
+  end
+
+  Myclient.post("/url", %{key: %{nested: "value"}})
   """
 
   @content_type "application/x-www-form-urlencoded"
 
-  def call(env, next, _opts) do
+  def call(env, next, opts) do
     env
-    |> encode()
+    |> encode(opts)
     |> Tesla.run(next)
     |> case do
-      {:ok, env} -> {:ok, decode(env)}
+      {:ok, env} -> {:ok, decode(env, opts)}
       error -> error
     end
   end
 
-  defp encode(env) do
+  defp encode(env, opts) do
     if encodable?(env) do
       env
-      |> Map.update!(:body, &encode_body(&1))
+      |> Map.update!(:body, &encode_body(&1, opts))
       |> Tesla.put_headers([{"content-type", @content_type}])
     else
       env
@@ -45,13 +69,13 @@ defmodule Tesla.Middleware.FormUrlencoded do
   defp encodable?(%{body: %Tesla.Multipart{}}), do: false
   defp encodable?(_), do: true
 
-  defp encode_body(body) when is_binary(body), do: body
-  defp encode_body(body), do: do_encode(body)
+  defp encode_body(body, _opts) when is_binary(body), do: body
+  defp encode_body(body, opts), do: do_encode(body, opts)
 
-  defp decode(env) do
+  defp decode(env, opts) do
     if decodable?(env) do
       env
-      |> Map.update!(:body, &decode_body(&1))
+      |> Map.update!(:body, &decode_body(&1, opts))
     else
       env
     end
@@ -70,8 +94,15 @@ defmodule Tesla.Middleware.FormUrlencoded do
     end
   end
 
-  defp decode_body(body), do: do_decode(body)
+  defp decode_body(body, opts), do: do_decode(body, opts)
 
-  defp do_encode(data), do: URI.encode_query(data)
-  defp do_decode(data), do: URI.decode_query(data)
+  defp do_encode(data, opts) do
+    encoder = Keyword.get(opts, :encode, &URI.encode_query/1)
+    encoder.(data)
+  end
+
+  defp do_decode(data, opts) do
+    decoder = Keyword.get(opts, :decode, &URI.decode_query/1)
+    decoder.(data)
+  end
 end
