@@ -22,8 +22,8 @@ defmodule Tesla.Middleware.FormUrlencoded do
   ```
 
   ### Options
-  - `:decode` - decoding function, defaults to `URI.decode_query`
-  - `:encode` - encoding function, defaults to `URI.encode_query`
+  - `:decode` - decoding function, defaults to `URI.decode_query/1`
+  - `:encode` - encoding function, defaults to `URI.encode_query/1`
 
   ### Nested Maps
   Natively, nested maps are not supported in the body, so
