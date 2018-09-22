@@ -20,7 +20,7 @@ It embraces the concept of middleware when processing the request/response cycle
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 1.0.0"}]
+  [{:tesla, "~> 1.1.0"}]
 end
 ```
 
