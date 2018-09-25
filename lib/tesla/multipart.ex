@@ -68,6 +68,11 @@ defmodule Tesla.Multipart do
   """
   @spec add_field(t, String.t(), part_value, Keyword.t()) :: t
   def add_field(%__MODULE__{} = mp, name, value, opts \\ []) do
+    unless Enumerable.impl_for(value) || is_binary(value) do
+      raise ArgumentError,
+        message: "The value must either implement the Enumerable protocol or be a binary."
+    end
+
     {headers, opts} = Keyword.pop_first(opts, :headers, [])
 
     part = %Part{

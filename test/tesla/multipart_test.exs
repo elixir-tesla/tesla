@@ -75,6 +75,13 @@ defmodule Tesla.MultipartTest do
            """
   end
 
+  test "add_field with invalid arguments raises error" do
+    assert_raise ArgumentError, fn ->
+      Multipart.new()
+      |> Multipart.add_field("foo", 123)
+    end
+  end
+
   test "add_file (filename only)" do
     mp =
       Multipart.new()
