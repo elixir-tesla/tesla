@@ -179,7 +179,7 @@ defmodule Tesla.Multipart do
     |> Enum.join("")
   end
 
-  @spec assert_part_value(any) :: :ok | no_return
+  @spec assert_part_value!(any) :: :ok | no_return
   defp assert_part_value!(%maybe_stream{})
        when maybe_stream == IO.Stream
        when maybe_stream == File.Stream,
