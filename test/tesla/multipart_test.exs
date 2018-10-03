@@ -220,4 +220,11 @@ defmodule Tesla.MultipartTest do
       mp |> Multipart.body() |> Enum.to_list()
     end
   end
+
+  test "add_field with invalid arguments raises error" do
+    assert_raise ArgumentError, fn ->
+      Multipart.new()
+      |> Multipart.add_field("foo", 123)
+    end
+  end
 end
