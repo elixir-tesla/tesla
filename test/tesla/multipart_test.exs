@@ -234,7 +234,14 @@ defmodule Tesla.MultipartTest do
       end
     end
 
-    test "Enumerable" do
+    test "maps raise argument error" do
+      assert_raise ArgumentError, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", %{hello: :world})
+      end
+    end
+
+    test "Iodata" do
       mp =
         Multipart.new()
         |> Multipart.add_field("foo", ["bar", "baz"])

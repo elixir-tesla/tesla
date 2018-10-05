@@ -34,8 +34,8 @@ defmodule Tesla.Multipart do
   @boundary_chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
                   |> String.split("")
 
-  @type part_stream :: IO.Stream.t() | File.Stream.t() | Enumerable.t()
-  @type part_value :: String.t() | part_stream
+  @type part_stream :: IO.Stream.t() | File.Stream.t()
+  @type part_value :: iodata | part_stream
 
   defstruct parts: [],
             boundary: nil,
@@ -186,7 +186,6 @@ defmodule Tesla.Multipart do
        do: :ok
 
   defp assert_part_value!(value)
-       when is_map(value)
        when is_list(value)
        when is_binary(value),
        do: :ok
