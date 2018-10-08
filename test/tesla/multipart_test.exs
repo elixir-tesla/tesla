@@ -220,4 +220,57 @@ defmodule Tesla.MultipartTest do
       mp |> Multipart.body() |> Enum.to_list()
     end
   end
+
+  describe "add_field" do
+    test "numbers raise argument error" do
+      assert_raise ArgumentError, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", 123)
+      end
+
+      assert_raise ArgumentError, fn ->
+        Multipart.new()
+        |> Multipart.add_field("bar", 123.00)
+      end
+    end
+
+    test "maps raise argument error" do
+      assert_raise ArgumentError, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", %{hello: :world})
+      end
+    end
+
+    test "Iodata" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_field("foo", ["bar", "baz"])
+
+      body = Multipart.body(mp) |> Enum.join()
+
+      assert body == """
+             --#{mp.boundary}\r
+             content-disposition: form-data; name="foo"\r
+             \r
+             barbaz\r
+             --#{mp.boundary}--\r
+             """
+    end
+
+    test "IO.Stream" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_field("foo", %IO.Stream{})
+
+      assert is_function(Multipart.body(mp))
+    end
+
+    test "File.Stream" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_field("foo", %File.Stream{})
+
+      assert is_function(Multipart.body(mp))
+    end
+  end
 end

@@ -34,8 +34,8 @@ defmodule Tesla.Multipart do
   @boundary_chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
                   |> String.split("")
 
-  @type part_stream :: IO.Stream.t() | File.Stream.t() | Enumerable.t()
-  @type part_value :: String.t() | part_stream
+  @type part_stream :: IO.Stream.t() | File.Stream.t()
+  @type part_value :: iodata | part_stream
 
   defstruct parts: [],
             boundary: nil,
@@ -68,6 +68,7 @@ defmodule Tesla.Multipart do
   """
   @spec add_field(t, String.t(), part_value, Keyword.t()) :: t
   def add_field(%__MODULE__{} = mp, name, value, opts \\ []) do
+    :ok = assert_part_value!(value)
     {headers, opts} = Keyword.pop_first(opts, :headers, [])
 
     part = %Part{
@@ -176,5 +177,20 @@ defmodule Tesla.Multipart do
       [Enum.random(@boundary_chars) | acc]
     end)
     |> Enum.join("")
+  end
+
+  @spec assert_part_value!(any) :: :ok | no_return
+  defp assert_part_value!(%maybe_stream{})
+       when maybe_stream == IO.Stream
+       when maybe_stream == File.Stream,
+       do: :ok
+
+  defp assert_part_value!(value)
+       when is_list(value)
+       when is_binary(value),
+       do: :ok
+
+  defp assert_part_value!(val) do
+    raise(ArgumentError, "#{inspect(val)} is not a supported multipart value.")
   end
 end
