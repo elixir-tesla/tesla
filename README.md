@@ -125,7 +125,7 @@ Instead, we can use `Tesla.client` to create a dynamic middleware function:
 
 ```elixir
 defmodule GitHub do
-  # same as above with a slightly change to `user_repos/1`
+  # same as above with a slight change to `user_repos/1`
 
   def user_repos(client, login) do
     # pass `client` argument to `get` function
