@@ -121,7 +121,7 @@ Consider the following case: GitHub API can be accessed using OAuth token author
 We can't use `plug Tesla.Middleware.Headers, [{"authorization", "token here"}]`
 since this would be compiled only once and there is no way to insert dynamic user token.
 
-Instead, we can use `Tesla.client` to create a dynamic middleware function:
+Instead, we can use `Tesla.build_client` to create a dynamic middleware function:
 
 ```elixir
 defmodule GitHub do
@@ -139,7 +139,7 @@ defmodule GitHub do
 
   # build dynamic client based on runtime arguments
   def client(token) do
-    Tesla.client([
+    Tesla.build_client([
       {Tesla.Middleware.Headers, [{"authorization", "token: " <> token }]}
     ])
   end
