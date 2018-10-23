@@ -20,7 +20,7 @@ It embraces the concept of middleware when processing the request/response cycle
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 1.1.0"}]
+  [{:tesla, "~> 1.2.0"}]
 end
 ```
 
@@ -63,7 +63,7 @@ Add `tesla` as dependency in `mix.exs`
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 1.0.0"},
+  [{:tesla, "~> 1.2.0"},
    {:jason, ">= 1.0.0"}] # optional, required by JSON middleware
 end
 ```
@@ -169,7 +169,7 @@ When using ibrowse or hackney adapters remember to it to the dependencies list i
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 1.0.0"},
+  [{:tesla, "~> 1.2.0"},
    {:jason, ">= 1.0.0"}, # optional, required by JSON middleware
    {:hackney, "~> 1.10"}] # or :ibrowse
 end
