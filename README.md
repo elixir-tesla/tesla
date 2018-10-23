@@ -175,6 +175,36 @@ defp deps do
 end
 ```
 
+### Adapter options
+
+In case there is a need to pass specific adapter options you can do it in one of three ways:
+
+Using `adapter` macro:
+
+```elixir
+defmodule GitHub do
+  use Tesla
+
+  adapter :hackney, recv_timeout: 30_000, ssl: [certfile: "certs/client.crt"]
+end
+```
+
+Using `Tesla.client/2`:
+
+```elixir
+def new(...) do
+  middleware = [...]
+  adapter = {Tesla.Adapter.Hackney, [recv_timeout: 30_000]}
+  Tesla.client(middleware, adapter)
+end
+```
+
+Passing directly to `get`/`post`/etc.
+
+```elixir
+MyClient.get("/", opts: [adapter: [recv_timeout: 30_000]])
+Tesla.get(client, "/", opts: [adapter: [recv_timeout: 30_000]])
+```
 
 ## Streaming
 
@@ -218,7 +248,6 @@ mp =
 
 {:ok, response} = MyApiClient.post("http://httpbin.org/post", mp)
 ```
-
 
 ## Testing
 
