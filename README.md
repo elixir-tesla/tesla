@@ -125,23 +125,26 @@ Instead, we can use `Tesla.client` to create a dynamic middleware function:
 
 ```elixir
 defmodule GitHub do
-  # same as above with a slight change to `user_repos/1`
+  # notice there is no `use Tesla`
 
   def user_repos(client, login) do
     # pass `client` argument to `get` function
-    get(client, "/user/" <> login <> "/repos")
+    Tesla.get(client, "/user/" <> login <> "/repos")
   end
 
-  def issues(client \\ %Tesla.Client{}) do
-    # default to empty client that will not include runtime token
-    get(client, "/issues")
+  def issues(client) do
+    Tesla.get(client, "/issues")
   end
 
   # build dynamic client based on runtime arguments
   def client(token) do
-    Tesla.client([
+    middleware = [
+      {Tesla.Middleware.BaseUrl, "https://api.github.com"},
+      Tesla.Middleware.JSON,
       {Tesla.Middleware.Headers, [{"authorization", "token: " <> token }]}
-    ])
+    ]
+
+    Tesla.client(middleware)
   end
 end
 ```
@@ -152,9 +155,6 @@ and then:
 client = GitHub.client(user_token)
 client |> GitHub.user_repos("teamon")
 client |> GitHub.get("/me")
-
-GitHub.issues()
-client |> GitHub.issues()
 ```
 
 ## Adapters
