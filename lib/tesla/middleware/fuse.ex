@@ -25,6 +25,18 @@ if Code.ensure_loaded?(:fuse) do
     ### Options
     - `:name` - fuse name (defaults to module name)
     - `:opts` - fuse options (see fuse docs for reference)
+
+    ### SASL logger
+
+    fuse library uses [SASL (System Architecture Support Libraries)](http://erlang.org/doc/man/sasl_app.html).
+
+    You can disable its logger output using:
+
+    ```
+    config :sasl, sasl_error_logger: :false
+    ```
+
+    Read more at [jlouis/fuse#32](https://github.com/jlouis/fuse/issues/32) and [jlouis/fuse#19](https://github.com/jlouis/fuse/issues/19).
     """
 
     # options borrowed from http://blog.rokkincat.com/circuit-breakers-in-elixir/
