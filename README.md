@@ -73,7 +73,7 @@ end
 
 Configure default adapter in `config/config.exs` (optional):
 
-```
+```elixir
 # config/config.exs
 
 config :tesla, adapter: Tesla.Adapter.Hackney
