@@ -59,13 +59,24 @@ See below for documentation.
 
 ## Installation
 
-Add `tesla` as dependency in `mix.exs`
+Add `tesla` as dependency in `mix.exs`:
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 1.2.0"},
-   {:jason, ">= 1.0.0"}] # optional, required by JSON middleware
+  [
+    {:tesla, "~> 1.2.0"},
+    {:hackney, "~> 1.4.0"}, # optional, but recommended adapter
+    {:jason, ">= 1.0.0"} # optional, required by JSON middleware
+  ] 
 end
+```
+
+Configure default adapter in `config/config.exs` (optional):
+
+```
+# config/config.exs
+
+config :tesla, adapter: Tesla.Adapter.Hackney
 ```
 
 ## Documentation
