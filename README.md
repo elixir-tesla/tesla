@@ -65,7 +65,7 @@ Add `tesla` as dependency in `mix.exs`:
 defp deps do
   [
     {:tesla, "~> 1.2.0"},
-    {:hackney, "~> 1.4.0"}, # optional, but recommended adapter
+    {:hackney, "~> 1.14.0"}, # optional, but recommended adapter
     {:jason, ">= 1.0.0"} # optional, required by JSON middleware
   ] 
 end
