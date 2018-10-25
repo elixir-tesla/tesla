@@ -71,13 +71,17 @@ defp deps do
 end
 ```
 
-Configure default adapter in `config/config.exs` (optional):
+Configure default adapter in `config/config.exs` (optional).
 
 ```elixir
 # config/config.exs
 
 config :tesla, adapter: Tesla.Adapter.Hackney
 ```
+
+> The default adapter is erlang's built-in `httpc`, but it is not recommended
+to use it in production environment as it does not validate SSL certificates
+[among other issues](https://github.com/teamon/tesla/issues?utf8=%E2%9C%93&q=is%3Aissue+label%3Ahttpc+).
 
 ## Documentation
 - [Middleware](#middleware)
