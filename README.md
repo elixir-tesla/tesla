@@ -233,7 +233,7 @@ defmodule ElasticSearch do
   plug Tesla.Middleware.JSON
 
   def index(records_stream) do
-    stream = records_stream |> Stream.map(fn record -> %{index: [some, data]})
+    stream = records_stream |> Stream.map(fn record -> %{index: [some, data]} end)
     post("/_bulk", stream)
   end
 end
