@@ -1,12 +1,15 @@
 defmodule Tesla.Mixfile do
   use Mix.Project
 
+  @version "1.2.0"
+
   def project do
     [
       app: :tesla,
-      version: "1.2.0",
+      version: @version,
       description: description(),
       package: package(),
+      source_ref: "v#{@version}",
       source_url: "https://github.com/teamon/tesla",
       elixir: "~> 1.4",
       elixirc_paths: elixirc_paths(Mix.env()),
