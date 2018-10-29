@@ -34,7 +34,7 @@ defmodule Tesla.Multipart do
   @boundary_chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
                   |> String.split("")
 
-  @type part_stream :: IO.Stream.t() | File.Stream.t()
+  @type part_stream :: IO.Stream.t() | File.Stream.t() | Enumerable.t()
   @type part_value :: iodata | part_stream
 
   defstruct parts: [],
