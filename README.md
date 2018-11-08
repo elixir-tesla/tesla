@@ -93,6 +93,7 @@ to use it in production environment as it does not validate SSL certificates
 - [Writing middleware](#writing-middleware)
 - [Direct usage](#direct-usage)
 - [Cheatsheet](#cheatsheet)
+- [Cookbook](https://github.com/teamon/tesla/wiki)
 - [Changelog](https://github.com/teamon/tesla/releases)
 
 
