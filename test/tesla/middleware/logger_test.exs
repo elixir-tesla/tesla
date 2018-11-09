@@ -134,6 +134,29 @@ defmodule Tesla.Middleware.LoggerTest do
     end
   end
 
+  describe "Debug mode for headers" do
+    setup do
+      Logger.configure(level: :debug)
+      :ok
+    end
+
+    defmodule CustomHeaderClient do
+      use Tesla
+
+      plug Tesla.Middleware.Logger
+
+      adapter fn env ->
+        env = Tesla.put_header(env, "x-custom-header", nil)
+        {:ok, %{env | status: 200, body: "ok"}}
+      end
+    end
+
+    test "ok with empty header" do
+      log = capture_log(fn -> CustomHeaderClient.post("/", %{}) end)
+      assert log =~ "x-custom-header"
+    end
+  end
+
   describe "with log_level" do
     defmodule ClientWithLogLevel do
       use Tesla

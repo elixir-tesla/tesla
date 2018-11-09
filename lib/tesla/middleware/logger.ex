@@ -202,7 +202,9 @@ defmodule Tesla.Middleware.Logger do
   end
 
   defp debug_headers([]), do: @debug_no_headers
-  defp debug_headers(headers), do: Enum.map(headers, fn {k, v} -> [k, ": ", v, ?\n] end)
+
+  defp debug_headers(headers),
+    do: Enum.map(headers, fn {k, v} -> [to_string(k), ": ", to_string(v), ?\n] end)
 
   defp debug_body(nil), do: @debug_no_body
   defp debug_body([]), do: @debug_no_body
