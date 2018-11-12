@@ -271,6 +271,24 @@ defmodule Tesla.MultipartTest do
         |> Multipart.add_field("foo", %File.Stream{})
 
       assert is_function(Multipart.body(mp))
+
+      stream = File.stream!("test/tesla/multipart_test_file.sh")
+
+      mp2 =
+        Multipart.new()
+        |> Multipart.add_field("bar", stream)
+
+      assert is_function(Multipart.body(mp2))
+    end
+
+    test "normal stream" do
+      stream = Stream.map([1, 2, 3], fn x -> to_string(x) end)
+
+      mp =
+        Multipart.new()
+        |> Multipart.add_field("foo", stream)
+
+      assert is_function(Multipart.body(mp))
     end
   end
 end
