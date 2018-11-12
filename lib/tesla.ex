@@ -402,12 +402,12 @@ defmodule Tesla do
   end
 
   @spec get_headers(Env.t(), binary) :: [binary]
-  def get_headers(%Env{headers: headers}, key) do
+  def get_headers(%Env{headers: headers}, key) when is_binary(key) do
     for {k, v} <- headers, k == key, do: v
   end
 
   @spec put_header(Env.t(), binary, binary) :: Env.t()
-  def put_header(%Env{} = env, key, value) do
+  def put_header(%Env{} = env, key, value) when is_binary(key) and is_binary(value) do
     headers = List.keystore(env.headers, key, 0, {key, value})
     %{env | headers: headers}
   end
@@ -418,7 +418,7 @@ defmodule Tesla do
   end
 
   @spec delete_header(Env.t(), binary) :: Env.t()
-  def delete_header(%Env{} = env, key) do
+  def delete_header(%Env{} = env, key) when is_binary(key) do
     headers = for {k, v} <- env.headers, k != key, do: {k, v}
     %{env | headers: headers}
   end
