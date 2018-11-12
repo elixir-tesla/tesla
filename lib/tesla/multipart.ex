@@ -181,8 +181,7 @@ defmodule Tesla.Multipart do
 
   @spec assert_part_value!(any) :: :ok | no_return
   defp assert_part_value!(%maybe_stream{})
-       when maybe_stream == IO.Stream
-       when maybe_stream == File.Stream,
+       when maybe_stream in [IO.Stream, File.Stream, Stream],
        do: :ok
 
   defp assert_part_value!(value)
