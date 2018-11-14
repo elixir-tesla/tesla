@@ -2,7 +2,8 @@ defmodule Tesla.Middleware.Retry do
   @behaviour Tesla.Middleware
 
   @moduledoc """
-  Retry few times in case of connection refused error.
+  Retry few times in case of connection error (`nxdomain`, `connrefused` etc).
+  This middleware will NOT retry in case of application error (HTTP status 5xx).
 
   ### Example
   ```
