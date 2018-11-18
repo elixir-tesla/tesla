@@ -73,6 +73,7 @@ defmodule Tesla.Mixfile do
       {:fuse, "~> 2.4", optional: true},
       {:telemetry, "~> 0.3", optional: true},
       {:calendar, "~> 0.17", optional: true},
+      {:redix, "~> 0.7", optional: true},
 
       # testing & docs
       {:excoveralls, "~> 0.8", only: :test},

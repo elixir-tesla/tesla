@@ -1,3 +1,39 @@
+defmodule Tesla.Middleware.Cache.StoreTest do
+  defmacro __using__(store) do
+    quote location: :keep do
+      @store unquote(store)
+
+      @entry {
+        200,
+        [{"vary", "user-agent"}, {"date", "Sun, 18 Nov 2018 14:40:44 GMT"}],
+        "Agent 1.0",
+        [{"user-agent", "Agent/1.0"}]
+      }
+
+      test "return :not_found when empty" do
+        assert @store.get("KEY0:vary") == :not_found
+        assert @store.get("KEY0:entry") == :not_found
+      end
+
+      test "put & get vary" do
+        @store.put("KEY0:vary", ["user-agent", "accept"])
+        assert @store.get("KEY0:vary") == {:ok, ["user-agent", "accept"]}
+      end
+
+      test "put & get entry" do
+        @store.put("KEY0:entry:VARY0", @entry)
+        assert @store.get("KEY0:entry:VARY0") == {:ok, @entry}
+      end
+
+      test "delete" do
+        @store.put("KEY0:entry:VARY0", @entry)
+        @store.delete("KEY0:entry:VARY0")
+        assert @store.get("KEY0:entry:VARY0") == :not_found
+      end
+    end
+  end
+end
+
 defmodule Tesla.Middleware.CacheTest do
   use ExUnit.Case
 
@@ -186,6 +222,8 @@ defmodule Tesla.Middleware.CacheTest do
   alias Tesla.Middleware.Cache.CacheControl
   alias Tesla.Middleware.Cache.Request
   alias Tesla.Middleware.Cache.Response
+
+  alias Tesla.Middleware.Cache.StoreTest
 
   alias Calendar.DateTime
 
@@ -747,12 +785,27 @@ defmodule Tesla.Middleware.CacheTest do
     end
   end
 
+  describe "TestStore" do
+    use StoreTest, TestStore
+  end
+
+  describe "Store.Redis" do
+    setup :setup_redis_store
+    use StoreTest, Tesla.Middleware.Cache.Store.Redis
+  end
+
   defp setup_private_cache(%{adapter: adapter}) do
     middleware = [
       {Tesla.Middleware.Cache, store: TestStore, cache_private: true}
     ]
 
     %{client: Tesla.client(middleware, adapter)}
+  end
+
+  defp setup_redis_store(_) do
+    {:ok, _conn} = Redix.start_link("redis://localhost:6379/15", name: :redis)
+    Redix.command!(:redis, ["FLUSHALL"])
+    :ok
   end
 
   defp assert_cached({:ok, %{method: method, url: url}}), do: refute_receive({^method, ^url, _})

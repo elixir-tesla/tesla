@@ -20,6 +20,40 @@ defmodule Tesla.Middleware.Cache do
     @callback delete(key) :: :ok
   end
 
+  defmodule Store.Redis do
+    @behaviour Store
+
+    @redis :redis
+
+    def get(key) do
+      case command(["GET", key]) do
+        {:ok, data} ->
+          case decode(data) do
+            nil -> :not_found
+            data -> {:ok, data}
+          end
+
+        _ ->
+          :not_found
+      end
+    end
+
+    def put(key, data) do
+      command!(["SET", key, encode(data)])
+    end
+
+    def delete(key) do
+      command!(["DEL", key])
+    end
+
+    defp encode(data), do: :erlang.term_to_binary(data)
+    defp decode(nil), do: nil
+    defp decode(bin), do: :erlang.binary_to_term(bin, [:safe])
+
+    defp command(args), do: Redix.command(@redis, args)
+    defp command!(args), do: Redix.command!(@redis, args)
+  end
+
   defmodule CacheControl do
     @moduledoc false
 
