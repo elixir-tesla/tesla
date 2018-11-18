@@ -509,7 +509,54 @@ defmodule Tesla.Middleware.CacheTest do
     end
   end
 
-  describe "Binary Data" do
+  describe "Request" do
+    alias Tesla.Middleware.Cache.Request
+    
+    test "GET request should be cacheable" do
+      request = Request.new(%Tesla.Env{method: :get})
+      assert Request.cacheable?(request) == true
+    end
+
+    test "HEAD request should be cacheable" do
+      request = Request.new(%Tesla.Env{method: :head})
+      assert Request.cacheable?(request) == true
+    end
+
+    test "POST request should not be cacheable" do
+      request = Request.new(%Tesla.Env{method: :post})
+      assert Request.cacheable?(request) == false
+    end
+
+    test "PUT request should not be cacheable" do
+      request = Request.new(%Tesla.Env{method: :put})
+      assert Request.cacheable?(request) == false
+    end
+
+    test "OPTIONS request should not be cacheable" do
+      request = Request.new(%Tesla.Env{method: :options})
+      assert Request.cacheable?(request) == false
+    end
+
+    test "DELETE request should not be cacheable" do
+      request = Request.new(%Tesla.Env{method: :delete})
+      assert Request.cacheable?(request) == false
+    end
+
+    test "TRACE request should not be cacheable" do
+      request = Request.new(%Tesla.Env{method: :trace})
+      assert Request.cacheable?(request) == false
+    end
+
+    test "no-store request should not be cacheable" do
+      request = Request.new(%Tesla.Env{method: :get, headers: [{"cache-control", "no-store"}]})
+      assert Request.cacheable?(request) == false
+    end
+  end
+
+  describe "Response" do
+  end
+
+  describe "binary data" do
     # Source: https://github.com/plataformatec/faraday-http-cache/blob/master/spec/binary_spec.rb
 
     test "works fine with binary data", %{client: client} do
