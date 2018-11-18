@@ -173,6 +173,12 @@ defmodule Tesla.Middleware.CacheTest do
     end
   end
 
+  alias Tesla.Middleware.Cache.CacheControl
+  alias Tesla.Middleware.Cache.Request
+  alias Tesla.Middleware.Cache.Response
+
+  alias Calendar.DateTime
+
   setup do
     middleware = [
       {Tesla.Middleware.Cache, store: TestStore}
@@ -407,8 +413,6 @@ defmodule Tesla.Middleware.CacheTest do
   describe "CacheControl" do
     # Source: https://github.com/plataformatec/faraday-http-cache/blob/master/spec/cache_control_spec.rb
 
-    alias Tesla.Middleware.Cache.CacheControl
-
     test "takes a String with multiple name=value pairs" do
       cache_control = CacheControl.new("max-age=600, max-stale=300, min-fresh=570")
       assert cache_control.max_age == 600
@@ -510,8 +514,6 @@ defmodule Tesla.Middleware.CacheTest do
   end
 
   describe "Request" do
-    alias Tesla.Middleware.Cache.Request
-    
     test "GET request should be cacheable" do
       request = Request.new(%Tesla.Env{method: :get})
       assert Request.cacheable?(request) == true
@@ -553,7 +555,161 @@ defmodule Tesla.Middleware.CacheTest do
     end
   end
 
-  describe "Response" do
+  describe "Response: in shared cache" do
+    test "the response is not cacheable if the response is marked as private" do
+      headers = [{"cache-control", "private, max-age=400"}]
+      response = Response.new(%Tesla.Env{status: 200, headers: headers})
+
+      assert Response.cacheable?(response, false) == false
+    end
+
+    test "the response is not cacheable if it should not be stored" do
+      headers = [{"cache-control", "no-store, max-age=400"}]
+      response = Response.new(%Tesla.Env{status: 200, headers: headers})
+
+      assert Response.cacheable?(response, false) == false
+    end
+
+    test "the response is not cacheable when the status code is not acceptable" do
+      headers = [{"cache-control", "max-age=400"}]
+      response = Response.new(%Tesla.Env{status: 503, headers: headers})
+      assert Response.cacheable?(response, false) == false
+    end
+
+    test "the response is cacheable if the status code is 200 and the response is fresh" do
+      headers = [{"cache-control", "max-age=400"}]
+      response = Response.new(%Tesla.Env{status: 200, headers: headers})
+
+      assert Response.cacheable?(response, false) == true
+    end
+  end
+
+  describe "Response: in private cache" do
+    test "the response is cacheable if the response is marked as private" do
+      headers = [{"cache-control", "private, max-age=400"}]
+      response = Response.new(%Tesla.Env{status: 200, headers: headers})
+
+      assert Response.cacheable?(response, true) == true
+    end
+
+    test "the response is not cacheable if it should not be stored" do
+      headers = [{"cache-control", "no-store, max-age=400"}]
+      response = Response.new(%Tesla.Env{status: 200, headers: headers})
+
+      assert Response.cacheable?(response, true) == false
+    end
+
+    test "the response is not cacheable when the status code is not acceptable" do
+      headers = [{"cache-control", "max-age=400"}]
+      response = Response.new(%Tesla.Env{status: 503, headers: headers})
+      assert Response.cacheable?(response, true) == false
+    end
+
+    test "the response is cacheable if the status code is 200 and the response is fresh" do
+      headers = [{"cache-control", "max-age=400"}]
+      response = Response.new(%Tesla.Env{status: 200, headers: headers})
+
+      assert Response.cacheable?(response, true) == true
+    end
+  end
+
+  describe "Response: freshness" do
+    test "is fresh if the response still has some time to live" do
+      date = DateTime.now_utc() |> DateTime.subtract!(200) |> DateTime.Format.httpdate()
+      headers = [{"cache-control", "max-age=400"}, {"date", date}]
+      response = Response.new(%Tesla.Env{headers: headers})
+
+      assert Response.fresh?(response) == true
+    end
+
+    test "is not fresh if the ttl has expired" do
+      date = DateTime.now_utc() |> DateTime.subtract!(500) |> DateTime.Format.httpdate()
+      headers = [{"cache-control", "max-age=400"}, {"date", date}]
+      response = Response.new(%Tesla.Env{headers: headers})
+
+      assert Response.fresh?(response) == false
+    end
+
+    test "is not fresh if Cache-Control has 'no-cache'" do
+      date = DateTime.now_utc() |> DateTime.subtract!(200) |> DateTime.Format.httpdate()
+      headers = [{"cache-control", "max-age=400, no-cache"}, {"date", date}]
+      response = Response.new(%Tesla.Env{headers: headers})
+
+      assert Response.fresh?(response) == false
+    end
+
+    test "is not fresh if Cache-Control has 'must-revalidate'" do
+      date = DateTime.now_utc() |> DateTime.subtract!(200) |> DateTime.Format.httpdate()
+      headers = [{"cache-control", "max-age=400, must-revalidate"}, {"date", date}]
+      response = Response.new(%Tesla.Env{headers: headers})
+
+      assert Response.fresh?(response) == false
+    end
+
+    test "uses the s-maxage directive when present" do
+      headers = [{"age", "100"}, {"cache-control", "s-maxage=200, max-age=0"}]
+      response = Response.new(%Tesla.Env{headers: headers})
+      assert Response.fresh?(response) == true
+
+      headers = [{"age", "300"}, {"cache-control", "s-maxage=200, max-age=0"}]
+      response = Response.new(%Tesla.Env{headers: headers})
+      assert Response.fresh?(response) == false
+    end
+
+    test "uses the max-age directive when present" do
+      headers = [{"age", "50"}, {"cache-control", "max-age=100"}]
+      response = Response.new(%Tesla.Env{headers: headers})
+      assert Response.fresh?(response) == true
+
+      headers = [{"age", "150"}, {"cache-control", "max-age=100"}]
+      response = Response.new(%Tesla.Env{headers: headers})
+      assert Response.fresh?(response) == false
+    end
+
+    test "fallsback to the expiration date leftovers" do
+      past = DateTime.now_utc() |> DateTime.subtract!(100) |> DateTime.Format.httpdate()
+      now = DateTime.now_utc() |> DateTime.Format.httpdate()
+      future = DateTime.now_utc() |> DateTime.add!(100) |> DateTime.Format.httpdate()
+
+      headers = [{"expires", future}, {"date", now}]
+      response = Response.new(%Tesla.Env{headers: headers})
+      assert Response.fresh?(response) == true
+
+      headers = [{"expires", past}, {"date", now}]
+      response = Response.new(%Tesla.Env{headers: headers})
+      assert Response.fresh?(response) == false
+    end
+
+    test "calculates the time from the 'Date' header" do
+      past = DateTime.now_utc() |> DateTime.subtract!(100) |> DateTime.Format.httpdate()
+      now = DateTime.now_utc() |> DateTime.Format.httpdate()
+
+      headers = [{"date", now}, {"cache-control", "max-age=1"}]
+      response = Response.new(%Tesla.Env{headers: headers})
+      assert Response.fresh?(response) == true
+
+      headers = [{"date", past}, {"cache-control", "max-age=10"}]
+      response = Response.new(%Tesla.Env{headers: headers})
+      assert Response.fresh?(response) == false
+    end
+
+    # describe 'remove age before caching and normalize max-age if non-zero age present' do
+    #   it 'is fresh if the response still has some time to live' do
+    #     headers = {
+    #         'Age' => 6,
+    #         'Cache-Control' => 'public, max-age=40',
+    #         'Date' => (Time.now - 38).httpdate,
+    #         'Expires' => (Time.now - 37).httpdate,
+    #         'Last-Modified' => (Time.now - 300).httpdate
+    #     }
+    #     response = Faraday::HttpCache::Response.new(response_headers: headers)
+    #     expect(response).to be_fresh
+    #
+    #     response.serializable_hash
+    #     expect(response.max_age).to eq(34)
+    #     expect(response).not_to be_fresh
+    #   end
+    # end
   end
 
   describe "binary data" do

@@ -106,56 +106,36 @@ defmodule Tesla.Middleware.Cache do
       end
     end
 
-    defp ttl({env, cc}) do
-      with {:ok, max_age} <- max_age({env, cc}),
-           {:ok, age} <- age(env) do
-        max_age - age
-      else
-        _ -> 0
-      end
-    end
-
-    defp max_age({env, cc}) do
-      with nil <- cc.s_max_age,
-           nil <- cc.max_age do
-        expires(env)
-      else
-        max when is_integer(max) -> {:ok, max}
-      end
-    end
+    defp ttl({env, cc}), do: max_age({env, cc}) - age(env)
+    defp max_age({env, cc}), do: cc.s_max_age || cc.max_age || expires(env) || 0
+    defp age(env), do: age_header(env) || date_header(env) || 0
 
     defp expires(env) do
       with header when not is_nil(header) <- Tesla.get_header(env, "expires"),
            {:ok, date} <- Calendar.DateTime.Parse.httpdate(header),
            {:ok, seconds, _, :after} <- Calendar.DateTime.diff(date, DateTime.utc_now()) do
-        {:ok, seconds}
+        seconds
       else
-        _ -> :error
+        _ -> nil
       end
     end
 
-    defp age(env) do
-      with :error <- age_by_age_header(env) do
-        age_by_date_header(env)
-      end
-    end
-
-    defp age_by_age_header(env) do
+    defp age_header(env) do
       with bin when not is_nil(bin) <- Tesla.get_header(env, "age"),
            {age, ""} <- Integer.parse(bin) do
-        {:ok, age}
+        age
       else
-        _ -> :error
+        _ -> nil
       end
     end
 
-    defp age_by_date_header(env) do
+    defp date_header(env) do
       with bin when not is_nil(bin) <- Tesla.get_header(env, "date"),
            {:ok, date} <- Calendar.DateTime.Parse.httpdate(bin),
            {:ok, seconds, _, :after} <- Calendar.DateTime.diff(DateTime.utc_now(), date) do
-        {:ok, seconds}
+        seconds
       else
-        _ -> :error
+        _ -> nil
       end
     end
   end
