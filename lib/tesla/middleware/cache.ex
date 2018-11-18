@@ -144,11 +144,10 @@ defmodule Tesla.Middleware.Cache do
     def get(store, req) do
       key = cache_key(req)
 
-      with {:ok, {req0, res}} <- store.get(key) do
-        if valid?(req, req0, res) do
-          {:ok, %{req | status: res.status, headers: res.headers, body: res.body}}
-        else
-          :not_found
+      with {:ok, list} <- store.get(key) do
+        case Enum.find(list, fn {req0, res} -> valid?(req, req0, res) end) do
+          {_, res} -> {:ok, %{req | status: res.status, headers: res.headers, body: res.body}}
+          nil -> :not_found
         end
       end
     end

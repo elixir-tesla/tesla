@@ -12,7 +12,10 @@ defmodule Tesla.Middleware.CacheTest do
     end
 
     def put(key, data) do
-      Process.put(key, data)
+      case get(key) do
+        {:ok, list} -> Process.put(key, [data | list])
+        :not_found -> Process.put(key, [data])
+      end
     end
 
     def delete(key) do
@@ -151,6 +154,15 @@ defmodule Tesla.Middleware.CacheTest do
 
     defp handle(:get, "/vary-wildcard", _) do
       {200, [{"cache-control", "max-age=50"}, {"vary", "*"}], ""}
+    end
+
+    defp handle(:get, "/user", env) do
+      body = case Tesla.get_header(env, "authorization") do
+        "x" -> "X"
+        "y" -> "Y"
+      end
+
+      {200, [{"cache-control", "private, max-age=100"}, {"vary", "authorization"}], body}
     end
 
     defp handle(:get, "/image", _) do
@@ -332,15 +344,28 @@ defmodule Tesla.Middleware.CacheTest do
   end
 
   describe "when acting as a private cache" do
-    test "does cache requests with a private cache control", %{adapter: adapter} do
-      middleware = [
-        {Tesla.Middleware.Cache, store: TestStore, cache_private: true}
-      ]
+    setup :setup_private_cache
 
-      client = Tesla.client(middleware, adapter)
-
+    test "does cache requests with a private cache control", %{client: client} do
       refute_cached Tesla.get(client, "/private")
       assert_cached Tesla.get(client, "/private")
+    end
+
+    test "cache multiple responses with different headers according to Vary", %{client: client} do
+      refute_cached {:ok, env_x0} = Tesla.get(client, "/user", headers: [{"authorization", "x"}])
+      assert_cached {:ok, env_x1} = Tesla.get(client, "/user", headers: [{"authorization", "x"}])
+
+      assert env_x0.body == "X"
+      assert env_x0.body == env_x1.body
+
+      refute_cached {:ok, env_y0} = Tesla.get(client, "/user", headers: [{"authorization", "y"}])
+      assert_cached {:ok, env_y1} = Tesla.get(client, "/user", headers: [{"authorization", "y"}])
+
+      assert env_y0.body == "Y"
+      assert env_y0.body == env_y1.body
+
+      assert_cached {:ok, env_x2} = Tesla.get(client, "/user", headers: [{"authorization", "x"}])
+      assert env_x0.body == env_x2.body
     end
   end
 
@@ -722,6 +747,14 @@ defmodule Tesla.Middleware.CacheTest do
       assert env0.body != nil
       assert env0.body == env1.body
     end
+  end
+
+  defp setup_private_cache(%{adapter: adapter}) do
+    middleware = [
+      {Tesla.Middleware.Cache, store: TestStore, cache_private: true}
+    ]
+
+    %{client: Tesla.client(middleware, adapter)}
   end
 
   defp assert_cached({:ok, %{method: method, url: url}}), do: refute_receive({^method, ^url, _})
