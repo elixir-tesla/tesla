@@ -10,9 +10,10 @@ defmodule Tesla.Middleware.Cache do
 
   defmodule Store do
     @type key :: binary
-    @type response :: {Tesla.Env.status(), Tesla.Env.headers(), Tesla.Env.body()}
-    @type vary :: binary
-    @type data :: response | vary
+    @type entry ::
+            {Tesla.Env.status(), Tesla.Env.headers(), Tesla.Env.body(), Tesla.Env.headers()}
+    @type vary :: [binary]
+    @type data :: entry | vary
 
     @callback get(key) :: {:ok, data} | :not_found
     @callback put(key, data) :: :ok
@@ -142,49 +143,90 @@ defmodule Tesla.Middleware.Cache do
 
   defmodule Storage do
     def get(store, req) do
-      key = cache_key(req)
-
-      with {:ok, list} <- store.get(key) do
-        case Enum.find(list, fn {req0, res} -> valid?(req, req0, res) end) do
-          {_, res} -> {:ok, %{req | status: res.status, headers: res.headers, body: res.body}}
-          nil -> :not_found
+      with {:ok, {status, res_headers, body, orig_req_headers}} <- get_by_vary(store, req) do
+        if valid?(req.headers, orig_req_headers, res_headers) do
+          {:ok, %{req | status: status, headers: res_headers, body: body}}
+        else
+          :not_found
         end
       end
     end
 
-    def put(store, req, res) do
-      key = cache_key(req)
-      store.put(key, {req, res})
-    end
-
-    def delete(store, res) do
-      key = cache_key(res)
-      store.delete(key)
-    end
-
-    defp cache_key(env) do
-      :crypto.hash(:sha256, [
-        Tesla.build_url(env.url, env.query)
-        # Enum.map(env.headers, fn {k, v} -> "#{k}:#{v}" end)
-      ])
-      |> Base.encode16()
-    end
-
-    defp valid?(req, req0, res) do
-      case Tesla.get_header(res, "vary") do
-        nil -> true
-        "*" -> false
-        vary -> vary_matches?(req, req0, vary)
+    defp get_by_vary(store, req) do
+      case store.get(key(:vary, req)) do
+        {:ok, [_ | _] = vary} -> store.get(key(:entry, req, vary))
+        _ -> store.get(key(:entry, req))
       end
     end
 
-    defp vary_matches?(req, req0, vary) do
-      vary
-      |> String.downcase()
-      |> String.split(~r/[\s,]+/)
-      |> Enum.all?(fn header ->
-        Tesla.get_headers(req, header) == Tesla.get_headers(req0, header)
-      end)
+    def put(store, req, res) do
+      case vary(res.headers) do
+        nil ->
+          # no Vary, store under URL key
+          store.put(key(:entry, req), entry(req, res))
+
+        :wildcard ->
+          # * Vary, store under URL key
+          store.put(key(:entry, req), entry(req, res))
+
+        vary ->
+          # with Vary, store under URL key
+          store.put(key(:vary, req), vary)
+          store.put(key(:entry, req, vary), entry(req, res))
+      end
+    end
+
+    def delete(store, req) do
+      # check if there is stored vary for this URL
+      case store.get(key(:vary, req)) do
+        {:ok, [_ | _] = vary} -> store.delete(key(:entry, req, vary))
+        _ -> store.delete(key(:entry, req))
+      end
+    end
+
+    defp key(:entry, env), do: key(env) <> ":entry"
+
+    defp key(:vary, env), do: key(env) <> ":vary"
+
+    defp key(:entry, env, vary) do
+      headers = vary |> Enum.map(&Tesla.get_header(env, &1)) |> Enum.filter(& &1)
+      key(env) <> ":entry:" <> key(headers)
+    end
+
+    defp key(%{url: url, query: query}), do: key([Tesla.build_url(url, query)])
+
+    defp key(iodata), do: :crypto.hash(:sha256, iodata) |> Base.encode16()
+
+    defp entry(req, res), do: {res.status, res.headers, res.body, req.headers}
+
+    defp valid?(req_headers, orig_req_headers, res_headers) do
+      case vary(res_headers) do
+        nil ->
+          true
+
+        :wildcard ->
+          false
+
+        vary ->
+          Enum.all?(vary, fn header ->
+            List.keyfind(req_headers, header, 0) == List.keyfind(orig_req_headers, header, 0)
+          end)
+      end
+    end
+
+    defp vary(headers) do
+      case List.keyfind(headers, "vary", 0) do
+        {_, "*"} ->
+          :wildcard
+
+        {_, vary} ->
+          vary
+          |> String.downcase()
+          |> String.split(~r/[\s,]+/)
+
+        _ ->
+          nil
+      end
     end
   end
 

@@ -12,10 +12,7 @@ defmodule Tesla.Middleware.CacheTest do
     end
 
     def put(key, data) do
-      case get(key) do
-        {:ok, list} -> Process.put(key, [data | list])
-        :not_found -> Process.put(key, [data])
-      end
+      Process.put(key, data)
     end
 
     def delete(key) do
@@ -157,10 +154,11 @@ defmodule Tesla.Middleware.CacheTest do
     end
 
     defp handle(:get, "/user", env) do
-      body = case Tesla.get_header(env, "authorization") do
-        "x" -> "X"
-        "y" -> "Y"
-      end
+      body =
+        case Tesla.get_header(env, "authorization") do
+          "x" -> "X"
+          "y" -> "Y"
+        end
 
       {200, [{"cache-control", "private, max-age=100"}, {"vary", "authorization"}], body}
     end
