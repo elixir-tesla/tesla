@@ -242,37 +242,37 @@ defmodule Tesla.Middleware.CacheTest do
 
   describe "basics" do
     test "caches GET responses", %{client: client} do
-      refute_cached Tesla.get(client, "/get")
-      assert_cached Tesla.get(client, "/get")
+      refute_cached(Tesla.get(client, "/get"))
+      assert_cached(Tesla.get(client, "/get"))
     end
 
     test "does not cache POST requests", %{client: client} do
-      refute_cached Tesla.post(client, "/post", "hello")
-      refute_cached Tesla.post(client, "/post", "world")
+      refute_cached(Tesla.post(client, "/post", "hello"))
+      refute_cached(Tesla.post(client, "/post", "world"))
     end
 
     test "does not cache responses with 500 status code", %{client: client} do
-      refute_cached Tesla.get(client, "/broken")
-      refute_cached Tesla.get(client, "/broken")
+      refute_cached(Tesla.get(client, "/broken"))
+      refute_cached(Tesla.get(client, "/broken"))
     end
 
     test "differs requests with different query strings", %{client: client} do
-      refute_cached Tesla.get(client, "/get")
-      refute_cached Tesla.get(client, "/get", query: [q: "what"])
-      assert_cached Tesla.get(client, "/get", query: [q: "what"])
-      refute_cached Tesla.get(client, "/get", query: [q: "wat"])
+      refute_cached(Tesla.get(client, "/get"))
+      refute_cached(Tesla.get(client, "/get", query: [q: "what"]))
+      assert_cached(Tesla.get(client, "/get", query: [q: "what"]))
+      refute_cached(Tesla.get(client, "/get", query: [q: "wat"]))
     end
   end
 
   describe "headers handling" do
     test "does not cache responses with a explicit no-store directive", %{client: client} do
-      refute_cached Tesla.get(client, "/dontstore")
-      refute_cached Tesla.get(client, "/dontstore")
+      refute_cached(Tesla.get(client, "/dontstore"))
+      refute_cached(Tesla.get(client, "/dontstore"))
     end
 
     test "does not caches multiple responses when the headers differ", %{client: client} do
-      refute_cached Tesla.get(client, "/get", headers: [{"accept", "text/html"}])
-      assert_cached Tesla.get(client, "/get", headers: [{"accept", "text/html"}])
+      refute_cached(Tesla.get(client, "/get", headers: [{"accept", "text/html"}]))
+      assert_cached(Tesla.get(client, "/get", headers: [{"accept", "text/html"}]))
 
       # TODO: This one fails - the reqeust IS cached.
       #       I think faraday-http-cache specs migh have a bug
@@ -280,31 +280,31 @@ defmodule Tesla.Middleware.CacheTest do
     end
 
     test "caches multiples responses based on the 'Vary' header", %{client: client} do
-      refute_cached Tesla.get(client, "/vary", headers: [{"user-agent", "Agent/1.0"}])
-      assert_cached Tesla.get(client, "/vary", headers: [{"user-agent", "Agent/1.0"}])
-      refute_cached Tesla.get(client, "/vary", headers: [{"user-agent", "Agent/2.0"}])
-      refute_cached Tesla.get(client, "/vary", headers: [{"user-agent", "Agent/3.0"}])
+      refute_cached(Tesla.get(client, "/vary", headers: [{"user-agent", "Agent/1.0"}]))
+      assert_cached(Tesla.get(client, "/vary", headers: [{"user-agent", "Agent/1.0"}]))
+      refute_cached(Tesla.get(client, "/vary", headers: [{"user-agent", "Agent/2.0"}]))
+      refute_cached(Tesla.get(client, "/vary", headers: [{"user-agent", "Agent/3.0"}]))
     end
 
     test "never caches responses with the wildcard 'Vary' header", %{client: client} do
-      refute_cached Tesla.get(client, "/vary-wildcard")
-      refute_cached Tesla.get(client, "/vary-wildcard")
+      refute_cached(Tesla.get(client, "/vary-wildcard"))
+      refute_cached(Tesla.get(client, "/vary-wildcard"))
     end
 
     test "caches requests with the 'Expires' header", %{client: client} do
-      refute_cached Tesla.get(client, "/expires")
-      assert_cached Tesla.get(client, "/expires")
+      refute_cached(Tesla.get(client, "/expires"))
+      assert_cached(Tesla.get(client, "/expires"))
     end
 
     test "sends the 'Last-Modified' header on response validation", %{client: client} do
-      refute_cached Tesla.get(client, "/timestamped")
+      refute_cached(Tesla.get(client, "/timestamped"))
 
       assert_validated({:ok, env} = Tesla.get(client, "/timestamped"))
       assert env.body == "1"
     end
 
     test "sends the 'If-None-Match' header on response validation", %{client: client} do
-      refute_cached Tesla.get(client, "/etag")
+      refute_cached(Tesla.get(client, "/etag"))
 
       assert_validated({:ok, env} = Tesla.get(client, "/etag"))
       assert env.body == "1"
@@ -330,52 +330,52 @@ defmodule Tesla.Middleware.CacheTest do
 
   describe "cache invalidation" do
     test "expires POST requests", %{client: client} do
-      refute_cached Tesla.get(client, "/counter")
-      refute_cached Tesla.post(client, "/counter", "")
-      refute_cached Tesla.get(client, "/counter")
+      refute_cached(Tesla.get(client, "/counter"))
+      refute_cached(Tesla.post(client, "/counter", ""))
+      refute_cached(Tesla.get(client, "/counter"))
     end
 
     test "does not expires POST requests that failed", %{client: client} do
-      refute_cached Tesla.get(client, "/get")
-      refute_cached Tesla.post(client, "/get", "")
-      assert_cached Tesla.get(client, "/get")
+      refute_cached(Tesla.get(client, "/get"))
+      refute_cached(Tesla.post(client, "/get", ""))
+      assert_cached(Tesla.get(client, "/get"))
     end
 
     test "expires PUT requests", %{client: client} do
-      refute_cached Tesla.get(client, "/counter")
-      refute_cached Tesla.put(client, "/counter", "")
-      refute_cached Tesla.get(client, "/counter")
+      refute_cached(Tesla.get(client, "/counter"))
+      refute_cached(Tesla.put(client, "/counter", ""))
+      refute_cached(Tesla.get(client, "/counter"))
     end
 
     test "expires DELETE requests", %{client: client} do
-      refute_cached Tesla.get(client, "/counter")
-      refute_cached Tesla.delete(client, "/counter")
-      refute_cached Tesla.get(client, "/counter")
+      refute_cached(Tesla.get(client, "/counter"))
+      refute_cached(Tesla.delete(client, "/counter"))
+      refute_cached(Tesla.get(client, "/counter"))
     end
 
     test "expires PATCH requests", %{client: client} do
-      refute_cached Tesla.get(client, "/counter")
-      refute_cached Tesla.patch(client, "/counter", "")
-      refute_cached Tesla.get(client, "/counter")
+      refute_cached(Tesla.get(client, "/counter"))
+      refute_cached(Tesla.patch(client, "/counter", ""))
+      refute_cached(Tesla.get(client, "/counter"))
     end
 
     test "expires entries for the 'Location' header", %{client: client} do
-      refute_cached Tesla.get(client, "/get")
-      refute_cached Tesla.post(client, "/delete-with-location", "")
-      refute_cached Tesla.get(client, "/get")
+      refute_cached(Tesla.get(client, "/get"))
+      refute_cached(Tesla.post(client, "/delete-with-location", ""))
+      refute_cached(Tesla.get(client, "/get"))
     end
 
     test "expires entries for the 'Content-Location' header", %{client: client} do
-      refute_cached Tesla.get(client, "/get")
-      refute_cached Tesla.post(client, "/delete-with-content-location", "")
-      refute_cached Tesla.get(client, "/get")
+      refute_cached(Tesla.get(client, "/get"))
+      refute_cached(Tesla.post(client, "/delete-with-content-location", ""))
+      refute_cached(Tesla.get(client, "/get"))
     end
   end
 
   describe "when acting as a shared cache (the default)" do
     test "does not cache requests with a private cache control", %{client: client} do
-      refute_cached Tesla.get(client, "/private")
-      refute_cached Tesla.get(client, "/private")
+      refute_cached(Tesla.get(client, "/private"))
+      refute_cached(Tesla.get(client, "/private"))
     end
   end
 
@@ -383,45 +383,45 @@ defmodule Tesla.Middleware.CacheTest do
     setup :setup_private_cache
 
     test "does cache requests with a private cache control", %{client: client} do
-      refute_cached Tesla.get(client, "/private")
-      assert_cached Tesla.get(client, "/private")
+      refute_cached(Tesla.get(client, "/private"))
+      assert_cached(Tesla.get(client, "/private"))
     end
 
     test "cache multiple responses with different headers according to Vary", %{client: client} do
-      refute_cached {:ok, env_x0} = Tesla.get(client, "/user", headers: [{"authorization", "x"}])
-      assert_cached {:ok, env_x1} = Tesla.get(client, "/user", headers: [{"authorization", "x"}])
+      refute_cached({:ok, env_x0} = Tesla.get(client, "/user", headers: [{"authorization", "x"}]))
+      assert_cached({:ok, env_x1} = Tesla.get(client, "/user", headers: [{"authorization", "x"}]))
 
       assert env_x0.body == "X"
       assert env_x0.body == env_x1.body
 
-      refute_cached {:ok, env_y0} = Tesla.get(client, "/user", headers: [{"authorization", "y"}])
-      assert_cached {:ok, env_y1} = Tesla.get(client, "/user", headers: [{"authorization", "y"}])
+      refute_cached({:ok, env_y0} = Tesla.get(client, "/user", headers: [{"authorization", "y"}]))
+      assert_cached({:ok, env_y1} = Tesla.get(client, "/user", headers: [{"authorization", "y"}]))
 
       assert env_y0.body == "Y"
       assert env_y0.body == env_y1.body
 
-      assert_cached {:ok, env_x2} = Tesla.get(client, "/user", headers: [{"authorization", "x"}])
+      assert_cached({:ok, env_x2} = Tesla.get(client, "/user", headers: [{"authorization", "x"}]))
       assert env_x0.body == env_x2.body
     end
   end
 
   describe "when the request has a 'no-cache' directive" do
     test "by-passes the cache", %{client: client} do
-      refute_cached Tesla.get(client, "/get", headers: [{"cache-control", "no-cache"}])
-      refute_cached Tesla.get(client, "/get", headers: [{"cache-control", "no-cache"}])
+      refute_cached(Tesla.get(client, "/get", headers: [{"cache-control", "no-cache"}]))
+      refute_cached(Tesla.get(client, "/get", headers: [{"cache-control", "no-cache"}]))
     end
 
     test "caches the response", %{client: client} do
-      refute_cached Tesla.get(client, "/get", headers: [{"cache-control", "no-cache"}])
-      assert_cached Tesla.get(client, "/get")
+      refute_cached(Tesla.get(client, "/get", headers: [{"cache-control", "no-cache"}]))
+      assert_cached(Tesla.get(client, "/get"))
     end
   end
 
   describe "when the response has a 'no-cache' directive" do
     test "always revalidate the cached response", %{client: client} do
-      refute_cached Tesla.get(client, "/no_cache")
-      refute_cached Tesla.get(client, "/no_cache")
-      refute_cached Tesla.get(client, "/no_cache")
+      refute_cached(Tesla.get(client, "/no_cache"))
+      refute_cached(Tesla.get(client, "/no_cache"))
+      refute_cached(Tesla.get(client, "/no_cache"))
     end
   end
 
@@ -621,27 +621,27 @@ defmodule Tesla.Middleware.CacheTest do
       headers = [{"cache-control", "private, max-age=400"}]
       response = Response.new(%Tesla.Env{status: 200, headers: headers})
 
-      assert Response.cacheable?(response, false) == false
+      assert Response.cacheable?(response, :shared) == false
     end
 
     test "the response is not cacheable if it should not be stored" do
       headers = [{"cache-control", "no-store, max-age=400"}]
       response = Response.new(%Tesla.Env{status: 200, headers: headers})
 
-      assert Response.cacheable?(response, false) == false
+      assert Response.cacheable?(response, :shared) == false
     end
 
     test "the response is not cacheable when the status code is not acceptable" do
       headers = [{"cache-control", "max-age=400"}]
       response = Response.new(%Tesla.Env{status: 503, headers: headers})
-      assert Response.cacheable?(response, false) == false
+      assert Response.cacheable?(response, :shared) == false
     end
 
     test "the response is cacheable if the status code is 200 and the response is fresh" do
       headers = [{"cache-control", "max-age=400"}]
       response = Response.new(%Tesla.Env{status: 200, headers: headers})
 
-      assert Response.cacheable?(response, false) == true
+      assert Response.cacheable?(response, :shared) == true
     end
   end
 
@@ -650,27 +650,27 @@ defmodule Tesla.Middleware.CacheTest do
       headers = [{"cache-control", "private, max-age=400"}]
       response = Response.new(%Tesla.Env{status: 200, headers: headers})
 
-      assert Response.cacheable?(response, true) == true
+      assert Response.cacheable?(response, :private) == true
     end
 
     test "the response is not cacheable if it should not be stored" do
       headers = [{"cache-control", "no-store, max-age=400"}]
       response = Response.new(%Tesla.Env{status: 200, headers: headers})
 
-      assert Response.cacheable?(response, true) == false
+      assert Response.cacheable?(response, :private) == false
     end
 
     test "the response is not cacheable when the status code is not acceptable" do
       headers = [{"cache-control", "max-age=400"}]
       response = Response.new(%Tesla.Env{status: 503, headers: headers})
-      assert Response.cacheable?(response, true) == false
+      assert Response.cacheable?(response, :private) == false
     end
 
     test "the response is cacheable if the status code is 200 and the response is fresh" do
       headers = [{"cache-control", "max-age=400"}]
       response = Response.new(%Tesla.Env{status: 200, headers: headers})
 
-      assert Response.cacheable?(response, true) == true
+      assert Response.cacheable?(response, :private) == true
     end
   end
 
@@ -796,7 +796,7 @@ defmodule Tesla.Middleware.CacheTest do
 
   defp setup_private_cache(%{adapter: adapter}) do
     middleware = [
-      {Tesla.Middleware.Cache, store: TestStore, cache_private: true}
+      {Tesla.Middleware.Cache, store: TestStore, mode: :private}
     ]
 
     %{client: Tesla.client(middleware, adapter)}

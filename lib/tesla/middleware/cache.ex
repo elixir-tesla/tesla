@@ -1,17 +1,30 @@
 defmodule Tesla.Middleware.Cache do
   @moduledoc """
-
-  plug Tesla.Middleware.Cache, store: MyStore
+  Implementation of HTTP cache
 
   Rewrite of https://github.com/plataformatec/faraday-http-cache
+
+  ### Example
+  ```
+  defmodule MyClient do
+    use Tesla
+
+    plug Tesla.Middleware.Cache, store: MyStore
+  end
+  ```
+
+  ### Options
+  - `:store`        - cache store, possible options: `Tesla.Middleware.Cache.Store.Redis`
+  - `:mode`         - `:shared` (default) or `:private` (do cache when `Cache-Control: private`)
   """
 
   @behaviour Tesla.Middleware
 
   defmodule Store do
+    alias Tesla.Env
+
     @type key :: binary
-    @type entry ::
-            {Tesla.Env.status(), Tesla.Env.headers(), Tesla.Env.body(), Tesla.Env.headers()}
+    @type entry :: {Env.status(), Env.headers(), Env.body(), Env.headers()}
     @type vary :: [binary]
     @type data :: entry | vary
 
@@ -129,7 +142,7 @@ defmodule Tesla.Middleware.Cache do
 
     @cacheable_status [200, 203, 300, 301, 302, 307, 404, 410]
     def cacheable?({_env, %{no_store?: true}}, _), do: false
-    def cacheable?({_env, %{private?: true}}, false), do: false
+    def cacheable?({_env, %{private?: true}}, :shared), do: false
     def cacheable?({%{status: status}, _cc}, _) when status in @cacheable_status, do: true
     def cacheable?({_env, _cc}, _), do: false
 
@@ -267,19 +280,19 @@ defmodule Tesla.Middleware.Cache do
   @impl true
   def call(env, next, opts) do
     store = Keyword.fetch!(opts, :store)
-    private = Keyword.get(opts, :cache_private, false)
+    mode = Keyword.get(opts, :mode, :shared)
     request = Request.new(env)
 
-    with {:ok, {env, _}} <- process(request, next, store, private) do
+    with {:ok, {env, _}} <- process(request, next, store, mode) do
       cleanup(env, store)
       {:ok, env}
     end
   end
 
-  defp process(request, next, store, private) do
+  defp process(request, next, store, mode) do
     if Request.cacheable?(request) do
       if Request.skip_cache?(request) do
-        run_and_store(request, next, store, private)
+        run_and_store(request, next, store, mode)
       else
         case fetch(request, store) do
           {:ok, response} ->
@@ -287,12 +300,12 @@ defmodule Tesla.Middleware.Cache do
               {:ok, response}
             else
               with {:ok, response} <- validate(request, response, next) do
-                store(request, response, store, private)
+                store(request, response, store, mode)
               end
             end
 
           :not_found ->
-            run_and_store(request, next, store, private)
+            run_and_store(request, next, store, mode)
         end
       end
     else
@@ -306,9 +319,9 @@ defmodule Tesla.Middleware.Cache do
     end
   end
 
-  defp run_and_store(request, next, store, private) do
+  defp run_and_store(request, next, store, mode) do
     with {:ok, response} <- run(request, next) do
-      store(request, response, store, private)
+      store(request, response, store, mode)
     end
   end
 
@@ -319,8 +332,8 @@ defmodule Tesla.Middleware.Cache do
     end
   end
 
-  defp store({req, _} = _request, {res, _} = response, store, private) do
-    if Response.cacheable?(response, private) do
+  defp store({req, _} = _request, {res, _} = response, store, mode) do
+    if Response.cacheable?(response, mode) do
       Storage.put(store, req, ensure_date_header(res))
     end
 
