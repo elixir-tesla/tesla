@@ -1,4 +1,6 @@
 language: elixir
+services:
+  - redis-server
 env:
   - MIX_ENV=test
 matrix:
