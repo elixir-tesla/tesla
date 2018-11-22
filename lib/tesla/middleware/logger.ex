@@ -132,7 +132,6 @@ defmodule Tesla.Middleware.Logger do
 
   def call(env, next, opts) do
     {time, response} = :timer.tc(Tesla, :run, [env, next])
-
     level = log_level(response, opts)
     Logger.log(level, fn -> Formatter.format(env, response, time, @format) end)
 
