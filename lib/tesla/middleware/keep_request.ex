@@ -15,6 +15,7 @@ defmodule Tesla.Middleware.KeepRequest do
   {:ok, env} = MyClient.post("/", "request-data")
   env.body # => "response-data"
   env.opts[:req_body] # => "request-data"
+  env.opts[:req_headers] # => [{"request-headers", "are-safe"}, ...]
   ```
   """
   def call(env, next, _opts) do
