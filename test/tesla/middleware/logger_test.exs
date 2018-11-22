@@ -177,16 +177,16 @@ defmodule Tesla.Middleware.LoggerTest do
     end
   end
 
-  describe "with sanitize_headers" do
+  describe "with filter_headers" do
     setup do
       Logger.configure(level: :debug)
       :ok
     end
 
-    defmodule ClientWithSanitizeHeaders do
+    defmodule ClientWithFilterHeaders do
       use Tesla
 
-      plug Tesla.Middleware.Logger, sanitize_headers: ["authorization"]
+      plug Tesla.Middleware.Logger, filter_headers: ["authorization"]
 
       adapter fn env ->
         case env.url do
@@ -202,7 +202,7 @@ defmodule Tesla.Middleware.LoggerTest do
         {"other-header", "is not filtered"}
       ]
 
-      log = capture_log(fn -> ClientWithSanitizeHeaders.get("/ok", headers: headers) end)
+      log = capture_log(fn -> ClientWithFilterHeaders.get("/ok", headers: headers) end)
 
       assert log =~ "authorization: [FILTERED]"
       assert log =~ "other-header: is not filtered"
