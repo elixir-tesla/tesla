@@ -54,7 +54,7 @@ defmodule Tesla.Middleware.Logger do
 
   ### Options
   - `:log_level` - custom function for calculating log level (see below)
-  - `:sanitize_headers` - sanitizes sensitive headers before logging in debug mode
+  - `:filter_headers` - sanitizes sensitive headers before logging in debug mode
 
   ## Custom log format
 
@@ -111,12 +111,12 @@ defmodule Tesla.Middleware.Logger do
   #### Sanitize headers
 
   To sanitize sensitive headers such as `authorization` in
-  debug logs, add them to the `:sanitize_headers` option.
+  debug logs, add them to the `:filter_headers` option.
 
   ```
   # config/dev.local.exs
   config :tesla, Tesla.Middleware.Logger,
-    sanitize_headers: ["authorization"]
+    filter_headers: ["authorization"]
   ```
   """
 
@@ -136,7 +136,7 @@ defmodule Tesla.Middleware.Logger do
     Logger.log(level, fn -> Formatter.format(env, response, time, @format) end)
 
     if Keyword.get(@config, :debug, true) do
-      env = sanitize_headers(env, Keyword.get(opts, :sanitize_headers, []))
+      env = filter_headers(env, Keyword.get(opts, :filter_headers, []))
       Logger.debug(fn -> debug(env, response) end)
     end
 
@@ -237,18 +237,18 @@ defmodule Tesla.Middleware.Logger do
   defp debug_body(data) when is_binary(data) or is_list(data), do: data
   defp debug_body(term), do: inspect(term)
 
-  defp sanitize_headers(env, []), do: env
+  defp filter_headers(env, []), do: env
 
-  defp sanitize_headers(env, sanitize_headers) when is_list(sanitize_headers) do
+  defp filter_headers(env, filter_headers) when is_list(filter_headers) do
     headers =
       env.headers
       |> Enum.map(fn {key, val} ->
-        val = if key in sanitize_headers, do: "[FILTERED]", else: val
+        val = if key in filter_headers, do: "[FILTERED]", else: val
         {key, val}
       end)
 
     %Tesla.Env{env | headers: headers}
   end
 
-  defp sanitize_headers(env, _), do: env
+  defp filter_headers(env, _), do: env
 end
