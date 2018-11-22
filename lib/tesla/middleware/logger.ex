@@ -136,8 +136,7 @@ defmodule Tesla.Middleware.Logger do
     Logger.log(level, fn -> Formatter.format(env, response, time, @format) end)
 
     if Keyword.get(@config, :debug, true) do
-      env = filter_headers(env, Keyword.get(opts, :filter_headers, []))
-      Logger.debug(fn -> debug(env, response) end)
+      Logger.debug(fn -> debug(env, response, opts) end)
     end
 
     response
@@ -175,28 +174,28 @@ defmodule Tesla.Middleware.Logger do
   @debug_no_body "(no body)"
   @debug_stream "[Elixir.Stream]"
 
-  defp debug(request, {:ok, response}) do
+  defp debug(request, {:ok, response}, opts) do
     [
       "\n>>> REQUEST >>>\n",
       debug_query(request.query),
       ?\n,
-      debug_headers(request.headers),
+      debug_headers(request.headers, opts),
       ?\n,
       debug_body(request.body),
       ?\n,
       "\n<<< RESPONSE <<<\n",
-      debug_headers(response.headers),
+      debug_headers(response.headers, opts),
       ?\n,
       debug_body(response.body)
     ]
   end
 
-  defp debug(request, {:error, error}) do
+  defp debug(request, {:error, error}, opts) do
     [
       "\n>>> REQUEST >>>\n",
       debug_query(request.query),
       ?\n,
-      debug_headers(request.headers),
+      debug_headers(request.headers, opts),
       ?\n,
       debug_body(request.body),
       ?\n,
@@ -213,8 +212,17 @@ defmodule Tesla.Middleware.Logger do
     |> Enum.map(fn {k, v} -> ["Query: ", to_string(k), ": ", to_string(v), ?\n] end)
   end
 
-  defp debug_headers([]), do: @debug_no_headers
-  defp debug_headers(headers), do: Enum.map(headers, fn {k, v} -> [k, ": ", v, ?\n] end)
+  defp debug_headers([], _opts), do: @debug_no_headers
+
+  defp debug_headers(headers, opts) do
+    filtered = Keyword.get(opts, :filter_headers)
+    filtered = if is_list(filtered), do: filtered, else: []
+
+    Enum.map(headers, fn {k, v} ->
+      v = if k in filtered, do: "[FILTERED]", else: v
+      [k, ": ", v, ?\n]
+    end)
+  end
 
   defp debug_body(nil), do: @debug_no_body
   defp debug_body([]), do: @debug_no_body
@@ -236,19 +244,4 @@ defmodule Tesla.Middleware.Logger do
 
   defp debug_body(data) when is_binary(data) or is_list(data), do: data
   defp debug_body(term), do: inspect(term)
-
-  defp filter_headers(env, []), do: env
-
-  defp filter_headers(env, filter_headers) when is_list(filter_headers) do
-    headers =
-      env.headers
-      |> Enum.map(fn {key, val} ->
-        val = if key in filter_headers, do: "[FILTERED]", else: val
-        {key, val}
-      end)
-
-    %Tesla.Env{env | headers: headers}
-  end
-
-  defp filter_headers(env, _), do: env
 end
