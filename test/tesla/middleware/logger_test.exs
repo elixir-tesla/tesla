@@ -177,6 +177,38 @@ defmodule Tesla.Middleware.LoggerTest do
     end
   end
 
+  describe "with sanitize_headers" do
+    setup do
+      Logger.configure(level: :debug)
+      :ok
+    end
+
+    defmodule ClientWithSanitizeHeaders do
+      use Tesla
+
+      plug Tesla.Middleware.Logger, sanitize_headers: ["authorization"]
+
+      adapter fn env ->
+        case env.url do
+          "/ok" ->
+            {:ok, %{env | status: 200, body: "ok"}}
+        end
+      end
+    end
+
+    test "sanitizes given header values" do
+      headers = [
+        {"authorization", "Basic my-secret"},
+        {"other-header", "is not filtered"}
+      ]
+
+      log = capture_log(fn -> ClientWithSanitizeHeaders.get("/ok", headers: headers) end)
+
+      assert log =~ "authorization: [FILTERED]"
+      assert log =~ "other-header: is not filtered"
+    end
+  end
+
   alias Tesla.Middleware.Logger.Formatter
 
   describe "Formatter: compile/1" do
