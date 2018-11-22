@@ -54,7 +54,7 @@ defmodule Tesla.Middleware.Logger do
 
   ### Options
   - `:log_level` - custom function for calculating log level (see below)
-  - `:filter_headers` - sanitizes sensitive headers before logging in debug mode
+  - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
 
   ## Custom log format
 
@@ -108,10 +108,11 @@ defmodule Tesla.Middleware.Logger do
   # config/dev.local.exs
   config :tesla, Tesla.Middleware.Logger, debug: false
   ```
-  #### Sanitize headers
+  #### Filter headers
 
   To sanitize sensitive headers such as `authorization` in
   debug logs, add them to the `:filter_headers` option.
+  `:filter_headers` expects a list of header names as strings.
 
   ```
   # config/dev.local.exs
@@ -215,8 +216,7 @@ defmodule Tesla.Middleware.Logger do
   defp debug_headers([], _opts), do: @debug_no_headers
 
   defp debug_headers(headers, opts) do
-    filtered = Keyword.get(opts, :filter_headers)
-    filtered = if is_list(filtered), do: filtered, else: []
+    filtered = Keyword.get(opts, :filter_headers, [])
 
     Enum.map(headers, fn {k, v} ->
       v = if k in filtered, do: "[FILTERED]", else: v
