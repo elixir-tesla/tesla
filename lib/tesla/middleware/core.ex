@@ -15,6 +15,7 @@ defmodule Tesla.Middleware.BaseUrl do
     plug Tesla.Middleware.BaseUrl, "https://api.github.com"
   end
 
+  MyClient.get(nil) # equals to GET http://example.com
   MyClient.get("/path") # equals to GET https://api.github.com/path
   MyClient.get("http://example.com/path") # equals to GET http://example.com/path
   ```
@@ -27,11 +28,11 @@ defmodule Tesla.Middleware.BaseUrl do
   end
 
   defp apply_base(env, base) do
-    if Regex.match?(~r/^https?:\/\//, env.url) do
+    cond do
+      is_nil(env.url) -> %{env | url: base}
       # skip if url is already with scheme
-      env
-    else
-      %{env | url: join(base, env.url)}
+      Regex.match?(~r/^https?:\/\//, env.url) -> env
+      true -> %{env | url: join(base, env.url)}
     end
   end
 
