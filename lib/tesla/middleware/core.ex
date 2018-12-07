@@ -12,11 +12,13 @@ defmodule Tesla.Middleware.BaseUrl do
   defmodule MyClient do
     use Tesla
 
-    plug Tesla.Middleware.BaseUrl, "https://api.github.com"
+    plug Tesla.Middleware.BaseUrl, "https://example.com/foo"
   end
 
-  MyClient.get("/path") # equals to GET https://api.github.com/path
-  MyClient.get("http://example.com/path") # equals to GET http://example.com/path
+  MyClient.get("/path") # equals to GET https://example.com/foo/path
+  MyClient.get("path") # equals to GET https://example.com/foo/path
+  MyClient.get("") # equals to GET https://example.com/foo
+  MyClient.get("http://example.com/bar") # equals to GET http://example.com/bar
   ```
   """
 
@@ -40,6 +42,7 @@ defmodule Tesla.Middleware.BaseUrl do
       {nil, url} -> url
       {"/", "/" <> rest} -> base <> rest
       {"/", rest} -> base <> rest
+      {_, ""} -> base
       {_, "/" <> rest} -> base <> "/" <> rest
       {_, rest} -> base <> "/" <> rest
     end
