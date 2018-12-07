@@ -27,7 +27,7 @@ defmodule Tesla.Middleware.BaseUrl do
   end
 
   defp apply_base(env, base) do
-    if Regex.match?(~r/^https?:\/\//, env.url) do
+    if Regex.match?(~r/^https?:\/\//i, env.url) do
       # skip if url is already with scheme
       env
     else
