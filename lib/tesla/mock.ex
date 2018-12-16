@@ -170,7 +170,7 @@ defmodule Tesla.Mock do
       end
   """
   @spec text(body :: term, opts :: [Tesla.option()]) :: Tesla.Env.t()
-  def text(body, opts \\ []), do: response(body, "test/plain", opts)
+  def text(body, opts \\ []), do: response(body, "text/plain", opts)
 
   defp response(body, content_type, opts) do
     defaults = [status: 200, headers: [{"content-type", content_type}]]
