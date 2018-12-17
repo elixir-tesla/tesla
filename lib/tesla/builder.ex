@@ -150,8 +150,6 @@ defmodule Tesla.Builder do
   end
 
   defmacro __before_compile__(env) do
-    Tesla.Migration.breaking_alias_in_config!(env.module)
-
     adapter =
       env.module
       |> Module.get_attribute(:__adapter__)
@@ -185,14 +183,8 @@ defmodule Tesla.Builder do
   defp compile(list) when is_list(list), do: Enum.map(list, &compile/1)
 
   # {Tesla.Middleware.Something, opts}
-  defp compile({{{:__aliases__, _, _} = ast_mod, ast_opts}, {_kind, caller}}) do
-    Tesla.Migration.breaking_headers_map!(ast_mod, ast_opts, caller)
+  defp compile({{{:__aliases__, _, _} = ast_mod, ast_opts}, {_kind, _caller}}) do
     quote do: {unquote(ast_mod), :call, [unquote(ast_opts)]}
-  end
-
-  # :local_middleware, opts
-  defp compile({{name, _opts}, {kind, caller}}) when is_atom(name) do
-    Tesla.Migration.breaking_alias!(kind, name, caller)
   end
 
   # Tesla.Middleware.Something
@@ -203,11 +195,6 @@ defmodule Tesla.Builder do
   # fn env -> ... end
   defp compile({{:fn, _, _} = ast_fun, {_kind, _caller}}) do
     quote do: {:fn, unquote(ast_fun)}
-  end
-
-  # :local_middleware
-  defp compile({name, {kind, caller}}) when is_atom(name) do
-    Tesla.Migration.breaking_alias!(kind, name, caller)
   end
 
   defp runtime(list) when is_list(list), do: Enum.map(list, &runtime/1)
@@ -235,7 +222,6 @@ defmodule Tesla.Builder do
       unquote(gen_doc(method, safe, client, opts, docs))
       unquote(gen_spec(method, safe, client, opts))
       unquote(gen_fun(method, safe, client, opts))
-      unquote(gen_deprecated(method, safe, client, opts))
     end
   end
 
@@ -287,18 +273,6 @@ defmodule Tesla.Builder do
   end
 
   defp gen_guards(def, _opts), do: def
-
-  defp gen_deprecated(method, safe, :client, opts) do
-    inputs = [quote(do: client) | inputs(method, :noclient, opts)]
-
-    quote location: :keep do
-      def unquote(name(method, safe))(unquote_splicing(inputs)) when is_function(client) do
-        Tesla.Migration.client_function!()
-      end
-    end
-  end
-
-  defp gen_deprecated(_method, _safe, _, _opts), do: nil
 
   defp name(method, :safe), do: method
   defp name(method, :bang), do: String.to_atom("#{method}!")
