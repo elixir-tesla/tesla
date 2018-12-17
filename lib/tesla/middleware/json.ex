@@ -45,6 +45,7 @@ defmodule Tesla.Middleware.JSON do
   @default_encode_content_type "application/json"
   @default_engine Jason
 
+  @doc false
   def call(env, next, opts) do
     opts = opts || []
 
@@ -145,6 +146,7 @@ defmodule Tesla.Middleware.JSON do
 end
 
 defmodule Tesla.Middleware.DecodeJson do
+  @moduledoc false
   def call(env, next, opts) do
     opts = opts || []
 
@@ -155,6 +157,7 @@ defmodule Tesla.Middleware.DecodeJson do
 end
 
 defmodule Tesla.Middleware.EncodeJson do
+  @moduledoc false
   def call(env, next, opts) do
     opts = opts || []
 

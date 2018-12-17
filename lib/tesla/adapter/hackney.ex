@@ -27,6 +27,7 @@ if Code.ensure_loaded?(:hackney) do
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
 
+    @doc false
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts) do
         {:ok, %{env | status: status, headers: format_headers(headers), body: format_body(body)}}

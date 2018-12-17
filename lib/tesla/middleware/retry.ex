@@ -24,6 +24,7 @@ defmodule Tesla.Middleware.Retry do
     max_retries: 5
   ]
 
+  @doc false
   def call(env, next, opts) do
     opts = opts || []
     delay = Keyword.get(opts, :delay, @defaults[:delay])

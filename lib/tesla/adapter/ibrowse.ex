@@ -29,6 +29,7 @@ if Code.ensure_loaded?(:ibrowse) do
     import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
     alias Tesla.Multipart
 
+    @doc false
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts) do
         {:ok,

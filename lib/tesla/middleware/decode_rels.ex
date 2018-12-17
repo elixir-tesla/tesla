@@ -19,6 +19,7 @@ defmodule Tesla.Middleware.DecodeRels do
 
   """
 
+  @doc false
   def call(env, next, _opts) do
     env
     |> Tesla.run(next)

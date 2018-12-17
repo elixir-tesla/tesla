@@ -43,6 +43,7 @@ if Code.ensure_loaded?(:fuse) do
     # most probably not valid for your use case
     @defaults {{:standard, 2, 10_000}, {:reset, 60_000}}
 
+    @doc false
     def call(env, next, opts) do
       opts = opts || []
       name = Keyword.get(opts, :name, env.__module__)

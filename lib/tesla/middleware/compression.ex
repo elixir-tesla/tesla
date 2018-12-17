@@ -19,6 +19,7 @@ defmodule Tesla.Middleware.Compression do
   - `:format` - request compression format, `"gzip"` (default) or `"deflate"`
   """
 
+  @doc false
   def call(env, next, opts) do
     env
     |> compress(opts)
@@ -71,6 +72,7 @@ defmodule Tesla.Middleware.CompressRequest do
   See `Tesla.Middleware.Compression` for options.
   """
 
+  @doc false
   def call(env, next, opts) do
     env
     |> Tesla.Middleware.Compression.compress(opts)
@@ -87,6 +89,7 @@ defmodule Tesla.Middleware.DecompressResponse do
   See `Tesla.Middleware.Compression` for options.
   """
 
+  @doc false
   def call(env, next, _opts) do
     env
     |> Tesla.run(next)

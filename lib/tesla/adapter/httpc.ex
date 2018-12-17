@@ -15,6 +15,7 @@ defmodule Tesla.Adapter.Httpc do
   @override_defaults autoredirect: false
   @http_opts ~w(timeout connect_timeout ssl essl autoredirect proxy_auth version relaxed url_encode)a
 
+  @doc false
   def call(env, opts) do
     opts = Tesla.Adapter.opts(@override_defaults, env, opts)
 

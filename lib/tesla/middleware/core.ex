@@ -22,6 +22,7 @@ defmodule Tesla.Middleware.BaseUrl do
   ```
   """
 
+  @doc false
   def call(env, next, base) do
     env
     |> apply_base(base)
@@ -64,6 +65,7 @@ defmodule Tesla.Middleware.Headers do
   end
   ```
   """
+  @doc false
   def call(env, next, headers) do
     env
     |> Tesla.put_headers(headers)
@@ -86,6 +88,7 @@ defmodule Tesla.Middleware.Query do
   end
   ```
   """
+  @doc false
   def call(env, next, query) do
     env
     |> merge(query)
@@ -114,6 +117,7 @@ defmodule Tesla.Middleware.Opts do
   end
   ```
   """
+  @doc false
   def call(env, next, opts) do
     Tesla.run(%{env | opts: env.opts ++ opts}, next)
   end

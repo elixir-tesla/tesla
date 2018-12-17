@@ -18,6 +18,7 @@ defmodule Tesla.Middleware.KeepRequest do
   env.opts[:req_headers] # => [{"request-headers", "are-safe"}, ...]
   ```
   """
+  @doc false
   def call(env, next, _opts) do
     env
     |> Tesla.put_opt(:req_body, env.body)

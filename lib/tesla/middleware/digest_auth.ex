@@ -29,6 +29,7 @@ defmodule Tesla.Middleware.DigestAuth do
   - `:nc`        - nonce counter (defaults to `"00000000"`)
   """
 
+  @doc false
   def call(env, next, opts) do
     if env.opts && Keyword.get(env.opts, :digest_auth_handshake) do
       Tesla.run(env, next)

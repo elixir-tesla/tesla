@@ -28,6 +28,7 @@ defmodule Tesla.Middleware.BasicAuth do
   - `:password`  - password (defaults to `""`)
   """
 
+  @doc false
   def call(env, next, opts) do
     opts = opts || %{}
 

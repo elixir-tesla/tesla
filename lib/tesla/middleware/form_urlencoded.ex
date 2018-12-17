@@ -45,6 +45,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   @content_type "application/x-www-form-urlencoded"
 
+  @doc false
   def call(env, next, opts) do
     env
     |> encode(opts)

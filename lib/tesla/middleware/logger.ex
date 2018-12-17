@@ -130,6 +130,7 @@ defmodule Tesla.Middleware.Logger do
 
   require Logger
 
+  @doc false
   def call(env, next, opts) do
     {time, response} = :timer.tc(Tesla, :run, [env, next])
     level = log_level(response, opts)

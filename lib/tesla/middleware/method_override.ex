@@ -21,6 +21,7 @@ defmodule Tesla.Middleware.MethodOverride do
   everything except `:get` and `:post` if not specified
   """
 
+  @doc false
   def call(env, next, opts) do
     if overridable?(env, opts) do
       env

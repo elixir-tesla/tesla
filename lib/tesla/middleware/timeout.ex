@@ -19,6 +19,7 @@ defmodule Tesla.Middleware.Timeout do
 
   @default_timeout 1_000
 
+  @doc false
   def call(env, next, opts) do
     opts = opts || []
     timeout = Keyword.get(opts, :timeout, @default_timeout)

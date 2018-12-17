@@ -72,7 +72,7 @@ defmodule Tesla.Mixfile do
       # testing & docs
       {:excoveralls, "~> 0.8", only: :test},
       {:httparrot, "~> 1.0", only: :test},
-      {:ex_doc, "~> 0.19", only: :dev},
+      {:ex_doc, github: "elixir-lang/ex_doc", only: :dev},
       {:mix_test_watch, "~> 0.5", only: :dev},
       {:dialyxir, "~> 1.0.0-rc.3", only: [:dev, :test]},
       {:inch_ex, "~> 0.5.6", only: :docs}
@@ -116,6 +116,10 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware.Retry,
           Tesla.Middleware.Timeout
         ]
+      ],
+      nest_modules_by_prefix: [
+        Tesla.Adapter,
+        Tesla.Middleware
       ]
     ]
   end
