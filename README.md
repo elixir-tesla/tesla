@@ -129,7 +129,7 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 
 ## Runtime middleware
 
-All HTTP functions (`get`, `post`, etc.) can take a dynamic client function as the first parameter.
+All HTTP functions (`get`, `post`, etc.) can take a dynamic client as the first parameter.
 This allow to use convenient syntax for modifying the behaviour in runtime.
 
 Consider the following case: GitHub API can be accessed using OAuth token authorization.
@@ -137,14 +137,14 @@ Consider the following case: GitHub API can be accessed using OAuth token author
 We can't use `plug Tesla.Middleware.Headers, [{"authorization", "token here"}]`
 since this would be compiled only once and there is no way to insert dynamic user token.
 
-Instead, we can use `Tesla.client` to create a dynamic middleware function:
+Instead, we can use `Tesla.client` to create a client with dynamic middleware:
 
 ```elixir
 defmodule GitHub do
   # notice there is no `use Tesla`
 
   def user_repos(client, login) do
-    # pass `client` argument to `get` function
+    # pass `client` argument to `Tesla.get` function
     Tesla.get(client, "/user/" <> login <> "/repos")
   end
 
