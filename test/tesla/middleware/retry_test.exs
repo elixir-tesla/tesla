@@ -40,9 +40,11 @@ defmodule Tesla.Middleware.RetryTest do
         {:ok, %{status: status}} when status in [400, 500] ->
           assert true
           true
+
         {:ok, _} ->
           assert false
           false
+
         {:error, _} ->
           assert false
           true
@@ -50,7 +52,6 @@ defmodule Tesla.Middleware.RetryTest do
 
     adapter LaggyAdapter
   end
-
 
   setup do
     {:ok, _} = LaggyAdapter.start_link()
