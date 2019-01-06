@@ -2,22 +2,30 @@ defmodule Tesla.Middleware.Retry do
   @behaviour Tesla.Middleware
 
   @moduledoc """
-  Retry few times in case of connection error (`nxdomain`, `connrefused` etc).
-  This middleware will NOT retry in case of application error (HTTP status 5xx).
+  Retry the HTTP call in case of connection error by default (`nxdomain`, `connrefused` etc).
+  Application error checking for retry can be customized through should_retry options by
+  providing a function in returning a boolean.
 
   ### Example
   ```
   defmodule MyClient do
     use Tesla
 
-    plug Tesla.Middleware.Retry, delay: 500, max_retries: 10
+    plug Tesla.Middleware.Retry,
+      delay: 500,
+      max_retries: 10,
+      should_retry: fn
+        {:ok, %{status: status}} when status in [400, 500] -> true
+        {:ok, _} -> false
+        {:error, _} -> true
+      end
   end
   ```
 
   ### Options
   - `:delay`        - number of milliseconds to wait before retrying (defaults to 1000)
   - `:max_retries`  - maximum number of retries (defaults to 5)
-  - `:should_retry` - function to determine it should be retried
+  - `:should_retry` - function to determine Tesla should be retried
   """
 
   @defaults [
