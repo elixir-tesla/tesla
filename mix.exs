@@ -76,8 +76,7 @@ defmodule Tesla.Mixfile do
       {:ex_doc, github: "elixir-lang/ex_doc", only: :dev},
       {:mix_test_watch, "~> 0.5", only: :dev},
       {:dialyxir, "~> 1.0.0-rc.3", only: [:dev, :test]},
-      {:inch_ex, "~> 0.5.6", only: :docs},
-      {:mock, "~> 0.3.2", only: :test}
+      {:inch_ex, "~> 0.5.6", only: :docs}
     ]
   end
 
