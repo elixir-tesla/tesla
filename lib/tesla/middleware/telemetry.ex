@@ -31,7 +31,7 @@ defmodule Tesla.Middleware.Telemetry do
   @doc false
   def call(env, next, _opts) do
     {time, res} = :timer.tc(Tesla, :run, [env, next])
-    :telemetry.execute([:tesla, :telemetry, :traffic], time, Enum.into([res], %{}))
+    :telemetry.execute([:tesla, :request], time, %{result: res})
     res
   end
 end
