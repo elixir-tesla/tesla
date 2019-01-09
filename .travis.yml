@@ -41,7 +41,7 @@ matrix:
       after_script: skip
     - elixir: 1.6.6
       otp_release: 21.0
-      before_script: git remote set-branches origin '*' && git fetch origin v1.0.0-compat && git checkout v1.0.0-compat -- test
+      before_script: git remote set-branches origin '*' && git fetch origin v1.0.0-compat && git checkout origin/v1.0.0-compat -- test
       env: MIX_ENV=test LABEL=v1.0.0-compat
 script: mix coveralls.json
 after_script:
