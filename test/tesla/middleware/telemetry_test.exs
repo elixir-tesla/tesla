@@ -15,7 +15,7 @@ defmodule Tesla.Middleware.TelemetryTest do
   end
 
   setup do
-    :telemetry_app.start(nil, nil)
+    Application.ensure_all_started(:telemetry)
     :ok
   end
 
