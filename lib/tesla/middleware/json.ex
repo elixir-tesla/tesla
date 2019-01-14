@@ -41,7 +41,7 @@ defmodule Tesla.Middleware.JSON do
 
   # NOTE: text/javascript added to support Facebook Graph API.
   #       see https://github.com/teamon/tesla/pull/13
-  @default_content_types ["application/json", "text/javascript"]
+  @default_content_types ["application/json", "application/hal+json", "text/javascript"]
   @default_encode_content_type "application/json"
   @default_engine Jason
 

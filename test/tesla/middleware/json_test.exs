@@ -42,6 +42,10 @@ defmodule Tesla.Middleware.JsonTest do
             "/stream" ->
               list = env.body |> Enum.to_list() |> Enum.join("---")
               {200, [], list}
+
+            "/haljson" ->
+              {200, [{"content-type", "application/hal+json"}],
+               "{\"id\": 123, \"_links\":{\"self\":{\"href\":\"https://foo.bar/123\"}}}"}
           end
 
         {:ok, %{env | status: status, headers: headers, body: body}}
@@ -105,6 +109,15 @@ defmodule Tesla.Middleware.JsonTest do
 
     test "raise error when decoding non-utf8 json" do
       assert {:error, {Tesla.Middleware.JSON, :decode, _}} = Client.get("/invalid-json-encoding")
+    end
+
+    test "decode HAL + JSON body" do
+      assert {:ok, env} = Client.get("/haljson")
+
+      assert env.body == %{
+               "id" => 123,
+               "_links" => %{"self" => %{"href" => "https://foo.bar/123"}}
+             }
     end
   end
 
