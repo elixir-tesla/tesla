@@ -201,7 +201,7 @@ Using `adapter` macro:
 defmodule GitHub do
   use Tesla
 
-  adapter :hackney, recv_timeout: 30_000, ssl: [certfile: "certs/client.crt"]
+  adapter Tesla.Adapter.Hackney, recv_timeout: 30_000, ssl: [certfile: "certs/client.crt"]
 end
 ```
 
