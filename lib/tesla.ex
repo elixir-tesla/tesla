@@ -475,7 +475,7 @@ defmodule Tesla do
   MyApi.get_something(client, 42)
   ```
   """
-  @since "1.2.0"
+  if Version.match?(System.version(), "~> 1.7"), do: @doc(since: "1.2.0")
   @spec client([Tesla.Client.middleware()], Tesla.Client.adapter()) :: Tesla.Client.t()
   def client(middleware, adapter \\ nil), do: Tesla.Builder.client(middleware, [], adapter)
 
