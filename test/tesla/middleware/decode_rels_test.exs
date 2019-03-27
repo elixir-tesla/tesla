@@ -9,6 +9,12 @@ defmodule Tesla.Middleware.DecodeRelsTest do
     adapter fn env ->
       {:ok,
        case env.url do
+         "/rels-with-no-quotes" ->
+           Tesla.put_headers(env, [
+             {"link", ~s(<https://api.github.com/resource?page=2>; rel=next,
+               <https://api.github.com/resource?page=5>; rel=last)}
+           ])
+
          "/rels" ->
            Tesla.put_headers(env, [
              {"link", ~s(<https://api.github.com/resource?page=2>; rel="next",
@@ -25,6 +31,13 @@ defmodule Tesla.Middleware.DecodeRelsTest do
     assert {:ok, env} = Client.get("/rels")
 
     assert env.opts[:rels] == %{
+             "next" => "https://api.github.com/resource?page=2",
+             "last" => "https://api.github.com/resource?page=5"
+           }
+
+    assert {:ok, unquoted_env} = Client.get("/rels-with-no-quotes")
+
+    assert unquoted_env.opts[:rels] == %{
              "next" => "https://api.github.com/resource?page=2",
              "last" => "https://api.github.com/resource?page=5"
            }
