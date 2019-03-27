@@ -47,8 +47,15 @@ defmodule Tesla.Middleware.DecodeRels do
   end
 
   defp rel(item) do
-    Regex.run(~r/\A<(.+)>; rel="(.+)"\z/, item, capture: :all_but_first)
-    |> Enum.reverse()
-    |> List.to_tuple()
+    case Regex.run(~r/\A<(.+)>; rel=(.+)\z/, item, capture: :all_but_first) do
+      nil ->
+        {}
+
+      link_rel ->
+        link_rel
+        |> Enum.reverse()
+        |> List.replace_at(0, String.trim(List.last(link_rel), "\""))
+        |> List.to_tuple()
+    end
   end
 end
