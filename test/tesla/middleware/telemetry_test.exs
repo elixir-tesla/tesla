@@ -25,7 +25,7 @@ defmodule Tesla.Middleware.TelemetryTest do
       [:tesla, :request],
       fn
         [:tesla, :request], %{value: time}, meta, _config ->
-          send(self(), {:error_called, is_integer(time), meta})
+          send(self(), {:ok_called, is_integer(time), meta})
 
         [:tesla, :request], response, meta, _config ->
           send(self(), {:ok_called, is_integer(response), meta})
