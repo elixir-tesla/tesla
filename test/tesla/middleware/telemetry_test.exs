@@ -23,8 +23,12 @@ defmodule Tesla.Middleware.TelemetryTest do
     :telemetry.attach(
       "telemetry_test",
       [:tesla, :request],
-      fn [:tesla, :request], response, meta, _config ->
-        send(self(), {:ok_called, is_integer(response), meta})
+      fn
+        [:tesla, :request], %{value: time}, meta, _config ->
+          send(self(), {:error_called, is_integer(time), meta})
+
+        [:tesla, :request], response, meta, _config ->
+          send(self(), {:ok_called, is_integer(response), meta})
       end,
       nil
     )
@@ -40,8 +44,12 @@ defmodule Tesla.Middleware.TelemetryTest do
     :telemetry.attach(
       "telemetry_test_error",
       [:tesla, :request],
-      fn [:tesla, :request], response, meta, _config ->
-        send(self(), {:error_called, is_integer(response), meta})
+      fn
+        [:tesla, :request], %{value: time}, meta, _config ->
+          send(self(), {:error_called, is_integer(time), meta})
+
+        [:tesla, :request], response, meta, _config ->
+          send(self(), {:error_called, is_integer(response), meta})
       end,
       nil
     )
