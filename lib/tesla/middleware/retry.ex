@@ -49,6 +49,7 @@ defmodule Tesla.Middleware.Retry do
 
   defp retry(env, next, delay, retries, should_retry) do
     res = Tesla.run(env, next)
+
     if should_retry.(res) do
       :timer.sleep(delay)
       retry(env, next, delay, retries - 1, should_retry)
