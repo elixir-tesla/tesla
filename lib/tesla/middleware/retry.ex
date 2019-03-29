@@ -25,7 +25,7 @@ defmodule Tesla.Middleware.Retry do
   ### Options
   - `:delay`        - number of milliseconds to wait before retrying (defaults to 1000)
   - `:max_retries`  - maximum number of retries (defaults to 5)
-  - `:should_retry` - function to determine Tesla should be retried
+  - `:should_retry` - function to determine if request should be retried
   """
 
   @defaults [
