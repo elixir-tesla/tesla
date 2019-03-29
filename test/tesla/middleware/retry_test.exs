@@ -12,7 +12,8 @@ defmodule Tesla.Middleware.RetryTest do
             "/maybe" when retries < 5 -> {:error, :econnrefused}
             "/maybe" -> {:ok, env}
             "/nope" -> {:error, :econnrefused}
-            "/retry_status" -> {:ok, %{status: 500}}
+            "/retry_status" when retries < 5 -> {:ok, %{env | status: 500}}
+            "/retry_status" -> {:ok, %{env | status: 200}}
           end
 
         {response, retries + 1}
@@ -37,17 +38,9 @@ defmodule Tesla.Middleware.RetryTest do
       delay: 10,
       max_retries: 10,
       should_retry: fn
-        {:ok, %{status: status}} when status in [400, 500] ->
-          assert true
-          true
-
-        {:ok, _} ->
-          assert false
-          false
-
-        {:error, _} ->
-          assert false
-          true
+        {:ok, %{status: status}} when status in [400, 500] -> true
+        {:ok, _} -> false
+        {:error, _} -> true
       end
 
     adapter LaggyAdapter
@@ -71,7 +64,7 @@ defmodule Tesla.Middleware.RetryTest do
   end
 
   test "use custom retry determination function" do
-    assert {:ok, %{status: 500}} = ClientWithShouldRetryFunction.get("/retry_status")
+    assert {:ok, %Tesla.Env{url: "/retry_status", method: :get, status: 200}} = ClientWithShouldRetryFunction.get("/retry_status")
   end
 
   defmodule DefunctClient do
