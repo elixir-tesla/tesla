@@ -24,6 +24,7 @@ defmodule Tesla.Middleware.Telemetry do
   @doc false
   def call(env, next, _opts) do
     {time, res} = :timer.tc(Tesla, :run, [env, next])
+    time = if is_number(time), do: time, else: Map.get(time, :value, 0)
     :telemetry.execute([:tesla, :request], time, %{result: res})
     res
   end
