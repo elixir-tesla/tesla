@@ -63,6 +63,11 @@ defmodule Tesla.Middleware.RetryTest do
     assert {:error, :econnrefused} = Client.get("/nope")
   end
 
+  test "use default retry determination function" do
+    assert {:ok, %Tesla.Env{url: "/retry_status", method: :get, status: 500}} =
+             Client.get("/retry_status")
+  end
+
   test "use custom retry determination function" do
     assert {:ok, %Tesla.Env{url: "/retry_status", method: :get, status: 200}} =
              ClientWithShouldRetryFunction.get("/retry_status")
