@@ -3,7 +3,7 @@ defmodule Tesla.Middleware.Retry do
 
   @moduledoc """
   Retry the HTTP call in case of connection error by default (`nxdomain`, `connrefused` etc).
-  Application error checking for retry can be customized through should_retry options by
+  Application error checking for retry can be customized through `:should_retry` option by
   providing a function in returning a boolean.
 
   ### Example
