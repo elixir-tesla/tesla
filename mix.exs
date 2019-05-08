@@ -60,6 +60,8 @@ defmodule Tesla.Mixfile do
       # http clients
       {:ibrowse, "~> 4.4.0", optional: true},
       {:hackney, "~> 1.6", optional: true},
+      {:castore, "~> 0.1.0"},
+      {:mint, "~> 0.2.0"},
 
       # json parsers
       {:jason, ">= 1.0.0", optional: true},
