@@ -1,7 +1,9 @@
 defmodule Tesla.Adapter.Mint do
   @moduledoc false
   @behaviour Tesla.Adapter
+  import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
   alias Mint.HTTP
+
 
   @doc false
   def call(env, opts) do
@@ -18,8 +20,14 @@ defmodule Tesla.Adapter.Mint do
 
   defp request(env, opts) do
     %URI{host: host, scheme: scheme, port: port, path: path} = URI.parse(env.url)
+    path = Tesla.build_url(path, env.query)
+    method = case env.method do
+      :head -> "GET"
+      m -> m |> Atom.to_string() |> String.upcase()
+    end
+
     request(
-      env.method |> Atom.to_string() |> String.upcase(),
+      method,
       scheme,
       host,
       port,
@@ -29,12 +37,36 @@ defmodule Tesla.Adapter.Mint do
       opts
     )
   end
+  
+  defp request(method, scheme, host, port, path, headers, %Stream{} = body, opts) do
+    fun = stream_to_fun(body)
+    request(method, scheme, host, port, path, headers, fun, opts)
+  end
+
+  defp request(method, scheme, host, port, path, headers, body, opts) when is_function(body) do
+    with {:ok, conn} <- HTTP.connect(String.to_atom(scheme), host, port),
+         {:ok, conn, req_ref} <- HTTP.request(conn, method, path || "/", headers, :stream),
+         {:ok, conn} <- stream_request(conn, req_ref, body),
+         {:ok, _conn, %{status: status, headers: headers, data: body}} <- stream_response(conn) do
+      {:ok, status, headers, body}
+    end
+  end
 
   defp request(method, scheme, host, port, path, headers, body, opts) do
     with {:ok, conn} <- HTTP.connect(String.to_atom(scheme), host, port),
          {:ok, conn, _req_ref} <- HTTP.request(conn, method, path || "/", headers, body || ""),
          {:ok, _conn, %{status: status, headers: headers, data: body}} <- stream_response(conn) do
       {:ok, status, headers, body}
+    end
+  end
+
+  defp stream_request(conn, req_ref, fun) do
+    case next_chunk(fun) do
+      {:ok, item, fun} ->
+        HTTP.stream_request_body(conn, req_ref, item)
+        stream_request(conn, req_ref, fun)
+      :eof ->
+        HTTP.stream_request_body(conn, req_ref, :eof)
     end
   end
 
