@@ -2,6 +2,7 @@ defmodule Tesla.Adapter.Mint do
   @moduledoc false
   @behaviour Tesla.Adapter
   import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
+  alias Tesla.Multipart
   alias Mint.HTTP
 
   @doc false
@@ -44,11 +45,20 @@ defmodule Tesla.Adapter.Mint do
     request(method, scheme, host, port, path, headers, fun, opts)
   end
 
+  defp request(method, scheme, host, port, path, headers, %Multipart{} = body, opts) do
+    headers = headers ++ Multipart.headers(body)
+    fun = stream_to_fun(Multipart.body(body))
+    request(method, scheme, host, port, path, headers, fun, opts)
+  end
+
   defp request(method, scheme, host, port, path, headers, body, opts) when is_function(body) do
     with {:ok, conn} <- HTTP.connect(String.to_atom(scheme), host, port),
-         {:ok, conn, req_ref} <- HTTP.request(conn, method, path || "/", headers, :stream),
-         {:ok, conn} <- stream_request(conn, req_ref, body),
-         {:ok, _conn, res = %{status: status, headers: headers}} <- stream_response(conn) do
+         # FIXME Stream function in Mint will not append the content length after eof
+         # This will trigger the failure in unit test
+         {:ok, body, length} <- stream_request(body),
+         {:ok, conn, req_ref} <- HTTP.request(conn, method, path || "/", headers ++ [{"content-length", "#{length}"}], body),
+         {:ok, _conn, res = %{status: status, headers: headers}} <- stream_response(conn)
+    do
       {:ok, status, headers, Map.get(res, :data)}
     end
   end
@@ -61,13 +71,14 @@ defmodule Tesla.Adapter.Mint do
     end
   end
 
-  defp stream_request(conn, req_ref, fun) do
+  defp stream_request(fun, body \\ "") do
     case next_chunk(fun) do
+      {:ok, item, fun} when is_list(item) ->
+        stream_request(fun, body <> List.to_string(item))
       {:ok, item, fun} ->
-        HTTP.stream_request_body(conn, req_ref, item)
-        stream_request(conn, req_ref, fun)
+        stream_request(fun, body <> item)
       :eof ->
-        HTTP.stream_request_body(conn, req_ref, :eof)
+        {:ok, body, byte_size body}
     end
   end
 
