@@ -1,5 +1,27 @@
 defmodule Tesla.Adapter.Mint do
-  @moduledoc false
+  @moduledoc """
+    Adapter for [mint](https://github.com/ericmj/mint)
+
+    Remember to add `{:mint, "~> 0.2.0"}` and `{:castore, "~> 0.1.0"}` to dependencies
+    Also, you need to recompile tesla after adding `:mint` dependency:
+
+    ```
+    mix deps.clean tesla
+    mix deps.compile tesla
+    ```
+
+    ### Example usage
+    ```
+    # set globally in config/config.exs
+    config :tesla, :adapter, Tesla.Adapter.Mint
+
+    # set per module
+    defmodule MyClient do
+      use Tesla
+
+      adapter Tesla.Adapter.Mint
+    end
+  """
   @behaviour Tesla.Adapter
   import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
   alias Tesla.Multipart
