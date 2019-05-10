@@ -60,8 +60,8 @@ defmodule Tesla.Mixfile do
       # http clients
       {:ibrowse, "~> 4.4.0", optional: true},
       {:hackney, "~> 1.6", optional: true},
-      {:castore, "~> 0.1.0"},
-      {:mint, "~> 0.2.0"},
+      {:castore, "~> 0.1.0", optional: true},
+      {:mint, "~> 0.2.0", optional: true},
 
       # json parsers
       {:jason, ">= 1.0.0", optional: true},
@@ -94,7 +94,8 @@ defmodule Tesla.Mixfile do
         Adapters: [
           Tesla.Adapter.Hackney,
           Tesla.Adapter.Httpc,
-          Tesla.Adapter.Ibrowse
+          Tesla.Adapter.Ibrowse,
+          Tesla.Adapter.Mint
         ],
         Middlewares: [
           Tesla.Middleware.BaseUrl,
