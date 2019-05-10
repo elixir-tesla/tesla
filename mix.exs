@@ -115,6 +115,7 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware.Opts,
           Tesla.Middleware.Query,
           Tesla.Middleware.Retry,
+          Tesla.Middleware.Telemetry,
           Tesla.Middleware.Timeout
         ]
       ],
