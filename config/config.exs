@@ -18,4 +18,6 @@ if Mix.env() == :test do
     sasl_error_logger: false
 
   config :tesla, MockClient, adapter: Tesla.Mock
+
+  config :tesla, cacert: ["./deps/httparrot/priv/ssl/server-ca.crt"]
 end
