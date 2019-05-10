@@ -45,10 +45,12 @@ defmodule Tesla.Adapter.Mint do
     %URI{host: host, scheme: scheme, port: port, path: path, query: query} = URI.parse(env.url)
     query = (query || "") |> URI.decode_query() |> Map.to_list()
     path = Tesla.build_url(path, env.query ++ query)
-    method = case env.method do
-      :head -> "GET"
-      m -> m |> Atom.to_string() |> String.upcase()
-    end
+
+    method =
+      case env.method do
+        :head -> "GET"
+        m -> m |> Atom.to_string() |> String.upcase()
+      end
 
     request(
       method,
@@ -61,7 +63,7 @@ defmodule Tesla.Adapter.Mint do
       opts
     )
   end
-  
+
   defp request(method, scheme, host, port, path, headers, %Stream{} = body, opts) do
     fun = stream_to_fun(body)
     request(method, scheme, host, port, path, headers, fun, opts)
@@ -74,19 +76,25 @@ defmodule Tesla.Adapter.Mint do
   end
 
   defp request(method, scheme, host, port, path, headers, body, opts) when is_function(body) do
-    with {:ok, conn} <- HTTP.connect(String.to_atom(scheme), host, port),
+    with {:ok, conn} <- HTTP.connect(String.to_atom(scheme), host, port, opts),
          # FIXME Stream function in Mint will not append the content length after eof
          # This will trigger the failure in unit test
          {:ok, body, length} <- stream_request(body),
-         {:ok, conn, req_ref} <- HTTP.request(conn, method, path || "/", headers ++ [{"content-length", "#{length}"}], body),
-         {:ok, _conn, res = %{status: status, headers: headers}} <- stream_response(conn)
-    do
+         {:ok, conn, _req_ref} <-
+           HTTP.request(
+             conn,
+             method,
+             path || "/",
+             headers ++ [{"content-length", "#{length}"}],
+             body
+           ),
+         {:ok, _conn, res = %{status: status, headers: headers}} <- stream_response(conn) do
       {:ok, status, headers, Map.get(res, :data)}
     end
   end
 
   defp request(method, scheme, host, port, path, headers, body, opts) do
-    with {:ok, conn} <- HTTP.connect(String.to_atom(scheme), host, port),
+    with {:ok, conn} <- HTTP.connect(String.to_atom(scheme), host, port, opts),
          {:ok, conn, _req_ref} <- HTTP.request(conn, method, path || "/", headers, body || ""),
          {:ok, _conn, res = %{status: status, headers: headers}} <- stream_response(conn) do
       {:ok, status, headers, Map.get(res, :data)}
@@ -97,10 +105,12 @@ defmodule Tesla.Adapter.Mint do
     case next_chunk(fun) do
       {:ok, item, fun} when is_list(item) ->
         stream_request(fun, body <> List.to_string(item))
+
       {:ok, item, fun} ->
         stream_request(fun, body <> item)
+
       :eof ->
-        {:ok, body, byte_size body}
+        {:ok, body, byte_size(body)}
     end
   end
 
@@ -123,18 +133,23 @@ defmodule Tesla.Adapter.Mint do
 
                   {:done, _req_ref} ->
                     Map.put(acc, :done, true)
+
+                  _ ->
+                    acc
                 end
               end)
 
             if Map.get(response, :done) do
-              response = Map.drop(response, [:done])
-              {:ok, conn, response}
+              {:ok, conn, Map.drop(response, [:done])}
             else
               stream_response(conn, response)
             end
 
-          _ ->
-            {:error, "TODO: Error Handle"}
+          {:error, _conn, error, _res} ->
+            {:error, "Encounter Mint error #{inspect(error)}"}
+
+          :unknown ->
+            {:error, "Encounter unknown error"}
         end
     end
   end
