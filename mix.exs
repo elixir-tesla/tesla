@@ -80,7 +80,18 @@ defmodule Tesla.Mixfile do
       {:mix_test_watch, "~> 0.5", only: :dev},
       {:dialyxir, "~> 1.0.0-rc.3", only: [:dev, :test]},
       {:inch_ex, "~> 0.5.6", only: :docs}
-    ]
+    ] ++ mint_version_check()
+  end
+
+  defp mint_version_check() do
+    if Version.compare(System.version(), "1.5.0") != :lt do
+      [
+        {:castore, "~> 0.1.0", optional: true},
+        {:mint, "~> 0.2.0", optional: true}
+      ]
+    else
+      []
+    end
   end
 
   defp docs do
