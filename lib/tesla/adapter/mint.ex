@@ -3,6 +3,8 @@ if Version.compare(System.version(), "1.5.0") != :lt do
     @moduledoc """
       Adapter for [mint](https://github.com/ericmj/mint)
 
+      Caution: The minimum supported Elixir version for mint is 1.5.0
+
       Remember to add `{:mint, "~> 0.2.0"}` and `{:castore, "~> 0.1.0"}` to dependencies
       Also, you need to recompile tesla after adding `:mint` dependency:
 
@@ -22,6 +24,9 @@ if Version.compare(System.version(), "1.5.0") != :lt do
 
         adapter Tesla.Adapter.Mint
       end
+
+      # set custom cacert
+      config :tesla, :cacert, ["path_to_cacert"]
     """
     @behaviour Tesla.Adapter
     import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
