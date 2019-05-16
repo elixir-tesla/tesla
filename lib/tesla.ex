@@ -412,7 +412,9 @@ defmodule Tesla do
     %{env | headers: headers}
   end
 
-  @spec put_headers(Env.t(), [{binary, binary}]) :: Env.t()
+  @spec put_headers(Env.t(), [{binary, binary}] | nil) :: Env.t()
+  def put_headers(%Env{} = env, nil), do: env
+
   def put_headers(%Env{} = env, list) when is_list(list) do
     %{env | headers: env.headers ++ list}
   end

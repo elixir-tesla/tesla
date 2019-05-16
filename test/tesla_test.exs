@@ -256,6 +256,10 @@ defmodule TeslaTest do
       assert get_header(env, "server") == "Cowboy"
       assert get_header(env, "content-length") == "100"
       assert get_header(env, "content-type") == "text/plain"
+
+      headers = Map.get(env, :headers)
+      env = Tesla.put_headers(env, nil)
+      assert headers == Map.get(env, :headers)
     end
 
     test "add multiple headers with the same name" do
