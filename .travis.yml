@@ -15,31 +15,35 @@ matrix:
       otp_release: 19.3
     - elixir: 1.5.3
       otp_release: 20.3
-    - elixir: 1.6.5
-      otp_release: 19.3
-    - elixir: 1.6.5
-      otp_release: 20.3
     - elixir: 1.6.6
       otp_release: 19.3
     - elixir: 1.6.6
       otp_release: 20.3
     - elixir: 1.6.6
-      otp_release: 21.0
-    - elixir: 1.7.3
       otp_release: 19.3
-    - elixir: 1.7.3
+    - elixir: 1.6.6
       otp_release: 20.3
-    - elixir: 1.7.3
-      otp_release: 21.0
-    - elixir: 1.8.0
+    - elixir: 1.6.6
+      otp_release: 21.3
+    - elixir: 1.7.4
+      otp_release: 19.3
+    - elixir: 1.7.4
       otp_release: 20.3
-    - elixir: 1.8.0
-      otp_release: 21.0
-    - elixir: 1.5.3
-      otp_release: 20.2
+    - elixir: 1.7.4
+      otp_release: 21.3
+    - elixir: 1.7.4
+      otp_release: 22.0
+    - elixir: 1.8.2
+      otp_release: 20.3
+    - elixir: 1.8.2
+      otp_release: 21.3
+    - elixir: 1.8.2
+      otp_release: 22.0
+    - elixir: 1.8.2
+      otp_release: 22.0
       env: MIX_ENV=test LOCKFILE=poison3
-    - elixir: 1.6.6
-      otp_release: 21.0
+    - elixir: 1.8.2
+      otp_release: 22.0
       install: skip
       script: mix format --check-formatted --dry-run
       after_script: skip
