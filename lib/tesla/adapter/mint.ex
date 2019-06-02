@@ -51,11 +51,7 @@ defmodule Tesla.Adapter.Mint do
     query = (query || "") |> URI.decode_query() |> Map.to_list()
     path = Tesla.build_url(path, env.query ++ query)
 
-    method =
-      case env.method do
-        :head -> "GET"
-        m -> m |> Atom.to_string() |> String.upcase()
-      end
+    method = env.method |> Atom.to_string() |> String.upcase()
 
     opts =
       if opts |> get_in([:transport_opts, :cacertfile]) |> is_nil() && scheme == "https" &&
