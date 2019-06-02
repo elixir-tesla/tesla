@@ -25,7 +25,7 @@ defmodule Tesla.Adapter.Mint do
     end
 
     # set custom cacert
-    config :tesla, :cacert, ["path_to_cacert"]
+    config :tesla, Mint, cacert: ["path_to_cacert"]
   """
   @behaviour Tesla.Adapter
   import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
@@ -124,7 +124,8 @@ defmodule Tesla.Adapter.Mint do
   end
 
   defp get_default_ca() do
-    Application.get_env(:tesla, :cacert)
+    env = Application.get_env(:tesla, Mint)
+    Keyword.get(env, :cacert)
   end
 
   defp stream_request(fun, body \\ "") do
