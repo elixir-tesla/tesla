@@ -32,16 +32,14 @@ defmodule Tesla.Adapter.Mint do
   alias Tesla.Multipart
   alias Mint.HTTP
 
+  @default adapter: [timeout: 2_000]
+
   @doc false
   def call(env, opts) do
-    with {:ok, status, headers, body} <- request(env, opts) do
-      {:ok, %{env | status: status, headers: format_headers(headers), body: body}}
-    end
-  end
+    opts = Tesla.Adapter.opts(@default, env, opts)
 
-  defp format_headers(headers) do
-    for {key, value} <- headers do
-      {String.downcase(to_string(key)), to_string(value)}
+    with {:ok, status, headers, body} <- request(env, opts) do
+      {:ok, %{env | status: status, headers: headers, body: body}}
     end
   end
 
@@ -59,13 +57,9 @@ defmodule Tesla.Adapter.Mint do
         transport =
           opts
           |> Access.get(:transport_opts, [])
-          |> update_in([:cacertfile], fn _ ->
-            get_default_ca()
-          end)
+          |> Keyword.put(:cacertfile, get_default_ca())
 
-        update_in(opts, [:transport_opts], fn _ ->
-          transport
-        end)
+        Keyword.put(opts, :transport_opts, transport)
       else
         opts
       end
@@ -106,21 +100,23 @@ defmodule Tesla.Adapter.Mint do
              headers ++ [{"content-length", "#{length}"}],
              body
            ),
-         {:ok, _conn, res = %{status: status, headers: headers}} <- stream_response(conn) do
+         {:ok, conn, res = %{status: status, headers: headers}} <- stream_response(conn, opts),
+         {:ok, _conn} <- HTTP.close(conn) do
       {:ok, status, headers, Map.get(res, :data)}
     end
   end
 
   defp request(method, scheme, host, port, path, headers, body, opts) do
     with {:ok, conn} <- HTTP.connect(String.to_atom(scheme), host, port, opts),
-         {:ok, conn, _req_ref} <- HTTP.request(conn, method, path || "/", headers, body || ""),
-         {:ok, _conn, res = %{status: status, headers: headers}} <- stream_response(conn) do
+         {:ok, conn, _req_ref} <- HTTP.request(conn, method, path || "/", headers, body),
+         {:ok, conn, res = %{status: status, headers: headers}} <- stream_response(conn, opts),
+         {:ok, _conn} <- HTTP.close(conn) do
       {:ok, status, headers, Map.get(res, :data)}
     end
   end
 
   defp get_default_ca() do
-    env = Application.get_env(:tesla, Mint)
+    env = Application.get_env(:tesla, Tesla.Adapter.Mint)
     Keyword.get(env, :cacert)
   end
 
@@ -137,7 +133,7 @@ defmodule Tesla.Adapter.Mint do
     end
   end
 
-  defp stream_response(conn, response \\ %{}) do
+  defp stream_response(conn, opts, response \\ %{}) do
     receive do
       msg ->
         case HTTP.stream(conn, msg) do
@@ -149,7 +145,7 @@ defmodule Tesla.Adapter.Mint do
                     Map.put(acc, :status, code)
 
                   {:headers, _req_ref, headers} ->
-                    Map.put(acc, :headers, headers)
+                    Map.put(acc, :headers, Map.get(acc, :headers, []) ++ headers)
 
                   {:data, _req_ref, data} ->
                     Map.put(acc, :data, Map.get(acc, :data, "") <> data)
@@ -157,15 +153,23 @@ defmodule Tesla.Adapter.Mint do
                   {:done, _req_ref} ->
                     Map.put(acc, :done, true)
 
+                  {:error, _req_ref, reason} ->
+                    Map.put(acc, :error, reason)
+
                   _ ->
                     acc
                 end
               end)
 
-            if Map.get(response, :done) do
-              {:ok, conn, Map.drop(response, [:done])}
-            else
-              stream_response(conn, response)
+            cond do
+              Map.has_key?(response, :error) ->
+                {:error, Map.get(response, :error)}
+
+              Map.has_key?(response, :done) ->
+                {:ok, conn, Map.drop(response, [:done])}
+
+              true ->
+                stream_response(conn, response, opts)
             end
 
           {:error, _conn, error, _res} ->
@@ -174,6 +178,9 @@ defmodule Tesla.Adapter.Mint do
           :unknown ->
             {:error, "Encounter unknown error"}
         end
+    after
+      opts |> Keyword.get(:adapter) |> Keyword.get(:timeout) ->
+        {:error, "Response timeout"}
     end
   end
 end
