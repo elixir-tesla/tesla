@@ -24,8 +24,8 @@ defmodule Tesla.Adapter.Mint do
       adapter Tesla.Adapter.Mint
     end
 
-    # set custom cacert
-    config :tesla, Mint, cacert: ["path_to_cacert"]
+    # set global custom cacert
+    config :tesla, Tesla.Adapter.Mint, cacert: ["path_to_cacert"]
   """
   @behaviour Tesla.Adapter
   import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
@@ -51,15 +51,19 @@ defmodule Tesla.Adapter.Mint do
 
     method = env.method |> Atom.to_string() |> String.upcase()
 
+    # Set the global cacert file
     opts =
-      if opts |> get_in([:transport_opts, :cacertfile]) |> is_nil() && scheme == "https" &&
-           !is_nil(get_default_ca()) do
-        transport =
-          opts
-          |> Access.get(:transport_opts, [])
-          |> Keyword.put(:cacertfile, get_default_ca())
+      if scheme == "https" && !is_nil(get_global_default_ca()) do
+        transport_opts = Access.get(opts, :transport_opts, [])
 
-        Keyword.put(opts, :transport_opts, transport)
+        transport_opts =
+          Keyword.put(
+            transport_opts,
+            :cacertfile,
+            Keyword.get(transport_opts, :cacertfile, []) ++ get_global_default_ca()
+          )
+
+        Keyword.put(opts, :transport_opts, transport_opts)
       else
         opts
       end
@@ -115,7 +119,7 @@ defmodule Tesla.Adapter.Mint do
     end
   end
 
-  defp get_default_ca() do
+  defp get_global_default_ca() do
     env = Application.get_env(:tesla, Tesla.Adapter.Mint)
     Keyword.get(env, :cacert)
   end
