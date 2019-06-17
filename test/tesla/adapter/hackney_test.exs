@@ -22,4 +22,14 @@ defmodule Tesla.Adapter.HackneyTest do
     assert {:ok, %Env{} = response} = call(request, with_body: true)
     assert response.status == 200
   end
+
+  test "get with `with_body: true` option even when async" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/ip"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, with_body: true, async: true)
+    assert response.status == 200
+  end
 end

@@ -41,7 +41,7 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
-    defp format_body(data) when is_binary(data), do: data
+    defp format_body(data) when is_binary(data) or is_reference(data), do: data
 
     defp request(env, opts) do
       request(
@@ -82,6 +82,10 @@ if Code.ensure_loaded?(:hackney) do
     defp handle({:error, _} = error), do: error
     defp handle({:ok, status, headers}), do: {:ok, status, headers, []}
 
+    defp handle({:ok, ref}) when is_reference(ref) do
+      handle_async_response({ref, %{status: nil, headers: nil}})
+    end
+
     defp handle({:ok, status, headers, ref}) when is_reference(ref) do
       with {:ok, body} <- :hackney.body(ref) do
         {:ok, status, headers, body}
@@ -89,5 +93,19 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp handle({:ok, status, headers, body}), do: {:ok, status, headers, body}
+
+    defp handle_async_response({ref, %{headers: headers, status: status}})
+    when not (is_nil(headers) or is_nil(status)) do
+      {:ok, status, headers, ref}
+    end
+
+    defp handle_async_response({ref, output}) do
+      receive do
+        {:hackney_response, ^ref, {:status, status, _}} ->
+           handle_async_response({ref, %{output | status: status}})
+        {:hackney_response, ^ref, {:headers, headers}} ->
+          handle_async_response({ref, %{output | headers: headers}})
+      end
+    end
   end
 end
