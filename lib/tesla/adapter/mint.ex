@@ -173,7 +173,7 @@ defmodule Tesla.Adapter.Mint do
                 {:ok, conn, Map.drop(response, [:done])}
 
               true ->
-                stream_response(conn, response, opts)
+                stream_response(conn, opts, response)
             end
 
           {:error, _conn, error, _res} ->
