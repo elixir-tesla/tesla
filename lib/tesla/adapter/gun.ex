@@ -142,33 +142,34 @@ if Code.ensure_loaded?(:gun) do
 
     defp read_response(pid, stream, opts) do
       receive do
-        msg ->
-          case msg do
-            {:gun_response, ^pid, ^stream, :fin, status, headers} ->
-              {:ok, status, headers, ""}
+        {:gun_response, ^pid, ^stream, :fin, status, headers} ->
+          {:ok, status, headers, ""}
 
-            {:gun_response, ^pid, ^stream, :nofin, status, headers} ->
-              mref = Process.monitor(pid)
+        {:gun_response, ^pid, ^stream, :nofin, status, headers} ->
+          mref = Process.monitor(pid)
 
-              case read_body(pid, stream, mref, opts) do
-                {:error, error} ->
-                  {:error, error}
-
-                body ->
-                  {:ok, status, headers, body}
-              end
-
+          case read_body(pid, stream, mref, opts) do
             {:error, error} ->
               {:error, error}
 
-            {:gun_up, ^pid, :http} ->
-              read_response(pid, stream, opts)
-
-            msg ->
-              IO.inspect(msg)
-              IO.inspect("unsupported message received in read response.")
-              msg
+            body ->
+              {:ok, status, headers, body}
           end
+
+        {:error, error} ->
+          {:error, error}
+
+        {:gun_up, ^pid, :http} ->
+          read_response(pid, stream, opts)
+
+        {:gun_error, ^pid, reason} ->
+          {:error, reason}
+
+        {:gun_down, ^pid, _, _, _, _} ->
+          read_response(pid, stream, opts)
+
+        {:DOWN, _, _, _, reason} ->
+          {:error, reason}
       after
         opts[:timeout] ->
           {:error, "read response timeout"}
@@ -179,26 +180,18 @@ if Code.ensure_loaded?(:gun) do
       limit = opts[:max_body]
 
       receive do
-        msg ->
-          case msg do
-            {:gun_data, ^pid, ^stream, :fin, body} ->
-              if limit - byte_size(body) >= 0 do
-                acc <> body
-              else
-                {:error, "body too large"}
-              end
+        {:gun_data, ^pid, ^stream, :fin, body} ->
+          if limit - byte_size(body) >= 0 do
+            acc <> body
+          else
+            {:error, "body too large"}
+          end
 
-            {:gun_data, ^pid, ^stream, :nofin, part} ->
-              if limit - byte_size(part) >= 0 do
-                read_body(pid, stream, mref, opts, acc <> part)
-              else
-                {:error, "body too large"}
-              end
-
-            msg ->
-              IO.inspect(msg)
-              IO.inspect("unsupported message received in read body.")
-              msg
+        {:gun_data, ^pid, ^stream, :nofin, part} ->
+          if limit - byte_size(part) >= 0 do
+            read_body(pid, stream, mref, opts, acc <> part)
+          else
+            {:error, "body too large"}
           end
       after
         opts[:timeout] ->
