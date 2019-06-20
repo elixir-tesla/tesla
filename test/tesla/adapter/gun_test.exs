@@ -27,4 +27,24 @@ defmodule Tesla.Adapter.GunTest do
 
     assert {:error, "body too large"} = Tesla.Adapter.Gun.call(request, max_body: 5)
   end
+
+  test "without slash" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}"
+    }
+
+    assert {:ok, %Env{} = response} = call(request)
+    assert response.status == 400
+  end
+
+  test "response stream" do
+    request = %Env{
+      method: :get,
+      url: "http://httpbin.org/stream/10"
+    }
+
+    assert {:ok, %Env{} = response} = call(request)
+    assert response.status == 200
+  end
 end
