@@ -146,9 +146,7 @@ if Code.ensure_loaded?(:gun) do
           {:ok, status, headers, ""}
 
         {:gun_response, ^pid, ^stream, :nofin, status, headers} ->
-          mref = Process.monitor(pid)
-
-          case read_body(pid, stream, mref, opts) do
+          case read_body(pid, stream, opts) do
             {:error, error} ->
               {:error, error}
 
@@ -176,7 +174,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp read_body(pid, stream, mref, opts, acc \\ "") do
+    defp read_body(pid, stream, opts, acc \\ "") do
       limit = opts[:max_body]
 
       receive do
@@ -189,7 +187,7 @@ if Code.ensure_loaded?(:gun) do
 
         {:gun_data, ^pid, ^stream, :nofin, part} ->
           if limit - byte_size(part) >= 0 do
-            read_body(pid, stream, mref, opts, acc <> part)
+            read_body(pid, stream, opts, acc <> part)
           else
             {:error, "body too large"}
           end
