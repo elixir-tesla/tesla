@@ -26,8 +26,6 @@ if Code.ensure_loaded?(:gun) do
     * `http_opts` - Options specific to the HTTP protocol.
     * `http2_opts` -  Options specific to the HTTP/2 protocol.
     * `protocols` - Ordered list of preferred protocols. Defaults: [http2, http] - for :tls, [http] - for :tcp.
-    * `retry` - Number of times Gun will try to reconnect on failure before giving up. Default: 5
-    * `retry_timeout` - Time between retries in milliseconds. Default: 5000
     * `trace` - Whether to enable dbg tracing of the connection process. Should only be used during debugging. Default: false.
     * `transport` - Whether to use TLS or plain TCP. The default varies depending on the port used. Port 443 defaults to tls.
                     All other ports default to tcp.
