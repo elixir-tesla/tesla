@@ -120,8 +120,10 @@ defmodule Tesla.Adapter.Mint do
   end
 
   defp get_global_default_ca() do
-    env = Application.get_env(:tesla, Tesla.Adapter.Mint)
-    Keyword.get(env, :cacert)
+    case Application.get_env(:tesla, Tesla.Adapter.Mint) do
+      nil -> nil
+      env -> Keyword.get(env, :cacert)
+    end
   end
 
   defp stream_request(fun, body \\ "") do
@@ -143,26 +145,24 @@ defmodule Tesla.Adapter.Mint do
         case HTTP.stream(conn, msg) do
           {:ok, conn, stream} ->
             response =
-              Enum.reduce(stream, response, fn x, acc ->
-                case x do
-                  {:status, _req_ref, code} ->
-                    Map.put(acc, :status, code)
+              Enum.reduce(stream, response, fn
+                {:status, _req_ref, code}, acc ->
+                  Map.put(acc, :status, code)
 
-                  {:headers, _req_ref, headers} ->
-                    Map.put(acc, :headers, Map.get(acc, :headers, []) ++ headers)
+                {:headers, _req_ref, headers}, acc ->
+                  Map.put(acc, :headers, Map.get(acc, :headers, []) ++ headers)
 
-                  {:data, _req_ref, data} ->
-                    Map.put(acc, :data, Map.get(acc, :data, "") <> data)
+                {:data, _req_ref, data}, acc ->
+                  Map.put(acc, :data, Map.get(acc, :data, "") <> data)
 
-                  {:done, _req_ref} ->
-                    Map.put(acc, :done, true)
+                {:done, _req_ref}, acc ->
+                  Map.put(acc, :done, true)
 
-                  {:error, _req_ref, reason} ->
-                    Map.put(acc, :error, reason)
+                {:error, _req_ref, reason}, acc ->
+                  Map.put(acc, :error, reason)
 
-                  _ ->
-                    acc
-                end
+                _, acc ->
+                  acc
               end)
 
             cond do
