@@ -20,7 +20,7 @@ if Code.ensure_loaded?(:gun) do
     end
     ```
 
-    ### Options:
+    ### Options https://ninenines.eu/docs/en/gun/1.3/manual/gun/:
 
     * `connect_timeout` - Connection timeout.
     * `http_opts` - Options specific to the HTTP protocol.
@@ -44,14 +44,6 @@ if Code.ensure_loaded?(:gun) do
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
 
-    @default [
-      connect_timeout: 1000,
-      retry: 3,
-      retry_timeout: 1000,
-      max_body: 2_000_000,
-      timeout: 2_000
-    ]
-
     @gun_keys [
       :connect_timeout,
       :http_opts,
@@ -64,6 +56,8 @@ if Code.ensure_loaded?(:gun) do
       :transport_opts,
       :ws_opts
     ]
+
+    @adapter_default_timeout 1_000
 
     @impl true
     @doc false
@@ -92,7 +86,7 @@ if Code.ensure_loaded?(:gun) do
         Tesla.build_url(env.url, env.query),
         env.headers,
         env.body || "",
-        Tesla.Adapter.opts(@default, env, opts) |> Enum.into(%{})
+        Tesla.Adapter.opts(env, opts) |> Enum.into(%{})
       )
     end
 
@@ -147,11 +141,11 @@ if Code.ensure_loaded?(:gun) do
 
         {:gun_response, ^pid, ^stream, :nofin, status, headers} ->
           case read_body(pid, stream, opts) do
+            {:ok, body} ->
+              {:ok, status, headers, body}
+
             {:error, error} ->
               {:error, error}
-
-            body ->
-              {:ok, status, headers, body}
           end
 
         {:error, error} ->
@@ -169,8 +163,8 @@ if Code.ensure_loaded?(:gun) do
         {:DOWN, _, _, _, reason} ->
           {:error, reason}
       after
-        opts[:timeout] ->
-          {:error, "read response timeout"}
+        opts[:timeout] || @adapter_default_timeout ->
+          {:error, :timeout}
       end
     end
 
@@ -179,21 +173,28 @@ if Code.ensure_loaded?(:gun) do
 
       receive do
         {:gun_data, ^pid, ^stream, :fin, body} ->
-          if limit - byte_size(body) >= 0 do
-            acc <> body
-          else
-            {:error, "body too large"}
-          end
+          check_body_size(acc, body, limit)
 
         {:gun_data, ^pid, ^stream, :nofin, part} ->
-          if limit - byte_size(part) >= 0 do
-            read_body(pid, stream, opts, acc <> part)
-          else
-            {:error, "body too large"}
+          case check_body_size(acc, part, limit) do
+            {:ok, acc} -> read_body(pid, stream, opts, acc)
+            {:error, error} -> {:error, error}
           end
       after
-        opts[:timeout] ->
-          {:error, "read body timeout"}
+        opts[:timeout] || @adapter_default_timeout ->
+          {:error, :timeout}
+      end
+    end
+
+    defp check_body_size(acc, part, nil), do: {:ok, acc <> part}
+
+    defp check_body_size(acc, part, limit) do
+      body = acc <> part
+
+      if limit - byte_size(body) >= 0 do
+        {:ok, body}
+      else
+        {:error, :body_too_large}
       end
     end
   end
