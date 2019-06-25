@@ -12,7 +12,7 @@ if Code.ensure_loaded?(:gun) do
     ### Example usage
     ```
     # set globally in config/config.exs
-    config :tesla, :adapter, Pleroma.Tesla.Adapter.Gun
+    config :tesla, :adapter, Tesla.Adapter.Gun
     # set per module
     defmodule MyClient do
       use Tesla
