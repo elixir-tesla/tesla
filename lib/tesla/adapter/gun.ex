@@ -16,7 +16,7 @@ if Code.ensure_loaded?(:gun) do
     # set per module
     defmodule MyClient do
       use Tesla
-      adapter Pleroma.Tesla.Adapter.Gun
+      adapter Tesla.Adapter.Gun
     end
     ```
 
