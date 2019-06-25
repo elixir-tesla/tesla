@@ -7,13 +7,13 @@ defmodule Tesla.Adapter.GunTest do
   use Tesla.AdapterCase.StreamRequestBody
   use Tesla.AdapterCase.SSL
 
-  test "timeout option" do
+  test "fallback adapter timeout option" do
     request = %Env{
       method: :get,
       url: "#{@http}/delay/2"
     }
 
-    assert {:error, "read response timeout"} = Tesla.Adapter.Gun.call(request, timeout: 1_000)
+    assert {:error, :timeout} = Tesla.Adapter.Gun.call(request, timeout: 1_000)
   end
 
   test "max_body option" do
@@ -25,7 +25,7 @@ defmodule Tesla.Adapter.GunTest do
       ]
     }
 
-    assert {:error, "body too large"} = Tesla.Adapter.Gun.call(request, max_body: 5)
+    assert {:error, :body_too_large} = Tesla.Adapter.Gun.call(request, max_body: 5)
   end
 
   test "without slash" do
