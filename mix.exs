@@ -70,11 +70,10 @@ defmodule Tesla.Mixfile do
       # other
       {:fuse, "~> 2.4", optional: true},
       {:telemetry, "~> 0.3", optional: true},
-      {:cowlib, "~> 1.0.2", override: true, optional: true},
 
       # testing & docs
       {:excoveralls, "~> 0.8", only: :test},
-      {:httparrot, "~> 1.0", only: :test},
+      {:httparrot, "~> 1.2", only: :test},
       {:ex_doc, github: "elixir-lang/ex_doc", only: :dev},
       {:mix_test_watch, "~> 0.5", only: :dev},
       {:dialyxir, "~> 1.0.0-rc.3", only: [:dev, :test]},
