@@ -16,6 +16,7 @@ defmodule Tesla.Builder do
               | {:query, Tesla.Env.query()}
               | {:headers, Tesla.Env.headers()}
               | {:body, Tesla.Env.body()}
+              | {:status, Tesla.Env.status()}
               | {:opts, Tesla.Env.opts()}
 
       if unquote(docs) do
