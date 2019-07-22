@@ -41,7 +41,7 @@ defmodule Tesla.Adapter.GunTest do
   test "response stream" do
     request = %Env{
       method: :get,
-      url: "http://httpbin.org/stream/10"
+      url: "#{@http}/stream/10"
     }
 
     assert {:ok, %Env{} = response} = call(request)
