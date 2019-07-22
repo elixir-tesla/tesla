@@ -110,6 +110,7 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 - [`Tesla.Middleware.MethodOverride`](https://hexdocs.pm/tesla/Tesla.Middleware.MethodOverride.html) - set X-Http-Method-Override
 - [`Tesla.Middleware.Logger`](https://hexdocs.pm/tesla/Tesla.Middleware.Logger.html) - log requests (method, url, status, time)
 - [`Tesla.Middleware.KeepRequest`](https://hexdocs.pm/tesla/Tesla.Middleware.KeepRequest.html) - keep request body & headers
+- [`Tesla.Middleware.PathParams`](https://hexdocs.pm/tesla/Tesla.Middleware.PathParams.html) - use templated URLs
 
 #### Formats
 - [`Tesla.Middleware.FormUrlencoded`](https://hexdocs.pm/tesla/Tesla.Middleware.FormUrlencoded.html) - urlencode POST body parameter, useful for POSTing a map/keyword list
