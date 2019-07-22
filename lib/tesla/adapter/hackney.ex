@@ -95,14 +95,15 @@ if Code.ensure_loaded?(:hackney) do
     defp handle({:ok, status, headers, body}), do: {:ok, status, headers, body}
 
     defp handle_async_response({ref, %{headers: headers, status: status}})
-    when not (is_nil(headers) or is_nil(status)) do
+         when not (is_nil(headers) or is_nil(status)) do
       {:ok, status, headers, ref}
     end
 
     defp handle_async_response({ref, output}) do
       receive do
         {:hackney_response, ^ref, {:status, status, _}} ->
-           handle_async_response({ref, %{output | status: status}})
+          handle_async_response({ref, %{output | status: status}})
+
         {:hackney_response, ^ref, {:headers, headers}} ->
           handle_async_response({ref, %{output | headers: headers}})
       end
