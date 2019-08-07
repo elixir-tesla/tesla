@@ -135,31 +135,55 @@ if Code.ensure_loaded?(:gun) do
     defp read_response(pid, stream, opts) do
       receive do
         {:gun_response, ^pid, ^stream, :fin, status, headers} ->
+          :gun.close(pid)
           {:ok, status, headers, ""}
 
         {:gun_response, ^pid, ^stream, :nofin, status, headers} ->
-          case read_body(pid, stream, opts) do
-            {:ok, body} ->
-              {:ok, status, headers, body}
+          if opts[:stream_response] do
+            {:ok, status, headers, %{pid: pid, stream: stream}}
+          else
+            case read_body(pid, stream, opts) do
+              {:ok, body} ->
+                :gun.close(pid)
+                {:ok, status, headers, body}
 
-            {:error, error} ->
-              {:error, error}
+              {:error, error} ->
+                :gun.close(pid)
+                {:error, error}
+            end
           end
 
         {:error, error} ->
+          :gun.close(pid)
           {:error, error}
 
         {:gun_up, ^pid, :http} ->
           read_response(pid, stream, opts)
 
         {:gun_error, ^pid, reason} ->
+          :gun.close(pid)
           {:error, reason}
 
         {:gun_down, ^pid, _, _, _, _} ->
           read_response(pid, stream, opts)
 
         {:DOWN, _, _, _, reason} ->
+          :gun.close(pid)
           {:error, reason}
+      after
+        opts[:timeout] || @adapter_default_timeout ->
+          :ok = :gun.close(pid)
+          {:error, :timeout}
+      end
+    end
+
+    def read_chunk(pid, stream, opts) do
+      receive do
+        {:gun_data, ^pid, ^stream, :fin, body} ->
+          {:fin, body}
+
+        {:gun_data, ^pid, ^stream, :nofin, part} ->
+          {:nofin, part}
       after
         opts[:timeout] || @adapter_default_timeout ->
           {:error, :timeout}
