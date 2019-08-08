@@ -54,13 +54,26 @@ defmodule Tesla.Adapter.GunTest do
       url: "#{@http}/stream/10"
     }
 
-    assert {:ok, %Env{} = response} = call(request, stream_response: true)
+    assert {:ok, %Env{} = response} = call(request, chunks_response: true)
     assert response.status == 200
-    %{pid: pid, stream: stream} = response.body
+    %{pid: pid, stream: stream, opts: opts} = response.body
+    assert opts[:chunks_response]
     assert is_pid(pid)
     assert is_reference(stream)
 
     assert read_body(pid, stream) != []
+  end
+
+  test "read response body in stream" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream/10"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, stream_response: true)
+    assert response.status == 200
+    assert is_function(response.body)
+    assert Enum.to_list(response.body) != []
   end
 
   defp read_body(pid, stream, acc \\ []) do

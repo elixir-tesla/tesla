@@ -139,19 +139,14 @@ if Code.ensure_loaded?(:gun) do
           {:ok, status, headers, ""}
 
         {:gun_response, ^pid, ^stream, :nofin, status, headers} ->
-          if opts[:stream_response] do
-            {:ok, status, headers, %{pid: pid, stream: stream}}
-          else
-            case read_body(pid, stream, opts) do
-              {:ok, body} ->
-                :gun.close(pid)
-                {:ok, status, headers, body}
-
-              {:error, error} ->
-                :gun.close(pid)
-                {:error, error}
+          body_as =
+            cond do
+              opts[:stream_response] -> :stream
+              opts[:chunks_response] -> :chunks
+              true -> :plain
             end
-          end
+
+          format_response(pid, stream, opts, status, headers, body_as)
 
         {:error, error} ->
           :gun.close(pid)
@@ -177,6 +172,42 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    defp format_response(pid, stream, opts, status, headers, :plain) do
+      case read_body(pid, stream, opts) do
+        {:ok, body} ->
+          :gun.close(pid)
+          {:ok, status, headers, body}
+
+        {:error, error} ->
+          :gun.close(pid)
+          {:error, error}
+      end
+    end
+
+    defp format_response(pid, stream, opts, status, headers, :stream) do
+      stream_body =
+        Stream.resource(
+          fn -> %{pid: pid, stream: stream} end,
+          fn
+            %{pid: pid, stream: stream} ->
+              case read_chunk(pid, stream, opts) do
+                {:nofin, part} -> {[part], %{pid: pid, stream: stream}}
+                {:fin, body} -> {[body], %{pid: pid, final: :fin}}
+              end
+
+            %{pid: pid, final: :fin} ->
+              {:halt, %{pid: pid}}
+          end,
+          fn %{pid: pid} -> :gun.close(pid) end
+        )
+
+      {:ok, status, headers, stream_body}
+    end
+
+    defp format_response(pid, stream, opts, status, headers, :chunks) do
+      {:ok, status, headers, %{pid: pid, stream: stream, opts: opts}}
+    end
+
     def read_chunk(pid, stream, opts) do
       receive do
         {:gun_data, ^pid, ^stream, :fin, body} ->
@@ -188,6 +219,10 @@ if Code.ensure_loaded?(:gun) do
         opts[:timeout] || @adapter_default_timeout ->
           {:error, :timeout}
       end
+    end
+
+    def close(%{pid: pid}) do
+      :gun.close(pid)
     end
 
     defp read_body(pid, stream, opts, acc \\ "") do
