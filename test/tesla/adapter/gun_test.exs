@@ -6,6 +6,7 @@ defmodule Tesla.Adapter.GunTest do
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
   use Tesla.AdapterCase.SSL
+  alias Tesla.Adapter.Gun
 
   test "fallback adapter timeout option" do
     request = %Env{
@@ -96,7 +97,7 @@ defmodule Tesla.Adapter.GunTest do
 
     assert Process.alive?(conn)
 
-    :ok = :gun.close(conn)
+    :ok = Gun.close(conn)
     refute Process.alive?(conn)
   end
 
@@ -121,7 +122,7 @@ defmodule Tesla.Adapter.GunTest do
   defp read_body(pid, stream, acc \\ "") do
     case Tesla.Adapter.Gun.read_chunk(pid, stream, timeout: 1_000) do
       {:fin, body} ->
-        :ok = :gun.close(pid)
+        :ok = Gun.close(pid)
         acc <> body
 
       {:nofin, part} ->
