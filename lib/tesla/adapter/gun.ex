@@ -20,7 +20,23 @@ if Code.ensure_loaded?(:gun) do
     end
     ```
 
-    ### Options https://ninenines.eu/docs/en/gun/1.3/manual/gun/:
+    ### Adapter specific options:
+
+    * `timeout` - Time, while process, will wait for gun messages.
+    * `body_as` - What will be returned in `%Tesla.Env{}` body key. Possible values - `:plain`, `:stream`, `:chunks`. Defaults to `:plain`.
+        * `:plain` - as binary.
+        * `:stream` - as stream. If you don't want to close connection (because you want to reuse it later) pass `close_conn: false` in adapter opts.
+        * `:chunks` - as chunks. You can get response body in chunks using `Tesla.Adapter.Gun.read_chunk/3` function.
+                      Processing of the chunks and checking body size must be done by yourself. Example of processing function
+                      is in `test/tesla/adapter/gun_test.exs` - `read_body/3`. If you don't need connection later don't forget
+                      to close it with `Tesla.Adapter.Gun.close/1`.
+    * `max_body` - Max response body size in bytes. Works only with `body_as: :plain`, with other settings you need to check response
+                   body size by yourself.
+    * `conn` - Opened connection pid with gun. Is used for reusing gun connections.
+    * `close_conn` - Close connection or not after receiving full response body. Works with `body_as: :stream`. Is used for reusing gun connections.
+                     Defaults to `true`.
+
+    ### Gun options https://ninenines.eu/docs/en/gun/1.3/manual/gun/:
 
     * `connect_timeout` - Connection timeout.
     * `http_opts` - Options specific to the HTTP protocol.
@@ -84,7 +100,7 @@ if Code.ensure_loaded?(:gun) do
         Tesla.build_url(env.url, env.query),
         env.headers,
         env.body || "",
-        Tesla.Adapter.opts(env, opts) |> Enum.into(%{})
+        Tesla.Adapter.opts([close_conn: true, body_as: :plain], env, opts) |> Enum.into(%{})
       )
     end
 
@@ -118,7 +134,12 @@ if Code.ensure_loaded?(:gun) do
     defp open_conn(url, opts) do
       uri = URI.parse(url)
       opts = if uri.scheme == "https", do: Map.put(opts, :transport, :tls), else: opts
-      {:ok, pid} = :gun.open(to_charlist(uri.host), uri.port, Map.take(opts, @gun_keys))
+
+      {:ok, pid} =
+        if opts[:conn],
+          do: {:ok, opts[:conn]},
+          else: :gun.open(to_charlist(uri.host), uri.port, Map.take(opts, @gun_keys))
+
       {pid, format_url(uri.path, uri.query)}
     end
 
@@ -135,39 +156,32 @@ if Code.ensure_loaded?(:gun) do
     defp read_response(pid, stream, opts) do
       receive do
         {:gun_response, ^pid, ^stream, :fin, status, headers} ->
-          :gun.close(pid)
+          close(pid)
           {:ok, status, headers, ""}
 
         {:gun_response, ^pid, ^stream, :nofin, status, headers} ->
-          body_as =
-            cond do
-              opts[:stream_response] -> :stream
-              opts[:chunks_response] -> :chunks
-              true -> :plain
-            end
-
-          format_response(pid, stream, opts, status, headers, body_as)
+          format_response(pid, stream, opts, status, headers, opts[:body_as])
 
         {:error, error} ->
-          :gun.close(pid)
+          close(pid)
           {:error, error}
 
         {:gun_up, ^pid, :http} ->
           read_response(pid, stream, opts)
 
         {:gun_error, ^pid, reason} ->
-          :gun.close(pid)
+          close(pid)
           {:error, reason}
 
         {:gun_down, ^pid, _, _, _, _} ->
           read_response(pid, stream, opts)
 
         {:DOWN, _, _, _, reason} ->
-          :gun.close(pid)
+          close(pid)
           {:error, reason}
       after
         opts[:timeout] || @adapter_default_timeout ->
-          :ok = :gun.close(pid)
+          :ok = close(pid)
           {:error, :timeout}
       end
     end
@@ -175,11 +189,11 @@ if Code.ensure_loaded?(:gun) do
     defp format_response(pid, stream, opts, status, headers, :plain) do
       case read_body(pid, stream, opts) do
         {:ok, body} ->
-          :gun.close(pid)
+          close(pid)
           {:ok, status, headers, body}
 
         {:error, error} ->
-          :gun.close(pid)
+          close(pid)
           {:error, error}
       end
     end
@@ -198,14 +212,16 @@ if Code.ensure_loaded?(:gun) do
             %{pid: pid, final: :fin} ->
               {:halt, %{pid: pid}}
           end,
-          fn %{pid: pid} -> :gun.close(pid) end
+          fn %{pid: pid} ->
+            if opts[:close_conn], do: close(pid)
+          end
         )
 
       {:ok, status, headers, stream_body}
     end
 
     defp format_response(pid, stream, opts, status, headers, :chunks) do
-      {:ok, status, headers, %{pid: pid, stream: stream, opts: opts}}
+      {:ok, status, headers, %{pid: pid, stream: stream, opts: Enum.into(opts, [])}}
     end
 
     def read_chunk(pid, stream, opts) do
@@ -221,7 +237,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    def close(%{pid: pid}) do
+    def close(pid) do
       :gun.close(pid)
     end
 
