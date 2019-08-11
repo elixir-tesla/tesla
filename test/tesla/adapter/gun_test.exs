@@ -20,7 +20,7 @@ defmodule Tesla.Adapter.GunTest do
   test "max_body option" do
     request = %Env{
       method: :get,
-      url: "#{@http}/get",
+      url: "#{@http}/stream-bytes/100",
       query: [
         message: "Hello world!"
       ]
@@ -117,6 +117,29 @@ defmodule Tesla.Adapter.GunTest do
     assert Enum.to_list(response.body) |> List.to_string() |> byte_size() == 16
 
     refute Process.alive?(conn)
+  end
+
+  test "error response" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/status/500"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, timeout: 1_000)
+    assert response.status == 500
+  end
+
+  test "query without path" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}",
+      query: [
+        param: "value"
+      ]
+    }
+
+    assert {:ok, %Env{} = response} = call(request, timeout: 1_000)
+    assert response.status == 400
   end
 
   defp read_body(pid, stream, acc \\ "") do
