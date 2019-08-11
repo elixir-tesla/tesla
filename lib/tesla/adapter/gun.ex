@@ -224,6 +224,8 @@ if Code.ensure_loaded?(:gun) do
       {:ok, status, headers, %{pid: pid, stream: stream, opts: Enum.into(opts, [])}}
     end
 
+    @spec read_chunk(pid(), reference(), keyword() | map()) ::
+            {:fin, binary()} | {:nofin, binary()} | {:error, :timeout}
     def read_chunk(pid, stream, opts) do
       receive do
         {:gun_data, ^pid, ^stream, :fin, body} ->
@@ -237,6 +239,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    @spec close(pid()) :: :ok
     def close(pid) do
       :gun.close(pid)
     end
