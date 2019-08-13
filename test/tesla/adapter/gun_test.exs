@@ -67,6 +67,40 @@ defmodule Tesla.Adapter.GunTest do
     refute Process.alive?(pid)
   end
 
+  test "read response body in chunks with reused connection and closing it" do
+    uri = URI.parse(@http)
+    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
+    assert response.status == 200
+    %{pid: pid, stream: stream, opts: opts} = response.body
+    assert opts[:body_as] == :chunks
+    assert is_pid(pid)
+    assert is_reference(stream)
+
+    assert read_body(pid, stream, "", false) |> byte_size() == 16
+    assert Process.alive?(pid)
+
+    # reusing connection
+    assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
+    assert response.status == 200
+    %{pid: pid, stream: stream, opts: opts} = response.body
+    assert opts[:body_as] == :chunks
+    assert is_pid(pid)
+    assert is_reference(stream)
+
+    assert read_body(pid, stream, "", false) |> byte_size() == 16
+    assert Process.alive?(pid)
+
+    :ok = Gun.close(pid)
+    refute Process.alive?(pid)
+  end
+
   test "read response body in stream" do
     request = %Env{
       method: :get,
@@ -142,14 +176,17 @@ defmodule Tesla.Adapter.GunTest do
     assert response.status == 400
   end
 
-  defp read_body(pid, stream, acc \\ "") do
-    case Tesla.Adapter.Gun.read_chunk(pid, stream, timeout: 1_000) do
+  defp read_body(pid, stream, acc \\ "", close_conn \\ true) do
+    case Gun.read_chunk(pid, stream, timeout: 1_000) do
       {:fin, body} ->
-        :ok = Gun.close(pid)
+        if close_conn do
+          :ok = Gun.close(pid)
+        end
+
         acc <> body
 
       {:nofin, part} ->
-        read_body(pid, stream, acc <> part)
+        read_body(pid, stream, acc <> part, close_conn)
     end
   end
 end
