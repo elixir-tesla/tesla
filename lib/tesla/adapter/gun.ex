@@ -136,9 +136,11 @@ if Code.ensure_loaded?(:gun) do
       opts = if uri.scheme == "https", do: Map.put(opts, :transport, :tls), else: opts
 
       {:ok, pid} =
-        if opts[:conn],
-          do: {:ok, opts[:conn]},
-          else: :gun.open(to_charlist(uri.host), uri.port, Map.take(opts, @gun_keys))
+        if opts[:conn] do
+          {:ok, opts[:conn]}
+        else
+          :gun.open(to_charlist(uri.host), uri.port, Map.take(opts, @gun_keys))
+        end
 
       {pid, format_url(uri.path, uri.query)}
     end
