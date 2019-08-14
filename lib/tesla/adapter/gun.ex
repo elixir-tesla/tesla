@@ -158,32 +158,32 @@ if Code.ensure_loaded?(:gun) do
     defp read_response(pid, stream, opts) do
       receive do
         {:gun_response, ^pid, ^stream, :fin, status, headers} ->
-          close(pid)
+          if opts[:close_conn], do: close(pid)
           {:ok, status, headers, ""}
 
         {:gun_response, ^pid, ^stream, :nofin, status, headers} ->
           format_response(pid, stream, opts, status, headers, opts[:body_as])
 
         {:error, error} ->
-          close(pid)
+          if opts[:close_conn], do: close(pid)
           {:error, error}
 
         {:gun_up, ^pid, :http} ->
           read_response(pid, stream, opts)
 
         {:gun_error, ^pid, reason} ->
-          close(pid)
+          if opts[:close_conn], do: close(pid)
           {:error, reason}
 
         {:gun_down, ^pid, _, _, _, _} ->
           read_response(pid, stream, opts)
 
         {:DOWN, _, _, _, reason} ->
-          close(pid)
+          if opts[:close_conn], do: close(pid)
           {:error, reason}
       after
         opts[:timeout] || @adapter_default_timeout ->
-          :ok = close(pid)
+          if opts[:close_conn], do: :ok = close(pid)
           {:error, :timeout}
       end
     end
@@ -191,11 +191,11 @@ if Code.ensure_loaded?(:gun) do
     defp format_response(pid, stream, opts, status, headers, :plain) do
       case read_body(pid, stream, opts) do
         {:ok, body} ->
-          close(pid)
+          if opts[:close_conn], do: close(pid)
           {:ok, status, headers, body}
 
         {:error, error} ->
-          close(pid)
+          if opts[:close_conn], do: close(pid)
           {:error, error}
       end
     end
