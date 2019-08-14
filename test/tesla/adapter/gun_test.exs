@@ -67,6 +67,26 @@ defmodule Tesla.Adapter.GunTest do
     refute Process.alive?(pid)
   end
 
+  test "with body_as :plain reusinng connection" do
+    uri = URI.parse(@http)
+    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/ip"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, conn: conn, close_conn: false)
+    assert response.status == 200
+    assert Process.alive?(conn)
+
+    assert {:ok, %Env{} = response} = call(request, conn: conn, close_conn: false)
+    assert response.status == 200
+    assert Process.alive?(conn)
+    :ok = Gun.close(conn)
+    refute Process.alive?(conn)
+  end
+
   test "read response body in chunks with reused connection and closing it" do
     uri = URI.parse(@http)
     {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
