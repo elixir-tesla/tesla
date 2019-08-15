@@ -33,6 +33,8 @@ if Code.ensure_loaded?(:gun) do
     * `max_body` - Max response body size in bytes. Works only with `body_as: :plain`, with other settings you need to check response
                    body size by yourself.
     * `conn` - Opened connection pid with gun. Is used for reusing gun connections.
+    * `original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise
+                   adapter will use connection for another open host.
     * `close_conn` - Close connection or not after receiving full response body. Works with `body_as: :stream`. Is used for reusing gun connections.
                      Defaults to `true`.
 
@@ -138,7 +140,7 @@ if Code.ensure_loaded?(:gun) do
       opts = if uri.scheme == "https", do: Map.put(opts, :transport, :tls), else: opts
 
       {:ok, pid} =
-        if opts[:conn] do
+        if opts[:conn] && opts[:original] == "#{uri.host}:#{uri.port}" do
           {:ok, opts[:conn]}
         else
           :gun.open(to_charlist(uri.host), uri.port, Map.take(opts, @gun_keys))
