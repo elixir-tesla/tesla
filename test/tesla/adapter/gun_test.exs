@@ -71,16 +71,22 @@ defmodule Tesla.Adapter.GunTest do
     uri = URI.parse(@http)
     {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
 
+    original = "#{uri.host}:#{uri.port}"
+
     request = %Env{
       method: :get,
       url: "#{@http}/ip"
     }
 
-    assert {:ok, %Env{} = response} = call(request, conn: conn, close_conn: false)
+    assert {:ok, %Env{} = response} =
+             call(request, conn: conn, close_conn: false, original: original)
+
     assert response.status == 200
     assert Process.alive?(conn)
 
-    assert {:ok, %Env{} = response} = call(request, conn: conn, close_conn: false)
+    assert {:ok, %Env{} = response} =
+             call(request, conn: conn, close_conn: false, original: original)
+
     assert response.status == 200
     assert Process.alive?(conn)
     :ok = Gun.close(conn)
@@ -91,12 +97,16 @@ defmodule Tesla.Adapter.GunTest do
     uri = URI.parse(@http)
     {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
 
+    original = "#{uri.host}:#{uri.port}"
+
     request = %Env{
       method: :get,
       url: "#{@http}/stream-bytes/10"
     }
 
-    assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
+    assert {:ok, %Env{} = response} =
+             call(request, body_as: :chunks, conn: conn, original: original)
+
     assert response.status == 200
     %{pid: pid, stream: stream, opts: opts} = response.body
     assert opts[:body_as] == :chunks
@@ -107,7 +117,9 @@ defmodule Tesla.Adapter.GunTest do
     assert Process.alive?(pid)
 
     # reusing connection
-    assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
+    assert {:ok, %Env{} = response} =
+             call(request, body_as: :chunks, conn: conn, original: original)
+
     assert response.status == 200
     %{pid: pid, stream: stream, opts: opts} = response.body
     assert opts[:body_as] == :chunks
@@ -136,6 +148,7 @@ defmodule Tesla.Adapter.GunTest do
   test "read response body in stream with opened connection without closing connection" do
     uri = URI.parse(@http)
     {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+    original = "#{uri.host}:#{uri.port}"
 
     request = %Env{
       method: :get,
@@ -143,7 +156,7 @@ defmodule Tesla.Adapter.GunTest do
     }
 
     assert {:ok, %Env{} = response} =
-             call(request, body_as: :stream, conn: conn, close_conn: false)
+             call(request, body_as: :stream, conn: conn, close_conn: false, original: original)
 
     assert response.status == 200
     assert is_function(response.body)
@@ -159,12 +172,15 @@ defmodule Tesla.Adapter.GunTest do
     uri = URI.parse(@http)
     {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
 
+    original = "#{uri.host}:#{uri.port}"
+
     request = %Env{
       method: :get,
       url: "#{@http}/stream-bytes/10"
     }
 
-    assert {:ok, %Env{} = response} = call(request, body_as: :stream, conn: conn)
+    assert {:ok, %Env{} = response} =
+             call(request, body_as: :stream, conn: conn, original: original)
 
     assert response.status == 200
     assert is_function(response.body)
