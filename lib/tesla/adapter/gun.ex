@@ -100,15 +100,16 @@ if Code.ensure_loaded?(:gun) do
         Tesla.build_url(env.url, env.query),
         env.headers,
         env.body || "",
-        Tesla.Adapter.opts([close_conn: true, body_as: :plain], env, opts) |> Enum.into(%{})
+        Tesla.Adapter.opts([close_conn: true, body_as: :plain, send_body: :at_once], env, opts)
+        |> Enum.into(%{})
       )
     end
 
     defp request(method, url, headers, %Stream{} = body, opts),
-      do: request_stream(method, url, headers, body, opts)
+      do: request_stream(method, url, headers, body, Map.put(opts, :send_body, :stream))
 
     defp request(method, url, headers, body, opts) when is_function(body),
-      do: request_stream(method, url, headers, body, opts)
+      do: request_stream(method, url, headers, body, Map.put(opts, :send_body, :stream))
 
     defp request(method, url, headers, %Multipart{} = mp, opts) do
       headers = headers ++ Multipart.headers(mp)
@@ -117,16 +118,17 @@ if Code.ensure_loaded?(:gun) do
       request(method, url, headers, body, opts)
     end
 
-    defp request(method, url, headers, body, opts) do
-      with {pid, f_url} <- open_conn(url, opts),
-           stream <- open_stream(pid, method, f_url, headers, body, false) do
-        read_response(pid, stream, opts)
-      end
-    end
+    defp request(method, url, headers, body, opts),
+      do: do_request(method, url, headers, body, opts)
 
-    defp request_stream(method, url, headers, body, opts) do
+    defp request_stream(method, url, headers, body, opts),
+      do: do_request(method, url, headers, body, opts)
+
+    defp do_request(method, url, headers, body, opts) do
       with {pid, f_url} <- open_conn(url, opts),
-           stream <- open_stream(pid, method, f_url, headers, body, true) do
+           # we need this hack, because gun can start send `gun_up` & `gun_down` messages, before `read_response` method
+           {:ok, _protocol} <- await_up(pid, opts),
+           stream <- open_stream(pid, method, f_url, headers, body, opts[:send_body]) do
         read_response(pid, stream, opts)
       end
     end
@@ -145,14 +147,17 @@ if Code.ensure_loaded?(:gun) do
       {pid, format_url(uri.path, uri.query)}
     end
 
-    defp open_stream(pid, method, url, headers, body, true) do
+    defp await_up(_, %{conn: _}), do: {:ok, nil}
+    defp await_up(pid, _), do: :gun.await_up(pid)
+
+    defp open_stream(pid, method, url, headers, body, :stream) do
       stream = :gun.request(pid, method, url, headers, "")
       for data <- body, do: :ok = :gun.data(pid, stream, :nofin, data)
       :gun.data(pid, stream, :fin, "")
       stream
     end
 
-    defp open_stream(pid, method, url, headers, body, false),
+    defp open_stream(pid, method, url, headers, body, :at_once),
       do: :gun.request(pid, method, url, headers, body)
 
     defp read_response(pid, stream, opts) do
