@@ -127,7 +127,10 @@ if Code.ensure_loaded?(:gun) do
       do: do_request(method, url, headers, body, opts)
 
     defp do_request(method, url, headers, body, opts) do
-      with {pid, f_url} <- open_conn(url, opts),
+      uri = URI.parse(url)
+      headers = headers ++ [{"host", uri.host}]
+
+      with {pid, f_url} <- open_conn(uri, opts),
            # we need this hack, because gun can start send `gun_up` & `gun_down` messages, before `read_response` method
            {:ok, _protocol} <- await_up(pid, opts),
            stream <- open_stream(pid, method, f_url, headers, body, opts[:send_body]) do
@@ -135,8 +138,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp open_conn(url, opts) do
-      uri = URI.parse(url)
+    defp open_conn(uri, opts) do
       opts = if uri.scheme == "https", do: Map.put(opts, :transport, :tls), else: opts
 
       {:ok, pid} =
