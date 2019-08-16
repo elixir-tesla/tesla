@@ -112,6 +112,7 @@ defmodule Tesla.Adapter.GunTest do
     assert opts[:body_as] == :chunks
     assert is_pid(pid)
     assert is_reference(stream)
+    assert conn == pid
 
     assert read_body(pid, stream, "", false) |> byte_size() == 16
     assert Process.alive?(pid)
@@ -125,12 +126,36 @@ defmodule Tesla.Adapter.GunTest do
     assert opts[:body_as] == :chunks
     assert is_pid(pid)
     assert is_reference(stream)
+    assert conn == pid
 
     assert read_body(pid, stream, "", false) |> byte_size() == 16
     assert Process.alive?(pid)
 
     :ok = Gun.close(pid)
     refute Process.alive?(pid)
+  end
+
+  test "don't reuse connection if original does not match" do
+    uri = URI.parse(@http)
+    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{} = response} =
+             call(request, body_as: :chunks, conn: conn, original: "example.com:80")
+
+    assert response.status == 200
+    %{pid: pid, stream: stream, opts: opts} = response.body
+    assert opts[:body_as] == :chunks
+    assert is_pid(pid)
+    assert is_reference(stream)
+
+    assert read_body(pid, stream, "", false) |> byte_size() == 16
+    assert Process.alive?(pid)
+    refute conn == pid
   end
 
   test "read response body in stream" do
