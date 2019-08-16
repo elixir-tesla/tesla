@@ -3,7 +3,7 @@ if Code.ensure_loaded?(:gun) do
     @moduledoc """
     Adapter for [gun] https://github.com/ninenines/gun
 
-    Remember to add `{:gun, "~> 1.3"}` to dependencies
+    Remember to add `{:gun, "~> 1.3"}` to dependencies. In this version gun sends `host` header with port. Fixed in master branch.
     Also, you need to recompile tesla after adding `:gun` dependency:
     ```
     mix deps.clean tesla
@@ -35,7 +35,7 @@ if Code.ensure_loaded?(:gun) do
     * `conn` - Opened connection pid with gun. Is used for reusing gun connections.
     * `original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise
                    adapter will use connection for another open host.
-    * `close_conn` - Close connection or not after receiving full response body. Works with `body_as: :stream`. Is used for reusing gun connections.
+    * `close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections.
                      Defaults to `true`.
 
     ### Gun options https://ninenines.eu/docs/en/gun/1.3/manual/gun/:
@@ -102,7 +102,11 @@ if Code.ensure_loaded?(:gun) do
         Tesla.build_url(env.url, env.query),
         env.headers,
         env.body || "",
-        Tesla.Adapter.opts([close_conn: true, body_as: :plain, send_body: :at_once], env, opts)
+        Tesla.Adapter.opts(
+          [close_conn: true, body_as: :plain, send_body: :at_once, receive: true],
+          env,
+          opts
+        )
         |> Enum.into(%{})
       )
     end
@@ -127,32 +131,34 @@ if Code.ensure_loaded?(:gun) do
       do: do_request(method, url, headers, body, opts)
 
     defp do_request(method, url, headers, body, opts) do
-      uri = URI.parse(url)
-      headers = headers ++ [{"host", uri.host}]
-
-      with {pid, f_url} <- open_conn(uri, opts),
-           # we need this hack, because gun can start send `gun_up` & `gun_down` messages, before `read_response` method
-           {:ok, _protocol} <- await_up(pid, opts),
+      with {pid, f_url, opts} <- open_conn(url, opts),
            stream <- open_stream(pid, method, f_url, headers, body, opts[:send_body]) do
         read_response(pid, stream, opts)
       end
     end
 
-    defp open_conn(uri, opts) do
-      opts = if uri.scheme == "https", do: Map.put(opts, :transport, :tls), else: opts
+    defp open_conn(url, opts) do
+      uri = URI.parse(url)
 
-      {:ok, pid} =
-        if opts[:conn] && opts[:original] == "#{uri.host}:#{uri.port}" do
-          {:ok, opts[:conn]}
+      opts =
+        if uri.scheme == "https" and uri.port != 443 do
+          Map.put(opts, :transport, :tls)
         else
-          :gun.open(to_charlist(uri.host), uri.port, Map.take(opts, @gun_keys))
+          opts
         end
 
-      {pid, format_url(uri.path, uri.query)}
-    end
+      {:ok, pid, opts} =
+        if opts[:conn] && opts[:original] == "#{uri.host}:#{uri.port}" do
+          {:ok, opts[:conn], Map.put(opts, :receive, false)}
+        else
+          {:ok, pid} = :gun.open(to_charlist(uri.host), uri.port, Map.take(opts, @gun_keys))
 
-    defp await_up(_, %{conn: _}), do: {:ok, nil}
-    defp await_up(pid, _), do: :gun.await_up(pid)
+          # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.
+          {:ok, pid, Map.put(opts, :close_conn, true)}
+        end
+
+      {pid, format_url(uri.path, uri.query), opts}
+    end
 
     defp open_stream(pid, method, url, headers, body, :stream) do
       stream = :gun.request(pid, method, url, headers, "")
@@ -165,6 +171,8 @@ if Code.ensure_loaded?(:gun) do
       do: :gun.request(pid, method, url, headers, body)
 
     defp read_response(pid, stream, opts) do
+      receive? = opts[:receive]
+
       receive do
         {:gun_response, ^pid, ^stream, :fin, status, headers} ->
           if opts[:close_conn], do: close(pid)
@@ -177,14 +185,14 @@ if Code.ensure_loaded?(:gun) do
           if opts[:close_conn], do: close(pid)
           {:error, error}
 
-        {:gun_up, ^pid, :http} ->
+        {:gun_up, ^pid, _protocol} when receive? ->
           read_response(pid, stream, opts)
 
         {:gun_error, ^pid, reason} ->
           if opts[:close_conn], do: close(pid)
           {:error, reason}
 
-        {:gun_down, ^pid, _, _, _, _} ->
+        {:gun_down, ^pid, _, _, _, _} when receive? ->
           read_response(pid, stream, opts)
 
         {:DOWN, _, _, _, reason} ->
