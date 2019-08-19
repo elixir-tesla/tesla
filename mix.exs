@@ -76,7 +76,7 @@ defmodule Tesla.Mixfile do
       # testing & docs
       {:excoveralls, "~> 0.8", only: :test},
       {:httparrot, "~> 1.2", only: :test},
-      {:ex_doc, github: "elixir-lang/ex_doc", only: :dev},
+      {:ex_doc, "~> 0.21.1", only: :dev},
       {:mix_test_watch, "~> 0.5", only: :dev},
       {:dialyxir, "~> 1.0.0-rc.3", only: [:dev, :test]},
       {:inch_ex, "~> 0.5.6", only: :docs}
@@ -93,17 +93,17 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware
         ],
         Adapters: [
+          Tesla.Adapter.Gun,
           Tesla.Adapter.Hackney,
           Tesla.Adapter.Httpc,
           Tesla.Adapter.Ibrowse,
-          Tesla.Adapter.Gun,
           Tesla.Adapter.Mint
         ],
         Middlewares: [
           Tesla.Middleware.BaseUrl,
           Tesla.Middleware.BasicAuth,
-          Tesla.Middleware.CompressRequest,
           Tesla.Middleware.Compression,
+          Tesla.Middleware.CompressRequest,
           Tesla.Middleware.DecodeJson,
           Tesla.Middleware.DecodeRels,
           Tesla.Middleware.DecompressResponse,
@@ -118,6 +118,7 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware.Logger,
           Tesla.Middleware.MethodOverride,
           Tesla.Middleware.Opts,
+          Tesla.Middleware.PathParams,
           Tesla.Middleware.Query,
           Tesla.Middleware.Retry,
           Tesla.Middleware.Telemetry,
