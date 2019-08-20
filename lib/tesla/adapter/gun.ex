@@ -38,6 +38,7 @@ if Code.ensure_loaded?(:gun) do
                    adapter will use connection for another open host.
     * `close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections.
                      Defaults to `true`.
+    * `version` - If you want to use gun master branch with sni support, send `version: :master`.
 
     ### Gun options https://ninenines.eu/docs/en/gun/1.3/manual/gun/:
 
@@ -156,7 +157,7 @@ if Code.ensure_loaded?(:gun) do
       # We need to add `server_name_indication` option, because gun connects through ip.
       # [SNI] - http://erlang.org/doc/man/ssl.html#type-sni
       opts =
-        if uri.scheme == "https" and uri.port == 443 do
+        if uri.scheme == "https" do
           host = uri.host |> to_charlist()
           key = if opts[:version] == :master, do: :tls_opts, else: :transport_opts
 
