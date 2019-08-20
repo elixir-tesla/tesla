@@ -49,6 +49,7 @@ if Code.ensure_loaded?(:gun) do
     * `trace` - Whether to enable dbg tracing of the connection process. Should only be used during debugging. Default: false.
     * `transport` - Whether to use TLS or plain TCP. The default varies depending on the port used. Port 443 defaults to tls.
                     All other ports default to tcp.
+    * `transport_opts` - Transport options. They are TCP options or TLS options depending on the selected transport. Default: [].
     * `tls_opts` - TLS transport options. Default: []
     * `tcp_opts` - TCP trasnport options. Default: []
     * `ws_opts` - Options specific to the Websocket protocol. Default: %{}.
