@@ -148,20 +148,6 @@ if Code.ensure_loaded?(:gun) do
           opts
         end
 
-      # Fix for FollowRedirects: SERVER ALERT: Fatal - Handshake Failure
-      opts =
-        if uri.scheme == "https" do
-          host = uri.host |> to_charlist()
-
-          tls_opts =
-            Map.get(opts, :tls_opts, %{})
-            |> Map.put(:server_name_indication, host)
-
-          Map.put(opts, :tls_opts, tls_opts)
-        else
-          opts
-        end
-
       {:ok, pid, opts} =
         if opts[:conn] && opts[:original] == "#{uri.host}:#{uri.port}" do
           {:ok, opts[:conn], Map.put(opts, :receive, false)}
