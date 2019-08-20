@@ -71,6 +71,9 @@ if Code.ensure_loaded?(:gun) do
       :trace,
       :transport,
       :transport_opts,
+      # transport opts were splitted to separate opts in master
+      :tls_opts,
+      :tcp_opts,
       :ws_opts
     ]
 
