@@ -3,7 +3,8 @@ if Code.ensure_loaded?(:gun) do
     @moduledoc """
     Adapter for [gun] https://github.com/ninenines/gun
 
-    Remember to add `{:gun, "~> 1.3"}` to dependencies. In this version gun sends `host` header with port. Fixed in master branch.
+    Remember to add `{:gun, "~> 1.3"}` to dependencies.
+    In version 1.3 gun sends `host` header with port. Fixed in master branch.
     Also, you need to recompile tesla after adding `:gun` dependency:
     ```
     mix deps.clean tesla
@@ -71,7 +72,8 @@ if Code.ensure_loaded?(:gun) do
       :trace,
       :transport,
       :transport_opts,
-      # transport opts were splitted to separate opts in master
+      # support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
+      # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
       :tls_opts,
       :tcp_opts,
       :ws_opts
@@ -147,6 +149,22 @@ if Code.ensure_loaded?(:gun) do
       opts =
         if uri.scheme == "https" and uri.port != 443 do
           Map.put(opts, :transport, :tls)
+        else
+          opts
+        end
+
+      # We need to add `server_name_indication` option, because gun connects through ip.
+      # [SNI] - http://erlang.org/doc/man/ssl.html#type-sni
+      opts =
+        if uri.scheme == "https" and uri.port == 443 do
+          host = uri.host |> to_charlist()
+          key = if opts[:version] == :master, do: :tls_opts, else: :transport_opts
+
+          tls_opts =
+            Map.get(opts, key, [])
+            |> Keyword.put(:server_name_indication, host)
+
+          Map.put(opts, key, tls_opts)
         else
           opts
         end
