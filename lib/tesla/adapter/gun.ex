@@ -73,11 +73,6 @@ if Code.ensure_loaded?(:gun) do
       :retry_timeout,
       :trace,
       :transport,
-      :transport_opts,
-      # support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
-      # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
-      :tls_opts,
-      :tcp_opts,
       :ws_opts
     ]
 
@@ -155,27 +150,53 @@ if Code.ensure_loaded?(:gun) do
           opts
         end
 
-      # We need to add `server_name_indication` option, because gun connects through ip.
+      # We need to add `server_name_indication` option, because gun connects through ip in master branch.
       # [SNI] - http://erlang.org/doc/man/ssl.html#type-sni
-      opts =
+      # Support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
+      # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
+
+      tls_opts = Map.get(opts, :tls_opts, [])
+
+      tls_opts =
         if uri.scheme == "https" do
           host = uri.host |> to_charlist()
-          key = if opts[:version] == :master, do: :tls_opts, else: :transport_opts
-
-          tls_opts =
-            Map.get(opts, key, [])
-            |> Keyword.put(:server_name_indication, host)
-
-          Map.put(opts, key, tls_opts)
+          Keyword.put(tls_opts, :server_name_indication, host)
         else
-          opts
+          tls_opts
         end
+
+      tcp_opts = Map.get(opts, :tcp_opts, [])
 
       {:ok, pid, opts} =
         if opts[:conn] && opts[:original] == "#{uri.host}:#{uri.port}" do
           {:ok, opts[:conn], Map.put(opts, :receive, false)}
         else
-          {:ok, pid} = :gun.open(to_charlist(uri.host), uri.port, Map.take(opts, @gun_keys))
+          transport_opts = Map.get(opts, :transport_opts, [])
+
+          gun_opts = Map.take(opts, @gun_keys)
+
+          # if gun used from master
+          opts_with_master_keys =
+            Map.put(gun_opts, :tls_opts, tls_opts)
+            |> Map.put(:tcp_opts, tcp_opts)
+
+          host = to_charlist(uri.host)
+
+          {:ok, pid} =
+            case :gun.open(host, uri.port, opts_with_master_keys) do
+              {:error, {:options, {key, _}}} when key in [:tcp_opts, :tls_opts] ->
+                :gun.open(
+                  host,
+                  uri.port,
+                  Map.put(gun_opts, :transport_opts, transport_opts)
+                )
+
+              {:error, error} ->
+                {:error, error}
+
+              {:ok, pid} ->
+                {:ok, pid}
+            end
 
           # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.
           {:ok, pid, Map.put(opts, :close_conn, true)}
