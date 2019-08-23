@@ -94,8 +94,8 @@ if Code.ensure_loaded?(:gun) do
 
     defp format_method(method), do: String.upcase(to_string(method))
 
-    defp format_url(nil, nil), do: ""
-    defp format_url(nil, query), do: "?" <> query
+    defp format_url(nil, nil), do: "/"
+    defp format_url(nil, query), do: "/?" <> query
     defp format_url(path, nil), do: path
     defp format_url(path, query), do: path <> "?" <> query
 
