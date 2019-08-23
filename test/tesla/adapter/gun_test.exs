@@ -234,7 +234,20 @@ defmodule Tesla.Adapter.GunTest do
     }
 
     assert {:ok, %Env{} = response} = call(request, timeout: 1_000)
-    assert response.status == 400
+    assert response.status == 200
+  end
+
+  test "query without path with query" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}",
+      query: [
+        param: "value"
+      ]
+    }
+
+    assert {:ok, %Env{} = response} = call(request, timeout: 1_000)
+    assert response.status == 200
   end
 
   defp read_body(pid, stream, acc \\ "", close_conn \\ true) do
