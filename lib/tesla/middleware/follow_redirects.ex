@@ -68,12 +68,13 @@ defmodule Tesla.Middleware.FollowRedirects do
   defp new_request(%{status: 303} = env, location), do: %{env | url: location, method: :get}
   defp new_request(env, location), do: %{env | url: location}
 
-  defp parse_location("/" <> _rest = location, env) do
+  defp parse_location("https://" <> _rest = location, _env), do: location
+  defp parse_location("http://" <> _rest = location, _env), do: location
+
+  defp parse_location(location, env) do
     env.url
     |> URI.parse()
     |> URI.merge(location)
     |> URI.to_string()
   end
-
-  defp parse_location(location, _env), do: location
 end

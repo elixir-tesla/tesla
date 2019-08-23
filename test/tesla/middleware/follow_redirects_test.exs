@@ -85,6 +85,12 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
 
           "https://example.com/article" ->
             {301, [{"location", "/pl"}], ""}
+
+          "https://example.com/one/two" ->
+            {301, [{"location", "three"}], ""}
+
+          "https://example.com/one/three" ->
+            {200, [{"content-type", "text/plain"}], "foo bar baz"}
         end
 
       {:ok, %{env | status: status, headers: headers, body: body}}
@@ -106,6 +112,11 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
   test "rewrites URLs to their root" do
     assert {:ok, env} = RLClient.get("https://example.com/article")
     assert env.url == "https://example.com/pl"
+  end
+
+  test "rewrites URLs relative to the original URL" do
+    assert {:ok, env} = RLClient.get("https://example.com/one/two")
+    assert env.url == "https://example.com/one/three"
   end
 
   defmodule CustomRewriteMethodClient do
