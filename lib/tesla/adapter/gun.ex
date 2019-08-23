@@ -38,7 +38,6 @@ if Code.ensure_loaded?(:gun) do
                    adapter will use connection for another open host.
     * `close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections.
                      Defaults to `true`.
-    * `version` - If you want to use gun master branch with sni support, send `version: :master`.
 
     ### Gun options https://ninenines.eu/docs/en/gun/1.3/manual/gun/:
 
@@ -50,8 +49,9 @@ if Code.ensure_loaded?(:gun) do
     * `transport` - Whether to use TLS or plain TCP. The default varies depending on the port used. Port 443 defaults to tls.
                     All other ports default to tcp.
     * `transport_opts` - Transport options. They are TCP options or TLS options depending on the selected transport. Default: [].
-    * `tls_opts` - TLS transport options. Default: []
-    * `tcp_opts` - TCP trasnport options. Default: []
+                          Gun version: 1.3
+    * `tls_opts` - TLS transport options. Default: []. Gun from master branch.
+    * `tcp_opts` - TCP trasnport options. Default: []. Gun from master branch.
     * `ws_opts` - Options specific to the Websocket protocol. Default: %{}.
         * `compress` - Whether to enable permessage-deflate compression. This does not guarantee that compression will
                         be used as it is the server that ultimately decides. Defaults to false.
@@ -134,15 +134,25 @@ if Code.ensure_loaded?(:gun) do
       do: do_request(method, url, headers, body, opts)
 
     defp do_request(method, url, headers, body, opts) do
-      with {pid, f_url, opts} <- open_conn(url, opts),
-           stream <- open_stream(pid, method, f_url, headers, body, opts[:send_body]) do
+      with uri <- URI.parse(url),
+           path_with_query <- format_url(uri.path, uri.query),
+           {pid, opts} <- open_conn(uri, opts),
+           stream <- open_stream(pid, method, path_with_query, headers, body, opts[:send_body]) do
         read_response(pid, stream, opts)
       end
     end
 
-    defp open_conn(url, opts) do
-      uri = URI.parse(url)
+    defp open_conn(uri, %{conn: conn, original: original} = opts) do
+      if original == "#{uri.host}:#{uri.port}" do
+        {conn, Map.put(opts, :receive, false)}
+      else
+        # current url is different from the original, maybe there were redirects
+        # so we can't use transferred connection
+        open_conn(uri, Map.delete(opts, :conn))
+      end
+    end
 
+    defp open_conn(uri, opts) do
       opts =
         if uri.scheme == "https" and uri.port != 443 do
           Map.put(opts, :transport, :tls)
@@ -155,7 +165,9 @@ if Code.ensure_loaded?(:gun) do
       # Support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
       # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
 
-      tls_opts = Map.get(opts, :tls_opts, [])
+      tls_opts =
+        Map.get(opts, :tls_opts, [])
+        |> Keyword.merge(Map.get(opts, :transport_opts, []))
 
       tls_opts =
         if uri.scheme == "https" do
@@ -165,44 +177,54 @@ if Code.ensure_loaded?(:gun) do
           tls_opts
         end
 
-      tcp_opts = Map.get(opts, :tcp_opts, [])
+      gun_opts = Map.take(opts, @gun_keys)
 
-      {:ok, pid, opts} =
-        if opts[:conn] && opts[:original] == "#{uri.host}:#{uri.port}" do
-          {:ok, opts[:conn], Map.put(opts, :receive, false)}
+      with {:ok, pid} <- do_open_conn(uri, opts, gun_opts, tls_opts) do
+        # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.
+        {pid, Map.put(opts, :close_conn, true)}
+      end
+    end
+
+    defp do_open_conn(uri, %{proxy: {proxy_host, proxy_port}}, gun_opts, tls_opts) do
+      connect_opts = %{host: to_charlist(uri.host), port: uri.port}
+
+      connect_opts =
+        if uri.scheme == "https" do
+          Map.put(connect_opts, :protocols, [:http2])
+          |> Map.put(:transport, :tls)
+          |> Map.put(:tls_opts, tls_opts)
         else
-          transport_opts = Map.get(opts, :transport_opts, [])
-
-          gun_opts = Map.take(opts, @gun_keys)
-
-          # if gun used from master
-          opts_with_master_keys =
-            Map.put(gun_opts, :tls_opts, tls_opts)
-            |> Map.put(:tcp_opts, tcp_opts)
-
-          host = to_charlist(uri.host)
-
-          {:ok, pid} =
-            case :gun.open(host, uri.port, opts_with_master_keys) do
-              {:error, {:options, {key, _}}} when key in [:tcp_opts, :tls_opts] ->
-                :gun.open(
-                  host,
-                  uri.port,
-                  Map.put(gun_opts, :transport_opts, transport_opts)
-                )
-
-              {:error, error} ->
-                {:error, error}
-
-              {:ok, pid} ->
-                {:ok, pid}
-            end
-
-          # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.
-          {:ok, pid, Map.put(opts, :close_conn, true)}
+          connect_opts
         end
 
-      {pid, format_url(uri.path, uri.query), opts}
+      with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
+           {:ok, _} <- :gun.await_up(pid),
+           stream <- :gun.connect(pid, connect_opts),
+           {:response, :fin, 200, _} <- :gun.await(pid, stream) do
+        {:ok, pid}
+      end
+    end
+
+    defp do_open_conn(uri, opts, gun_opts, tls_opts) do
+      tcp_opts = Map.get(opts, :tcp_opts, [])
+
+      # if gun used from master
+      opts_with_master_keys =
+        Map.put(gun_opts, :tls_opts, tls_opts)
+        |> Map.put(:tcp_opts, tcp_opts)
+
+      host = to_charlist(uri.host)
+
+      with {:ok, pid} <- :gun.open(host, uri.port, opts_with_master_keys) do
+        {:ok, pid}
+      else
+        {:error, {:options, {key, _}}} when key in [:tcp_opts, :tls_opts] ->
+          :gun.open(
+            host,
+            uri.port,
+            Map.put(gun_opts, :transport_opts, tls_opts)
+          )
+      end
     end
 
     defp open_stream(pid, method, url, headers, body, :stream) do
