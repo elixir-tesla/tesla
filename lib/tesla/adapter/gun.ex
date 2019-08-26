@@ -38,6 +38,9 @@ if Code.ensure_loaded?(:gun) do
                    adapter will use connection for another open host.
     * `close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections.
                      Defaults to `true`.
+    * `certificates_verification` - Add SSL certificates verification.
+                          https://github.com/certifi/erlang-certifi
+                          https://github.com/deadtrickster/ssl_verify_fun.erl
 
     ### Gun options https://ninenines.eu/docs/en/gun/1.3/manual/gun/:
 
@@ -172,7 +175,27 @@ if Code.ensure_loaded?(:gun) do
       tls_opts =
         if uri.scheme == "https" do
           host = uri.host |> to_charlist()
-          Keyword.put(tls_opts, :server_name_indication, host)
+
+          ssl_opts = [
+            server_name_indication: host
+          ]
+
+          ssl_opts =
+            if opts[:certificates_verification] do
+              security_opts = [
+                verify: :verify_peer,
+                cacerts: :certifi.cacerts(),
+                depth: 20,
+                reuse_sessions: false,
+                verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: host]}
+              ]
+
+              Keyword.merge(ssl_opts, security_opts)
+            else
+              ssl_opts
+            end
+
+          Keyword.merge(tls_opts, ssl_opts)
         else
           tls_opts
         end
