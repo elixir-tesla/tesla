@@ -181,14 +181,16 @@ Tesla supports multiple HTTP adapter that do the actual HTTP request processing.
 - [`Tesla.Adapter.Httpc`](https://hexdocs.pm/tesla/Tesla.Adapter.Httpc.html) - the default, built-in erlang [httpc](http://erlang.org/doc/man/httpc.html) adapter
 - [`Tesla.Adapter.Hackney`](https://hexdocs.pm/tesla/Tesla.Adapter.Hackney.html) - [hackney](https://github.com/benoitc/hackney), "simple HTTP client in Erlang"
 - [`Tesla.Adapter.Ibrowse`](https://hexdocs.pm/tesla/Tesla.Adapter.Ibrowse.html) - [ibrowse](https://github.com/cmullaparthi/ibrowse), "Erlang HTTP client"
+- [`Tesla.Adapter.Gun`](https://hexdocs.pm/tesla/Tesla.Adapter.Gun.html) - [gun](https://github.com/ninenines/gun), "HTTP/1.1, HTTP/2 and Websocket client for Erlang/OTP."
+- [`Tesla.Adapter.Mint`](https://hexdocs.pm/tesla/Tesla.Adapter.Mint.html) - [mint](https://github.com/ericmj/mint), "Functional HTTP client for Elixir with support for HTTP/1 and HTTP/2"
 
-When using ibrowse or hackney adapters remember to it to the dependencies list in `mix.exs`
+When using adapter other than httpc remember to add it to the dependencies list in `mix.exs`
 
 ```elixir
 defp deps do
   [{:tesla, "~> 1.2.0"},
    {:jason, ">= 1.0.0"}, # optional, required by JSON middleware
-   {:hackney, "~> 1.10"}] # or :ibrowse
+   {:hackney, "~> 1.10"}] # or :gun etc.
 end
 ```
 
