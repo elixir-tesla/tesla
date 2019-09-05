@@ -5,7 +5,8 @@ defmodule Tesla.Adapter.MintTest do
   use Tesla.AdapterCase.Basic
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
-  use Tesla.AdapterCase.SSL
+  # TODO: Disabled temporarily
+  # use Tesla.AdapterCase.SSL
 
   test "Delay request" do
     request = %Env{
