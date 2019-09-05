@@ -5,6 +5,11 @@ on: push
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379/tcp
     strategy:
       matrix:
         elixir:
@@ -57,6 +62,11 @@ jobs:
 
   test-poison3:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379/tcp
     container:
       image: elixir:1.9-slim
     steps:
