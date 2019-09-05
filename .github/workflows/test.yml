@@ -5,9 +5,19 @@ on: push
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        elixir_version:
+          - 1.9-slim    # otp 22
+          - 1.8-otp-22
+          - 1.8-slim    # otp 21
+          - 1.7-slim    # otp 21
+          - 1.6-otp-21  
+          - 1.6-slim    # otp 20
+          - 1.5-slim    # opt 20
 
     container:
-      image: elixir:1.9.1-slim
+      image: elixir:${{ matrix.elixir_version }}
 
     steps:
     - uses: actions/checkout@master
