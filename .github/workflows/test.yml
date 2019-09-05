@@ -3,11 +3,11 @@ name: Test
 on: push
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        elixir_version:
+        elixir:
           - 1.9-slim    # otp 22
           - 1.8-otp-22
           - 1.8-slim    # otp 21
@@ -15,10 +15,70 @@ jobs:
           - 1.6-otp-21  
           - 1.6-slim    # otp 20
           - 1.5-slim    # opt 20
-
     container:
-      image: elixir:${{ matrix.elixir_version }}
+      image: elixir:${{ matrix.elixir }}
+    steps:
+    - uses: actions/checkout@master
+    - name: Install Dependencies
+      env:
+        MIX_ENV: test
+      run: |
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+    - name: Run Tests
+      run: mix test --trace
 
+  test-1:
+    name: run tests against v1.0.0
+    runs-on: ubuntu-latest
+    container:
+      image: elixir:1.6-slim
+    steps:
+    - uses: actions/checkout@master
+
+    - name: Install Dependencies
+      env:
+        MIX_ENV: test
+      run: |
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+
+    - uses: srt32/git-actions@v0.0.3
+      with:
+        args: |
+          git remote set-branches origin '*' && \
+          git fetch origin v1.0.0-compat && \
+          git checkout origin/v1.0.0-compat -- test
+      
+    - name: Run Tests for 1.0.0 branch
+      run: mix test --trace
+
+  test-poison3:
+    runs-on: ubuntu-latest
+    container:
+      image: elixir:1.9-slim
+    steps:
+    - uses: actions/checkout@master
+    - name: Install Dependencies
+      env: 
+        MIX_ENV: test 
+        LOCKFILE: poison3
+      run: |
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+    - name: Run Tests for poison 3.x
+      env: 
+        MIX_ENV: test
+        LOCKFILE: poison3
+      run: mix test --trace
+
+  format:
+    runs-on: ubuntu-latest
+    container:
+      image: elixir:1.9-slim
     steps:
     - uses: actions/checkout@master
     - name: Install Dependencies
@@ -26,5 +86,5 @@ jobs:
         mix local.rebar --force
         mix local.hex --force
         mix deps.get
-    - name: Run Tests
-      run: mix test --trace
+    - name: Check Format
+      run: mix format --check-formatted --dry-run
