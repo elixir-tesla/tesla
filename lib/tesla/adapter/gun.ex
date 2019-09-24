@@ -151,8 +151,6 @@ if Code.ensure_loaded?(:gun) do
           opts
         end
 
-      # We need to add `server_name_indication` option, because gun connects through ip in master branch.
-      # [SNI] - http://erlang.org/doc/man/ssl.html#type-sni
       # Support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
       # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
 
@@ -161,31 +159,21 @@ if Code.ensure_loaded?(:gun) do
         |> Keyword.merge(Map.get(opts, :transport_opts, []))
 
       tls_opts =
-        if uri.scheme == "https" do
-          host = uri.host |> to_charlist()
+        with "https" <- uri.scheme,
+             true <- opts[:certificates_verification] do
+          host = to_charlist(uri.host)
 
-          ssl_opts = [
-            server_name_indication: host
+          security_opts = [
+            verify: :verify_peer,
+            cacerts: :certifi.cacerts(),
+            depth: 20,
+            reuse_sessions: false,
+            verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: host]}
           ]
 
-          ssl_opts =
-            if opts[:certificates_verification] do
-              security_opts = [
-                verify: :verify_peer,
-                cacerts: :certifi.cacerts(),
-                depth: 20,
-                reuse_sessions: false,
-                verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: host]}
-              ]
-
-              Keyword.merge(ssl_opts, security_opts)
-            else
-              ssl_opts
-            end
-
-          Keyword.merge(tls_opts, ssl_opts)
+          Keyword.merge(security_opts, tls_opts)
         else
-          tls_opts
+          _ -> tls_opts
         end
 
       gun_opts = Map.take(opts, @gun_keys)
