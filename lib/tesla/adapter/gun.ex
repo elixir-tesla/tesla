@@ -35,6 +35,7 @@ if Code.ensure_loaded?(:gun) do
     * `original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise adapter will use connection for another open host.
     * `close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections. Defaults to `true`.
     * `certificates_verification` - Add SSL certificates verification. [erlang-certifi](https://github.com/certifi/erlang-certifi) [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
+    * `proxy` - Proxy for requests. **Socks proxy are supported only for gun master branch**. Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, {:socks5, 'localhost', 1234}`.
 
     ### [Gun options](https://ninenines.eu/docs/en/gun/1.3/manual/gun/):
 
@@ -47,6 +48,7 @@ if Code.ensure_loaded?(:gun) do
     * `transport_opts` - Transport options. They are TCP options or TLS options depending on the selected transport. Default: []. Gun version: 1.3
     * `tls_opts` - TLS transport options. Default: []. Gun from master branch.
     * `tcp_opts` - TCP trasnport options. Default: []. Gun from master branch.
+    * `socks_opts` - Options for socks. Default: []. Gun from master branch.
     * `ws_opts` - Options specific to the Websocket protocol. Default: %{}.
         * `compress` - Whether to enable permessage-deflate compression. This does not guarantee that compression will be used as it is the server that ultimately decides. Defaults to false.
         * `protocols` - A non-empty list enables Websocket protocol negotiation. The list of protocols will be sent in the sec-websocket-protocol request header. The handler module interface is currently undocumented and must be set to `gun_ws_h`.
@@ -64,6 +66,7 @@ if Code.ensure_loaded?(:gun) do
       :retry_timeout,
       :trace,
       :transport,
+      :socks_opts,
       :ws_opts
     ]
 
@@ -127,7 +130,7 @@ if Code.ensure_loaded?(:gun) do
     defp do_request(method, url, headers, body, opts) do
       with uri <- URI.parse(url),
            path_with_query <- format_url(uri.path, uri.query),
-           {pid, opts} <- open_conn(uri, opts),
+           {:ok, pid, opts} <- open_conn(uri, opts),
            stream <- open_stream(pid, method, path_with_query, headers, body, opts[:send_body]) do
         read_response(pid, stream, opts)
       end
@@ -135,7 +138,7 @@ if Code.ensure_loaded?(:gun) do
 
     defp open_conn(uri, %{conn: conn, original: original} = opts) do
       if original == "#{uri.host}:#{uri.port}" do
-        {conn, Map.put(opts, :receive, false)}
+        {:ok, conn, Map.put(opts, :receive, false)}
       else
         # current url is different from the original, maybe there were redirects
         # so we can't use transferred connection
@@ -180,27 +183,46 @@ if Code.ensure_loaded?(:gun) do
 
       with {:ok, pid} <- do_open_conn(uri, opts, gun_opts, tls_opts) do
         # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.
-        {pid, Map.put(opts, :close_conn, true)}
+        {:ok, pid, Map.put(opts, :close_conn, true)}
       end
     end
 
     defp do_open_conn(uri, %{proxy: {proxy_host, proxy_port}}, gun_opts, tls_opts) do
-      connect_opts = %{host: to_charlist(uri.host), port: uri.port}
-
       connect_opts =
-        if uri.scheme == "https" do
-          Map.put(connect_opts, :protocols, [:http2])
-          |> Map.put(:transport, :tls)
-          |> Map.put(:tls_opts, tls_opts)
-        else
-          connect_opts
-        end
+        tunnel_opts(uri)
+        |> tunnel_tls_opts(uri.scheme, tls_opts)
 
       with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
            {:ok, _} <- :gun.await_up(pid),
            stream <- :gun.connect(pid, connect_opts),
            {:response, :fin, 200, _} <- :gun.await(pid, stream) do
         {:ok, pid}
+      end
+    end
+
+    defp do_open_conn(uri, %{proxy: {proxy_type, proxy_host, proxy_port}}, gun_opts, tls_opts) do
+      version =
+        proxy_type
+        |> to_string()
+        |> String.last()
+
+      version = if version in ["4", "5"], do: String.to_integer(version), else: 5
+
+      socks_opts =
+        tunnel_opts(uri)
+        |> tunnel_tls_opts(uri.scheme, tls_opts)
+        |> Map.put(:version, version)
+
+      gun_opts =
+        Map.put(gun_opts, :protocols, [:socks])
+        |> Map.update(:socks_opts, socks_opts, &Map.merge(socks_opts, &1))
+
+      with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
+           {:ok, _} <- :gun.await_up(pid) do
+        {:ok, pid}
+      else
+        {:error, {:options, {:protocols, [:socks]}}} ->
+          {:error, "socks protocol is not supported"}
       end
     end
 
@@ -225,6 +247,15 @@ if Code.ensure_loaded?(:gun) do
           )
       end
     end
+
+    defp tunnel_opts(uri), do: %{host: to_charlist(uri.host), port: uri.port}
+
+    defp tunnel_tls_opts(opts, "https", tls_opts) do
+      http2_opts = %{protocols: [:http2], transport: :tls, tls_opts: tls_opts}
+      Map.merge(opts, http2_opts)
+    end
+
+    defp tunnel_tls_opts(opts, _, _), do: opts
 
     defp open_stream(pid, method, url, headers, body, :stream) do
       stream = :gun.request(pid, method, url, headers, "")

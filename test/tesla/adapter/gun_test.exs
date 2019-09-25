@@ -237,6 +237,16 @@ defmodule Tesla.Adapter.GunTest do
     assert response.status == 500
   end
 
+  test "error on socks proxy" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/status/500"
+    }
+
+    assert {:error, "socks protocol is not supported"} ==
+             call(request, proxy: {:socks5, 'localhost', 1234})
+  end
+
   defp read_body(pid, stream, acc \\ "", close_conn \\ true) do
     case Gun.read_chunk(pid, stream, timeout: 1_000) do
       {:fin, body} ->
