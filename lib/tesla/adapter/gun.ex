@@ -201,12 +201,16 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp do_open_conn(uri, %{proxy: {proxy_type, proxy_host, proxy_port}}, gun_opts, tls_opts) do
-      version =
-        proxy_type
-        |> to_string()
+      received_version =
+        to_string(proxy_type)
         |> String.last()
 
-      version = if version in ["4", "5"], do: String.to_integer(version), else: 5
+      version =
+        if received_version in ["4", "5"] do
+          String.to_integer(received_version)
+        else
+          5
+        end
 
       socks_opts =
         tunnel_opts(uri)
