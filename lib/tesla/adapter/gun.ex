@@ -164,7 +164,7 @@ if Code.ensure_loaded?(:gun) do
       tls_opts =
         with "https" <- uri.scheme,
              true <- opts[:certificates_verification] do
-          host = to_charlist(uri.host)
+          host = :idna.encode(uri.host)
 
           security_opts = [
             verify: :verify_peer,
