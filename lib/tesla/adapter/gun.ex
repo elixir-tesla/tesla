@@ -129,9 +129,9 @@ if Code.ensure_loaded?(:gun) do
 
     defp do_request(method, url, headers, body, opts) do
       with uri <- URI.parse(url),
-           path_with_query <- format_url(uri.path, uri.query),
+           path <- format_url(uri.path, uri.query),
            {:ok, pid, opts} <- open_conn(uri, opts),
-           stream <- open_stream(pid, method, path_with_query, headers, body, opts[:send_body]) do
+           stream <- open_stream(pid, method, path, headers, body, opts[:send_body]) do
         read_response(pid, stream, opts)
       end
     end
@@ -140,7 +140,7 @@ if Code.ensure_loaded?(:gun) do
       if original == "#{uri.host}:#{uri.port}" do
         {:ok, conn, Map.put(opts, :receive, false)}
       else
-        # current url is different from the original, maybe there were redirects
+        # current url is different from the original, maybe there were redirects,
         # so we can't use transferred connection
         open_conn(uri, Map.delete(opts, :conn))
       end
@@ -163,8 +163,9 @@ if Code.ensure_loaded?(:gun) do
 
       tls_opts =
         with "https" <- uri.scheme,
-             true <- opts[:certificates_verification] do
-          host = :idna.encode(uri.host)
+             true <- opts[:certificates_verification],
+             host <- to_charlist(uri.host) do
+          host = :idna.encode(host)
 
           security_opts = [
             verify: :verify_peer,
@@ -238,7 +239,10 @@ if Code.ensure_loaded?(:gun) do
         Map.put(gun_opts, :tls_opts, tls_opts)
         |> Map.put(:tcp_opts, tcp_opts)
 
-      host = to_charlist(uri.host)
+      host =
+        uri.host
+        |> to_charlist()
+        |> :idna.encode()
 
       with {:ok, pid} <- :gun.open(host, uri.port, opts_with_master_keys) do
         {:ok, pid}
@@ -252,7 +256,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp tunnel_opts(uri), do: %{host: to_charlist(uri.host), port: uri.port}
+    defp tunnel_opts(uri), do: %{host: :idna.encode(to_charlist(uri.host)), port: uri.port}
 
     defp tunnel_tls_opts(opts, "https", tls_opts) do
       http2_opts = %{protocols: [:http2], transport: :tls, tls_opts: tls_opts}
@@ -261,15 +265,15 @@ if Code.ensure_loaded?(:gun) do
 
     defp tunnel_tls_opts(opts, _, _), do: opts
 
-    defp open_stream(pid, method, url, headers, body, :stream) do
-      stream = :gun.request(pid, method, url, headers, "")
+    defp open_stream(pid, method, path, headers, body, :stream) do
+      stream = :gun.request(pid, method, path, headers, "")
       for data <- body, do: :ok = :gun.data(pid, stream, :nofin, data)
       :gun.data(pid, stream, :fin, "")
       stream
     end
 
-    defp open_stream(pid, method, url, headers, body, :at_once),
-      do: :gun.request(pid, method, url, headers, body)
+    defp open_stream(pid, method, path, headers, body, :at_once),
+      do: :gun.request(pid, method, path, headers, body)
 
     defp read_response(pid, stream, opts) do
       receive? = opts[:receive]
