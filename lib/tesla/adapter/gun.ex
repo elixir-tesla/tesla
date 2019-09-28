@@ -141,7 +141,19 @@ if Code.ensure_loaded?(:gun) do
         {:ok, conn, Map.put(opts, :receive, false)}
       else
         # current url is different from the original, maybe there were redirects,
-        # so we can't use transferred connection
+        # so we can't use transferred connection and verify_fun
+        opts =
+          with "https" <- uri.scheme, true <- opts[:certificates_verification] do
+            tls_opts =
+              Map.get(opts, :tls_opts, [])
+              |> Keyword.merge(Map.get(opts, :transport_opts, []))
+              |> Keyword.delete(:verify_fun)
+
+            Map.put(opts, :tls_opts, tls_opts)
+          else
+            _ -> opts
+          end
+
         open_conn(uri, Map.delete(opts, :conn))
       end
     end
