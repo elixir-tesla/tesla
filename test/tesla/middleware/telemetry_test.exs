@@ -10,43 +10,93 @@ defmodule Tesla.Middleware.TelemetryTest do
       case env.url do
         "/telemetry" -> {:ok, env}
         "/telemetry_error" -> {:error, :econnrefused}
+        "/telemetry_exception" -> raise "some exception"
+      end
+    end
+  end
+
+  defmodule ClientWithOptions do
+    use Tesla
+
+    plug Tesla.Middleware.Telemetry, event_prefix: [:my_client]
+
+    adapter fn env ->
+      case env.url do
+        "/telemetry" -> {:ok, env}
       end
     end
   end
 
   setup do
     Application.ensure_all_started(:telemetry)
+
+    on_exit(fn ->
+      :telemetry.list_handlers([])
+      |> Enum.each(&:telemetry.detach(&1.id))
+    end)
+
     :ok
   end
 
-  test "Get the info from telemetry" do
-    :telemetry.attach(
-      "telemetry_test",
-      [:tesla, :request],
-      fn [:tesla, :request], %{request_time: time}, meta, _config ->
-        send(self(), {:ok_called, is_integer(time), meta})
-      end,
-      nil
-    )
+  test "accepts options" do
+    :telemetry.attach("with_opts", [:my_client, :tesla, :request, :stop], &echo_event/4, %{
+      caller: self()
+    })
+
+    ClientWithOptions.get("/telemetry")
+
+    assert_receive {:event, [:my_client, :tesla, :request, :stop], %{duration: time},
+                    %{env: %Tesla.Env{url: "/telemetry", method: :get}}}
+  end
+
+  test "with default options" do
+    :telemetry.attach("with_default_opts_start", [:tesla, :request, :start], &echo_event/4, %{
+      caller: self()
+    })
+
+    :telemetry.attach("with_default_opts_stop", [:tesla, :request, :stop], &echo_event/4, %{
+      caller: self()
+    })
 
     Client.get("/telemetry")
 
-    assert_receive {:ok_called, true,
-                    %{result: {:ok, %Tesla.Env{url: "/telemetry", method: :get}}}},
-                   1000
+    assert_receive {:event, [:tesla, :request, :start], %{time: time},
+                    %{env: %Tesla.Env{url: "/telemetry", method: :get}}}
+
+    assert_receive {:event, [:tesla, :request, :stop], %{duration: time},
+                    %{env: %Tesla.Env{url: "/telemetry", method: :get}}}
   end
 
-  test "Get the error from telemetry" do
-    :telemetry.attach(
-      "telemetry_test_error",
-      [:tesla, :request],
-      fn [:tesla, :request], %{request_time: time}, meta, _config ->
-        send(self(), {:error_called, is_integer(time), meta})
-      end,
-      nil
-    )
+  test "with an error returned" do
+    :telemetry.attach("with_error", [:tesla, :request, :error], &echo_event/4, %{caller: self()})
 
     Client.get("/telemetry_error")
-    assert_receive {:error_called, true, %{result: {:error, :econnrefused}}}, 1000
+
+    assert_receive {:event, [:tesla, :request, :error], %{duration: time},
+                    %{
+                      env: %Tesla.Env{url: "/telemetry_error", method: :get},
+                      reason: :econnrefused
+                    }}
+  end
+
+  test "with an exception raised" do
+    :telemetry.attach("with_exception", [:tesla, :request, :exception], &echo_event/4, %{
+      caller: self()
+    })
+
+    assert_raise RuntimeError, fn ->
+      Client.get("/telemetry_exception")
+    end
+
+    assert_receive {:event, [:tesla, :request, :exception], %{duration: time},
+                    %{
+                      env: %Tesla.Env{url: "/telemetry_exception", method: :get},
+                      exception: kind,
+                      stacktrace: stacktrace
+                    }}
+  end
+
+  def echo_event(event, measurements, metadata, config) do
+    send(config.caller, {:event, event, measurements, metadata})
   end
 end
