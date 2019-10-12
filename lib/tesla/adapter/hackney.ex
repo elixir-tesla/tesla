@@ -72,7 +72,14 @@ if Code.ensure_loaded?(:hackney) do
 
     defp request_stream(method, url, headers, body, opts) do
       with {:ok, ref} <- :hackney.request(method, url, headers, :stream, opts) do
-        for data <- body, do: :ok = :hackney.send_body(ref, data)
+        for data <- body do
+          with :ok <- :hackney.send_body(ref, data) do
+            :ok
+          else
+            e -> handle(e)
+          end
+        end
+
         handle(:hackney.start_response(ref))
       else
         e -> handle(e)
