@@ -58,6 +58,10 @@ defmodule Tesla.Middleware.TelemetryTest do
       caller: self()
     })
 
+    :telemetry.attach("with_default_opts_legacy", [:tesla, :request, :stop], &echo_event/4, %{
+      caller: self()
+    })
+
     Client.get("/telemetry")
 
     assert_receive {:event, [:tesla, :request, :start], %{time: time},
@@ -65,6 +69,16 @@ defmodule Tesla.Middleware.TelemetryTest do
 
     assert_receive {:event, [:tesla, :request, :stop], %{duration: time},
                     %{env: %Tesla.Env{url: "/telemetry", method: :get}}}
+  end
+
+  test "legacy_event_emitted_by_default" do
+    :telemetry.attach("with_default_opts_legacy", [:tesla, :request], &echo_event/4, %{
+      caller: self()
+    })
+
+    Client.get("/telemetry")
+
+    assert_receive {:event, [:tesla, :request], %{request_time: time}, %{result: result}}
   end
 
   test "with an error returned" do

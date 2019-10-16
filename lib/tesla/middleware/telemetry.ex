@@ -40,9 +40,15 @@ if Code.ensure_loaded?(:telemetry) do
     * `[:tesla, :request, :exception]` - emitted at the end of the request when an exception is raised.
       * Measurement: `%{duration: native_time}`
       * Metadata: `%{env: Tesla.Env.t, exception: Exception.t, stacktrace: Exception.stacktrace}`
+      * `[:tesla, :request]` - This event is emitted for backwards compatibility only and should be considered deprecated.
+      This event can be disabled by setting `config :tesla, Tesla.Middleware.Telemetry, disable_legacy_event: true` in your config.
 
     Please check the [telemetry](https://hexdocs.pm/telemetry/) for the further usage.
     """
+
+    @disable_legacy_event Application.get_env(:tesla, Tesla.Middleware.Telemetry,
+                            disable_legacy_event: false
+                          )[:disable_legacy_event]
 
     @doc false
     def call(env, next, opts) do
@@ -98,8 +104,10 @@ if Code.ensure_loaded?(:telemetry) do
           )
       end
 
-      # retained for backwards compatibility - remove in 2.0
-      :telemetry.execute([:tesla, :request], %{request_time: duration}, %{result: result})
+      if !@disable_legacy_event do
+        # retained for backwards compatibility - remove in 2.0
+        :telemetry.execute([:tesla, :request], %{request_time: duration}, %{result: result})
+      end
     end
   end
 end
