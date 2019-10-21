@@ -27,7 +27,7 @@ defmodule Tesla.Middleware.DecodeRelsTest do
     end
   end
 
-  test "deocde rels" do
+  test "decode rels" do
     assert {:ok, env} = Client.get("/rels")
 
     assert env.opts[:rels] == %{

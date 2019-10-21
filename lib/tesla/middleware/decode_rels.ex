@@ -47,9 +47,9 @@ defmodule Tesla.Middleware.DecodeRels do
   end
 
   defp rel(item) do
-    case Regex.run(~r/\A<(.+)>; rel=(.+)\z/, item, capture: :all_but_first) do
+    case Regex.run(~r/\A<(.+)>; rel=['"]?(.+)['"]?\z/, item, capture: :all_but_first) do
       nil ->
-        {}
+        %{}
 
       link_rel ->
         link_rel
