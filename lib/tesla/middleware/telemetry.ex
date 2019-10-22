@@ -10,18 +10,18 @@ if Code.ensure_loaded?(:telemetry) do
     defmodule MyClient do
       use Tesla
 
-      plug Tesla.Middleware.Telemetry, prefix: [:my_client]
+      plug Tesla.Middleware.Telemetry
 
     end
 
-    :telemetry.attach("my-tesla-telemetry", [:my_client, :tesla, :request, stop], fn event, measurements, meta, config ->
+    :telemetry.attach("my-tesla-telemetry", [:tesla, :request, stop], fn event, measurements, meta, config ->
       # Do something with the event
     end)
     ```
 
     ### Options
 
-    * `:event_prefix` - a list of atoms to prefix to the telemetry event. Defaults to `[]`
+    * `:event_prefix` - a list of atoms to prefix to the telemetry event name. This can be set if you need to distinguish events from different clients. Defaults to `[]`
 
     ## Telemetry Events
 
@@ -40,8 +40,11 @@ if Code.ensure_loaded?(:telemetry) do
     * `[:tesla, :request, :exception]` - emitted at the end of the request when an exception is raised.
       * Measurement: `%{duration: native_time}`
       * Metadata: `%{env: Tesla.Env.t, exception: Exception.t, stacktrace: Exception.stacktrace}`
+
+    ### Legacy Telemetry Events
+
       * `[:tesla, :request]` - This event is emitted for backwards compatibility only and should be considered deprecated.
-      This event can be disabled by setting `config :tesla, Tesla.Middleware.Telemetry, disable_legacy_event: true` in your config.
+      This event can be disabled by setting `config :tesla, Tesla.Middleware.Telemetry, disable_legacy_event: true` in your config. Be sure to run `mix deps.compile --force tesla` after changing this setting to ensure the change is picked up.
 
     Please check the [telemetry](https://hexdocs.pm/telemetry/) for the further usage.
     """
@@ -74,7 +77,9 @@ if Code.ensure_loaded?(:telemetry) do
             reraise e, stacktrace
         end
 
-      emit_stop(result, start_time, prefix, env)
+      duration = System.monotonic_time() - start_time
+
+      emit_stop(env, duration, prefix, result)
 
       result
     end
@@ -85,9 +90,7 @@ if Code.ensure_loaded?(:telemetry) do
       })
     end
 
-    defp emit_stop(result, start_time, prefix, req_env) do
-      duration = System.monotonic_time() - start_time
-
+    defp emit_stop(req_env, duration, prefix, result) do
       case result do
         {:ok, env} ->
           :telemetry.execute(
