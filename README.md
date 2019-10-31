@@ -64,7 +64,7 @@ Add `tesla` as dependency in `mix.exs`:
 ```elixir
 defp deps do
   [
-    {:tesla, "~> 1.2.0"},
+    {:tesla, "~> 1.3.0"},
     {:hackney, "~> 1.14.0"}, # optional, but recommended adapter
     {:jason, ">= 1.0.0"} # optional, required by JSON middleware
   ] 
@@ -188,7 +188,7 @@ When using adapter other than httpc remember to add it to the dependencies list 
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 1.2.0"},
+  [{:tesla, "~> 1.3.0"},
    {:jason, ">= 1.0.0"}, # optional, required by JSON middleware
    {:hackney, "~> 1.10"}] # or :gun etc.
 end
