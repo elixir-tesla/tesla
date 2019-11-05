@@ -62,7 +62,7 @@ defmodule Tesla.Mixfile do
       {:hackney, "~> 1.6", optional: true},
       {:gun, "~> 1.3", optional: true},
       {:castore, "~> 0.1", optional: true},
-      {:mint, "~> 0.4", optional: true},
+      {:mint, "~> 1.0", optional: true},
 
       # json parsers
       {:jason, ">= 1.0.0", optional: true},
@@ -76,8 +76,8 @@ defmodule Tesla.Mixfile do
       # testing & docs
       {:excoveralls, "~> 0.8", only: :test},
       {:httparrot, "~> 1.2", only: :test},
-      {:ex_doc, "~> 0.21.1", only: :dev},
-      {:mix_test_watch, "~> 0.5", only: :dev},
+      {:ex_doc, "~> 0.21", only: :dev},
+      {:mix_test_watch, "~> 1.0", only: :dev},
       {:dialyxir, "~> 1.0.0-rc.3", only: [:dev, :test]},
       {:inch_ex, "~> 0.5.6", only: :docs}
     ]
