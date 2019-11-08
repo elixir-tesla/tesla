@@ -182,7 +182,8 @@ if Code.ensure_loaded?(:gun) do
         end
 
       tls_opts =
-        Map.get(opts, :tls_opts, [])
+        opts
+        |> Map.get(:tls_opts, [])
         |> Keyword.merge(Map.get(opts, :transport_opts, []))
 
       tls_opts =
@@ -226,7 +227,8 @@ if Code.ensure_loaded?(:gun) do
 
     defp do_open_conn(uri, %{proxy: {proxy_host, proxy_port}}, gun_opts, tls_opts) do
       connect_opts =
-        tunnel_opts(uri)
+        uri
+        |> tunnel_opts()
         |> tunnel_tls_opts(uri.scheme, tls_opts)
 
       with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
@@ -239,7 +241,8 @@ if Code.ensure_loaded?(:gun) do
 
     defp do_open_conn(uri, %{proxy: {proxy_type, proxy_host, proxy_port}}, gun_opts, tls_opts) do
       received_version =
-        to_string(proxy_type)
+        proxy_type
+        |> to_string()
         |> String.last()
 
       version =
@@ -250,12 +253,14 @@ if Code.ensure_loaded?(:gun) do
         end
 
       socks_opts =
-        tunnel_opts(uri)
+        uri
+        |> tunnel_opts()
         |> tunnel_tls_opts(uri.scheme, tls_opts)
         |> Map.put(:version, version)
 
       gun_opts =
-        Map.put(gun_opts, :protocols, [:socks])
+        gun_opts
+        |> Map.put(:protocols, [:socks])
         |> Map.update(:socks_opts, socks_opts, &Map.merge(socks_opts, &1))
 
       with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
@@ -272,7 +277,8 @@ if Code.ensure_loaded?(:gun) do
 
       # if gun used from master
       opts_with_master_keys =
-        Map.put(gun_opts, :tls_opts, tls_opts)
+        gun_opts
+        |> Map.put(:tls_opts, tls_opts)
         |> Map.put(:tcp_opts, tcp_opts)
 
       host =
