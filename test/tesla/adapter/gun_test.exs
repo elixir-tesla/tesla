@@ -248,7 +248,7 @@ defmodule Tesla.Adapter.GunTest do
     assert {:ok, %Env{} = response} = call(request, body_as: :stream)
     assert response.status == 200
     assert is_function(response.body)
-    assert reduce_body(response.body) |> byte_size() == 16
+    assert Enum.join(response.body) |> byte_size() == 16
   end
 
   test "read response body in stream with opened connection without closing connection" do
@@ -266,7 +266,7 @@ defmodule Tesla.Adapter.GunTest do
 
     assert response.status == 200
     assert is_function(response.body)
-    assert reduce_body(response.body) |> byte_size() == 16
+    assert Enum.join(response.body) |> byte_size() == 16
 
     assert Process.alive?(conn)
 
@@ -290,7 +290,7 @@ defmodule Tesla.Adapter.GunTest do
 
     assert response.status == 200
     assert is_function(response.body)
-    assert reduce_body(response.body) |> byte_size() == 16
+    assert Enum.join(response.body) |> byte_size() == 16
 
     refute Process.alive?(conn)
   end
@@ -336,6 +336,4 @@ defmodule Tesla.Adapter.GunTest do
         read_body(pid, stream, opts, acc <> part)
     end
   end
-
-  defp reduce_body(body), do: Enum.reduce(body, "", fn part, acc -> acc <> part end)
 end
