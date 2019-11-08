@@ -402,7 +402,6 @@ if Code.ensure_loaded?(:gun) do
           end
 
         {:DOWN, _, _, _, reason} ->
-          if opts[:close_conn], do: close(pid)
           {:error, reason}
       after
         opts[:timeout] || @adapter_default_timeout ->
