@@ -240,16 +240,13 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp do_open_conn(uri, %{proxy: {proxy_type, proxy_host, proxy_port}}, gun_opts, tls_opts) do
-      received_version =
+      version =
         proxy_type
         |> to_string()
         |> String.last()
-
-      version =
-        if received_version in ["4", "5"] do
-          String.to_integer(received_version)
-        else
-          5
+        |> case do
+          "4" -> 4
+          _ -> 5
         end
 
       socks_opts =
