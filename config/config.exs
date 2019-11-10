@@ -19,6 +19,5 @@ if Mix.env() == :test do
 
   config :tesla, MockClient, adapter: Tesla.Mock
 
-  config :tesla, Tesla.Adapter.Mint,
-    cacert: ["./deps/httparrot/priv/ssl/server-ca.crt"]
+  config :tesla, Tesla.Adapter.Mint, cacert: ["./deps/httparrot/priv/ssl/server-ca.crt"]
 end

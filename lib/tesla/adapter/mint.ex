@@ -131,6 +131,17 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     defp open_conn(uri, opts) do
+      opts =
+        with "https" <- uri.scheme,
+             global_cacertfile when not is_nil(global_cacertfile) <-
+               Application.get_env(:tesla, Tesla.Adapter.Mint)[:cacert] do
+          Map.update(opts, :transport_opts, [cacertfile: global_cacertfile], fn tr_opts ->
+            Keyword.put_new(tr_opts, :cacertfile, global_cacertfile)
+          end)
+        else
+          _ -> opts
+        end
+
       with {:ok, conn} <-
              HTTP.connect(String.to_atom(uri.scheme), uri.host, uri.port, Enum.into(opts, [])) do
         # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.

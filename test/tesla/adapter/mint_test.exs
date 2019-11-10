@@ -6,8 +6,7 @@ defmodule Tesla.Adapter.MintTest do
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
 
-  use Tesla.AdapterCase.SSL,
-    transport_opts: [cacertfile: "./deps/httparrot/priv/ssl/server-ca.crt"]
+  use Tesla.AdapterCase.SSL
 
   test "Delay request" do
     request = %Env{
