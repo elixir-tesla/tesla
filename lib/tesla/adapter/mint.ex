@@ -2,7 +2,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
   defmodule Tesla.Adapter.Mint do
     @moduledoc """
     Adapter for [mint](https://github.com/ericmj/mint)
+
     Caution: The minimum supported Elixir version for mint is 1.5.0
+
     Remember to add `{:mint, "~> 1.0"}` and `{:castore, "~> 0.1"}` to dependencies
     Also, you need to recompile tesla after adding `:mint` dependency:
     ```
