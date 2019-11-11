@@ -20,6 +20,8 @@ if Code.ensure_loaded?(Mint.HTTP) do
       use Tesla
       adapter Tesla.Adapter.Mint
     end
+    # set global custom cacertfile
+    config :tesla, Tesla.Adapter.Mint, cacert: ["path_to_cacert"]
     ```
     ### Adapter specific options:
     * `timeout` - Time, while process, will wait for mint messages.
