@@ -247,7 +247,10 @@ defmodule Tesla.Adapter.GunTest do
 
     assert {:ok, %Env{} = response} =
              call(request,
-               certificates_verification: true
+               certificates_verification: true,
+               transport_opts: [
+                 cacertfile: "./deps/httparrot/priv/ssl/server-ca.crt"
+               ]
              )
   end
 
