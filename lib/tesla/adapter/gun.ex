@@ -153,8 +153,14 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp check_original(uri, %{original: original} = opts) do
-      Map.put(opts, :original_matches, original == "#{uri.host}:#{uri.port}")
+    defp check_original(%URI{host: host, port: port}, %{original: original} = opts) do
+      formatted_host =
+        case format_host(host) do
+          {:domain, domain} -> domain
+          {:ip, _ip} -> host
+        end
+
+      Map.put(opts, :original_matches, original == "#{formatted_host}:#{port}")
     end
 
     defp check_original(_uri, opts), do: opts
@@ -200,16 +206,19 @@ if Code.ensure_loaded?(:gun) do
 
       tls_opts =
         with "https" <- uri.scheme,
-             true <- opts[:certificates_verification],
-             host <- to_charlist(uri.host) do
-          host = :idna.encode(host)
+             true <- opts[:certificates_verification] do
+          formatted_host =
+            case format_host(uri.host) do
+              {:domain, domain} -> domain
+              {:ip, _} -> to_charlist(uri.host)
+            end
 
           security_opts = [
             verify: :verify_peer,
             cacertfile: CAStore.file_path(),
             depth: 20,
             reuse_sessions: false,
-            verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: host]}
+            verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: formatted_host]}
           ]
 
           Keyword.merge(security_opts, tls_opts)
@@ -278,10 +287,7 @@ if Code.ensure_loaded?(:gun) do
         |> Map.put(:tls_opts, tls_opts)
         |> Map.put(:tcp_opts, tcp_opts)
 
-      host =
-        uri.host
-        |> to_charlist()
-        |> :idna.encode()
+      {_type, host} = format_host(uri.host)
 
       with {:ok, pid} <- :gun.open(host, uri.port, opts_with_master_keys) do
         {:ok, pid}
@@ -295,7 +301,10 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp tunnel_opts(uri), do: %{host: :idna.encode(to_charlist(uri.host)), port: uri.port}
+    defp tunnel_opts(uri) do
+      {_type, host} = format_host(uri.host)
+      %{host: host, port: uri.port}
+    end
 
     defp tunnel_tls_opts(opts, "https", tls_opts) do
       http2_opts = %{protocols: [:http2], transport: :tls, tls_opts: tls_opts}
@@ -418,6 +427,18 @@ if Code.ensure_loaded?(:gun) do
         {:ok, body}
       else
         {:error, :body_too_large}
+      end
+    end
+
+    defp format_host(string) do
+      charlist = to_charlist(string)
+
+      case :inet.parse_address(charlist) do
+        {:error, :einval} ->
+          {:domain, :idna.encode(charlist)}
+
+        {:ok, ip} when is_tuple(ip) and tuple_size(ip) in [4, 8] ->
+          {:ip, ip}
       end
     end
   end

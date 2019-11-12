@@ -239,6 +239,18 @@ defmodule Tesla.Adapter.GunTest do
              )
   end
 
+  test "certificates_verification with domain" do
+    request = %Env{
+      method: :get,
+      url: "https://localhost:5443"
+    }
+
+    assert {:ok, %Env{} = response} =
+             call(request,
+               certificates_verification: true
+             )
+  end
+
   test "read response body in stream" do
     request = %Env{
       method: :get,
@@ -325,6 +337,34 @@ defmodule Tesla.Adapter.GunTest do
     assert response.status == 200
     assert_receive {:gun_up, pid, :http}
     assert is_pid(pid)
+  end
+
+  test "ipv4" do
+    request = %Env{
+      method: :get,
+      url: "http://0.0.0.0:5080/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, body_as: :chunks, original: "localhost:5080")
+    assert response.status == 200
+    %{pid: pid, stream: stream, opts: opts} = response.body
+    assert %{origin_host: {0, 0, 0, 0}} = :gun.info(pid)
+    assert opts[:original_matches] == false
+    assert read_body(pid, stream, opts) |> byte_size() == 16
+  end
+
+  test "original does not match" do
+    request = %Env{
+      method: :get,
+      url: "http://localhost:5080/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, body_as: :chunks, original: "0.0.0.0:5080")
+    assert response.status == 200
+    %{pid: pid, stream: stream, opts: opts} = response.body
+    assert %{origin_host: 'localhost'} = :gun.info(pid)
+    assert opts[:original_matches] == false
+    assert read_body(pid, stream, opts) |> byte_size() == 16
   end
 
   defp read_body(pid, stream, opts, acc \\ "") do
