@@ -154,13 +154,7 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp check_original(%URI{host: host, port: port}, %{original: original} = opts) do
-      formatted_host =
-        case format_host(host) do
-          {:domain, domain} -> domain
-          {:ip, _ip} -> host
-        end
-
-      Map.put(opts, :original_matches, original == "#{formatted_host}:#{port}")
+      Map.put(opts, :original_matches, original == "#{domain_or_fallback(host)}:#{port}")
     end
 
     defp check_original(_uri, opts), do: opts
@@ -207,18 +201,13 @@ if Code.ensure_loaded?(:gun) do
       tls_opts =
         with "https" <- uri.scheme,
              true <- opts[:certificates_verification] do
-          formatted_host =
-            case format_host(uri.host) do
-              {:domain, domain} -> domain
-              {:ip, _} -> to_charlist(uri.host)
-            end
-
           security_opts = [
             verify: :verify_peer,
             cacertfile: CAStore.file_path(),
             depth: 20,
             reuse_sessions: false,
-            verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: formatted_host]}
+            verify_fun:
+              {&:ssl_verify_hostname.verify_fun/3, [check_hostname: domain_or_fallback(uri.host)]}
           ]
 
           Keyword.merge(security_opts, tls_opts)
@@ -287,7 +276,7 @@ if Code.ensure_loaded?(:gun) do
         |> Map.put(:tls_opts, tls_opts)
         |> Map.put(:tcp_opts, tcp_opts)
 
-      {_type, host} = format_host(uri.host)
+      {_type, host} = domain_or_ip(uri.host)
 
       with {:ok, pid} <- :gun.open(host, uri.port, opts_with_master_keys) do
         {:ok, pid}
@@ -302,7 +291,7 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp tunnel_opts(uri) do
-      {_type, host} = format_host(uri.host)
+      {_type, host} = domain_or_ip(uri.host)
       %{host: host, port: uri.port}
     end
 
@@ -430,8 +419,15 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp format_host(string) do
-      charlist = to_charlist(string)
+    defp domain_or_fallback(host) do
+      case domain_or_ip(host) do
+        {:domain, domain} -> domain
+        {:ip, _ip} -> to_charlist(host)
+      end
+    end
+
+    defp domain_or_ip(host) do
+      charlist = to_charlist(host)
 
       case :inet.parse_address(charlist) do
         {:error, :einval} ->
