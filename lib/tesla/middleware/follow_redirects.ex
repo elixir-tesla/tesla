@@ -51,8 +51,8 @@ defmodule Tesla.Middleware.FollowRedirects do
           location ->
             location = parse_location(location, res)
 
-            %{env | status: res.status}
-            |> new_request(location)
+            env
+            |> new_request(res.status, location)
             |> redirect(next, left - 1)
         end
 
@@ -65,8 +65,15 @@ defmodule Tesla.Middleware.FollowRedirects do
   # requested resource is not available, however a related resource (or another redirect)
   # available via GET is available at the specified location.
   # https://tools.ietf.org/html/rfc7231#section-6.4.4
-  defp new_request(%{status: 303} = env, location), do: %{env | url: location, method: :get}
-  defp new_request(env, location), do: %{env | url: location}
+  defp new_request(env, 303, location), do: %{env | url: location, method: :get, query: []}
+
+  # The 307 (Temporary Redirect) status code indicates that the target
+  # resource resides temporarily under a different URI and the user agent
+  # MUST NOT change the request method (...)
+  # https://tools.ietf.org/html/rfc7231#section-6.4.7
+  defp new_request(env, 307, location), do: %{env | url: location}
+
+  defp new_request(env, _, location), do: %{env | url: location, query: []}
 
   defp parse_location("https://" <> _rest = location, _env), do: location
   defp parse_location("http://" <> _rest = location, _env), do: location
