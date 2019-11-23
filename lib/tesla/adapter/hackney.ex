@@ -1,7 +1,7 @@
 if Code.ensure_loaded?(:hackney) do
   defmodule Tesla.Adapter.Hackney do
     @moduledoc """
-    Adapter for [hackney](https://github.com/benoitc/hackney)
+    Adapter for [hackney](https://github.com/benoitc/hackney).
 
     Remember to add `{:hackney, "~> 1.13"}` to dependencies (and `:hackney` to applications in `mix.exs`)
     Also, you need to recompile tesla after adding `:hackney` dependency:
@@ -11,7 +11,8 @@ if Code.ensure_loaded?(:hackney) do
     mix deps.compile tesla
     ```
 
-    ### Example usage
+    ## Example usage
+
     ```
     # set globally in config/config.exs
     config :tesla, :adapter, Tesla.Adapter.Hackney
@@ -27,7 +28,7 @@ if Code.ensure_loaded?(:hackney) do
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
 
-    @doc false
+    @impl Tesla.Adapter
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts) do
         {:ok, %{env | status: status, headers: format_headers(headers), body: format_body(body)}}

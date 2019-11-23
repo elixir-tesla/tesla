@@ -1,11 +1,10 @@
 if Code.ensure_loaded?(:telemetry) do
   defmodule Tesla.Middleware.Telemetry do
-    @behaviour Tesla.Middleware
-
     @moduledoc """
     Send the request time and meta-information through telemetry.
 
-    ### Example usage
+    ## Example usage
+
     ```
     defmodule MyClient do
       use Tesla
@@ -22,7 +21,9 @@ if Code.ensure_loaded?(:telemetry) do
     Please check the [telemetry](https://hexdocs.pm/telemetry/) for the further usage.
     """
 
-    @doc false
+    @behaviour Tesla.Middleware
+
+    @impl Tesla.Middleware
     def call(env, next, _opts) do
       {time, res} = :timer.tc(Tesla, :run, [env, next])
       :telemetry.execute([:tesla, :request], %{request_time: time}, %{result: res})

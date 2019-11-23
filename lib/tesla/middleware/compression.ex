@@ -1,12 +1,11 @@
 defmodule Tesla.Middleware.Compression do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Compress requests and decompress responses.
 
   Supports "gzip" and "deflate" encodings using erlang's built-in `:zlib` module.
 
-  ### Example usage
+  ## Example usage
+
   ```
   defmodule MyClient do
     use Tesla
@@ -15,11 +14,14 @@ defmodule Tesla.Middleware.Compression do
   end
   ```
 
-  ### Options
+  ## Options
+
   - `:format` - request compression format, `"gzip"` (default) or `"deflate"`
   """
 
-  @doc false
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     env
     |> compress(opts)
@@ -30,7 +32,9 @@ defmodule Tesla.Middleware.Compression do
   defp compressable?(body), do: is_binary(body)
 
   @doc """
-  Compress request, used by `Tesla.Middleware.CompressRequest`
+  Compress request.
+
+  It is used by `Tesla.Middleware.CompressRequest`.
   """
   def compress(env, opts) do
     if compressable?(env.body) do
@@ -48,7 +52,9 @@ defmodule Tesla.Middleware.Compression do
   defp compress_body(body, "deflate"), do: :zlib.zip(body)
 
   @doc """
-  Decompress response, used by `Tesla.Middleware.DecompressResponse`
+  Decompress response.
+
+  It is used by `Tesla.Middleware.DecompressResponse`.
   """
   def decompress({:ok, env}), do: {:ok, decompress(env)}
   def decompress({:error, reasonn}), do: {:error, reasonn}
@@ -64,15 +70,15 @@ defmodule Tesla.Middleware.Compression do
 end
 
 defmodule Tesla.Middleware.CompressRequest do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Only compress request.
 
   See `Tesla.Middleware.Compression` for options.
   """
 
-  @doc false
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     env
     |> Tesla.Middleware.Compression.compress(opts)
@@ -81,15 +87,15 @@ defmodule Tesla.Middleware.CompressRequest do
 end
 
 defmodule Tesla.Middleware.DecompressResponse do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Only decompress response.
 
   See `Tesla.Middleware.Compression` for options.
   """
 
-  @doc false
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, _opts) do
     env
     |> Tesla.run(next)

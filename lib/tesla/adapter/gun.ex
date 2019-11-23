@@ -1,51 +1,60 @@
 if Code.ensure_loaded?(:gun) do
   defmodule Tesla.Adapter.Gun do
     @moduledoc """
-    Adapter for [gun](https://github.com/ninenines/gun)
+    Adapter for [gun](https://github.com/ninenines/gun).
+
     Remember to add `{:gun, "~> 1.3"}` to dependencies.
     In version 1.3 gun sends `host` header with port. Fixed in master branch.
     Also, you need to recompile tesla after adding `:gun` dependency:
+
     ```
     mix deps.clean tesla
     mix deps.compile tesla
     ```
-    ### Example usage
+
+    ## Example usage
+
     ```
     # set globally in config/config.exs
     config :tesla, :adapter, Tesla.Adapter.Gun
+
     # set per module
     defmodule MyClient do
       use Tesla
       adapter Tesla.Adapter.Gun
     end
     ```
-    ### Adapter specific options:
-    * `timeout` - Time, while process, will wait for gun messages.
-    * `body_as` - What will be returned in `%Tesla.Env{}` body key. Possible values - `:plain`, `:stream`, `:chunks`. Defaults to `:plain`.
-        * `:plain` - as binary.
-        * `:stream` - as stream. If you don't want to close connection (because you want to reuse it later) pass `close_conn: false` in adapter opts.
-        * `:chunks` - as chunks. You can get response body in chunks using `Tesla.Adapter.Gun.read_chunk/3` function.
+
+    ## Adapter specific options
+
+    - `:timeout` - Time, while process, will wait for gun messages.
+    - `:body_as` - What will be returned in `%Tesla.Env{}` body key. Possible values - `:plain`, `:stream`, `:chunks`. Defaults to `:plain`.
+        - `:plain` - as binary.
+        - `:stream` - as stream. If you don't want to close connection (because you want to reuse it later) pass `close_conn: false` in adapter opts.
+        - `:chunks` - as chunks. You can get response body in chunks using `Tesla.Adapter.Gun.read_chunk/3` function.
         Processing of the chunks and checking body size must be done by yourself. Example of processing function is in `test/tesla/adapter/gun_test.exs` - `Tesla.Adapter.GunTest.read_body/4`. If you don't need connection later don't forget to close it with `Tesla.Adapter.Gun.close/1`.
-    * `max_body` - Max response body size in bytes. Works only with `body_as: :plain`, with other settings you need to check response body size by yourself.
-    * `conn` - Opened connection pid with gun. Is used for reusing gun connections.
-    * `original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise adapter will use connection for another open host. Example: `"example.com:80"`.
-    * `close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections. Defaults to `true`.
-    * `certificates_verification` - Add SSL certificates verification. [erlang-certifi](https://github.com/certifi/erlang-certifi) [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
-    * `proxy` - Proxy for requests. **Socks proxy are supported only for gun master branch**. Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, `{:socks5, 'localhost', 1234}`.
-    ### [Gun options](https://ninenines.eu/docs/en/gun/1.3/manual/gun/):
-    * `connect_timeout` - Connection timeout.
-    * `http_opts` - Options specific to the HTTP protocol.
-    * `http2_opts` -  Options specific to the HTTP/2 protocol.
-    * `protocols` - Ordered list of preferred protocols. Defaults: [http2, http] - for :tls, [http] - for :tcp.
-    * `trace` - Whether to enable dbg tracing of the connection process. Should only be used during debugging. Default: false.
-    * `transport` - Whether to use TLS or plain TCP. The default varies depending on the port used. Port 443 defaults to tls. All other ports default to tcp.
-    * `transport_opts` - Transport options. They are TCP options or TLS options depending on the selected transport. Default: []. Gun version: 1.3
-    * `tls_opts` - TLS transport options. Default: []. Gun from master branch.
-    * `tcp_opts` - TCP trasnport options. Default: []. Gun from master branch.
-    * `socks_opts` - Options for socks. Default: []. Gun from master branch.
-    * `ws_opts` - Options specific to the Websocket protocol. Default: %{}.
-        * `compress` - Whether to enable permessage-deflate compression. This does not guarantee that compression will be used as it is the server that ultimately decides. Defaults to false.
-        * `protocols` - A non-empty list enables Websocket protocol negotiation. The list of protocols will be sent in the sec-websocket-protocol request header. The handler module interface is currently undocumented and must be set to `gun_ws_h`.
+    - `:max_body` - Max response body size in bytes. Works only with `body_as: :plain`, with other settings you need to check response body size by yourself.
+    - `:conn` - Opened connection pid with gun. Is used for reusing gun connections.
+    - `:original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise adapter will use connection for another open host. Example: `"example.com:80"`.
+    - `:close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections. Defaults to `true`.
+    - `:certificates_verification` - Add SSL certificates verification. [erlang-certifi](https://github.com/certifi/erlang-certifi) [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
+    - `:proxy` - Proxy for requests. **Socks proxy are supported only for gun master branch**. Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, `{:socks5, 'localhost', 1234}`.
+
+    ## [Gun options](https://ninenines.eu/docs/en/gun/1.3/manual/gun/)
+
+    - `:connect_timeout` - Connection timeout.
+    - `:http_opts` - Options specific to the HTTP protocol.
+    - `:http2_opts` -  Options specific to the HTTP/2 protocol.
+    - `:protocols` - Ordered list of preferred protocols. Defaults: `[:http2, :http]`- for :tls, `[:http]` - for :tcp.
+    - `:trace` - Whether to enable dbg tracing of the connection process. Should only be used during debugging. Default: false.
+    - `:transport` - Whether to use TLS or plain TCP. The default varies depending on the port used. Port 443 defaults to tls. All other ports default to tcp.
+    - `:transport_opts` - Transport options. They are TCP options or TLS options depending on the selected transport. Default: `[]`. Gun version: 1.3
+    - `:tls_opts` - TLS transport options. Default: `[]`. Gun from master branch.
+    - `:tcp_opts` - TCP trasnport options. Default: `[]`. Gun from master branch.
+    - `:socks_opts` - Options for socks. Default: `[]`. Gun from master branch.
+    - `:ws_opts` - Options specific to the Websocket protocol. Default: `%{}`.
+        - `:compress` - Whether to enable permessage-deflate compression. This does not guarantee that compression will be used as it is the server that ultimately decides. Defaults to false.
+        - `:protocols` - A non-empty list enables Websocket protocol negotiation. The list of protocols will be sent in the sec-websocket-protocol request header. The handler module interface is currently undocumented and must be set to `gun_ws_h`.
     """
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
@@ -65,8 +74,7 @@ if Code.ensure_loaded?(:gun) do
 
     @adapter_default_timeout 1_000
 
-    @impl true
-    @doc false
+    @impl Tesla.Adapter
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts) do
         {:ok, %{env | status: status, headers: format_headers(headers), body: body}}
@@ -75,6 +83,7 @@ if Code.ensure_loaded?(:gun) do
 
     @doc """
     Reads chunk of the response body.
+
     Returns `{:fin, binary()}` if all body received, otherwise returns `{:nofin, binary()}`.
     """
     @spec read_chunk(pid(), reference(), keyword() | map()) ::
@@ -98,7 +107,7 @@ if Code.ensure_loaded?(:gun) do
     end
 
     @doc """
-    Brutally close the `gun` connection
+    Brutally close the `gun` connection.
     """
     @spec close(pid()) :: :ok
     defdelegate close(pid), to: :gun

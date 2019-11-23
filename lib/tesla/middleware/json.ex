@@ -1,6 +1,4 @@
 defmodule Tesla.Middleware.JSON do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Encode requests and decode responses as JSON.
 
@@ -14,8 +12,8 @@ defmodule Tesla.Middleware.JSON do
   mix deps.compile tesla
   ```
 
+  ## Example usage
 
-  ### Example usage
   ```
   defmodule MyClient do
     use Tesla
@@ -30,7 +28,8 @@ defmodule Tesla.Middleware.JSON do
   end
   ```
 
-  ### Options
+  ## Options
+
   - `:decode` - decoding function
   - `:encode` - encoding function
   - `:encode_content_type` - content-type to be used in request header
@@ -39,13 +38,15 @@ defmodule Tesla.Middleware.JSON do
   - `:decode_content_types` - list of additional decodable content-types
   """
 
+  @behaviour Tesla.Middleware
+
   # NOTE: text/javascript added to support Facebook Graph API.
   #       see https://github.com/teamon/tesla/pull/13
   @default_content_types ["application/json", "text/javascript"]
   @default_encode_content_type "application/json"
   @default_engine Jason
 
-  @doc false
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
 
@@ -56,7 +57,9 @@ defmodule Tesla.Middleware.JSON do
   end
 
   @doc """
-  Encode request body as JSON. Used by `Tesla.Middleware.EncodeJson`
+  Encode request body as JSON.
+
+  It is used by `Tesla.Middleware.EncodeJson`.
   """
   def encode(env, opts) do
     with true <- encodable?(env),
@@ -91,7 +94,9 @@ defmodule Tesla.Middleware.JSON do
   defp encodable?(_), do: true
 
   @doc """
-  Decode response body as JSON. Used by `Tesla.Middleware.DecodeJson`
+  Decode response body as JSON.
+
+  It is used by `Tesla.Middleware.DecodeJson`.
   """
   def decode(env, opts) do
     with true <- decodable?(env, opts),

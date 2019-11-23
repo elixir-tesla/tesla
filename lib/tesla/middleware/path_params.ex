@@ -1,13 +1,11 @@
 defmodule Tesla.Middleware.PathParams do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Use templated URLs with separate params.
 
   Useful when logging or reporting metric per URL.
 
+  ## Example usage
 
-  ### Example usage
   ```
   defmodule MyClient do
     use Tesla
@@ -24,10 +22,11 @@ defmodule Tesla.Middleware.PathParams do
   ```
   """
 
+  @behaviour Tesla.Middleware
+
   @rx ~r/:([\w_]+)/
 
-  @doc false
-  @impl true
+  @impl Tesla.Middleware
   def call(env, next, _) do
     url = build_url(env.url, env.opts[:path_params])
     Tesla.run(%{env | url: url}, next)

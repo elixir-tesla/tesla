@@ -7,7 +7,7 @@ defmodule TeslaDocsTest do
     use Tesla, docs: false
 
     @doc """
-    Something something
+    Something something.
     """
     def custom(url), do: get(url)
   end

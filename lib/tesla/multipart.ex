@@ -2,18 +2,21 @@ defmodule Tesla.Multipart do
   @moduledoc """
   Multipart functionality.
 
-  ### Example
+  ## Example
+
   ```
   mp =
-    Multipart.new
+    Multipart.new()
     |> Multipart.add_content_type_param("charset=utf-8")
     |> Multipart.add_field("field1", "foo")
-    |> Multipart.add_field("field2", "bar", headers: [{"content-id", "1"}, {"content-type", "text/plain"}])
+    |> Multipart.add_field("field2", "bar",
+      headers: [{"content-id", "1"}, {"content-type", "text/plain"}]
+    )
     |> Multipart.add_file("test/tesla/multipart_test_file.sh")
     |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
     |> Multipart.add_file_content("sample file content", "sample.txt")
 
-    response = client.post(url, mp)
+  response = client.post(url, mp)
   ```
   """
 
@@ -83,7 +86,8 @@ defmodule Tesla.Multipart do
   @doc """
   Add a file part. The file will be streamed.
 
-  Options:
+  ## Options
+
   - `:name` - name of form param
   - `:filename` - filename (defaults to path basename)
   - `:headers` - additional headers
@@ -107,9 +111,12 @@ defmodule Tesla.Multipart do
   end
 
   @doc """
-  Add a file part. Same of `add_file/3` but the file content is read from `data` input parameter.
+  Add a file part with value.
 
-  Options:
+  Same of `add_file/3` but the file content is read from `data` input argument.
+
+  ## Options
+
   - `:name` - name of form param
   - `:headers` - additional headers
   """
@@ -170,7 +177,6 @@ defmodule Tesla.Multipart do
     ["content-disposition: form-data; #{ds}\r\n"]
   end
 
-  @doc false
   @spec unique_string(pos_integer) :: String.t()
   defp unique_string(length) do
     Enum.reduce(1..length, [], fn _i, acc ->
