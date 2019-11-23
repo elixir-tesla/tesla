@@ -1,6 +1,4 @@
 defmodule Tesla.Middleware.Retry do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Retry using exponential backoff and full jitter. This middleware only retries in the
   case of connection errors (`nxdomain`, `connrefused` etc). Application error
@@ -21,7 +19,8 @@ defmodule Tesla.Middleware.Retry do
   our retried requests don't "harmonize" making it harder for the downstream
   service to heal.
 
-  ### Example
+  ## Example
+
   ```
   defmodule MyClient do
     use Tesla
@@ -38,12 +37,15 @@ defmodule Tesla.Middleware.Retry do
   end
   ```
 
-  ### Options
-  - `:delay`        - The base delay in milliseconds (defaults to 50)
-  - `:max_retries`  - maximum number of retries (defaults to 5)
-  - `:max_delay`    - maximum delay in milliseconds (defaults to 5000)
+  ## Options
+
+  - `:delay` - The base delay in milliseconds (defaults to 50)
+  - `:max_retries` - maximum number of retries (defaults to 5)
+  - `:max_delay` - maximum delay in milliseconds (defaults to 5000)
   - `:should_retry` - function to determine if request should be retried
   """
+
+  @behaviour Tesla.Middleware
 
   @defaults [
     delay: 50,
@@ -51,7 +53,7 @@ defmodule Tesla.Middleware.Retry do
     max_delay: 5_000
   ]
 
-  @doc false
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
 

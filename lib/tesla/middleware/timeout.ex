@@ -1,10 +1,9 @@
 defmodule Tesla.Middleware.Timeout do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Timeout http request after X seconds.
 
-  ### Example
+  ## Example
+
   ```
   defmodule MyClient do
     use Tesla
@@ -13,13 +12,16 @@ defmodule Tesla.Middleware.Timeout do
   end
   ```
 
-  ### Options
+  ## Options
+
   - `:timeout` - number of milliseconds a request is allowed to take (defaults to 1000)
   """
 
+  @behaviour Tesla.Middleware
+
   @default_timeout 1_000
 
-  @doc false
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
     timeout = Keyword.get(opts, :timeout, @default_timeout)

@@ -36,14 +36,12 @@ defmodule Tesla.Middleware.Logger.Formatter do
 end
 
 defmodule Tesla.Middleware.Logger do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Log requests using Elixir's Logger.
 
   With the default settings it logs request method, url, response status and time taken in milliseconds.
 
-  ### Example usage
+  ## Example usage
   ```
   defmodule MyClient do
     use Tesla
@@ -52,7 +50,7 @@ defmodule Tesla.Middleware.Logger do
   end
   ```
 
-  ### Options
+  ## Options
   - `:log_level` - custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
 
@@ -95,7 +93,7 @@ defmodule Tesla.Middleware.Logger do
   end
   ```
 
-  ### Logger Debug output
+  ## Logger Debug output
 
   When the Elixir Logger log level is set to `:debug`
   Tesla Logger will show full request & response.
@@ -108,7 +106,7 @@ defmodule Tesla.Middleware.Logger do
   # config/dev.local.exs
   config :tesla, Tesla.Middleware.Logger, debug: false
   ```
-  #### Filter headers
+  ### Filter headers
 
   To sanitize sensitive headers such as `authorization` in
   debug logs, add them to the `:filter_headers` option.
@@ -121,6 +119,8 @@ defmodule Tesla.Middleware.Logger do
   ```
   """
 
+  @behaviour Tesla.Middleware
+
   alias Tesla.Middleware.Logger.Formatter
 
   @config Application.get_env(:tesla, __MODULE__, [])
@@ -130,7 +130,7 @@ defmodule Tesla.Middleware.Logger do
 
   require Logger
 
-  @doc false
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     {time, response} = :timer.tc(Tesla, :run, [env, next])
     level = log_level(response, opts)

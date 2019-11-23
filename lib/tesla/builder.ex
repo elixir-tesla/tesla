@@ -20,29 +20,26 @@ defmodule Tesla.Builder do
 
       if unquote(docs) do
         @doc """
-        Perform a request
+        Perform a request.
 
-        Options:
-        - `:method`   - the request method, one of [:head, :get, :delete, :trace, :options, :post, :put, :patch]
-        - `:url`      - either full url e.g. "http://example.com/some/path" or just "/some/path" if using `Tesla.Middleware.BaseUrl`
-        - `:query`    - a keyword list of query params, e.g. `[page: 1, per_page: 100]`
-        - `:headers`  - a keyworld list of headers, e.g. `[{"content-type", "text/plain"}]`
-        - `:body`     - depends on used middleware:
+        ## Options
+
+        - `:method` - the request method, one of [:head, :get, :delete, :trace, :options, :post, :put, :patch]
+        - `:url` - either full url e.g. "http://example.com/some/path" or just "/some/path" if using `Tesla.Middleware.BaseUrl`
+        - `:query` - a keyword list of query params, e.g. `[page: 1, per_page: 100]`
+        - `:headers` - a keyworld list of headers, e.g. `[{"content-type", "text/plain"}]`
+        - `:body` - depends on used middleware:
             - by default it can be a binary
             - if using e.g. JSON encoding middleware it can be a nested map
             - if adapter supports it it can be a Stream with any of the above
-        - `:opts`     - custom, per-request middleware or adapter options
+        - `:opts` - custom, per-request middleware or adapter options
 
-        Examples:
+        ## Examples
 
             ExampleApi.request(method: :get, url: "/users/path")
 
-        You can also use shortcut methods like:
-
+            # use shortcut methods
             ExampleApi.get("/users/1")
-
-        or
-
             ExampleApi.post(client, "/users", %{name: "Jon"})
         """
       else
@@ -79,7 +76,7 @@ defmodule Tesla.Builder do
   end
 
   @doc """
-  Attach middleware to your API client
+  Attach middleware to your API client.
 
   ```
   defmodule ExampleApi do
@@ -115,7 +112,7 @@ defmodule Tesla.Builder do
   end
 
   @doc """
-  Choose adapter for your API client
+  Choose adapter for your API client.
 
   ```
   defmodule ExampleApi do

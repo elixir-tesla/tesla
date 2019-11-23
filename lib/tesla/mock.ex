@@ -2,7 +2,7 @@ defmodule Tesla.Mock do
   @moduledoc """
   Mock adapter for better testing.
 
-  ### Setup
+  ## Setup
 
   ```
   # config/test.exs
@@ -12,16 +12,17 @@ defmodule Tesla.Mock do
   config :tesla, MyClient, adapter: Tesla.Mock
   ```
 
-  ### Example test
+  ## Example test
+
   ```
   defmodule MyAppTest do
     use ExUnit.Case
 
     setup do
-      Tesla.Mock.mock fn
+      Tesla.Mock.mock(fn
         %{method: :get} ->
           %Tesla.Env{status: 200, body: "hello"}
-      end
+      end)
 
       :ok
     end
@@ -34,31 +35,36 @@ defmodule Tesla.Mock do
   end
   ```
 
-  ### Setting up mocks
+  ## Setting up mocks
+
   ```
   # Match on method & url and return whole Tesla.Env
-  Tesla.Mock.mock fn
-    %{method: :get,  url: "http://example.com/list"} ->
+  Tesla.Mock.mock(fn
+    %{method: :get, url: "http://example.com/list"} ->
       %Tesla.Env{status: 200, body: "hello"}
-  end
+  end)
 
   # You can use any logic required
-  Tesla.Mock.mock fn env ->
+  Tesla.Mock.mock(fn env ->
     case env.url do
       "http://example.com/list" ->
         %Tesla.Env{status: 200, body: "ok!"}
+
       _ ->
         %Tesla.Env{status: 404, body: "NotFound"}
-  end
+    end
+  end)
+
 
   # mock will also accept short version of response
   # in the form of {status, headers, body}
-  Tesla.Mock.mock fn
+  Tesla.Mock.mock(fn
     %{method: :post} -> {201, %{}, %{id: 42}}
-  end
+  end)
   ```
 
-  ### Global mocks
+  ## Global mocks
+
   By default, mocks are bound to the current process,
   i.e. the process running a single test case.
   This design allows proper isolation between test cases

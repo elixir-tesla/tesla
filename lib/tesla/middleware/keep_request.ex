@@ -1,10 +1,9 @@
 defmodule Tesla.Middleware.KeepRequest do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Store request body & headers into opts.
 
-  ### Example
+  ## Example
+
   ```
   defmodule MyClient do
     use Tesla
@@ -13,12 +12,21 @@ defmodule Tesla.Middleware.KeepRequest do
   end
 
   {:ok, env} = MyClient.post("/", "request-data")
-  env.body # => "response-data"
-  env.opts[:req_body] # => "request-data"
-  env.opts[:req_headers] # => [{"request-headers", "are-safe"}, ...]
+
+  env.body
+  # => "response-data"
+
+  env.opts[:req_body]
+  # => "request-data"
+
+  env.opts[:req_headers]
+  # => [{"request-headers", "are-safe"}, ...]
   ```
   """
-  @doc false
+
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, _opts) do
     env
     |> Tesla.put_opt(:req_body, env.body)

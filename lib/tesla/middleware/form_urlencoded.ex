@@ -1,16 +1,16 @@
 defmodule Tesla.Middleware.FormUrlencoded do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Send request body as `application/x-www-form-urlencoded`.
+
   Performs encoding of `body` from a `Map` such as `%{"foo" => "bar"}` into
   url encoded data.
+
   Performs decoding of the response into a map when urlencoded and content-type
   is `application/x-www-form-urlencoded`, so `"foo=bar"` becomes
   `%{"foo" => "bar"}`.
 
+  ## Example usage
 
-  ### Example usage
   ```
   defmodule Myclient do
     use Tesla
@@ -21,11 +21,13 @@ defmodule Tesla.Middleware.FormUrlencoded do
   Myclient.post("/url", %{key: :value})
   ```
 
-  ### Options
+  ## Options
+
   - `:decode` - decoding function, defaults to `URI.decode_query/1`
   - `:encode` - encoding function, defaults to `URI.encode_query/1`
 
-  ### Nested Maps
+  ## Nested Maps
+
   Natively, nested maps are not supported in the body, so
   `%{"foo" => %{"bar" => "baz"}}` won't be encoded and raise an error.
   Support for this specific case is obtained by configuring the middleware to
@@ -41,11 +43,14 @@ defmodule Tesla.Middleware.FormUrlencoded do
   end
 
   Myclient.post("/url", %{key: %{nested: "value"}})
+  ```
   """
+
+  @behaviour Tesla.Middleware
 
   @content_type "application/x-www-form-urlencoded"
 
-  @doc false
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     env
     |> encode(opts)

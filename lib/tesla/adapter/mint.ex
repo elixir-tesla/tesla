@@ -1,17 +1,20 @@
 if Code.ensure_loaded?(Mint.HTTP) do
   defmodule Tesla.Adapter.Mint do
     @moduledoc """
-    Adapter for [mint](https://github.com/elixir-mint/mint)
+    Adapter for [mint](https://github.com/elixir-mint/mint).
 
     Caution: The minimum supported Elixir version for mint is 1.5.0
 
     Remember to add `{:mint, "~> 1.0"}` and `{:castore, "~> 0.1"}` to dependencies
     Also, you need to recompile tesla after adding `:mint` dependency:
+
     ```
     mix deps.clean tesla
     mix deps.compile tesla
     ```
-    ### Example usage
+
+    ## Example usage
+
     ```
     # set globally in config/config.exs
     config :tesla, :adapter, Tesla.Adapter.Mint
@@ -23,27 +26,31 @@ if Code.ensure_loaded?(Mint.HTTP) do
     # set global custom cacertfile
     config :tesla, Tesla.Adapter.Mint, cacert: ["path_to_cacert"]
     ```
-    ### Adapter specific options:
-    * `timeout` - Time, while process, will wait for mint messages.
-    * `body_as` - What will be returned in `%Tesla.Env{}` body key. Possible values - `:plain`, `:stream`, `:chunks`. Defaults to `:plain`.
-      * `:plain` - as binary.
-      * `:stream` - as stream. If you don't want to close connection (because you want to reuse it later) pass `close_conn: false` in adapter opts.
-      * `:chunks` - as chunks. You can get response body in chunks using `Tesla.Adapter.Mint.read_chunk/3` function.
+
+    ## Adapter specific options:
+
+    - `:timeout` - Time, while process, will wait for mint messages.
+    - `:body_as` - What will be returned in `%Tesla.Env{}` body key. Possible values - `:plain`, `:stream`, `:chunks`. Defaults to `:plain`.
+      - `:plain` - as binary.
+      - `:stream` - as stream. If you don't want to close connection (because you want to reuse it later) pass `close_conn: false` in adapter opts.
+      - `:chunks` - as chunks. You can get response body in chunks using `Tesla.Adapter.Mint.read_chunk/3` function.
       Processing of the chunks and checking body size must be done by yourself. Example of processing function is in `test/tesla/adapter/mint_test.exs` - `Tesla.Adapter.MintTest.read_body/4`. If you don't need connection later don't forget to close it with `Tesla.Adapter.Mint.close/1`.
-    * `max_body` - Max response body size in bytes. Works only with `body_as: :plain`, with other settings you need to check response body size by yourself.
-    * `conn` - Opened connection with mint. Is used for reusing mint connections.
-    * `original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise adapter will use connection for another open host.
-    * `close_conn` - Close connection or not after receiving full response body. Is used for reusing mint connections. Defaults to `true`.
-    * `proxy` - Proxy settings. E.g.: `{:http, "localhost", 8888, []}`, `{:http, "127.0.0.1", 8888, []}`
+    - `:max_body` - Max response body size in bytes. Works only with `body_as: :plain`, with other settings you need to check response body size by yourself.
+    - `:conn` - Opened connection with mint. Is used for reusing mint connections.
+    - `:original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise adapter will use connection for another open host.
+    - `:close_conn` - Close connection or not after receiving full response body. Is used for reusing mint connections. Defaults to `true`.
+    - `:proxy` - Proxy settings. E.g.: `{:http, "localhost", 8888, []}`, `{:http, "127.0.0.1", 8888, []}`
     """
+
     @behaviour Tesla.Adapter
+
     import Tesla.Adapter.Shared
     alias Tesla.Multipart
     alias Mint.HTTP
 
     @default timeout: 2_000, body_as: :plain, close_conn: true, mode: :active
 
-    @impl true
+    @impl Tesla.Adapter
     def call(env, opts) do
       opts = Tesla.Adapter.opts(@default, env, opts)
 

@@ -1,10 +1,9 @@
 defmodule Tesla.Middleware.FollowRedirects do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Follow 3xx redirects
 
-  ### Example
+  ## Example
+
   ```
   defmodule MyClient do
     use Tesla
@@ -13,15 +12,17 @@ defmodule Tesla.Middleware.FollowRedirects do
   end
   ```
 
-  ### Options
-  - `:max_redirects` - limit number of redirects (default: `5`)
+  ## Options
 
+  - `:max_redirects` - limit number of redirects (default: `5`)
   """
+
+  @behaviour Tesla.Middleware
 
   @max_redirects 5
   @redirect_statuses [301, 302, 303, 307, 308]
 
-  @doc false
+  @impl Tesla.Middleware
   def call(env, next, opts \\ []) do
     max = Keyword.get(opts || [], :max_redirects, @max_redirects)
 
