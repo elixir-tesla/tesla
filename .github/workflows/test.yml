@@ -50,6 +50,7 @@ jobs:
         args: |
           git remote set-branches origin '*' && \
           git fetch origin v1.0.0-compat && \
+          rm -r test && \
           git checkout origin/v1.0.0-compat -- test
       
     - name: Run Tests for 1.0.0 branch
