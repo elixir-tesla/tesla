@@ -264,6 +264,9 @@ if Code.ensure_loaded?(:gun) do
       else
         {:error, {:options, {:protocols, [:socks]}}} ->
           {:error, "socks protocol is not supported"}
+
+        error ->
+          error
       end
     end
 
@@ -287,6 +290,9 @@ if Code.ensure_loaded?(:gun) do
             uri.port,
             Map.put(gun_opts, :transport_opts, tls_opts)
           )
+
+        error ->
+          error
       end
     end
 
