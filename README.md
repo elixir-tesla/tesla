@@ -41,7 +41,7 @@ defmodule GitHub do
   plug Tesla.Middleware.JSON
 
   def user_repos(login) do
-    get("/user/" <> login <> "/repos")
+    get("/users/" <> login <> "/repos")
   end
 end
 ```
