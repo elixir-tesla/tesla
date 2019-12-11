@@ -4,6 +4,11 @@ defmodule Tesla.Middleware.BaseUrlTest do
 
   @middleware Tesla.Middleware.BaseUrl
 
+  test "dynamic base without slash, empty path" do
+    assert {:ok, env} = @middleware.call(%Env{url: ""}, [], fn -> "http://example.com" end)
+    assert env.url == "http://example.com"
+  end
+
   test "base without slash, empty path" do
     assert {:ok, env} = @middleware.call(%Env{url: ""}, [], "http://example.com")
     assert env.url == "http://example.com"
