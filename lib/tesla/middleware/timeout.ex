@@ -45,7 +45,7 @@ defmodule Tesla.Middleware.Timeout do
         {:ok, func.()}
       rescue
         e in _ ->
-          {:exception, e}
+          {:exception, e, __STACKTRACE__}
       catch
         type, value ->
           {type, value}
@@ -53,7 +53,7 @@ defmodule Tesla.Middleware.Timeout do
     end)
   end
 
-  defp repass_error({:exception, error}), do: raise(error)
+  defp repass_error({:exception, error, stacktrace}), do: reraise(error, stacktrace)
 
   defp repass_error({:throw, value}), do: throw(value)
 
