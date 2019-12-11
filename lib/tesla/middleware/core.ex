@@ -39,6 +39,8 @@ defmodule Tesla.Middleware.BaseUrl do
     end
   end
 
+  defp join(base, url) when is_function(base, 0), do: join(base.(), url)
+
   defp join(base, url) do
     case {String.last(to_string(base)), url} do
       {nil, url} -> url
