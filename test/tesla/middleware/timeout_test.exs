@@ -87,6 +87,36 @@ defmodule Tesla.Middleware.TimeoutTest do
       end
     end
 
+    test "should keep original stacktrace information" do
+      try do
+        Client.get("/raise")
+      rescue
+        _ in RuntimeError ->
+          [{last_module, _, _, file_info} | _] = System.stacktrace()
+
+          assert Tesla.Middleware.TimeoutTest.Client == last_module
+          assert [file: 'lib/tesla/builder.ex', line: 23] == file_info
+      else
+        _ ->
+          flunk("Expected exception to be thrown")
+      end
+    end
+
+    test "should add timeout module info to stacktrace" do
+      try do
+        Client.get("/raise")
+      rescue
+        _ in RuntimeError ->
+          [_, {timeout_module, _, _, module_file_info} | _] = System.stacktrace()
+
+          assert Tesla.Middleware.Timeout == timeout_module
+          assert module_file_info == [file: 'lib/tesla/middleware/timeout.ex', line: 45]
+      else
+        _ ->
+          flunk("Expected exception to be thrown")
+      end
+    end
+
     test "should repass thrown value" do
       assert catch_throw(Client.get("/throw")) == :throw_value
     end
