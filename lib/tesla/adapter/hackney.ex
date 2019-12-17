@@ -72,21 +72,23 @@ if Code.ensure_loaded?(:hackney) do
 
     defp request_stream(method, url, headers, body, opts) do
       with {:ok, ref} <- :hackney.request(method, url, headers, :stream, opts) do
-        res =
-          Enum.reduce_while(body, :ok, fn data, _ ->
-            case :hackney.send_body(ref, data) do
-              :ok -> {:cont, :ok}
-              error -> {:halt, error}
-            end
-          end)
-
-        case res do
+        case send_body(body ,ref) do
           :ok -> handle(:hackney.start_response(ref))
           error -> handle(error)
         end
       else
         e -> handle(e)
       end
+    end
+
+    defp send_body(body, ref) do
+      body
+      |> Enum.reduce_while(:ok, fn data, _ ->
+        case :hackney.send_body(ref, data) do
+          :ok -> {:cont, :ok}
+          error -> {:halt, error}
+        end
+      end)
     end
 
     defp handle({:error, _} = error), do: error
