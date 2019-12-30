@@ -9,7 +9,6 @@ defmodule Tesla.Mixfile do
       version: @version,
       description: description(),
       package: package(),
-      source_ref: "v#{@version}",
       source_url: "https://github.com/teamon/tesla",
       elixir: "~> 1.5",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -86,6 +85,7 @@ defmodule Tesla.Mixfile do
   defp docs do
     [
       main: "readme",
+      source_ref: "v#{@version}",
       extras: ["README.md"],
       groups_for_modules: [
         Behaviours: [
