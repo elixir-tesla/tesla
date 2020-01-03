@@ -55,7 +55,7 @@ defmodule Tesla.Multipart do
   """
   @spec new() :: t
   def new do
-    %__MODULE__{boundary: unique_string(32)}
+    %__MODULE__{boundary: unique_string()}
   end
 
   @doc """
@@ -177,12 +177,11 @@ defmodule Tesla.Multipart do
     ["content-disposition: form-data; #{ds}\r\n"]
   end
 
-  @spec unique_string(pos_integer) :: String.t()
-  defp unique_string(length) do
-    Enum.reduce(1..length, [], fn _i, acc ->
-      [Enum.random(@boundary_chars) | acc]
-    end)
-    |> Enum.join("")
+  @spec unique_string() :: String.t()
+  defp unique_string() do
+    16
+    |> :crypto.strong_rand_bytes()
+    |> Base.encode16(case: :lower)
   end
 
   @spec assert_part_value!(any) :: :ok | no_return
