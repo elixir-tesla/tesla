@@ -1,6 +1,6 @@
 defmodule Tesla.Adapter.Httpc do
   @moduledoc """
-  Adapter for [httpc](http://erlang.org/doc/man/httpc.html)
+  Adapter for [httpc](http://erlang.org/doc/man/httpc.html).
 
   This is the default adapter.
 
@@ -15,7 +15,7 @@ defmodule Tesla.Adapter.Httpc do
   @override_defaults autoredirect: false
   @http_opts ~w(timeout connect_timeout ssl essl autoredirect proxy_auth version relaxed url_encode)a
 
-  @doc false
+  @impl Tesla.Adapter
   def call(env, opts) do
     opts = Tesla.Adapter.opts(@override_defaults, env, opts)
 

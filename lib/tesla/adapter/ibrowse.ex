@@ -1,7 +1,7 @@
 if Code.ensure_loaded?(:ibrowse) do
   defmodule Tesla.Adapter.Ibrowse do
     @moduledoc """
-    Adapter for [ibrowse](https://github.com/cmullaparthi/ibrowse)
+    Adapter for [ibrowse](https://github.com/cmullaparthi/ibrowse).
 
     Remember to add `{:ibrowse, "~> 4.2"}` to dependencies (and `:ibrowse` to applications in `mix.exs`)
     Also, you need to recompile tesla after adding `:ibrowse` dependency:
@@ -11,7 +11,8 @@ if Code.ensure_loaded?(:ibrowse) do
     mix deps.compile tesla
     ```
 
-    ### Example usage
+    ## Example usage
+
     ```
     # set globally in config/config.exs
     config :tesla, :adapter, Tesla.Adapter.Ibrowse
@@ -29,7 +30,7 @@ if Code.ensure_loaded?(:ibrowse) do
     import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
     alias Tesla.Multipart
 
-    @doc false
+    @impl Tesla.Adapter
     def call(env, opts) do
       with {:ok, status, headers, body} <- request(env, opts) do
         {:ok,

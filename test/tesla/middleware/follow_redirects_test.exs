@@ -10,6 +10,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
       {status, headers, body} =
         case env.url do
           "http://example.com/0" ->
+            assert env.query == []
             {200, [{"content-type", "text/plain"}], "foo bar"}
 
           "http://example.com/" <> n ->
@@ -31,6 +32,11 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
              Client.get("http://example.com/6")
   end
 
+  test "drop the query" do
+    assert {:ok, env} = Client.get("http://example.com/5", some_query: "params")
+    assert env.query == []
+  end
+
   defmodule CustomMaxRedirectsClient do
     use Tesla
 
@@ -40,6 +46,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
       {status, headers, body} =
         case env.url do
           "http://example.com/0" ->
+            assert env.query == []
             {200, [{"content-type", "text/plain"}], "foo bar"}
 
           "http://example.com/" <> n ->
@@ -159,7 +166,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
 
           "http://example.com/" <> n ->
             next = String.to_integer(n) - 1
-            {301, [{"location", "http://example.com/#{next}"}], ""}
+            {307, [{"location", "http://example.com/#{next}"}], ""}
         end
 
       {:ok, %{env | status: status, headers: headers, body: body}}
@@ -168,7 +175,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
 
   alias CustomPreservesRequestClient, as: CPRClient
 
-  test "Preserves original request" do
+  test "Preserves original request for 307" do
     assert {:ok, env} =
              CPRClient.post(
                "http://example.com/1",
@@ -176,6 +183,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
                headers: [{"X-Custom-Header", "custom value"}]
              )
 
+    assert env.method == :post
     assert env.body == "Body data"
     assert env.headers == [{"X-Custom-Header", "custom value"}]
   end

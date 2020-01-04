@@ -1,11 +1,9 @@
 defmodule Tesla.Middleware.DecodeRels do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Decode `Link` Hypermedia HTTP header into `opts[:rels]` field in response.
 
+  ## Example usage
 
-  ### Example usage
   ```
   defmodule MyClient do
     use Tesla
@@ -14,12 +12,15 @@ defmodule Tesla.Middleware.DecodeRels do
   end
 
   env = MyClient.get("/...")
-  env.opts[:rels] # => %{"Next" => "http://...", "Prev" => "..."}
-  ```
 
+  env.opts[:rels]
+  # => %{"Next" => "http://...", "Prev" => "..."}
+  ```
   """
 
-  @doc false
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, _opts) do
     env
     |> Tesla.run(next)

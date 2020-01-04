@@ -1,7 +1,5 @@
 if Code.ensure_loaded?(:fuse) do
   defmodule Tesla.Middleware.Fuse do
-    @behaviour Tesla.Middleware
-
     @moduledoc """
     Circuit Breaker middleware using [fuse](https://github.com/jlouis/fuse)
 
@@ -13,7 +11,8 @@ if Code.ensure_loaded?(:fuse) do
     mix deps.compile tesla
     ```
 
-    ### Example usage
+    ## Example usage
+
     ```
     defmodule MyClient do
       use Tesla
@@ -22,11 +21,12 @@ if Code.ensure_loaded?(:fuse) do
     end
     ```
 
-    ### Options
+    ## Options
+
     - `:name` - fuse name (defaults to module name)
     - `:opts` - fuse options (see fuse docs for reference)
 
-    ### SASL logger
+    ## SASL logger
 
     fuse library uses [SASL (System Architecture Support Libraries)](http://erlang.org/doc/man/sasl_app.html).
 
@@ -39,11 +39,13 @@ if Code.ensure_loaded?(:fuse) do
     Read more at [jlouis/fuse#32](https://github.com/jlouis/fuse/issues/32) and [jlouis/fuse#19](https://github.com/jlouis/fuse/issues/19).
     """
 
+    @behaviour Tesla.Middleware
+
     # options borrowed from http://blog.rokkincat.com/circuit-breakers-in-elixir/
     # most probably not valid for your use case
     @defaults {{:standard, 2, 10_000}, {:reset, 60_000}}
 
-    @doc false
+    @impl Tesla.Middleware
     def call(env, next, opts) do
       opts = opts || []
       name = Keyword.get(opts, :name, env.__module__)

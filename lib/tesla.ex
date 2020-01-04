@@ -12,18 +12,18 @@ defmodule Tesla.Env do
 
   ## Fields
 
-    * `:method` - method of request. Example: `:get`
-    * `:url` - request url. Example: `"https://www.google.com"`
-    * `:query` - list of query params.
-      Example: `[{"param", "value"}]` will be translated to `?params=value`.
-      Note: query params passed in url (e.g. `"/get?param=value"`) are not parsed to `query` field.
-    * `:headers` - list of request/response headers.
-      Example: `[{"content-type", "application/json"}]`.
-      Note: request headers are overriden by response headers when adapter is called.
-    * `:body` - request/response body.
-      Note: request body is overriden by response body when adapter is called.
-    * `:status` - response status. Example: `200`
-    * `:opts` - list of options. Example: `[adapter: [recv_timeout: 30_000]]`
+  - `:method` - method of request. Example: `:get`
+  - `:url` - request url. Example: `"https://www.google.com"`
+  - `:query` - list of query params.
+    Example: `[{"param", "value"}]` will be translated to `?params=value`.
+    Note: query params passed in url (e.g. `"/get?param=value"`) are not parsed to `query` field.
+  - `:headers` - list of request/response headers.
+    Example: `[{"content-type", "application/json"}]`.
+    Note: request headers are overriden by response headers when adapter is called.
+  - `:body` - request/response body.
+    Note: request body is overriden by response body when adapter is called.
+  - `:status` - response status. Example: `200`
+  - `:opts` - list of options. Example: `[adapter: [recv_timeout: 30_000]]`
   """
 
   @type client :: Tesla.Client.t()
@@ -83,7 +83,7 @@ defmodule Tesla.Middleware do
   The middleware specification
 
   Middleware is an extension of basic `Tesla` functionality. It is a module that must
-  export `call/3` function.
+  implement `c:Tesla.Middleware.call/3`.
 
   ## Middleware options
 
@@ -97,22 +97,16 @@ defmodule Tesla.Middleware do
 
   ## Writing custom middleware
 
-  Writing custom middleware is as simple as creating a module with `call/3` function that:
-    * (optionally) read and/or writes request data
-    * calls `Tesla.run/2`
-    * (optionally) read and/or writes response data
+  Writing custom middleware is as simple as creating a module implementing `c:Tesla.Middleware.call/3`.
 
-  `call/3` params:
-    * env - `Tesla.Env` struct that stores request/response data
-    * stack - middlewares that should be called after current one
-    * options - middleware options provided by user
+  See `c:Tesla.Middleware.call/3` for details.
 
-  #### Example
+  ### Example
 
       defmodule MyProject.InspectHeadersMiddleware do
         @behaviour Tesla.Middleware
 
-        @impl true
+        @impl Tesla.Middleware
         def call(env, next, options) do
           env
           |> inspect_headers(options)
@@ -126,25 +120,39 @@ defmodule Tesla.Middleware do
       end
 
   """
+
+  @doc """
+  Invoked when a requset runs.
+
+  - (optionally) read and/or writes request data
+  - calls `Tesla.run/2`
+  - (optionally) read and/or writes response data
+
+  ## Arguments
+
+  - `env` - `Tesla.Env` struct that stores request/response data
+  - `next` - middlewares that should be called after current one
+  - `options` - middleware options provided by user
+  """
   @callback call(env :: Tesla.Env.t(), next :: Tesla.Env.stack(), options :: any) ::
               Tesla.Env.result()
 end
 
 defmodule Tesla.Adapter do
   @moduledoc """
-  The adapter specification
+  The adapter specification.
 
   Adapter is a module that denormalize request data stored in `Tesla.Env` in order to make
   request with lower level http client (e.g. `:httpc` or `:hackney`) and normalize response data
-  in order to store it back to `Tesla.Env`. It has to export `call/2` function.
+  in order to store it back to `Tesla.Env`. It has to implement `c:Tesla.Adapter.call/2`.
 
   ## Writing custom adapter
 
-  `call/2` params:
-    * env - `Tesla.Env` struct that stores request/response data
-    * options - middleware options provided by user
+  Create a module implementing `c:Tesla.Adapter.call/2`.
 
-  #### Example
+  See `c:Tesla.Adapter.call/2` for details.
+
+  ### Example
 
       defmodule MyProject.CustomAdapter do
         alias Tesla.Multipart
@@ -153,7 +161,7 @@ defmodule Tesla.Adapter do
 
         @override_defaults [follow_redirect: false]
 
-        @impl true
+        @impl Tesla.Adapter
         def call(env, opts) do
           opts = Tesla.Adapter.opts(@override_defaults, env, opts)
 
@@ -179,19 +187,30 @@ defmodule Tesla.Adapter do
       end
 
   """
+
+  @doc """
+  Invoked when a request runs.
+
+  ## Arguments
+
+  - `env` - `Tesla.Env` struct that stores request/response data
+  - `options` - middleware options provided by user
+  """
   @callback call(env :: Tesla.Env.t(), options :: any) :: Tesla.Env.result()
 
   @doc """
-  Helper function that merges all adapter options
+  Helper function that merges all adapter options.
 
-  ## Params:
-    * `defaults` (optional) - useful to override lower level http client default configuration
-    * `env` - `Tesla.Env` struct
-    * `opts` - options provided to `Tesla.Builder.adapter/2` macro
+  ## Arguments
 
-  ## Precedence rules:
-    * config from `opts` overrides config from `defaults` when same key is encountered
-    * config from `env` overrides config from both `defaults` and `opts` when same key is encountered
+  - `defaults` (optional) - useful to override lower level http client default configuration
+  - `env` - `Tesla.Env` struct
+  - `opts` - options provided to `Tesla.Builder.adapter/2` macro
+
+  ## Precedence rules
+
+  - config from `opts` overrides config from `defaults` when same key is encountered
+  - config from `env` overrides config from both `defaults` and `opts` when same key is encountered
   """
   @spec opts(Keyword.t(), Tesla.Env.t(), Keyword.t()) :: Keyword.t()
   def opts(defaults \\ [], env, opts) do
@@ -216,11 +235,12 @@ defmodule Tesla do
 
   `use Tesla` macro will generate basic http functions (e.g. get, post) inside your module.
   It supports following options:
-    * `:only` - builder will generate only functions included in list given in this option
-    * `:except` - builder won't generate functions included in list given in this option
-    * `:docs` - when set to false builder will won't add documentation to generated functions
 
-  #### Example
+  - `:only` - builder will generate only functions included in list given in this option
+  - `:except` - builder won't generate functions included in list given in this option
+  - `:docs` - when set to false builder will won't add documentation to generated functions
+
+  ### Example
 
       defmodule ExampleApi do
         use Tesla, only: [:get], docs: false
@@ -233,7 +253,7 @@ defmodule Tesla do
         end
       end
 
-  In example above `ExampleApi.fetch_data/0` is equivalent of `ExampleApi.get("/data")`
+  In example above `ExampleApi.fetch_data/0` is equivalent of `ExampleApi.get("/data")`.
 
   ## Direct usage
 
@@ -241,7 +261,7 @@ defmodule Tesla do
 
       Tesla.get("https://example.com")
 
-  #### Common pitfalls
+  ### Common pitfalls
 
   Direct usage won't include any middlewares.
 
@@ -357,7 +377,7 @@ defmodule Tesla do
   def run(env, [{m, f, a} | rest]), do: apply(m, f, [env, rest | a])
 
   @doc """
-  Adds given key/value pair to `:opts` field in `Tesla.Env`
+  Adds given key/value pair to `:opts` field in `Tesla.Env`.
 
   Useful when there's need to store additional middleware data in `Tesla.Env`
 
@@ -373,7 +393,7 @@ defmodule Tesla do
   end
 
   @doc """
-  Returns value of header specified by `key` from `:headers` field in `Tesla.Env`
+  Returns value of header specified by `key` from `:headers` field in `Tesla.Env`.
 
   ## Examples
 

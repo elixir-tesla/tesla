@@ -1,12 +1,11 @@
 defmodule Tesla.Middleware.BasicAuth do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
-  Basic authentication middleware
+  Basic authentication middleware.
 
   [Wiki on the topic](https://en.wikipedia.org/wiki/Basic_access_authentication)
 
-  ### Example
+  ## Example
+
   ```
   defmodule MyClient do
     use Tesla
@@ -23,12 +22,15 @@ defmodule Tesla.Middleware.BasicAuth do
   end
   ```
 
-  ### Options
-  - `:username`  - username (defaults to `""`)
-  - `:password`  - password (defaults to `""`)
+  ## Options
+
+  - `:username` - username (defaults to `""`)
+  - `:password` - password (defaults to `""`)
   """
 
-  @doc false
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || %{}
 

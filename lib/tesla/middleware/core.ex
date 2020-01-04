@@ -1,13 +1,12 @@
 defmodule Tesla.Middleware.BaseUrl do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Set base URL for all requests.
 
   The base URL will be prepended to request path/url only
   if it does not include http(s).
 
-  ### Example usage
+  ## Example usage
+
   ```
   defmodule MyClient do
     use Tesla
@@ -22,7 +21,9 @@ defmodule Tesla.Middleware.BaseUrl do
   ```
   """
 
-  @doc false
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, base) do
     env
     |> apply_base(base)
@@ -51,12 +52,11 @@ defmodule Tesla.Middleware.BaseUrl do
 end
 
 defmodule Tesla.Middleware.Headers do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Set default headers for all requests
 
-  ### Example usage
+  ## Example usage
+
   ```
   defmodule Myclient do
     use Tesla
@@ -65,7 +65,10 @@ defmodule Tesla.Middleware.Headers do
   end
   ```
   """
-  @doc false
+
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, headers) do
     env
     |> Tesla.put_headers(headers)
@@ -74,12 +77,11 @@ defmodule Tesla.Middleware.Headers do
 end
 
 defmodule Tesla.Middleware.Query do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
   Set default query params for all requests
 
-  ### Example usage
+  ## Example usage
+
   ```
   defmodule Myclient do
     use Tesla
@@ -88,7 +90,10 @@ defmodule Tesla.Middleware.Query do
   end
   ```
   """
-  @doc false
+
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, query) do
     env
     |> merge(query)
@@ -103,12 +108,11 @@ defmodule Tesla.Middleware.Query do
 end
 
 defmodule Tesla.Middleware.Opts do
-  @behaviour Tesla.Middleware
-
   @moduledoc """
-  Set default opts for all requests
+  Set default opts for all requests.
 
-  ### Example usage
+  ## Example usage
+
   ```
   defmodule Myclient do
     use Tesla
@@ -117,7 +121,10 @@ defmodule Tesla.Middleware.Opts do
   end
   ```
   """
-  @doc false
+
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     Tesla.run(%{env | opts: env.opts ++ opts}, next)
   end

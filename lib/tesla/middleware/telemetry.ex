@@ -1,7 +1,5 @@
 if Code.ensure_loaded?(:telemetry) do
   defmodule Tesla.Middleware.Telemetry do
-    @behaviour Tesla.Middleware
-
     @moduledoc """
     Emits events using the `:telemetry` library to expose instrumentation.
 

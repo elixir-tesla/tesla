@@ -12,7 +12,7 @@ jobs:
           - 1.8-otp-22
           - 1.8-slim    # otp 21
           - 1.7-slim    # otp 21
-          - 1.6-otp-21  
+          - 1.6-otp-21
           - 1.6-slim    # otp 20
           - 1.5-slim    # opt 20
     container:
@@ -50,8 +50,9 @@ jobs:
         args: |
           git remote set-branches origin '*' && \
           git fetch origin v1.0.0-compat && \
+          rm -r test && \
           git checkout origin/v1.0.0-compat -- test
-      
+
     - name: Run Tests for 1.0.0 branch
       run: mix test --trace
 
@@ -62,15 +63,15 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Install Dependencies
-      env: 
-        MIX_ENV: test 
+      env:
+        MIX_ENV: test
         LOCKFILE: poison3
       run: |
         mix local.rebar --force
         mix local.hex --force
         mix deps.get
     - name: Run Tests for poison 3.x
-      env: 
+      env:
         MIX_ENV: test
         LOCKFILE: poison3
       run: mix test --trace
