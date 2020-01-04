@@ -84,17 +84,32 @@ defmodule Tesla.Middleware.TelemetryTest do
   test "with an error returned" do
     :telemetry.attach("with_error", [:tesla, :request, :error], &echo_event/4, %{caller: self()})
 
+    :telemetry.attach("with_error_gets_stop", [:tesla, :request, :stop], &echo_event/4, %{
+      caller: self()
+    })
+
     Client.get("/telemetry_error")
 
-    assert_receive {:event, [:tesla, :request, :error], %{duration: time},
+    assert_receive {:event, [:tesla, :request, :error], %{value: 1},
                     %{
                       env: %Tesla.Env{url: "/telemetry_error", method: :get},
-                      reason: :econnrefused
+                      kind: kind,
+                      reason: :econnrefused,
+                      stacktrace: []
+                    }}
+
+    assert_receive {:event, [:tesla, :request, :stop], %{duration: time},
+                    %{
+                      env: %Tesla.Env{url: "/telemetry_error", method: :get}
                     }}
   end
 
   test "with an exception raised" do
-    :telemetry.attach("with_exception", [:tesla, :request, :exception], &echo_event/4, %{
+    :telemetry.attach("with_exception", [:tesla, :request, :error], &echo_event/4, %{
+      caller: self()
+    })
+
+    :telemetry.attach("with_exception_gets_stop", [:tesla, :request, :stop], &echo_event/4, %{
       caller: self()
     })
 
@@ -102,11 +117,17 @@ defmodule Tesla.Middleware.TelemetryTest do
       Client.get("/telemetry_exception")
     end
 
-    assert_receive {:event, [:tesla, :request, :exception], %{duration: time},
+    assert_receive {:event, [:tesla, :request, :error], %{value: 1},
                     %{
                       env: %Tesla.Env{url: "/telemetry_exception", method: :get},
-                      exception: kind,
+                      kind: kind,
+                      reason: reason,
                       stacktrace: stacktrace
+                    }}
+
+    assert_receive {:event, [:tesla, :request, :stop], %{duration: time},
+                    %{
+                      env: %Tesla.Env{url: "/telemetry_exception", method: :get}
                     }}
   end
 
