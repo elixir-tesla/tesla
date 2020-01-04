@@ -13,7 +13,7 @@ if Code.ensure_loaded?(:telemetry) do
 
     end
 
-    :telemetry.attach("my-tesla-telemetry", [:tesla, :request, stop], fn event, measurements, meta, config ->
+    :telemetry.attach("my-tesla-telemetry", [:tesla, :request, :stop], fn event, measurements, meta, config ->
       # Do something with the event
     end)
     ```
