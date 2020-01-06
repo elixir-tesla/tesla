@@ -34,9 +34,6 @@ defmodule Tesla.Multipart do
           }
   end
 
-  @boundary_chars "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-                  |> String.split("")
-
   @type part_stream :: Enum.t()
   @type part_value :: iodata | part_stream
 
