@@ -35,7 +35,7 @@ defmodule Tesla.Env do
 
   @type body :: any
   @type status :: integer | nil
-  @type opts :: [any]
+  @type opts :: keyword
 
   @type stack :: [{atom, atom, any} | {atom, atom} | {:fn, (t -> t)} | {:fn, (t, stack -> t)}]
   @type result :: {:ok, t()} | {:error, any}
