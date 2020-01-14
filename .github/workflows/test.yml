@@ -46,10 +46,16 @@ jobs:
         mix deps.get
 
     - name: Checkout v1.0.0 tests
+    - uses: actions/checkout@v2
+      with:
+        path: "test-1"
+        ref: "v1.0.0-compay"
+
+    - name: Replace test dir with test-1/test dir
       run: |
-        git fetch origin v1.0.0-compat && \
-        rm -r test && \
-        git checkout origin/v1.0.0-compat -- test
+        ls -la
+        rm -rf test
+        mv test-1/test test
 
     - name: Run v1.0.0 Tests
       run: mix test --trace
