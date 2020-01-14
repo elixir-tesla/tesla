@@ -46,7 +46,6 @@ jobs:
         mix deps.get
 
     - name: Checkout v1.0.0 tests
-      uses: actions/checkout@v2
       run: |
         git fetch origin v1.0.0-compat && \
         rm -r test && \
