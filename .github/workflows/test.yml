@@ -18,7 +18,7 @@ jobs:
     container:
       image: elixir:${{ matrix.elixir }}
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v2
     - name: Install Dependencies
       env:
         MIX_ENV: test
@@ -35,7 +35,7 @@ jobs:
     container:
       image: elixir:1.6-slim
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v2
 
     - name: Install Dependencies
       env:
@@ -45,15 +45,19 @@ jobs:
         mix local.hex --force
         mix deps.get
 
-    - uses: srt32/git-actions@v0.0.3
+    - name: Checkout v1.0.0 tests
+      uses: actions/checkout@v2
       with:
-        args: |
-          git remote set-branches origin '*' && \
-          git fetch origin v1.0.0-compat && \
-          rm -r test && \
-          git checkout origin/v1.0.0-compat -- test
+        path: "test-1"
+        ref: "v1.0.0-compat"
 
-    - name: Run Tests for 1.0.0 branch
+    - name: Replace test dir with test-1/test dir
+      run: |
+        ls -la
+        rm -rf test
+        mv test-1/test test
+
+    - name: Run v1.0.0 Tests
       run: mix test --trace
 
   test-poison3:
@@ -61,7 +65,7 @@ jobs:
     container:
       image: elixir:1.9-slim
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v2
     - name: Install Dependencies
       env:
         MIX_ENV: test
@@ -81,7 +85,7 @@ jobs:
     container:
       image: elixir:1.9-slim
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v2
     - name: Install Dependencies
       run: |
         mix local.rebar --force
