@@ -34,7 +34,7 @@ defmodule Tesla.Env do
   @type headers :: [{binary, binary}]
 
   @type body :: any
-  @type status :: integer
+  @type status :: integer | nil
   @type opts :: [any]
 
   @type stack :: [{atom, atom, any} | {atom, atom} | {:fn, (t -> t)} | {:fn, (t, stack -> t)}]
