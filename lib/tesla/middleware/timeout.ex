@@ -1,6 +1,6 @@
 defmodule Tesla.Middleware.Timeout do
   @moduledoc """
-  Timeout http request after X seconds.
+  Timeout http request after X milliseconds.
 
   ## Example
 
