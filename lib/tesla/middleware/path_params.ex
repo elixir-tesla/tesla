@@ -24,7 +24,7 @@ defmodule Tesla.Middleware.PathParams do
 
   @behaviour Tesla.Middleware
 
-  @rx ~r/:([\w_]+)/
+  @rx ~r/:([a-zA-Z_]+)/
 
   @impl Tesla.Middleware
   def call(env, next, _) do
