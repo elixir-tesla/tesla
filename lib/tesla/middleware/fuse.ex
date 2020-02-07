@@ -31,7 +31,7 @@ if Code.ensure_loaded?(:fuse) do
 
     - `:name` - fuse name (defaults to module name)
     - `:opts` - fuse options (see fuse docs for reference)
-    - `:should_melt` - function to determine if request should melt the fuse
+    - `:should_melt` - function to determine if response should melt the fuse
 
     ## SASL logger
 
