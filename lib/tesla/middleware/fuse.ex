@@ -17,7 +17,13 @@ if Code.ensure_loaded?(:fuse) do
     defmodule MyClient do
       use Tesla
 
-      plug Tesla.Middleware.Fuse, opts: {{:standard, 2, 10_000}, {:reset, 60_000}}
+      plug Tesla.Middleware.Fuse,
+        opts: {{:standard, 2, 10_000}, {:reset, 60_000}}
+        should_melt: fn
+          {:ok, %{status: status}} when status in [428, 500, 504] -> true
+          {:ok, _} -> false
+          {:error, _} -> true
+        end
     end
     ```
 
@@ -25,6 +31,7 @@ if Code.ensure_loaded?(:fuse) do
 
     - `:name` - fuse name (defaults to module name)
     - `:opts` - fuse options (see fuse docs for reference)
+    - `:should_melt` - function to determine if request should melt the fuse
 
     ## SASL logger
 
@@ -48,30 +55,36 @@ if Code.ensure_loaded?(:fuse) do
     @impl Tesla.Middleware
     def call(env, next, opts) do
       opts = opts || []
-      name = Keyword.get(opts, :name, env.__module__)
 
-      case :fuse.ask(name, :sync) do
+      context = %{
+        name: Keyword.get(opts, :name, env.__module__),
+        should_melt: Keyword.get(opts, :should_melt, &match?({:error, _}, &1))
+      }
+
+      case :fuse.ask(context.name, :sync) do
         :ok ->
-          run(env, next, name)
+          run(env, next, context)
 
         :blown ->
           {:error, :unavailable}
 
         {:error, :not_found} ->
-          :fuse.install(name, Keyword.get(opts, :opts, @defaults))
-          run(env, next, name)
+          :fuse.install(context.name, Keyword.get(opts, :opts, @defaults))
+          run(env, next, context)
       end
     end
 
-    defp run(env, next, name) do
-      case Tesla.run(env, next) do
-        {:ok, env} ->
-          {:ok, env}
+    defp run(env, next, context) do
+      Tesla.run(env, next)
+      |> maybe_melt_fuse(context)
+    end
 
-        {:error, _reason} ->
-          :fuse.melt(name)
-          {:error, :unavailable}
+    defp maybe_melt_fuse(res, context) do
+      if context.should_melt.(res) do
+        :fuse.melt(context.name)
       end
+
+      res
     end
   end
 end
