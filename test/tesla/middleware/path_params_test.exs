@@ -43,6 +43,14 @@ defmodule Tesla.Middleware.PathParamsTest do
     assert env.url == "/users/:1id/p/2"
   end
 
+  test "placeholder with only 1 number" do
+    opts = [path_params: ["1": 1, id_post: 2]]
+
+    assert {:ok, env} = @middleware.call(%Env{url: "/users/:1/p/:id_post", opts: opts}, [], nil)
+
+    assert env.url == "/users/:1/p/2"
+  end
+
   test "placeholder with only 1 character" do
     opts = [path_params: [i: 1, id_post: 2]]
 
