@@ -78,7 +78,11 @@ if Code.ensure_loaded?(:fuse) do
       end
     end
 
-    defp run(env, next, %{should_melt: should_melt, name: name, keep_original_error: keep_original_error}) do
+    defp run(env, next, %{
+           should_melt: should_melt,
+           name: name,
+           keep_original_error: keep_original_error
+         }) do
       res = Tesla.run(env, next)
 
       if should_melt.(res) do
