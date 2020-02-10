@@ -68,34 +68,30 @@ defmodule Tesla.Middleware.FuseTest do
   end
 
   test "custom should_melt function - not melting 500" do
-    custom_client = ClientWithCustomSetup
-
-    assert {:ok, %Tesla.Env{status: 500}} = custom_client.get("/error_500")
+    assert {:ok, %Tesla.Env{status: 500}} = ClientWithCustomSetup.get("/error_500")
     assert_receive :request_made
-    assert {:ok, %Tesla.Env{status: 500}} = custom_client.get("/error_500")
+    assert {:ok, %Tesla.Env{status: 500}} = ClientWithCustomSetup.get("/error_500")
     assert_receive :request_made
-    assert {:ok, %Tesla.Env{status: 500}} = custom_client.get("/error_500")
+    assert {:ok, %Tesla.Env{status: 500}} = ClientWithCustomSetup.get("/error_500")
     assert_receive :request_made
 
-    assert {:ok, %Tesla.Env{status: 500}} = custom_client.get("/error_500")
+    assert {:ok, %Tesla.Env{status: 500}} = ClientWithCustomSetup.get("/error_500")
     assert_receive :request_made
-    assert {:ok, %Tesla.Env{status: 500}} = custom_client.get("/error_500")
+    assert {:ok, %Tesla.Env{status: 500}} = ClientWithCustomSetup.get("/error_500")
     assert_receive :request_made
   end
 
   test "custom should_melt function - melting 504" do
-    custom_client = ClientWithCustomSetup
-
-    assert {:ok, %Tesla.Env{status: 504}} = custom_client.get("/error_504")
+    assert {:ok, %Tesla.Env{status: 504}} = ClientWithCustomSetup.get("/error_504")
     assert_receive :request_made
-    assert {:ok, %Tesla.Env{status: 504}} = custom_client.get("/error_504")
+    assert {:ok, %Tesla.Env{status: 504}} = ClientWithCustomSetup.get("/error_504")
     assert_receive :request_made
-    assert {:ok, %Tesla.Env{status: 504}} = custom_client.get("/error_504")
+    assert {:ok, %Tesla.Env{status: 504}} = ClientWithCustomSetup.get("/error_504")
     assert_receive :request_made
 
-    assert {:error, :unavailable} = custom_client.get("/error_504")
+    assert {:error, :unavailable} = ClientWithCustomSetup.get("/error_504")
     refute_receive :request_made
-    assert {:error, :unavailable} = custom_client.get("/error_504")
+    assert {:error, :unavailable} = ClientWithCustomSetup.get("/error_504")
     refute_receive :request_made
   end
 
