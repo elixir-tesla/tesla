@@ -18,7 +18,8 @@ if Code.ensure_loaded?(:fuse) do
       use Tesla
 
       plug Tesla.Middleware.Fuse,
-        opts: {{:standard, 2, 10_000}, {:reset, 60_000}}
+        opts: {{:standard, 2, 10_000}, {:reset, 60_000}},
+        keep_orig_error: true,
         should_melt: fn
           {:ok, %{status: status}} when status in [428, 500, 504] -> true
           {:ok, _} -> false
@@ -31,6 +32,8 @@ if Code.ensure_loaded?(:fuse) do
 
     - `:name` - fuse name (defaults to module name)
     - `:opts` - fuse options (see fuse docs for reference)
+    - `:keep_orig_error` - boolean to indicate if, in case of melting (based on `should_melt`), it should return the upstream's error or the fixed one `{:error, unavailable}`.
+    It's false by default, but it will be true in `2.0.0` version
     - `:should_melt` - function to determine if response should melt the fuse
 
     ## SASL logger
@@ -58,6 +61,7 @@ if Code.ensure_loaded?(:fuse) do
 
       context = %{
         name: Keyword.get(opts, :name, env.__module__),
+        keep_orig_error: Keyword.get(opts, :keep_orig_error, false),
         should_melt: Keyword.get(opts, :should_melt, &match?({:error, _}, &1))
       }
 
@@ -74,12 +78,15 @@ if Code.ensure_loaded?(:fuse) do
       end
     end
 
-    defp run(env, next, %{should_melt: should_melt, name: name}) do
+    defp run(env, next, %{should_melt: should_melt, name: name, keep_orig_error: keep_orig_error}) do
       res = Tesla.run(env, next)
 
-      if should_melt.(res), do: :fuse.melt(name)
-
-      res
+      if should_melt.(res) do
+        :fuse.melt(name)
+        if keep_orig_error, do: res, else: {:error, :unavailable}
+      else
+        res
+      end
     end
   end
 end
