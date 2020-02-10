@@ -74,15 +74,10 @@ if Code.ensure_loaded?(:fuse) do
       end
     end
 
-    defp run(env, next, context) do
-      Tesla.run(env, next)
-      |> maybe_melt_fuse(context)
-    end
+    defp run(env, next, %{should_melt: should_melt, name: name}) do
+      res = Tesla.run(env, next)
 
-    defp maybe_melt_fuse(res, context) do
-      if context.should_melt.(res) do
-        :fuse.melt(context.name)
-      end
+      if should_melt.(res), do: :fuse.melt(name)
 
       res
     end
