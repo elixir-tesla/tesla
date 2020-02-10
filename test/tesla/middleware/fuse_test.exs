@@ -29,7 +29,7 @@ defmodule Tesla.Middleware.FuseTest do
     use Tesla
 
     plug Tesla.Middleware.Fuse,
-      keep_orig_error: true,
+      keep_original_error: true,
       should_melt: fn
         {:ok, %{status: status}} when status in [504] -> true
         {:ok, _} -> false
