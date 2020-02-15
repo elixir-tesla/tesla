@@ -57,33 +57,34 @@ if Code.ensure_loaded?(:telemetry) do
       catch
         kind, reason ->
           stacktrace = System.stacktrace()
-          metadata = %{env: env, kind: kind, reason: reason, stacktrace: stacktrace}
 
-          emit_fail(metadata)
+          emit_fail(%{env: env, kind: kind, reason: reason, stacktrace: stacktrace})
 
           :erlang.raise(kind, reason, stacktrace)
       else
         {:ok, env} = result ->
-          emit_stop(start_time, %{env: env})
-          emit_legacy_event(start_time, result)
+          duration = System.monotonic_time() - start_time
+
+          emit_stop(duration, %{env: env})
+          emit_legacy_event(duration, result)
 
           result
 
         {:error, reason} = result ->
-          emit_stop(start_time, %{env: env, error: reason})
-          emit_legacy_event(start_time, result)
+          duration = System.monotonic_time() - start_time
+
+          emit_stop(duration, %{env: env, error: reason})
+          emit_legacy_event(duration, result)
 
           result
       end
     end
 
-    defp emit_start(start_time, metadata) do
-      :telemetry.execute([:tesla, :request, :start], %{time: start_time}, metadata)
+    defp emit_start(time, metadata) do
+      :telemetry.execute([:tesla, :request, :start], %{time: time}, metadata)
     end
 
-    defp emit_stop(start_time, metadata) do
-      duration = System.monotonic_time() - start_time
-
+    defp emit_stop(duration, metadata) do
       :telemetry.execute(
         [:tesla, :request, :stop],
         %{duration: duration},
@@ -91,12 +92,13 @@ if Code.ensure_loaded?(:telemetry) do
       )
     end
 
-    defp emit_legacy_event(start_time, result) do
+    defp emit_legacy_event(duration, result) do
       if !@disable_legacy_event do
-        duration = System.monotonic_time() - start_time
-
-        # retained for backwards compatibility - remove in 2.0
-        :telemetry.execute([:tesla, :request], %{request_time: duration}, %{result: result})
+        :telemetry.execute(
+          [:tesla, :request],
+          %{request_time: duration},
+          %{result: result}
+        )
       end
     end
 
