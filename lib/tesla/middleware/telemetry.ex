@@ -18,23 +18,19 @@ if Code.ensure_loaded?(:telemetry) do
     end)
     ```
 
-    ## Options
-
-    * `:event_prefix` - a list of atoms to prefix to the telemetry event name. This can be set if you need to distinguish events from different clients. Defaults to `[]`
-
     ## Telemetry Events
 
     * `[:tesla, :request, :start]` - emitted at the beginning of the request.
       * Measurement: `%{time: System.monotonic_time}`
-      * Metadata: `%{env: Tesla.Env.t}`
+      * Metadata: `%{env: Tesla.Env.t()}`
 
     * `[:tesla, :request, :stop]` - emitted at the end of the request.
       * Measurement: `%{duration: native_time}`
-      * Metadata: `%{env: Tesla.Env.t}`
+      * Metadata: `%{env: Tesla.Env.t()} | %{env: Tesla.Env.t, error: term}`
 
-    * `[:tesla, :request, :error]` - emitted when there is an error.
+    * `[:tesla, :request, :fail]` - emitted when there is an error.
       * Measurement: `%{value: 1}`
-      * Metadata: `%{env: Tesla.Env.t, kind: Exception.kind | nil, reason: term, stacktrace: Exception.stacktrace}`
+      * Metadata: `%{env: Tesla.Env.t(), kind: Exception.kind | nil, reason: term, stacktrace: Exception.stacktrace}`
 
     ## Legacy Telemetry Events
 
@@ -51,11 +47,10 @@ if Code.ensure_loaded?(:telemetry) do
     @behaviour Tesla.Middleware
 
     @impl Tesla.Middleware
-    def call(env, next, opts) do
-      prefix = Keyword.get(opts, :event_prefix, [])
+    def call(env, next, _opts) do
       start_time = System.monotonic_time()
 
-      emit_start(env, start_time, prefix)
+      emit_start(start_time, %{env: env})
 
       try do
         Tesla.run(env, next)
@@ -64,51 +59,53 @@ if Code.ensure_loaded?(:telemetry) do
           stacktrace = System.stacktrace()
           metadata = %{env: env, kind: kind, reason: reason, stacktrace: stacktrace}
 
-          :telemetry.execute(
-            prefix ++ [:tesla, :request, :error],
-            %{value: 1},
-            metadata
-          )
-
-          emit_stop(env, start_time, prefix, {:error, reason})
+          emit_fail(metadata)
 
           :erlang.raise(kind, reason, stacktrace)
       else
         {:ok, env} = result ->
-          emit_stop(env, start_time, prefix, result)
+          emit_stop(start_time, %{env: env})
+          emit_legacy_event(start_time, result)
+
           result
 
-        {:error, error} = result ->
-          :telemetry.execute(
-            prefix ++ [:tesla, :request, :error],
-            %{value: 1},
-            %{env: env, kind: nil, reason: error, stacktrace: []}
-          )
+        {:error, reason} = result ->
+          emit_stop(start_time, %{env: env, error: reason})
+          emit_legacy_event(start_time, result)
 
-          emit_stop(env, start_time, prefix, result)
           result
       end
     end
 
-    defp emit_start(env, start_time, prefix) do
-      :telemetry.execute(prefix ++ [:tesla, :request, :start], %{time: start_time}, %{
-        env: env
-      })
+    defp emit_start(start_time, metadata) do
+      :telemetry.execute([:tesla, :request, :start], %{time: start_time}, metadata)
     end
 
-    defp emit_stop(env, start_time, prefix, result) do
+    defp emit_stop(start_time, metadata) do
       duration = System.monotonic_time() - start_time
 
       :telemetry.execute(
-        prefix ++ [:tesla, :request, :stop],
+        [:tesla, :request, :stop],
         %{duration: duration},
-        %{env: env}
+        metadata
       )
+    end
 
+    defp emit_legacy_event(start_time, result) do
       if !@disable_legacy_event do
+        duration = System.monotonic_time() - start_time
+
         # retained for backwards compatibility - remove in 2.0
         :telemetry.execute([:tesla, :request], %{request_time: duration}, %{result: result})
       end
+    end
+
+    defp emit_fail(metadata) do
+      :telemetry.execute(
+        [:tesla, :request, :fail],
+        %{value: 1},
+        metadata
+      )
     end
   end
 end
