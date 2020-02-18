@@ -28,8 +28,8 @@ if Code.ensure_loaded?(:telemetry) do
       * Measurement: `%{duration: native_time}`
       * Metadata: `%{env: Tesla.Env.t()} | %{env: Tesla.Env.t, error: term}`
 
-    * `[:tesla, :request, :fail]` - emitted when there is an error.
-      * Measurement: `%{value: 1}`
+    * `[:tesla, :request, :failure]` - emitted when there is an error.
+      * Measurement: `%{duration: native_time}`
       * Metadata: `%{env: Tesla.Env.t(), kind: Exception.kind | nil, reason: term, stacktrace: Exception.stacktrace}`
 
     ## Legacy Telemetry Events
@@ -57,8 +57,9 @@ if Code.ensure_loaded?(:telemetry) do
       catch
         kind, reason ->
           stacktrace = System.stacktrace()
+          duration = System.monotonic_time() - start_time
 
-          emit_fail(%{env: env, kind: kind, reason: reason, stacktrace: stacktrace})
+          emit_failure(duration, %{env: env, kind: kind, reason: reason, stacktrace: stacktrace})
 
           :erlang.raise(kind, reason, stacktrace)
       else
@@ -102,10 +103,10 @@ if Code.ensure_loaded?(:telemetry) do
       end
     end
 
-    defp emit_fail(metadata) do
+    defp emit_failure(duration, metadata) do
       :telemetry.execute(
-        [:tesla, :request, :fail],
-        %{value: 1},
+        [:tesla, :request, :failure],
+        %{duration: duration},
         metadata
       )
     end
