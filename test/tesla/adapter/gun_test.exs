@@ -370,6 +370,25 @@ defmodule Tesla.Adapter.GunTest do
     assert read_body(pid, stream, opts) |> byte_size() == 16
   end
 
+  test "on TLS errors get timeout error from await_up method" do
+    request = %Env{
+      method: :get,
+      url: "https://localhost:5443"
+    }
+
+    {time, resp} =
+      :timer.tc(fn ->
+        call(request,
+          timeout: 60_000,
+          certificates_verification: true
+        )
+      end)
+
+    assert resp == {:error, :timeout}
+
+    assert time / 1_000_000 < 6
+  end
+
   defp read_body(pid, stream, opts, acc \\ "") do
     case Gun.read_chunk(pid, stream, opts) do
       {:fin, body} ->

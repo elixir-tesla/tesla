@@ -87,7 +87,7 @@ if Code.ensure_loaded?(:gun) do
     Returns `{:fin, binary()}` if all body received, otherwise returns `{:nofin, binary()}`.
     """
     @spec read_chunk(pid(), reference(), keyword() | map()) ::
-            {:fin, binary()} | {:nofin, binary()} | {:error, :timeout}
+            {:fin, binary()} | {:nofin, binary()} | {:error, atom()}
     def read_chunk(pid, stream, opts) do
       receive do
         {:gun_data, ^pid, ^stream, :fin, body} ->
@@ -290,15 +290,25 @@ if Code.ensure_loaded?(:gun) do
 
       {_type, host} = domain_or_ip(uri.host)
 
-      with {:ok, pid} <- :gun.open(host, uri.port, opts_with_master_keys) do
+      with {:ok, pid} <- gun_open(host, uri.port, opts_with_master_keys, opts) do
         {:ok, pid}
       else
         {:error, {:options, {key, _}}} when key in [:tcp_opts, :tls_opts] ->
-          :gun.open(
-            host,
-            uri.port,
-            Map.put(gun_opts, :transport_opts, tls_opts)
-          )
+          gun_open(host, uri.port, Map.put(gun_opts, :transport_opts, tls_opts), opts)
+
+        error ->
+          error
+      end
+    end
+
+    defp gun_open(host, port, gun_opts, opts) do
+      with {:ok, pid} <- :gun.open(host, port, gun_opts),
+           {:receive, true, pid} <- {:receive, opts[:receive], pid},
+           {:ok, _} <- :gun.await_up(pid) do
+        {:ok, pid}
+      else
+        {:receive, false, pid} ->
+          {:ok, pid}
 
         error ->
           error
