@@ -29,7 +29,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     ## Adapter specific options:
 
-    - `:timeout` - Time, while process, will wait for mint messages.
+    - `:timeout` - Time in milliseconds, while process, will wait for mint messages. Defaults to `2_000`.
     - `:body_as` - What will be returned in `%Tesla.Env{}` body key. Possible values - `:plain`, `:stream`, `:chunks`. Defaults to `:plain`.
       - `:plain` - as binary.
       - `:stream` - as stream. If you don't want to close connection (because you want to reuse it later) pass `close_conn: false` in adapter opts.
