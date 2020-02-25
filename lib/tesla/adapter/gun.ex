@@ -232,17 +232,22 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp do_open_conn(uri, %{proxy: {proxy_host, proxy_port}}, gun_opts, tls_opts) do
+    defp do_open_conn(uri, %{proxy: {proxy_host, proxy_port}} = opts, gun_opts, tls_opts) do
       connect_opts =
         uri
         |> tunnel_opts()
         |> tunnel_tls_opts(uri.scheme, tls_opts)
+        |> add_proxy_auth_credentials(opts)
 
       with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
            {:ok, _} <- :gun.await_up(pid),
            stream <- :gun.connect(pid, connect_opts),
            {:response, :fin, 200, _} <- :gun.await(pid, stream) do
         {:ok, pid}
+      else
+        {:response, :nofin, 403, _} -> {:error, :unauthorized}
+        {:response, :nofin, 407, _} -> {:error, :proxy_auth_failed}
+        error -> error
       end
     end
 
@@ -316,6 +321,12 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp tunnel_tls_opts(opts, _, _), do: opts
+
+    defp add_proxy_auth_credentials(opts, %{proxy_auth: {username, password}})
+         when not is_nil(username) and not is_nil(password),
+         do: Map.merge(opts, %{username: username, password: password})
+
+    defp add_proxy_auth_credentials(opts, _), do: opts
 
     defp open_stream(pid, method, path, headers, body, opts) do
       req_opts = %{reply_to: opts[:reply_to] || self()}
