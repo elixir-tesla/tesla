@@ -26,7 +26,9 @@ defmodule Tesla.Middleware.FollowRedirects do
   def call(env, next, opts \\ []) do
     max = Keyword.get(opts || [], :max_redirects, @max_redirects)
 
-    redirect(env, next, max)
+    headers = Enum.filter(env.headers, &(not match?({"Authorization", _}, &1)))
+
+    redirect(%{env | headers: headers}, next, max)
   end
 
   defp redirect(env, next, left) when left == 0 do

@@ -187,4 +187,32 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
     assert env.body == "Body data"
     assert env.headers == [{"X-Custom-Header", "custom value"}]
   end
+
+  test "Strip authorization header on redirect" do
+    assert {:ok, env} =
+             CPRClient.post(
+               "http://example.com/1",
+               "Body data",
+               headers: [
+                 {"X-Custom-Header", "custom value"},
+                 {"Authorization", "Basic: my_secret"}
+               ]
+             )
+
+    assert env.method == :post
+    assert env.body == "Body data"
+    assert env.headers == [{"X-Custom-Header", "custom value"}]
+  end
+
+  test "Strip authorization header on redirect, no headers" do
+    assert {:ok, env} =
+             CPRClient.post(
+               "http://example.com/1",
+               "Body data"
+             )
+
+    assert env.method == :post
+    assert env.body == "Body data"
+    assert env.headers == []
+  end
 end
