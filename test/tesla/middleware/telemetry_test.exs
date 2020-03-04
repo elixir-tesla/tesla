@@ -61,7 +61,7 @@ defmodule Tesla.Middleware.TelemetryTest do
       Client.get("/telemetry_exception")
     end
 
-    assert_receive {:event, [:tesla, :request, :failure], %{duration: _},
+    assert_receive {:event, [:tesla, :request, :failure], %{duration: time},
                     %{
                       env: %Tesla.Env{url: "/telemetry_exception", method: :get},
                       kind: kind,

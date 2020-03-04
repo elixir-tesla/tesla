@@ -82,7 +82,11 @@ if Code.ensure_loaded?(:telemetry) do
     end
 
     defp emit_start(metadata) do
-      :telemetry.execute([:tesla, :request, :start], %{start_time: System.system_time()}, metadata)
+      :telemetry.execute(
+        [:tesla, :request, :start],
+        %{start_time: System.system_time()},
+        metadata
+      )
     end
 
     defp emit_stop(duration, metadata) do
