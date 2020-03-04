@@ -162,30 +162,25 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp check_original(%URI{host: host, port: port, scheme: scheme}, %{conn: conn} = opts) do
-      matches? =
-        try do
-          # sometimes :gun.info can raise MatchError
-          info = :gun.info(conn)
+      info = :gun.info(conn)
 
-          conn_host =
-            case :inet.ntoa(info.origin_host) do
-              {:error, :einval} -> info.origin_host
-              ip -> ip
-            end
-
-          conn_scheme =
-            case :gun.info(conn) do
-              # support for gun master branch, which has `origin_scheme` in connection info
-              %{origin_scheme: scheme} -> scheme
-              %{transport: :tls} -> "https"
-              _ -> "http"
-            end
-
-          conn_scheme == scheme and to_string(conn_host) == host and
-            info.origin_port == port
-        rescue
-          MatchError -> false
+      conn_host =
+        case :inet.ntoa(info.origin_host) do
+          {:error, :einval} -> info.origin_host
+          ip -> ip
         end
+
+      conn_scheme =
+        case info do
+          # support for gun master branch, which has `origin_scheme` in connection info
+          %{origin_scheme: scheme} -> scheme
+          %{transport: :tls} -> "https"
+          _ -> "http"
+        end
+
+      matches? =
+        conn_scheme == scheme and to_string(conn_host) == host and
+          info.origin_port == port
 
       Map.put(opts, :original_matches, matches?)
     end
