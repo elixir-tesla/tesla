@@ -35,7 +35,6 @@ if Code.ensure_loaded?(:gun) do
         Processing of the chunks and checking body size must be done by yourself. Example of processing function is in `test/tesla/adapter/gun_test.exs` - `Tesla.Adapter.GunTest.read_body/4`. If you don't need connection later don't forget to close it with `Tesla.Adapter.Gun.close/1`.
     - `:max_body` - Max response body size in bytes. Works only with `body_as: :plain`, with other settings you need to check response body size by yourself.
     - `:conn` - Opened connection pid with gun. Is used for reusing gun connections.
-    - `:original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise adapter will use connection for another open host. Example: `"example.com:80"`.
     - `:close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections. Defaults to `true`.
     - `:certificates_verification` - Add SSL certificates verification. [erlang-certifi](https://github.com/certifi/erlang-certifi) [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
     - `:proxy` - Proxy for requests. **Socks proxy are supported only for gun master branch**. Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, `{:socks5, 'localhost', 1234}`.
@@ -162,8 +161,32 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp check_original(%URI{host: host, port: port}, %{original: original} = opts) do
-      Map.put(opts, :original_matches, original == "#{domain_or_fallback(host)}:#{port}")
+    defp check_original(%URI{host: host, port: port, scheme: scheme}, %{conn: conn} = opts) do
+      matches? =
+        try do
+          # sometimes :gun.info can raise MatchError
+          info = :gun.info(conn)
+
+          conn_host =
+            case :inet.ntoa(info.origin_host) do
+              {:error, :einval} -> info.origin_host
+              ip -> ip
+            end
+
+          conn_scheme =
+            case :gun.info(conn) do
+              # support for gun master branch, which has `origin_scheme` in connection info
+              %{origin_scheme: scheme} -> scheme
+              info -> if info.transport == :tls, do: "https", else: "http"
+            end
+
+          conn_scheme == scheme and to_string(conn_host) == host and
+            info.origin_port == port
+        rescue
+          MatchError -> false
+        end
+
+      Map.put(opts, :original_matches, matches?)
     end
 
     defp check_original(_uri, opts), do: opts
@@ -184,7 +207,7 @@ if Code.ensure_loaded?(:gun) do
 
     defp open_conn(uri, opts) do
       opts =
-        if uri.scheme == "https" and uri.port != 443 do
+        if uri.scheme == "https" do
           Map.put(opts, :transport, :tls)
         else
           opts
@@ -381,7 +404,13 @@ if Code.ensure_loaded?(:gun) do
           {:ok, status, headers, body}
 
         {:error, error} ->
-          if opts[:close_conn], do: close(pid)
+          if opts[:close_conn] do
+            close(pid)
+          else
+            # prevent gun sending messages to owner process, if body is too large and connection is not closed
+            :ok = :gun.flush(stream)
+          end
+
           {:error, error}
       end
     end
