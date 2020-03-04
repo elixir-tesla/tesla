@@ -177,7 +177,8 @@ if Code.ensure_loaded?(:gun) do
             case :gun.info(conn) do
               # support for gun master branch, which has `origin_scheme` in connection info
               %{origin_scheme: scheme} -> scheme
-              info -> if info.transport == :tls, do: "https", else: "http"
+              %{transport: :tls} -> "https"
+              _ -> "http"
             end
 
           conn_scheme == scheme and to_string(conn_host) == host and
