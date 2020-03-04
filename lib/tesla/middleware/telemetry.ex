@@ -21,16 +21,16 @@ if Code.ensure_loaded?(:telemetry) do
     ## Telemetry Events
 
     * `[:tesla, :request, :start]` - emitted at the beginning of the request.
-      * Measurement: `%{time: System.monotonic_time}`
+      * Measurement: `%{start_time: System.system_time()}`
       * Metadata: `%{env: Tesla.Env.t()}`
 
     * `[:tesla, :request, :stop]` - emitted at the end of the request.
       * Measurement: `%{duration: native_time}`
-      * Metadata: `%{env: Tesla.Env.t()} | %{env: Tesla.Env.t, error: term}`
+      * Metadata: `%{env: Tesla.Env.t()} | %{env: Tesla.Env.t(), error: term()}`
 
-    * `[:tesla, :request, :fail]` - emitted when there is an error.
-      * Measurement: `%{value: 1}`
-      * Metadata: `%{env: Tesla.Env.t(), kind: Exception.kind | nil, reason: term, stacktrace: Exception.stacktrace}`
+    * `[:tesla, :request, :failure]` - emitted when an exception has been raised.
+      * Measurement: `%{duration: native_time}`
+      * Metadata: `%{kind: Exception.kind(), reason: term(), stacktrace: Exception.stacktrace(), env: Tesla.Env.t()}`
 
     ## Legacy Telemetry Events
 
@@ -50,15 +50,16 @@ if Code.ensure_loaded?(:telemetry) do
     def call(env, next, _opts) do
       start_time = System.monotonic_time()
 
-      emit_start(start_time, %{env: env})
+      emit_start(%{env: env})
 
       try do
         Tesla.run(env, next)
       catch
         kind, reason ->
           stacktrace = System.stacktrace()
+          duration = System.monotonic_time() - start_time
 
-          emit_fail(%{env: env, kind: kind, reason: reason, stacktrace: stacktrace})
+          emit_failure(duration, %{kind: kind, reason: reason, stacktrace: stacktrace, env: env})
 
           :erlang.raise(kind, reason, stacktrace)
       else
@@ -80,8 +81,8 @@ if Code.ensure_loaded?(:telemetry) do
       end
     end
 
-    defp emit_start(time, metadata) do
-      :telemetry.execute([:tesla, :request, :start], %{time: time}, metadata)
+    defp emit_start(metadata) do
+      :telemetry.execute([:tesla, :request, :start], %{start_time: System.system_time()}, metadata)
     end
 
     defp emit_stop(duration, metadata) do
@@ -102,10 +103,10 @@ if Code.ensure_loaded?(:telemetry) do
       end
     end
 
-    defp emit_fail(metadata) do
+    defp emit_failure(duration, metadata) do
       :telemetry.execute(
-        [:tesla, :request, :fail],
-        %{value: 1},
+        [:tesla, :request, :failure],
+        %{duration: duration},
         metadata
       )
     end
