@@ -21,7 +21,7 @@ if Code.ensure_loaded?(:telemetry) do
     ## Telemetry Events
 
     * `[:tesla, :request, :start]` - emitted at the beginning of the request.
-      * Measurement: `%{start_time: System.system_time()}`
+      * Measurement: `%{system_time: System.system_time()}`
       * Metadata: `%{env: Tesla.Env.t()}`
 
     * `[:tesla, :request, :stop]` - emitted at the end of the request.
@@ -84,7 +84,7 @@ if Code.ensure_loaded?(:telemetry) do
     defp emit_start(metadata) do
       :telemetry.execute(
         [:tesla, :request, :start],
-        %{start_time: System.system_time()},
+        %{system_time: System.system_time()},
         metadata
       )
     end

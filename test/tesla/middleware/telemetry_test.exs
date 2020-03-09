@@ -42,7 +42,7 @@ defmodule Tesla.Middleware.TelemetryTest do
 
       Client.get(path)
 
-      assert_receive {:event, [:tesla, :request, :start], %{start_time: time},
+      assert_receive {:event, [:tesla, :request, :start], %{system_time: time},
                       %{env: %Tesla.Env{url: path, method: :get}}}
 
       assert_receive {:event, [:tesla, :request, :stop], %{duration: time},
