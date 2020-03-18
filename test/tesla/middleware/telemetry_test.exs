@@ -53,7 +53,7 @@ defmodule Tesla.Middleware.TelemetryTest do
   end
 
   test "with an exception raised" do
-    :telemetry.attach("with_exception", [:tesla, :request, :failure], &echo_event/4, %{
+    :telemetry.attach("with_exception", [:tesla, :request, :exception], &echo_event/4, %{
       caller: self()
     })
 
@@ -61,9 +61,8 @@ defmodule Tesla.Middleware.TelemetryTest do
       Client.get("/telemetry_exception")
     end
 
-    assert_receive {:event, [:tesla, :request, :failure], %{duration: time},
+    assert_receive {:event, [:tesla, :request, :exception], %{duration: time},
                     %{
-                      env: %Tesla.Env{url: "/telemetry_exception", method: :get},
                       kind: kind,
                       reason: reason,
                       stacktrace: stacktrace
