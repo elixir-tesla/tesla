@@ -70,7 +70,7 @@ defmodule Tesla.Mixfile do
 
       # other
       {:fuse, "~> 2.4", optional: true},
-      {:telemetry, "~> 0.3", optional: true},
+      {:telemetry, "~> 0.4", optional: true},
 
       # testing & docs
       {:excoveralls, "~> 0.8", only: :test},
