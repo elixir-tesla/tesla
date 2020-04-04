@@ -32,4 +32,21 @@ defmodule Tesla.Adapter.HackneyTest do
     assert {:ok, %Env{} = response} = call(request, with_body: true, async: true)
     assert response.status == 200
   end
+
+   test "stream request body: error" do
+    body =
+      Stream.unfold(5, fn
+        0 -> nil
+        3 -> {fn -> {:error, :fake_error} end, 2}
+        n -> {to_string(n), n - 1}
+      end)
+
+    request = %Env{
+      method: :post,
+      url: "#{@http}/post",
+      body: body
+    }
+
+    assert {:error, :fake_error} = call(request)
+  end
 end
