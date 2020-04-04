@@ -20,6 +20,7 @@ defmodule Tesla.Adapter.HackneyTest do
     }
 
     assert {:ok, %Env{} = response} = call(request, with_body: true)
+
     assert response.status == 200
   end
 
@@ -31,9 +32,20 @@ defmodule Tesla.Adapter.HackneyTest do
 
     assert {:ok, %Env{} = response} = call(request, with_body: true, async: true)
     assert response.status == 200
+    assert is_reference(response.body) == true
   end
 
-   test "stream request body: error" do
+  test "request timeout error" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/delay/10",
+      body: "test"
+    }
+
+    assert {:error, :timeout} = call(request, recv_timeout: 100)
+  end
+
+  test "stream request body: error" do
     body =
       Stream.unfold(5, fn
         0 -> nil
@@ -49,4 +61,5 @@ defmodule Tesla.Adapter.HackneyTest do
 
     assert {:error, :fake_error} = call(request)
   end
+
 end
