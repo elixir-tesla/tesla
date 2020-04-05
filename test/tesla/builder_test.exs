@@ -101,7 +101,7 @@ defmodule Tesla.BuilderTest do
         FinalMiddleware
       ]
 
-      client = TestClientPlug.new() |> TestClientPlug.new(middlewares)
+      client = TestClientPlug.new(TestClientPlug.new(), middlewares)
 
       assert [
                {FirstMiddleware, :call, [[]]},
