@@ -164,6 +164,26 @@ defmodule TeslaTest do
     end
   end
 
+  describe "Dynamic update client" do
+    defmodule DynamicUpdateClient do
+      use Tesla
+
+      def help(client \\ %Tesla.Client{}) do
+        get(client, "/help")
+      end
+    end
+
+    test "override adapter - Tesla.update_client" do
+      client =
+        %Tesla.Client{}
+        |> Tesla.update_client([], fn env ->
+          {:ok, %{env | body: "new"}}
+        end)
+
+      assert {:ok, %{body: "new"}} = DynamicUpdateClient.help(client)
+    end
+  end
+
   describe "request API" do
     defmodule SimpleClient do
       use Tesla

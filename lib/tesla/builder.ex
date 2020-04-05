@@ -174,6 +174,21 @@ defmodule Tesla.Builder do
     %Tesla.Client{pre: runtime(pre), post: runtime(post), adapter: runtime(adapter)}
   end
 
+  def update_client(client, pre, post, adapter \\ nil)
+
+  def update_client(%Tesla.Client{} = client, pre, post, nil) do
+    %Tesla.Client{client | pre: client.pre ++ runtime(pre), post: client.post ++ runtime(post)}
+  end
+
+  def update_client(%Tesla.Client{} = client, pre, post, adapter) do
+    %Tesla.Client{
+      client
+      | pre: client.pre ++ runtime(pre),
+        post: client.post ++ runtime(post),
+        adapter: runtime(adapter)
+    }
+  end
+
   @default_opts []
 
   defp compile(nil), do: nil

@@ -499,6 +499,27 @@ defmodule Tesla do
   @spec client([Tesla.Client.middleware()], Tesla.Client.adapter()) :: Tesla.Client.t()
   def client(middleware, adapter \\ nil), do: Tesla.Builder.client(middleware, [], adapter)
 
+  @doc """
+  Dynamically update an existing client.
+
+  ```
+  # add dynamic middleware
+  client = %Tesla.Client{}
+  client = Tesla.update_client(client, [{Tesla.Middleware.Headers, [{"authorization", token}]}])
+  Tesla.get(client, "/path")
+
+  # configure adapter in runtime
+  client = %Tesla.Client{}
+  client = Tesla.update_client(client, [], Tesla.Adapter.Hackney)
+  client = Tesla.update_client(client, [], {Tesla.Adapter.Hackney, pool: :my_pool})
+  Tesla.get(client, "/path")
+  ```
+  """
+  @spec update_client(Tesla.Client.t(), [Tesla.Client.middleware()], Tesla.Client.adapter()) ::
+          Tesla.Client.t()
+  def update_client(client, middleware, adapter \\ nil),
+    do: Tesla.Builder.update_client(client, middleware, [], adapter)
+
   @deprecated "Use client/1 or client/2 instead"
   def build_client(pre, post \\ []), do: Tesla.Builder.client(pre, post)
 

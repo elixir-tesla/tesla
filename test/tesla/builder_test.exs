@@ -26,6 +26,10 @@ defmodule Tesla.BuilderTest do
       def new(middlewares) do
         Tesla.Builder.client(middlewares, [])
       end
+
+      def new(client, middlewares) do
+        Tesla.Builder.update_client(client, middlewares, [])
+      end
     end
 
     defmodule TestClientModule do
@@ -87,6 +91,23 @@ defmodule Tesla.BuilderTest do
                {FirstMiddleware, :call, [[]]},
                {SecondMiddleware, :call, [[options: :are, fun: 1]]},
                {:fn, fun}
+             ] = client.pre
+
+      assert is_function(fun)
+    end
+
+    test "update client" do
+      middlewares = [
+        FinalMiddleware
+      ]
+
+      client = TestClientPlug.new() |> TestClientPlug.new(middlewares)
+
+      assert [
+               {FirstMiddleware, :call, [[]]},
+               {SecondMiddleware, :call, [[options: :are, fun: 1]]},
+               {:fn, fun},
+               {FinalMiddleware, :call, [[]]}
              ] = client.pre
 
       assert is_function(fun)
