@@ -61,5 +61,4 @@ defmodule Tesla.Adapter.HackneyTest do
 
     assert {:error, :fake_error} = call(request)
   end
-
 end
