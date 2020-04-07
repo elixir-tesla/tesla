@@ -88,7 +88,8 @@ defmodule Tesla.Middleware.FollowRedirects do
   end
 
   # See https://github.com/teamon/tesla/issues/362
-  @filter_headers ["authorization"]
+  # See https://github.com/teamon/tesla/issues/360
+  @filter_headers ["authorization", "host"]
   defp filter_headers(env, orig_url) do
     if URI.parse(env.url).host != URI.parse(orig_url).host do
       %{env | headers: Enum.filter(env.headers, fn {k, _} -> k not in @filter_headers end)}
