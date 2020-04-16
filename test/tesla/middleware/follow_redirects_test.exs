@@ -224,20 +224,20 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
                Tesla.post(client, "http://example.com/keep", "",
                  headers: [
                    {"content-type", "text/plain"},
-                   {"authorization", "Basic: secret"}
+                   {"authorization", "Basic Zm9vOmJhcg=="}
                  ]
                )
 
       # Initial request receives all headers
       assert_receive [
         {"content-type", "text/plain"},
-        {"authorization", "Basic: secret"}
+        {"authorization", "Basic Zm9vOmJhcg=="}
       ]
 
       # Next request also receives all headers
       assert_receive [
         {"content-type", "text/plain"},
-        {"authorization", "Basic: secret"}
+        {"authorization", "Basic Zm9vOmJhcg=="}
       ]
     end
 
@@ -246,14 +246,14 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
                Tesla.post(client, "http://example.com/drop", "",
                  headers: [
                    {"content-type", "text/plain"},
-                   {"authorization", "Basic: secret"}
+                   {"authorization", "Basic Zm9vOmJhcg=="}
                  ]
                )
 
       # Initial request receives all headers
       assert_receive [
         {"content-type", "text/plain"},
-        {"authorization", "Basic: secret"}
+        {"authorization", "Basic Zm9vOmJhcg=="}
       ]
 
       # Next request does not receive authorization header
