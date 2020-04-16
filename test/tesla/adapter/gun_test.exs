@@ -98,21 +98,17 @@ defmodule Tesla.Adapter.GunTest do
     uri = URI.parse(@http)
     {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
 
-    original = "#{uri.host}:#{uri.port}"
-
     request = %Env{
       method: :get,
       url: "#{@http}/ip"
     }
 
-    assert {:ok, %Env{} = response} =
-             call(request, conn: conn, close_conn: false, original: original)
+    assert {:ok, %Env{} = response} = call(request, conn: conn, close_conn: false)
 
     assert response.status == 200
     assert Process.alive?(conn)
 
-    assert {:ok, %Env{} = response} =
-             call(request, conn: conn, close_conn: false, original: original)
+    assert {:ok, %Env{} = response} = call(request, conn: conn, close_conn: false)
 
     assert response.status == 200
     assert Process.alive?(conn)
@@ -124,15 +120,13 @@ defmodule Tesla.Adapter.GunTest do
     uri = URI.parse(@http)
     {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
 
-    original = "#{uri.host}:#{uri.port}"
-
     request = %Env{
       method: :get,
       url: "#{@http}/stream-bytes/10"
     }
 
     assert {:ok, %Env{} = response} =
-             call(request, body_as: :chunks, conn: conn, original: original, close_conn: false)
+             call(request, body_as: :chunks, conn: conn, close_conn: false)
 
     assert response.status == 200
     %{pid: pid, stream: stream, opts: opts} = response.body
@@ -146,7 +140,7 @@ defmodule Tesla.Adapter.GunTest do
 
     # reusing connection
     assert {:ok, %Env{} = response} =
-             call(request, body_as: :chunks, conn: conn, original: original, close_conn: false)
+             call(request, body_as: :chunks, conn: conn, close_conn: false)
 
     assert response.status == 200
     %{pid: pid, stream: stream, opts: opts} = response.body
@@ -162,87 +156,10 @@ defmodule Tesla.Adapter.GunTest do
     refute Process.alive?(pid)
   end
 
-  test "don't reuse connection if original does not match" do
-    uri = URI.parse(@http)
-    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
-
-    request = %Env{
-      method: :get,
-      url: "#{@http}/stream-bytes/10"
-    }
-
-    assert {:ok, %Env{} = response} =
-             call(request, body_as: :chunks, conn: conn, original: "example.com:80")
-
-    assert response.status == 200
-    %{pid: pid, stream: stream, opts: opts} = response.body
-    assert opts[:body_as] == :chunks
-    assert is_pid(pid)
-    assert is_reference(stream)
-
-    assert read_body(pid, stream, opts) |> byte_size() == 16
-    refute Process.alive?(pid)
-    refute conn == pid
-  end
-
-  test "don't reuse connection and verify fun if original does not match in https request" do
-    uri = URI.parse(@https)
-
-    host = to_charlist(uri.host)
-
-    {:ok, conn} = :gun.open(host, uri.port)
-
-    request = %Env{
-      method: :get,
-      url: "#{@https}/stream-bytes/10"
-    }
-
-    assert {:ok, %Env{} = response} =
-             call(request,
-               body_as: :chunks,
-               conn: conn,
-               original: "example.com:443",
-               transport_opts: [
-                 verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: 'example.com']}
-               ]
-             )
-
-    assert response.status == 200
-    %{pid: pid, stream: stream, opts: opts} = response.body
-
-    assert is_pid(pid)
-    assert is_reference(stream)
-
-    assert read_body(pid, stream, opts) |> byte_size() == 16
-
-    refute Process.alive?(pid)
-    assert opts[:old_conn] == conn
-    refute conn == pid
-  end
-
   test "certificates_verification" do
     request = %Env{
       method: :get,
       url: "#{@https}"
-    }
-
-    assert {:ok, %Env{} = response} =
-             call(request,
-               certificates_verification: true,
-               transport_opts: [
-                 verify_fun:
-                   {fn
-                      _cert, _reason, state ->
-                        {:valid, state}
-                    end, nil}
-               ]
-             )
-  end
-
-  test "certificates_verification with domain" do
-    request = %Env{
-      method: :get,
-      url: "https://localhost:5443"
     }
 
     assert {:ok, %Env{} = response} =
@@ -269,7 +186,6 @@ defmodule Tesla.Adapter.GunTest do
   test "read response body in stream with opened connection without closing connection" do
     uri = URI.parse(@http)
     {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
-    original = "#{uri.host}:#{uri.port}"
 
     request = %Env{
       method: :get,
@@ -277,7 +193,7 @@ defmodule Tesla.Adapter.GunTest do
     }
 
     assert {:ok, %Env{} = response} =
-             call(request, body_as: :stream, conn: conn, close_conn: false, original: original)
+             call(request, body_as: :stream, conn: conn, close_conn: false)
 
     assert response.status == 200
     assert is_function(response.body)
@@ -293,15 +209,12 @@ defmodule Tesla.Adapter.GunTest do
     uri = URI.parse(@http)
     {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
 
-    original = "#{uri.host}:#{uri.port}"
-
     request = %Env{
       method: :get,
       url: "#{@http}/stream-bytes/10"
     }
 
-    assert {:ok, %Env{} = response} =
-             call(request, body_as: :stream, conn: conn, original: original)
+    assert {:ok, %Env{} = response} = call(request, body_as: :stream, conn: conn)
 
     assert response.status == 200
     assert is_function(response.body)
@@ -342,38 +255,104 @@ defmodule Tesla.Adapter.GunTest do
     assert is_pid(pid)
   end
 
-  test "ipv4" do
-    request = %Env{
-      method: :get,
-      url: "http://0.0.0.0:5080/stream-bytes/10"
-    }
+  describe "don't reuse connection if request url is not equal opened connection url" do
+    test "for ipv4" do
+      uri = URI.parse(@http)
+      {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
 
-    assert {:ok, %Env{} = response} = call(request, body_as: :chunks, original: "localhost:5080")
-    assert response.status == 200
-    %{pid: pid, stream: stream, opts: opts} = response.body
-    assert %{origin_host: {0, 0, 0, 0}} = :gun.info(pid)
-    assert opts[:original_matches] == false
-    assert read_body(pid, stream, opts) |> byte_size() == 16
-  end
+      request = %Env{
+        method: :get,
+        url: "http://0.0.0.0:5080/stream-bytes/10"
+      }
 
-  test "original does not match" do
-    request = %Env{
-      method: :get,
-      url: "http://localhost:5080/stream-bytes/10"
-    }
+      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
+      assert response.status == 200
+      %{pid: pid, stream: stream, opts: opts} = response.body
+      refute conn == pid
+      assert %{origin_host: {0, 0, 0, 0}} = :gun.info(pid)
+      assert opts[:original_matches] == false
+      assert read_body(pid, stream, opts) |> byte_size() == 16
+    end
 
-    assert {:ok, %Env{} = response} = call(request, body_as: :chunks, original: "0.0.0.0:5080")
-    assert response.status == 200
-    %{pid: pid, stream: stream, opts: opts} = response.body
-    assert %{origin_host: 'localhost'} = :gun.info(pid)
-    assert opts[:original_matches] == false
-    assert read_body(pid, stream, opts) |> byte_size() == 16
+    test "for domain" do
+      {:ok, conn} = :gun.open({0, 0, 0, 0}, 5080)
+
+      request = %Env{
+        method: :get,
+        url: "#{@http}/stream-bytes/10"
+      }
+
+      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
+      assert response.status == 200
+      %{pid: pid, stream: stream, opts: opts} = response.body
+      refute conn == pid
+      assert %{origin_host: 'localhost'} = :gun.info(pid)
+      assert opts[:original_matches] == false
+      assert read_body(pid, stream, opts) |> byte_size() == 16
+    end
+
+    test "for different schemes" do
+      uri = URI.parse(@http)
+      host = to_charlist(uri.host)
+      {:ok, conn} = :gun.open(host, uri.port)
+
+      request = %Env{
+        method: :get,
+        url: "#{@https}/stream-bytes/10"
+      }
+
+      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
+
+      assert response.status == 200
+      %{pid: pid, stream: stream, opts: opts} = response.body
+
+      assert is_pid(pid)
+      assert is_reference(stream)
+
+      assert read_body(pid, stream, opts) |> byte_size() == 16
+
+      refute Process.alive?(pid)
+      assert opts[:old_conn] == conn
+      refute conn == pid
+    end
+
+    test "and don't use verify_fun" do
+      {:ok, conn} = :gun.open({0, 0, 0, 0}, 5443)
+
+      request = %Env{
+        method: :get,
+        url: "#{@https}/stream-bytes/10"
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 body_as: :chunks,
+                 conn: conn,
+                 certificates_verification: true,
+                 transport_opts: [
+                   cacertfile: "./deps/httparrot/priv/ssl/server-ca.crt",
+                   verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: '0.0.0.0']}
+                 ]
+               )
+
+      assert response.status == 200
+      %{pid: pid, stream: stream, opts: opts} = response.body
+
+      assert is_pid(pid)
+      assert is_reference(stream)
+
+      assert read_body(pid, stream, opts) |> byte_size() == 16
+
+      refute Process.alive?(pid)
+      assert opts[:old_conn] == conn
+      refute conn == pid
+    end
   end
 
   test "on TLS errors get timeout error from await_up method" do
     request = %Env{
       method: :get,
-      url: "https://localhost:5443"
+      url: "#{@https}"
     }
 
     {time, resp} =
