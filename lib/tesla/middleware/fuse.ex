@@ -51,7 +51,7 @@ if Code.ensure_loaded?(:fuse) do
 
     @behaviour Tesla.Middleware
 
-    # options borrowed from http://blog.rokkincat.com/circuit-breakers-in-elixir/
+    # options borrowed from https://rokkincat.com/blog/2015-09-24-circuit-breakers-in-elixir/
     # most probably not valid for your use case
     @defaults {{:standard, 2, 10_000}, {:reset, 60_000}}
 
