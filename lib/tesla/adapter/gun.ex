@@ -58,6 +58,7 @@ if Code.ensure_loaded?(:gun) do
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
 
+    # TODO: update list after update to gun 2.0
     @gun_keys [
       :connect_timeout,
       :http_opts,
@@ -71,7 +72,7 @@ if Code.ensure_loaded?(:gun) do
       :ws_opts
     ]
 
-    @adapter_default_timeout 1_000
+    @default_timeout 1_000
 
     @impl Tesla.Adapter
     def call(env, opts) do
@@ -88,19 +89,24 @@ if Code.ensure_loaded?(:gun) do
     @spec read_chunk(pid(), reference(), keyword() | map()) ::
             {:fin, binary()} | {:nofin, binary()} | {:error, atom()}
     def read_chunk(pid, stream, opts) do
+      with {status, _} = chunk when status in [:fin, :error] <- do_read_chunk(pid, stream, opts) do
+        if opts[:close_conn], do: close(pid)
+        chunk
+      end
+    end
+
+    defp do_read_chunk(pid, stream, opts) do
       receive do
         {:gun_data, ^pid, ^stream, :fin, body} ->
-          if opts[:close_conn], do: close(pid)
           {:fin, body}
 
         {:gun_data, ^pid, ^stream, :nofin, part} ->
           {:nofin, part}
 
         {:DOWN, _, _, _, reason} ->
-          if opts[:close_conn], do: close(pid)
           {:error, reason}
       after
-        opts[:timeout] || @adapter_default_timeout ->
+        opts[:timeout] || @default_timeout ->
           {:error, :recv_chunk_timeout}
       end
     end
@@ -133,36 +139,48 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp request(method, url, headers, %Stream{} = body, opts),
-      do: request_stream(method, url, headers, body, Map.put(opts, :send_body, :stream))
+      do: do_request(method, url, headers, body, Map.put(opts, :send_body, :stream))
 
     defp request(method, url, headers, body, opts) when is_function(body),
-      do: request_stream(method, url, headers, body, Map.put(opts, :send_body, :stream))
+      do: do_request(method, url, headers, body, Map.put(opts, :send_body, :stream))
 
     defp request(method, url, headers, %Multipart{} = mp, opts) do
       headers = headers ++ Multipart.headers(mp)
       body = Multipart.body(mp)
 
-      request(method, url, headers, body, opts)
+      do_request(method, url, headers, body, Map.put(opts, :send_body, :stream))
     end
 
     defp request(method, url, headers, body, opts),
       do: do_request(method, url, headers, body, opts)
 
-    defp request_stream(method, url, headers, body, opts),
-      do: do_request(method, url, headers, body, opts)
-
     defp do_request(method, url, headers, body, opts) do
-      with uri <- URI.parse(url),
-           path <- Tesla.Adapter.Shared.prepare_path(uri.path, uri.query),
-           opts <- check_original(uri, opts),
-           {:ok, pid, opts} <- open_conn(uri, opts),
-           stream <- open_stream(pid, method, path, headers, body, opts) do
-        read_response(pid, stream, opts)
+      uri = URI.parse(url)
+      path = Tesla.Adapter.Shared.prepare_path(uri.path, uri.query)
+
+      with {:ok, pid, opts} <- open_conn(uri, opts) do
+        stream = open_stream(pid, method, path, headers, body, opts)
+        response = read_response(pid, stream, opts)
+
+        if opts[:close_conn] and opts[:body_as] not in [:stream, :chunks] do
+          close(pid)
+        end
+
+        response
       end
     end
 
-    defp check_original(%URI{host: host, port: port, scheme: scheme}, %{conn: conn} = opts) do
+    defp open_conn(%{scheme: scheme, host: host, port: port}, %{conn: conn} = opts)
+         when is_pid(conn) do
       info = :gun.info(conn)
+
+      conn_scheme =
+        case info do
+          # gun master branch support, which has `origin_scheme` in connection info
+          %{origin_scheme: scheme} -> scheme
+          %{transport: :tls} -> "https"
+          _ -> "http"
+        end
 
       conn_host =
         case :inet.ntoa(info.origin_host) do
@@ -170,86 +188,60 @@ if Code.ensure_loaded?(:gun) do
           ip -> ip
         end
 
-      conn_scheme =
-        case info do
-          # support for gun master branch, which has `origin_scheme` in connection info
-          %{origin_scheme: scheme} -> scheme
-          %{transport: :tls} -> "https"
-          _ -> "http"
-        end
-
-      matches? =
-        conn_scheme == scheme and to_string(conn_host) == host and
-          info.origin_port == port
-
-      Map.put(opts, :original_matches, matches?)
-    end
-
-    defp check_original(_uri, opts), do: opts
-
-    defp open_conn(_uri, %{conn: conn, original_matches: true} = opts) do
-      {:ok, conn, Map.put(opts, :receive, false)}
-    end
-
-    defp open_conn(uri, %{conn: conn, original_matches: false} = opts) do
-      # current url is different from the original, so we can't use transferred connection
-      opts =
-        opts
-        |> Map.put_new(:old_conn, conn)
-        |> Map.delete(:conn)
-
-      open_conn(uri, opts)
+      if conn_scheme == scheme and to_string(conn_host) == host and info.origin_port == port do
+        {:ok, conn, Map.put(opts, :receive, false)}
+      else
+        {:error, :invalid_conn}
+      end
     end
 
     defp open_conn(uri, opts) do
-      opts =
+      opts = maybe_add_transport(uri, opts)
+
+      tls_opts =
         if uri.scheme == "https" do
-          Map.put(opts, :transport, :tls)
-        else
           opts
-        end
-
-      tls_opts =
-        opts
-        |> Map.get(:tls_opts, [])
-        |> Keyword.merge(Map.get(opts, :transport_opts, []))
-
-      tls_opts =
-        with "https" <- uri.scheme,
-             false <- opts[:original_matches] do
-          # current url is different from the original, so we can't use verify_fun for https requests
-          Keyword.delete(tls_opts, :verify_fun)
+          |> fetch_tls_opts()
+          |> maybe_add_verify_options(opts, uri)
         else
-          _ -> tls_opts
-        end
-
-      # Support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
-      # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
-
-      tls_opts =
-        with "https" <- uri.scheme,
-             true <- opts[:certificates_verification] do
-          security_opts = [
-            verify: :verify_peer,
-            cacertfile: CAStore.file_path(),
-            depth: 20,
-            reuse_sessions: false,
-            verify_fun:
-              {&:ssl_verify_hostname.verify_fun/3, [check_hostname: domain_or_fallback(uri.host)]}
-          ]
-
-          Keyword.merge(security_opts, tls_opts)
-        else
-          _ -> tls_opts
+          []
         end
 
       gun_opts = Map.take(opts, @gun_keys)
 
-      with {:ok, pid} <- do_open_conn(uri, opts, gun_opts, tls_opts) do
-        # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.
-        {:ok, pid, Map.put(opts, :close_conn, true)}
+      with {:ok, conn} <- do_open_conn(uri, opts, gun_opts, tls_opts) do
+        {:ok, conn, opts}
       end
     end
+
+    defp maybe_add_transport(%URI{scheme: "https"}, opts), do: Map.put(opts, :transport, :tls)
+    defp maybe_add_transport(_, opts), do: opts
+
+    # Support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
+    # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
+    # TODO: remove after update to gun 2.0
+    defp fetch_tls_opts(%{tls_opts: tls_opts}) when is_list(tls_opts), do: tls_opts
+    defp fetch_tls_opts(%{transport_opts: tls_opts}) when is_list(tls_opts), do: tls_opts
+    defp fetch_tls_opts(_), do: []
+
+    defp maybe_add_verify_options(tls_opts, %{certificates_verification: true}, %{host: host}) do
+      charlist =
+        host
+        |> to_charlist()
+        |> :idna.encode()
+
+      security_opts = [
+        verify: :verify_peer,
+        cacertfile: CAStore.file_path(),
+        depth: 20,
+        reuse_sessions: false,
+        verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: charlist]}
+      ]
+
+      Keyword.merge(security_opts, tls_opts)
+    end
+
+    defp maybe_add_verify_options(tls_opts, _, _), do: tls_opts
 
     defp do_open_conn(uri, %{proxy: {proxy_host, proxy_port}}, gun_opts, tls_opts) do
       connect_opts =
@@ -307,7 +299,7 @@ if Code.ensure_loaded?(:gun) do
         |> Map.put(:tls_opts, tls_opts)
         |> Map.put(:tcp_opts, tcp_opts)
 
-      {_type, host} = domain_or_ip(uri.host)
+      host = domain_or_ip(uri.host)
 
       with {:ok, pid} <- gun_open(host, uri.port, opts_with_master_keys, opts) do
         {:ok, pid}
@@ -322,12 +314,16 @@ if Code.ensure_loaded?(:gun) do
 
     defp gun_open(host, port, gun_opts, opts) do
       with {:ok, pid} <- :gun.open(host, port, gun_opts),
-           {:receive, true, pid} <- {:receive, opts[:receive], pid},
-           {:ok, _} <- :gun.await_up(pid) do
+           {_, true, _} <- {:receive, opts[:receive], pid},
+           {_, {:ok, _}, _} <- {:up, :gun.await_up(pid), pid} do
         {:ok, pid}
       else
         {:receive, false, pid} ->
           {:ok, pid}
+
+        {:up, error, pid} ->
+          close(pid)
+          error
 
         error ->
           error
@@ -335,7 +331,7 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp tunnel_opts(uri) do
-      {_type, host} = domain_or_ip(uri.host)
+      host = domain_or_ip(uri.host)
       %{host: host, port: uri.port}
     end
 
@@ -367,7 +363,6 @@ if Code.ensure_loaded?(:gun) do
 
       receive do
         {:gun_response, ^pid, ^stream, :fin, status, headers} ->
-          if opts[:close_conn], do: close(pid)
           {:ok, status, headers, ""}
 
         {:gun_response, ^pid, ^stream, :nofin, status, headers} ->
@@ -377,18 +372,15 @@ if Code.ensure_loaded?(:gun) do
           read_response(pid, stream, opts)
 
         {:gun_error, ^pid, reason} ->
-          if opts[:close_conn], do: close(pid)
           {:error, reason}
 
         {:gun_down, ^pid, _, _, _, _} when receive? ->
           read_response(pid, stream, opts)
 
         {:DOWN, _, _, _, reason} ->
-          if opts[:close_conn], do: close(pid)
           {:error, reason}
       after
-        opts[:timeout] || @adapter_default_timeout ->
-          if opts[:close_conn], do: :ok = close(pid)
+        opts[:timeout] || @default_timeout ->
           {:error, :recv_response_timeout}
       end
     end
@@ -396,16 +388,11 @@ if Code.ensure_loaded?(:gun) do
     defp format_response(pid, stream, opts, status, headers, :plain) do
       case read_body(pid, stream, opts) do
         {:ok, body} ->
-          if opts[:close_conn], do: close(pid)
           {:ok, status, headers, body}
 
         {:error, error} ->
-          if opts[:close_conn] do
-            close(pid)
-          else
-            # prevent gun sending messages to owner process, if body is too large and connection is not closed
-            :ok = :gun.flush(stream)
-          end
+          # prevent gun sending messages to owner process, if body is too large and connection is not closed
+          :ok = :gun.flush(stream)
 
           {:error, error}
       end
@@ -452,7 +439,7 @@ if Code.ensure_loaded?(:gun) do
         {:DOWN, _, _, _, reason} ->
           {:error, reason}
       after
-        opts[:timeout] || @adapter_default_timeout ->
+        opts[:timeout] || @default_timeout ->
           {:error, :recv_body_timeout}
       end
     end
@@ -469,22 +456,15 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp domain_or_fallback(host) do
-      case domain_or_ip(host) do
-        {:domain, domain} -> domain
-        {:ip, _ip} -> to_charlist(host)
-      end
-    end
-
     defp domain_or_ip(host) do
       charlist = to_charlist(host)
 
       case :inet.parse_address(charlist) do
         {:error, :einval} ->
-          {:domain, :idna.encode(charlist)}
+          :idna.encode(charlist)
 
-        {:ok, ip} when is_tuple(ip) and tuple_size(ip) in [4, 8] ->
-          {:ip, ip}
+        {:ok, ip} ->
+          ip
       end
     end
   end
