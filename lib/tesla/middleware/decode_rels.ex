@@ -43,19 +43,12 @@ defmodule Tesla.Middleware.DecodeRels do
     |> String.split(",")
     |> Enum.map(&String.trim/1)
     |> Enum.map(&rel/1)
-    |> List.flatten
     |> Enum.into(%{})
   end
 
   defp rel(item) do
-    parts = String.split(item, ";")
-    {url, attrs} = List.pop_at(parts, 0)
-
-    Enum.map(attrs, fn param ->
-      [_attr, value] = param |> String.trim() |> String.split("=")
-
-      {value |> String.trim("'") |> String.trim("\""),
-       url |> String.trim(">") |> String.trim("<")}
-    end)
+    Regex.run(~r/\A<(.+)>; rel=["]?([^"]+)["]?\z/, item, capture: :all_but_first)
+    |> Enum.reverse()
+    |> List.to_tuple()
   end
 end
