@@ -188,7 +188,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
     assert env.headers == [{"X-Custom-Header", "custom value"}]
   end
 
-  describe "authorization headers" do
+  describe "headers" do
     defp setup_client(_) do
       middleware = [Tesla.Middleware.FollowRedirects]
 
@@ -224,20 +224,20 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
                Tesla.post(client, "http://example.com/keep", "",
                  headers: [
                    {"content-type", "text/plain"},
-                   {"authorization", "Basic: secret"}
+                   {"authorization", "Basic Zm9vOmJhcg=="}
                  ]
                )
 
       # Initial request receives all headers
       assert_receive [
         {"content-type", "text/plain"},
-        {"authorization", "Basic: secret"}
+        {"authorization", "Basic Zm9vOmJhcg=="}
       ]
 
       # Next request also receives all headers
       assert_receive [
         {"content-type", "text/plain"},
-        {"authorization", "Basic: secret"}
+        {"authorization", "Basic Zm9vOmJhcg=="}
       ]
     end
 
@@ -246,20 +246,56 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
                Tesla.post(client, "http://example.com/drop", "",
                  headers: [
                    {"content-type", "text/plain"},
-                   {"authorization", "Basic: secret"}
+                   {"authorization", "Basic Zm9vOmJhcg=="}
                  ]
                )
 
       # Initial request receives all headers
       assert_receive [
         {"content-type", "text/plain"},
-        {"authorization", "Basic: secret"}
+        {"authorization", "Basic Zm9vOmJhcg=="}
       ]
 
       # Next request does not receive authorization header
       assert_receive [
         {"content-type", "text/plain"}
       ]
+    end
+
+    test "Keep custom host header on redirect to a different domain", %{client: client} do
+      assert {:ok, env} =
+               Tesla.post(client, "http://example.com/keep", "",
+                 headers: [
+                   {"host", "example.xyz"}
+                 ]
+               )
+
+      # Initial request receives host header
+      assert_receive [
+        {"host", "example.xyz"}
+      ]
+
+      # Next request does not receive host header
+      assert_receive [
+        {"host", "example.xyz"}
+      ]
+    end
+
+    test "Strip custom host header on redirect to a different domain", %{client: client} do
+      assert {:ok, env} =
+               Tesla.post(client, "http://example.com/drop", "",
+                 headers: [
+                   {"host", "example.xyz"}
+                 ]
+               )
+
+      # Initial request receives host header
+      assert_receive [
+        {"host", "example.xyz"}
+      ]
+
+      # Next request does not receive host header
+      assert_receive []
     end
   end
 end
