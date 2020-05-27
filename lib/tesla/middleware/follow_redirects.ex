@@ -54,6 +54,7 @@ defmodule Tesla.Middleware.FollowRedirects do
 
             env
             |> new_request(res.status, location)
+            |> filter_headers(env.url)
             |> redirect(next, left - 1)
         end
 
@@ -84,5 +85,15 @@ defmodule Tesla.Middleware.FollowRedirects do
     |> URI.parse()
     |> URI.merge(location)
     |> URI.to_string()
+  end
+
+  # See https://github.com/teamon/tesla/issues/362
+  @filter_headers ["authorization"]
+  defp filter_headers(env, orig_url) do
+    if URI.parse(env.url).host != URI.parse(orig_url).host do
+      %{env | headers: Enum.filter(env.headers, fn {k, _} -> k not in @filter_headers end)}
+    else
+      env
+    end
   end
 end

@@ -187,4 +187,79 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
     assert env.body == "Body data"
     assert env.headers == [{"X-Custom-Header", "custom value"}]
   end
+
+  describe "authorization headers" do
+    defp setup_client(_) do
+      middleware = [Tesla.Middleware.FollowRedirects]
+
+      adapter = fn
+        %{url: "http://example.com/keep", headers: headers} = env ->
+          send(self(), headers)
+
+          {:ok,
+           %{env | status: 301, headers: [{"location", "http://example.com/next"}], body: ""}}
+
+        %{url: "http://example.com/drop", headers: headers} = env ->
+          send(self(), headers)
+
+          {:ok,
+           %{env | status: 301, headers: [{"location", "http://example.net/next"}], body: ""}}
+
+        %{url: "http://example.com/next", headers: headers} = env ->
+          send(self(), headers)
+          {:ok, %{env | status: 200, headers: [], body: "ok com"}}
+
+        %{url: "http://example.net/next", headers: headers} = env ->
+          send(self(), headers)
+          {:ok, %{env | status: 200, headers: [], body: "ok net"}}
+      end
+
+      {:ok, client: Tesla.client(middleware, adapter)}
+    end
+
+    setup :setup_client
+
+    test "Keep authorization header on redirect to the same domain", %{client: client} do
+      assert {:ok, env} =
+               Tesla.post(client, "http://example.com/keep", "",
+                 headers: [
+                   {"content-type", "text/plain"},
+                   {"authorization", "Basic: secret"}
+                 ]
+               )
+
+      # Initial request receives all headers
+      assert_receive [
+        {"content-type", "text/plain"},
+        {"authorization", "Basic: secret"}
+      ]
+
+      # Next request also receives all headers
+      assert_receive [
+        {"content-type", "text/plain"},
+        {"authorization", "Basic: secret"}
+      ]
+    end
+
+    test "Strip authorization header on redirect to a different domain", %{client: client} do
+      assert {:ok, env} =
+               Tesla.post(client, "http://example.com/drop", "",
+                 headers: [
+                   {"content-type", "text/plain"},
+                   {"authorization", "Basic: secret"}
+                 ]
+               )
+
+      # Initial request receives all headers
+      assert_receive [
+        {"content-type", "text/plain"},
+        {"authorization", "Basic: secret"}
+      ]
+
+      # Next request does not receive authorization header
+      assert_receive [
+        {"content-type", "text/plain"}
+      ]
+    end
+  end
 end
