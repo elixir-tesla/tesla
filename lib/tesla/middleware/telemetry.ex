@@ -99,9 +99,11 @@ if Code.ensure_loaded?(:telemetry) do
 
     defp emit_legacy_event(duration, result) do
       if !@disable_legacy_event do
+        duration_µs = System.convert_time_unit(duration, :native, :microsecond)
+
         :telemetry.execute(
           [:tesla, :request],
-          %{request_time: duration},
+          %{request_time: duration_µs},
           %{result: result}
         )
       end
