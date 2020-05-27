@@ -47,7 +47,7 @@ defmodule Tesla.Middleware.DecodeRels do
   end
 
   defp rel(item) do
-    Regex.run(~r/\A<(.+)>; rel="(.+)"\z/, item, capture: :all_but_first)
+    Regex.run(~r/\A<(.+)>; rel=["]?([^"]+)["]?\z/, item, capture: :all_but_first)
     |> Enum.reverse()
     |> List.to_tuple()
   end
