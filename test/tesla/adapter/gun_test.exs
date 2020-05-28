@@ -8,6 +8,10 @@ defmodule Tesla.Adapter.GunTest do
   use Tesla.AdapterCase.SSL
   alias Tesla.Adapter.Gun
 
+  setup do
+    on_exit(fn -> assert Supervisor.which_children(:gun_sup) == [] end)
+  end
+
   test "fallback adapter timeout option" do
     request = %Env{
       method: :get,
@@ -26,17 +30,16 @@ defmodule Tesla.Adapter.GunTest do
     assert {:error, :body_too_large} = call(request, max_body: 5)
   end
 
-  test "query without path" do
+  test "url without path" do
     request = %Env{
       method: :get,
       url: "#{@http}"
     }
 
-    assert {:ok, %Env{} = response} = call(request)
-    assert response.status == 200
+    assert {:ok, %Env{status: 200}} = call(request)
   end
 
-  test "query without path with query" do
+  test "url without path, but with query" do
     request = %Env{
       method: :get,
       url: "#{@http}",
@@ -45,8 +48,17 @@ defmodule Tesla.Adapter.GunTest do
       ]
     }
 
-    assert {:ok, %Env{} = response} = call(request)
-    assert response.status == 200
+    assert {:ok, %Env{status: 200} = response} = call(request)
+  end
+
+  test "ipv4 request" do
+    request = %Env{
+      method: :get,
+      url: "http://127.0.0.1:#{Application.get_env(:httparrot, :http_port)}/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{status: 200, body: body}} = call(request)
+    assert byte_size(body) == 16
   end
 
   test "response stream" do
@@ -55,21 +67,30 @@ defmodule Tesla.Adapter.GunTest do
       url: "#{@http}/stream-bytes/10"
     }
 
-    assert {:ok, %Env{} = response} = call(request)
-    assert response.status == 200
-    assert byte_size(response.body) == 16
+    assert {:ok, %Env{status: 200, body: body}} = call(request)
+    assert byte_size(body) == 16
   end
 
-  test "read response body in chunks" do
+  test "response body as stream" do
     request = %Env{
       method: :get,
       url: "#{@http}/stream-bytes/10"
     }
 
-    assert {:ok, %Env{} = response} = call(request, body_as: :chunks)
-    assert response.status == 200
-    %{pid: pid, stream: stream, opts: opts} = response.body
-    assert opts[:body_as] == :chunks
+    assert {:ok, %Env{status: 200, body: stream}} = call(request, body_as: :stream)
+    assert is_function(stream)
+    assert stream |> Enum.join() |> byte_size() == 16
+  end
+
+  test "response body as chunks with closing connection" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream, opts: opts}}} =
+             call(request, body_as: :chunks)
+
     assert is_pid(pid)
     assert is_reference(stream)
 
@@ -77,86 +98,7 @@ defmodule Tesla.Adapter.GunTest do
     refute Process.alive?(pid)
   end
 
-  test "read response body in chunks with closing connection by default opts" do
-    request = %Env{
-      method: :get,
-      url: "#{@http}/stream-bytes/10"
-    }
-
-    assert {:ok, %Env{} = response} = call(request, body_as: :chunks)
-    assert response.status == 200
-    %{pid: pid, stream: stream, opts: opts} = response.body
-    assert opts[:body_as] == :chunks
-    assert is_pid(pid)
-    assert is_reference(stream)
-
-    assert read_body(pid, stream, opts) |> byte_size() == 16
-    refute Process.alive?(pid)
-  end
-
-  test "with body_as :plain reusing connection" do
-    uri = URI.parse(@http)
-    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
-
-    request = %Env{
-      method: :get,
-      url: "#{@http}/ip"
-    }
-
-    assert {:ok, %Env{} = response} = call(request, conn: conn, close_conn: false)
-
-    assert response.status == 200
-    assert Process.alive?(conn)
-
-    assert {:ok, %Env{} = response} = call(request, conn: conn, close_conn: false)
-
-    assert response.status == 200
-    assert Process.alive?(conn)
-    :ok = Gun.close(conn)
-    refute Process.alive?(conn)
-  end
-
-  test "read response body in chunks with reused connection and closing it" do
-    uri = URI.parse(@http)
-    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
-
-    request = %Env{
-      method: :get,
-      url: "#{@http}/stream-bytes/10"
-    }
-
-    assert {:ok, %Env{} = response} =
-             call(request, body_as: :chunks, conn: conn, close_conn: false)
-
-    assert response.status == 200
-    %{pid: pid, stream: stream, opts: opts} = response.body
-    assert opts[:body_as] == :chunks
-    assert is_pid(pid)
-    assert is_reference(stream)
-    assert conn == pid
-
-    assert read_body(pid, stream, opts) |> byte_size() == 16
-    assert Process.alive?(pid)
-
-    # reusing connection
-    assert {:ok, %Env{} = response} =
-             call(request, body_as: :chunks, conn: conn, close_conn: false)
-
-    assert response.status == 200
-    %{pid: pid, stream: stream, opts: opts} = response.body
-    assert opts[:body_as] == :chunks
-    assert is_pid(pid)
-    assert is_reference(stream)
-    assert conn == pid
-
-    assert read_body(pid, stream, opts) |> byte_size() == 16
-    assert Process.alive?(pid)
-
-    :ok = Gun.close(pid)
-    refute Process.alive?(pid)
-  end
-
-  test "certificates_verification" do
+  test "certificates_verification option" do
     request = %Env{
       method: :get,
       url: "#{@https}"
@@ -171,56 +113,63 @@ defmodule Tesla.Adapter.GunTest do
              )
   end
 
-  test "read response body in stream" do
-    request = %Env{
-      method: :get,
-      url: "#{@http}/stream-bytes/10"
-    }
+  describe "reusing connection" do
+    setup do
+      uri = URI.parse(@http)
+      {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
 
-    assert {:ok, %Env{} = response} = call(request, body_as: :stream)
-    assert response.status == 200
-    assert is_function(response.body)
-    assert Enum.join(response.body) |> byte_size() == 16
-  end
+      request = %Env{
+        method: :get,
+        url: "#{@http}/stream-bytes/10"
+      }
 
-  test "read response body in stream with opened connection without closing connection" do
-    uri = URI.parse(@http)
-    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+      on_exit(fn -> Gun.close(conn) end)
 
-    request = %Env{
-      method: :get,
-      url: "#{@http}/stream-bytes/10"
-    }
+      {:ok, request: request, conn: conn}
+    end
 
-    assert {:ok, %Env{} = response} =
-             call(request, body_as: :stream, conn: conn, close_conn: false)
+    test "response body as plain", %{request: request, conn: conn} do
+      assert {:ok, %Env{status: 200, body: body}} = call(request, conn: conn, close_conn: false)
+      assert byte_size(body) == 16
+      assert Process.alive?(conn)
+    end
 
-    assert response.status == 200
-    assert is_function(response.body)
-    assert Enum.join(response.body) |> byte_size() == 16
+    test "response body as chunks", %{request: request, conn: conn} do
+      opts = [body_as: :chunks, conn: conn, close_conn: false]
 
-    assert Process.alive?(conn)
+      assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream}}} = call(request, opts)
 
-    :ok = Gun.close(conn)
-    refute Process.alive?(conn)
-  end
+      assert is_pid(pid)
+      assert is_reference(stream)
+      assert conn == pid
 
-  test "read response body in stream with opened connection with closing connection" do
-    uri = URI.parse(@http)
-    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+      assert read_body(pid, stream, opts) |> byte_size() == 16
+      assert Process.alive?(pid)
+    end
 
-    request = %Env{
-      method: :get,
-      url: "#{@http}/stream-bytes/10"
-    }
+    test "response body as stream without closing connection", %{request: request, conn: conn} do
+      assert {:ok, %Env{status: 200, body: stream}} =
+               call(request, body_as: :stream, conn: conn, close_conn: false)
 
-    assert {:ok, %Env{} = response} = call(request, body_as: :stream, conn: conn)
+      assert is_function(stream)
+      assert stream |> Enum.join() |> byte_size() == 16
 
-    assert response.status == 200
-    assert is_function(response.body)
-    assert Enum.join(response.body) |> byte_size() == 16
+      assert Process.alive?(conn)
+    end
 
-    refute Process.alive?(conn)
+    test "response body as stream with closing connection", %{request: request, conn: conn} do
+      assert {:ok, %Env{status: 200, body: stream}} = call(request, body_as: :stream, conn: conn)
+
+      assert is_function(stream)
+      assert stream |> Enum.join() |> byte_size() == 16
+
+      refute Process.alive?(conn)
+    end
+
+    test "opened to another domain", %{request: request, conn: conn} do
+      new_url = "http://127.0.0.1:#{Application.get_env(:httparrot, :http_port)}/stream-bytes/10"
+      assert {:error, :invalid_conn} = call(Map.put(request, :url, new_url), conn: conn)
+    end
   end
 
   test "error response" do
@@ -253,100 +202,6 @@ defmodule Tesla.Adapter.GunTest do
     assert response.status == 200
     assert_receive {:gun_up, pid, :http}
     assert is_pid(pid)
-  end
-
-  describe "don't reuse connection if request url is not equal opened connection url" do
-    test "for ipv4" do
-      uri = URI.parse(@http)
-      {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
-
-      request = %Env{
-        method: :get,
-        url: "http://0.0.0.0:5080/stream-bytes/10"
-      }
-
-      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
-      assert response.status == 200
-      %{pid: pid, stream: stream, opts: opts} = response.body
-      refute conn == pid
-      assert %{origin_host: {0, 0, 0, 0}} = :gun.info(pid)
-      assert opts[:original_matches] == false
-      assert read_body(pid, stream, opts) |> byte_size() == 16
-    end
-
-    test "for domain" do
-      {:ok, conn} = :gun.open({0, 0, 0, 0}, 5080)
-
-      request = %Env{
-        method: :get,
-        url: "#{@http}/stream-bytes/10"
-      }
-
-      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
-      assert response.status == 200
-      %{pid: pid, stream: stream, opts: opts} = response.body
-      refute conn == pid
-      assert %{origin_host: 'localhost'} = :gun.info(pid)
-      assert opts[:original_matches] == false
-      assert read_body(pid, stream, opts) |> byte_size() == 16
-    end
-
-    test "for different schemes" do
-      uri = URI.parse(@http)
-      host = to_charlist(uri.host)
-      {:ok, conn} = :gun.open(host, uri.port)
-
-      request = %Env{
-        method: :get,
-        url: "#{@https}/stream-bytes/10"
-      }
-
-      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, conn: conn)
-
-      assert response.status == 200
-      %{pid: pid, stream: stream, opts: opts} = response.body
-
-      assert is_pid(pid)
-      assert is_reference(stream)
-
-      assert read_body(pid, stream, opts) |> byte_size() == 16
-
-      refute Process.alive?(pid)
-      assert opts[:old_conn] == conn
-      refute conn == pid
-    end
-
-    test "and don't use verify_fun" do
-      {:ok, conn} = :gun.open({0, 0, 0, 0}, 5443)
-
-      request = %Env{
-        method: :get,
-        url: "#{@https}/stream-bytes/10"
-      }
-
-      assert {:ok, %Env{} = response} =
-               call(request,
-                 body_as: :chunks,
-                 conn: conn,
-                 certificates_verification: true,
-                 transport_opts: [
-                   cacertfile: "./deps/httparrot/priv/ssl/server-ca.crt",
-                   verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: '0.0.0.0']}
-                 ]
-               )
-
-      assert response.status == 200
-      %{pid: pid, stream: stream, opts: opts} = response.body
-
-      assert is_pid(pid)
-      assert is_reference(stream)
-
-      assert read_body(pid, stream, opts) |> byte_size() == 16
-
-      refute Process.alive?(pid)
-      assert opts[:old_conn] == conn
-      refute conn == pid
-    end
   end
 
   test "on TLS errors get timeout error from await_up method" do
