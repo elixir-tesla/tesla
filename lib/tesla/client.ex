@@ -5,7 +5,7 @@ defmodule Tesla.Client do
   @type t :: %__MODULE__{
           pre: Tesla.Env.stack(),
           post: Tesla.Env.stack(),
-          adapter: adapter | nil
+          adapter: adapter | nil,
           metadata: map()
         }
   defstruct fun: nil,
