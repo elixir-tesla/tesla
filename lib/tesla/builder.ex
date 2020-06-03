@@ -164,14 +164,19 @@ defmodule Tesla.Builder do
     end
   end
 
-  def client(pre, post, adapter \\ nil)
+  def client(pre, post, adapter \\ nil, metadata \\ %{})
 
-  def client(pre, post, nil) do
-    %Tesla.Client{pre: runtime(pre), post: runtime(post)}
+  def client(pre, post, nil, metadata) do
+    %Tesla.Client{pre: runtime(pre), post: runtime(post), metadata: metadata}
   end
 
-  def client(pre, post, adapter) do
-    %Tesla.Client{pre: runtime(pre), post: runtime(post), adapter: runtime(adapter)}
+  def client(pre, post, adapter, metadata) do
+    %Tesla.Client{
+      pre: runtime(pre),
+      post: runtime(post),
+      adapter: runtime(adapter),
+      metadata: metadata
+    }
   end
 
   @default_opts []

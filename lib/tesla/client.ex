@@ -6,11 +6,13 @@ defmodule Tesla.Client do
           pre: Tesla.Env.stack(),
           post: Tesla.Env.stack(),
           adapter: adapter | nil
+          metadata: map()
         }
   defstruct fun: nil,
             pre: [],
             post: [],
-            adapter: nil
+            adapter: nil,
+            metadata: %{}
 
   @doc ~S"""
   Returns the client's adapter in the same form it was provided.

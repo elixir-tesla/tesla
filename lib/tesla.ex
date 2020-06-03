@@ -482,7 +482,15 @@ defmodule Tesla do
   """
   if Version.match?(System.version(), "~> 1.7"), do: @doc(since: "1.2.0")
   @spec client([Tesla.Client.middleware()], Tesla.Client.adapter()) :: Tesla.Client.t()
-  def client(middleware, adapter \\ nil), do: Tesla.Builder.client(middleware, [], adapter)
+  def client(middleware, adapter_or_opts \\ nil)
+
+  def client(middleware, opts) when is_list(opts) do
+    adapter = Keyword.get(opts, :adapter)
+    metadata = Keyword.get(opts, :metadata)
+    Tesla.Builder.client(middleware, [], adapter, metadata)
+  end
+
+  def client(middleware, adapter), do: Tesla.Builder.client(middleware, [], adapter)
 
   @deprecated "Use client/1 or client/2 instead"
   def build_client(pre, post \\ []), do: Tesla.Builder.client(pre, post)
