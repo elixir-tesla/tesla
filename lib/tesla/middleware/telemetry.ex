@@ -1,7 +1,7 @@
 if Code.ensure_loaded?(:telemetry) do
   defmodule Tesla.Middleware.Telemetry do
     @moduledoc """
-    Emits events using the `:telemetry` library to expose instrumentation. Those events will use the `:telemetry_prefix` which defaults to `[:tesla]`.
+    Emits events using the `:telemetry` library to expose instrumentation.
 
     ## Example usage
 
@@ -16,6 +16,34 @@ if Code.ensure_loaded?(:telemetry) do
     :telemetry.attach("my-tesla-telemetry", [:tesla, :request, :stop], fn event, measurements, meta, config ->
       # Do something with the event
     end)
+    ```
+
+    ## Options
+    - `:telemetry_prefix` - replaces default `[:tesla]` with desired Telemetry event prefix (see below)
+
+    ## Custom Telemetry Prefix
+
+    All events will use a `:telemetry_prefix` which defaults to `[:tesla]`.
+
+    You can customize events by providing your own `:telemetry_prefix` locally:
+
+    ```
+    defmodule MyClient do
+      use Tesla
+
+      plug Tesla.Middleware.Telemetry, telemetry_prefix: [:custom, :prefix]
+
+    end
+
+    :telemetry.attach("my-tesla-telemetry", [:custom, :prefix, :request, :stop], fn event, measurements, meta, config ->
+      # Do something with the event
+    end)
+    ```
+
+    You can configure `:telemetry_prefix` globally in your config, but if set the `:telemetry_prefix` option will override:
+
+    ```
+    config :tesla, Tesla.Middleware.Telemetry, telemetry_prefix: [:custom, :prefix]
     ```
 
     ## Telemetry Events
@@ -49,10 +77,11 @@ if Code.ensure_loaded?(:telemetry) do
     @default_telemetry_prefix [:tesla]
 
     @impl Tesla.Middleware
-    def call(env, next, _opts) do
+    def call(env, next, opts) do
       start_time = System.monotonic_time()
+      prefix = telemetry_prefix(opts)
 
-      emit_start(%{env: env})
+      emit_start(%{env: env}, prefix)
 
       try do
         Tesla.run(env, next)
@@ -61,52 +90,56 @@ if Code.ensure_loaded?(:telemetry) do
           stacktrace = System.stacktrace()
           duration = System.monotonic_time() - start_time
 
-          emit_exception(duration, %{kind: kind, reason: reason, stacktrace: stacktrace})
+          emit_exception(duration, %{kind: kind, reason: reason, stacktrace: stacktrace}, prefix)
 
           :erlang.raise(kind, reason, stacktrace)
       else
         {:ok, env} = result ->
           duration = System.monotonic_time() - start_time
 
-          emit_stop(duration, %{env: env})
-          emit_legacy_event(duration, result)
+          emit_stop(duration, %{env: env}, prefix)
+          emit_legacy_event(duration, result, prefix)
 
           result
 
         {:error, reason} = result ->
           duration = System.monotonic_time() - start_time
 
-          emit_stop(duration, %{env: env, error: reason})
-          emit_legacy_event(duration, result)
+          emit_stop(duration, %{env: env, error: reason}, prefix)
+          emit_legacy_event(duration, result, prefix)
 
           result
       end
     end
 
-    defp telemetry_prefix() do
-      Application.get_env(:tesla, :telemetry_prefix, @default_telemetry_prefix)
+    defp config, do: Application.get_env(:tesla, __MODULE__, [])
+
+    defp telemetry_prefix(opts) do
+      with nil <- Keyword.get(opts, :telemetry_prefix) do
+        Keyword.get(config(), :telemetry_prefix, @default_telemetry_prefix)
+      end
     end
 
-    defp emit_start(metadata) do
-      event = telemetry_prefix() ++ [:request, :start]
+    defp emit_start(metadata, prefix) do
+      event = prefix ++ [:request, :start]
       :telemetry.execute(event, %{system_time: System.system_time()}, metadata)
     end
 
-    defp emit_stop(duration, metadata) do
-      event = telemetry_prefix() ++ [:request, :stop]
+    defp emit_stop(duration, metadata, prefix) do
+      event = prefix ++ [:request, :stop]
       :telemetry.execute(event, %{duration: duration}, metadata)
     end
 
-    defp emit_legacy_event(duration, result) do
+    defp emit_legacy_event(duration, result, prefix) do
       if !@disable_legacy_event do
-        event = telemetry_prefix() ++ [:request]
+        event = prefix ++ [:request]
         duration_µs = System.convert_time_unit(duration, :native, :microsecond)
         :telemetry.execute(event, %{request_time: duration_µs}, %{result: result})
       end
     end
 
-    defp emit_exception(duration, metadata) do
-      event = telemetry_prefix() ++ [:request, :exception]
+    defp emit_exception(duration, metadata, prefix) do
+      event = prefix ++ [:request, :exception]
       :telemetry.execute(event, %{duration: duration}, metadata)
     end
   end
