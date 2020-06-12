@@ -1,7 +1,7 @@
 if Code.ensure_loaded?(:telemetry) do
   defmodule Tesla.Middleware.Telemetry do
     @moduledoc """
-    Emits events using the `:telemetry` library to expose instrumentation.
+    Emits events using the `:telemetry` library to expose instrumentation. Those events will use the `:telemetry_prefix` which defaults to `[:tesla]`.
 
     ## Example usage
 
@@ -46,6 +46,8 @@ if Code.ensure_loaded?(:telemetry) do
 
     @behaviour Tesla.Middleware
 
+    @default_telemetry_prefix [:tesla]
+
     @impl Tesla.Middleware
     def call(env, next, _opts) do
       start_time = System.monotonic_time()
@@ -81,40 +83,31 @@ if Code.ensure_loaded?(:telemetry) do
       end
     end
 
+    defp telemetry_prefix() do
+      Application.get_env(:tesla, :telemetry_prefix, @default_telemetry_prefix)
+    end
+
     defp emit_start(metadata) do
-      :telemetry.execute(
-        [:tesla, :request, :start],
-        %{system_time: System.system_time()},
-        metadata
-      )
+      event = telemetry_prefix() ++ [:request, :start]
+      :telemetry.execute(event, %{system_time: System.system_time()}, metadata)
     end
 
     defp emit_stop(duration, metadata) do
-      :telemetry.execute(
-        [:tesla, :request, :stop],
-        %{duration: duration},
-        metadata
-      )
+      event = telemetry_prefix() ++ [:request, :stop]
+      :telemetry.execute(event, %{duration: duration}, metadata)
     end
 
     defp emit_legacy_event(duration, result) do
       if !@disable_legacy_event do
+        event = telemetry_prefix() ++ [:request]
         duration_µs = System.convert_time_unit(duration, :native, :microsecond)
-
-        :telemetry.execute(
-          [:tesla, :request],
-          %{request_time: duration_µs},
-          %{result: result}
-        )
+        :telemetry.execute(event, %{request_time: duration_µs}, %{result: result})
       end
     end
 
     defp emit_exception(duration, metadata) do
-      :telemetry.execute(
-        [:tesla, :request, :exception],
-        %{duration: duration},
-        metadata
-      )
+      event = telemetry_prefix() ++ [:request, :exception]
+      :telemetry.execute(event, %{duration: duration}, metadata)
     end
   end
 end
