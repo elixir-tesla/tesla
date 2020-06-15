@@ -178,7 +178,7 @@ defmodule Tesla.Mock do
         %{url: "/404"} -> text(%{"some" => "data"}, status: 404)
       end
   """
-  @spec text(body :: term, opts :: [response_opts]) :: Tesla.Env.t()
+  @spec text(body :: term, opts :: response_opts) :: Tesla.Env.t()
   def text(body, opts \\ []), do: response(body, "text/plain", opts)
 
   defp response(body, content_type, opts) do
