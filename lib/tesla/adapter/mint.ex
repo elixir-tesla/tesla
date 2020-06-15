@@ -310,17 +310,20 @@ if Code.ensure_loaded?(Mint.HTTP) do
       end
     end
 
-    defp receive_message(conn, %{mode: :active} = opts) do
-      receive do
-        message ->
-          HTTP.stream(conn, message)
-      after
-        opts[:timeout] -> {:error, :timeout}
+    defp receive_message(conn, opts) do
+      case opts[:mode] do
+        :active ->
+          receive do
+            message ->
+              HTTP.stream(conn, message)
+          after
+            opts[:timeout] -> {:error, :timeout}
+          end
+
+        :passive ->
+          HTTP.recv(conn, 0, opts[:timeout])
       end
     end
-
-    defp receive_message(conn, %{mode: :passive} = opts),
-      do: HTTP.recv(conn, 0, opts[:timeout])
 
     defp reduce_responses(responses, ref, acc) do
       Enum.reduce(responses, acc, fn
