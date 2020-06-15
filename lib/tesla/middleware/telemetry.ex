@@ -19,31 +19,25 @@ if Code.ensure_loaded?(:telemetry) do
     ```
 
     ## Options
-    - `:telemetry_prefix` - replaces default `[:tesla]` with desired Telemetry event prefix (see below)
+    - `:prefix` - replaces default `[:tesla]` with desired Telemetry event prefix (see below)
 
-    ## Custom Telemetry Prefix
+    ## Custom Prefix
 
-    All events will use a `:telemetry_prefix` which defaults to `[:tesla]`.
+    All events will use a `:prefix` which defaults to `[:tesla]`.
 
-    You can customize events by providing your own `:telemetry_prefix` locally:
+    You can customize events by providing your own `:prefix` locally:
 
     ```
     defmodule MyClient do
       use Tesla
 
-      plug Tesla.Middleware.Telemetry, telemetry_prefix: [:custom, :prefix]
+      plug Tesla.Middleware.Telemetry, prefix: [:custom, :prefix]
 
     end
 
     :telemetry.attach("my-tesla-telemetry", [:custom, :prefix, :request, :stop], fn event, measurements, meta, config ->
       # Do something with the event
     end)
-    ```
-
-    You can configure `:telemetry_prefix` globally in your config, but if set the `:telemetry_prefix` option will override:
-
-    ```
-    config :tesla, Tesla.Middleware.Telemetry, telemetry_prefix: [:custom, :prefix]
     ```
 
     ## Telemetry Events
@@ -74,12 +68,12 @@ if Code.ensure_loaded?(:telemetry) do
 
     @behaviour Tesla.Middleware
 
-    @default_telemetry_prefix [:tesla]
+    @default_prefix [:tesla]
 
     @impl Tesla.Middleware
     def call(env, next, opts) do
       start_time = System.monotonic_time()
-      prefix = telemetry_prefix(opts)
+      prefix = Keyword.get(opts, :prefix, @default_prefix)
 
       emit_start(%{env: env}, prefix)
 
@@ -109,14 +103,6 @@ if Code.ensure_loaded?(:telemetry) do
           emit_legacy_event(duration, result, prefix)
 
           result
-      end
-    end
-
-    defp config, do: Application.get_env(:tesla, __MODULE__, [])
-
-    defp telemetry_prefix(opts) do
-      with nil <- Keyword.get(opts, :telemetry_prefix) do
-        Keyword.get(config(), :telemetry_prefix, @default_telemetry_prefix)
       end
     end
 
