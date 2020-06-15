@@ -170,6 +170,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    @dialyzer [{:nowarn_function, open_conn: 2}, :no_match]
     defp open_conn(%{scheme: scheme, host: host, port: port}, %{conn: conn} = opts)
          when is_pid(conn) do
       info = :gun.info(conn)
