@@ -291,6 +291,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    @dialyzer [{:nowarn_function, do_open_conn: 4}, :no_match]
     defp do_open_conn(uri, opts, gun_opts, tls_opts) do
       tcp_opts = Map.get(opts, :tcp_opts, [])
 
