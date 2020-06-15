@@ -313,6 +313,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    @dialyzer [{:nowarn_function, gun_open: 4}, :no_match]
     defp gun_open(host, port, gun_opts, opts) do
       with {:ok, pid} <- :gun.open(host, port, gun_opts),
            {_, true, _} <- {:receive, opts[:receive], pid},
