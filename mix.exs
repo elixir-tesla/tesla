@@ -16,7 +16,7 @@ defmodule Tesla.Mixfile do
       lockfile: lockfile(System.get_env("LOCKFILE")),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
-        plt_add_apps: [:inets],
+        plt_add_apps: [:inets, :idna, :ssl_verify_fun],
         plt_add_deps: :project
       ],
       docs: docs()
