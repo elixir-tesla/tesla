@@ -521,4 +521,10 @@ end
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
-Copyright (c) 2015-2018 [Tymon Tobolski](http://teamon.eu/about/)
+Copyright (c) 2015-2020 [Tymon Tobolski](https://teamon.me/about/)
+
+--
+
+## Sponsors
+
+This project is sponsored by [ubots - Useful bots for Slack](https://ubots.xyz/)
