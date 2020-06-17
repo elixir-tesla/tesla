@@ -3,7 +3,7 @@ if Code.ensure_loaded?(:gun) do
     @moduledoc """
     Adapter for [gun](https://github.com/ninenines/gun).
 
-    Remember to add `{:gun, "~> 1.3"}` to dependencies.
+    Remember to add `{:gun, "~> 1.3"}` and `{:idna, "~> 6.0"}` to dependencies.
     In version 1.3 gun sends `host` header with port. Fixed in master branch.
     Also, you need to recompile tesla after adding `:gun` dependency:
 
