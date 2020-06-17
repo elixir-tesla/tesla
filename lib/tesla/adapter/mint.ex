@@ -67,7 +67,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     @spec read_chunk(HTTP.t(), reference(), keyword()) ::
             {:fin, HTTP.t(), binary()} | {:nofin, HTTP.t(), binary()}
     def read_chunk(conn, ref, opts) do
-      with {:ok, conn, acc} <- receive_packet(conn, ref, opts),
+      with {:ok, conn, acc} <- receive_packet(conn, ref, Enum.into(opts, %{})),
            {state, data} <- response_state(acc) do
         {:ok, conn} =
           if state == :fin and opts[:close_conn] do
