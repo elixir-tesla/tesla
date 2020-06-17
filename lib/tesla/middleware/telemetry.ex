@@ -97,8 +97,12 @@ if Code.ensure_loaded?(:telemetry) do
       )
     end
 
-    defp emit_legacy_event(duration, result) do
-      if !@disable_legacy_event do
+    if @disable_legacy_event do
+      defp emit_legacy_event(duration, result) do
+        :ok
+      end
+    else
+      defp emit_legacy_event(duration, result) do
         duration_µs = System.convert_time_unit(duration, :native, :microsecond)
 
         :telemetry.execute(

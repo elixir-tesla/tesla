@@ -170,6 +170,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    @dialyzer [{:nowarn_function, open_conn: 2}, :no_match]
     defp open_conn(%{scheme: scheme, host: host, port: port}, %{conn: conn} = opts)
          when is_pid(conn) do
       info = :gun.info(conn)
@@ -290,6 +291,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    @dialyzer [{:nowarn_function, do_open_conn: 4}, :no_match]
     defp do_open_conn(uri, opts, gun_opts, tls_opts) do
       tcp_opts = Map.get(opts, :tcp_opts, [])
 
@@ -312,6 +314,7 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    @dialyzer [{:nowarn_function, gun_open: 4}, :no_match]
     defp gun_open(host, port, gun_opts, opts) do
       with {:ok, pid} <- :gun.open(host, port, gun_opts),
            {_, true, _} <- {:receive, opts[:receive], pid},

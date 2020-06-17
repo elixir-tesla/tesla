@@ -158,7 +158,7 @@ defmodule Tesla.Mock do
         %{url: "/404"} -> json(%{"some" => "data"}, status: 404)
       end
   """
-  @spec json(body :: term, opts :: [response_opts]) :: Tesla.Env.t()
+  @spec json(body :: term, opts :: response_opts) :: Tesla.Env.t()
   def json(body, opts \\ []), do: response(json_encode(body), "application/json", opts)
 
   defp json_encode(body) do
@@ -178,7 +178,7 @@ defmodule Tesla.Mock do
         %{url: "/404"} -> text(%{"some" => "data"}, status: 404)
       end
   """
-  @spec text(body :: term, opts :: [response_opts]) :: Tesla.Env.t()
+  @spec text(body :: term, opts :: response_opts) :: Tesla.Env.t()
   def text(body, opts \\ []), do: response(body, "text/plain", opts)
 
   defp response(body, content_type, opts) do
