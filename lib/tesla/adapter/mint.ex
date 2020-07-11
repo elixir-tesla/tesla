@@ -314,10 +314,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     defp receive_message(conn, %{mode: :active} = opts) do
       receive do
-        {tag, _, _} = message when tag in @tags ->
-          HTTP.stream(conn, message)
-
-        {tag, _} = message when tag in @tags ->
+        message when is_tuple(message) and elem(message, 0) in @tags ->
           HTTP.stream(conn, message)
       after
         opts[:timeout] -> {:error, :timeout}
