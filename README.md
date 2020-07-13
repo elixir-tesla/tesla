@@ -198,6 +198,7 @@ Tesla supports multiple HTTP adapter that do the actual HTTP request processing.
 - [`Tesla.Adapter.Ibrowse`](https://hexdocs.pm/tesla/Tesla.Adapter.Ibrowse.html) - [ibrowse](https://github.com/cmullaparthi/ibrowse), "Erlang HTTP client"
 - [`Tesla.Adapter.Gun`](https://hexdocs.pm/tesla/Tesla.Adapter.Gun.html) - [gun](https://github.com/ninenines/gun), "HTTP/1.1, HTTP/2 and Websocket client for Erlang/OTP"
 - [`Tesla.Adapter.Mint`](https://hexdocs.pm/tesla/Tesla.Adapter.Mint.html) - [mint](https://github.com/elixir-mint/mint), "Functional HTTP client for Elixir with support for HTTP/1 and HTTP/2"
+- [`Tesla.Adapter.Finch`](https://hexdocs.pm/tesla/Tesla.Adapter.Finch.html) - [finch](https://github.com/keathley/finch), "An HTTP client with a focus on performance, built on top of [Mint](https://github.com/elixir-mint/mint) and [NimblePool](https://github.com/dashbitco/nimble_pool)."
 
 When using adapter other than httpc remember to add it to the dependencies list in `mix.exs`
 
