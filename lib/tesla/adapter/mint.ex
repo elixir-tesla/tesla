@@ -50,6 +50,8 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     @default timeout: 2_000, body_as: :plain, close_conn: true, mode: :active
 
+    @tags [:tcp_error, :ssl_error, :tcp_closed, :ssl_closed, :tcp, :ssl]
+
     @impl Tesla.Adapter
     def call(env, opts) do
       opts = Tesla.Adapter.opts(@default, env, opts)
@@ -312,7 +314,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     defp receive_message(conn, %{mode: :active} = opts) do
       receive do
-        message ->
+        message when is_tuple(message) and elem(message, 0) in @tags ->
           HTTP.stream(conn, message)
       after
         opts[:timeout] -> {:error, :timeout}
