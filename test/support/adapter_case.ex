@@ -1,13 +1,15 @@
 defmodule Tesla.AdapterCase do
-  defmacro __using__(opts) do
+  defmacro __using__(adapter: adapter) do
     quote do
-      @adapter unquote(Keyword.fetch!(opts, :adapter))
-      @adapter_opts unquote(opts[:adapter_opts] || [])
+      @adapter unquote(adapter)
       @http "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
       @https "https://localhost:#{Application.get_env(:httparrot, :https_port)}"
 
       defp call(env, opts \\ []) do
-        @adapter.call(env, Keyword.merge(opts, @adapter_opts))
+        case @adapter do
+          {adapter, adapter_opts} -> adapter.call(env, Keyword.merge(opts, adapter_opts))
+          adapter -> adapter.call(env, opts)
+        end
       end
     end
   end

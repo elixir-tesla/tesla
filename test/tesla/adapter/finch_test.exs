@@ -3,7 +3,7 @@ defmodule Tesla.Adapter.FinchTest do
 
   @finch_name MyFinch
 
-  use Tesla.AdapterCase, adapter: Tesla.Adapter.Finch, adapter_opts: [name: @finch_name]
+  use Tesla.AdapterCase, adapter: {Tesla.Adapter.Finch, [name: @finch_name]}
   use Tesla.AdapterCase.Basic
   use Tesla.AdapterCase.Multipart
   # use Tesla.AdapterCase.StreamRequestBody
