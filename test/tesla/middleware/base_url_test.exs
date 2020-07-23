@@ -64,6 +64,11 @@ defmodule Tesla.Middleware.BaseUrlTest do
     assert env.url == "http://example.com/top/path"
   end
 
+  test "base as function" do
+    assert {:ok, env} = @middleware.call(%Env{url: "/api"}, [], fn _ -> "http://example.com" end)
+    assert env.url == "http://example.com/api"
+  end
+
   test "skip double append on http / https" do
     assert {:ok, env} = @middleware.call(%Env{url: "http://other.foo"}, [], "http://example.com")
     assert env.url == "http://other.foo"
