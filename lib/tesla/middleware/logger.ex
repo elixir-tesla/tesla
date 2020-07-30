@@ -106,6 +106,15 @@ defmodule Tesla.Middleware.Logger do
   # config/dev.local.exs
   config :tesla, Tesla.Middleware.Logger, debug: false
   ```
+
+  Note that the logging configuration is evaluated at compile time,
+  so Tesla must be recompiled for the configuration to take effect:
+
+  ```
+  mix deps.clean --build tesla
+  mix deps.compile tesla
+  ```
+
   ### Filter headers
 
   To sanitize sensitive headers such as `authorization` in
