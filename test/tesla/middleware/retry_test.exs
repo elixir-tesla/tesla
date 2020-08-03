@@ -73,6 +73,54 @@ defmodule Tesla.Middleware.RetryTest do
              ClientWithShouldRetryFunction.get("/retry_status")
   end
 
+  test "pass when max_delay option is zero" do
+    defmodule ClientWithZeroMaxDelay do
+      use Tesla
+
+      plug Tesla.Middleware.Retry, max_delay: 0
+
+      adapter LaggyAdapter
+    end
+
+    assert {:ok, %Tesla.Env{}} = ClientWithZeroMaxDelay.get("/maybe")
+  end
+
+  test "pass when max_delay option is negative" do
+    defmodule ClientWithNegativeMaxDelay do
+      use Tesla
+
+      plug Tesla.Middleware.Retry, max_delay: -1
+
+      adapter LaggyAdapter
+    end
+
+    assert {:ok, %Tesla.Env{}} = ClientWithNegativeMaxDelay.get("/maybe")
+  end
+
+  test "pass when delay option is zero" do
+    defmodule ClientWithZeroDelay do
+      use Tesla
+
+      plug Tesla.Middleware.Retry, delay: 0
+
+      adapter LaggyAdapter
+    end
+
+    assert {:ok, %Tesla.Env{}} = ClientWithZeroDelay.get("/maybe")
+  end
+
+  test "pass when delay option is negative" do
+    defmodule ClientWithNegativeDelay do
+      use Tesla
+
+      plug Tesla.Middleware.Retry, delay: -1
+
+      adapter LaggyAdapter
+    end
+
+    assert {:ok, %Tesla.Env{}} = ClientWithNegativeDelay.get("/maybe")
+  end
+
   defmodule DefunctClient do
     use Tesla
 

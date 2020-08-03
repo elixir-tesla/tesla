@@ -39,9 +39,9 @@ defmodule Tesla.Middleware.Retry do
 
   ## Options
 
-  - `:delay` - The base delay in milliseconds (defaults to 50)
-  - `:max_retries` - maximum number of retries (defaults to 5)
-  - `:max_delay` - maximum delay in milliseconds (defaults to 5000)
+  - `:delay` - The base delay in milliseconds (positive integer, defaults to 50)
+  - `:max_retries` - maximum number of retries (non-negative integer, defaults to 5)
+  - `:max_delay` - maximum delay in milliseconds (positive integer, defaults to 5000)
   - `:should_retry` - function to determine if request should be retried
   """
 
@@ -60,11 +60,22 @@ defmodule Tesla.Middleware.Retry do
   def call(env, next, opts) do
     opts = opts || []
 
+    max_delay =
+      opts
+      |> Keyword.get(:max_delay, @defaults[:delay])
+      |> max(1)
+
+    delay =
+      opts
+      |> Keyword.get(:max_delay, @defaults[:delay])
+      |> max(1)
+      |> min(max_delay)
+
     context = %{
       retries: 0,
-      delay: Keyword.get(opts, :delay, @defaults[:delay]),
+      delay: delay,
       max_retries: Keyword.get(opts, :max_retries, @defaults[:max_retries]),
-      max_delay: Keyword.get(opts, :max_delay, @defaults[:max_delay]),
+      max_delay: max_delay,
       should_retry: Keyword.get(opts, :should_retry, &match?({:error, _}, &1))
     }
 
