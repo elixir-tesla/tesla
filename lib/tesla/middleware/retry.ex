@@ -45,6 +45,9 @@ defmodule Tesla.Middleware.Retry do
   - `:should_retry` - function to determine if request should be retried
   """
 
+  # Not necessary in Elixir 1.10+
+  use Bitwise, skip_operators: true
+
   @behaviour Tesla.Middleware
 
   @defaults [
@@ -91,8 +94,8 @@ defmodule Tesla.Middleware.Retry do
 
   # Exponential backoff with jitter
   defp backoff(cap, base, attempt) do
-    factor = :math.pow(2, attempt)
-    max_sleep = trunc(min(cap, base * factor))
+    factor = Bitwise.bsl(1, attempt)
+    max_sleep = min(cap, base * factor)
     delay = :rand.uniform(max_sleep)
 
     :timer.sleep(delay)
