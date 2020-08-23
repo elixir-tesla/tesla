@@ -108,7 +108,13 @@ defmodule Tesla.Middleware.Logger do
   config :tesla, Tesla.Middleware.Logger, debug: false
   ```
 
-  This config will be fetched at compile-time.
+  Note that the logging configuration is evaluated at compile time,
+  so Tesla must be recompiled for the configuration to take effect:
+
+  ```
+  mix deps.clean --build tesla
+  mix deps.compile tesla
+  ```
 
   In order to be able to set `:debug` at runtime we can
   pass it as a option to the middleware at runtime.
