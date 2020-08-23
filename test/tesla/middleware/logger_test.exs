@@ -93,6 +93,16 @@ defmodule Tesla.Middleware.LoggerTest do
       assert log =~ "/ok -> 200"
       assert log =~ "Stream"
     end
+
+    test "config at runtime" do
+      client =
+        Tesla.client([{Tesla.Middleware.Logger, debug: false}], fn env ->
+          {:ok, %{env | body: "response"}}
+        end)
+
+      log = capture_log(fn -> Tesla.get(client, "/ok", query: %{"test" => "true"}) end)
+      refute log =~ "Query: test: true"
+    end
   end
 
   describe "Debug mode with custom structs" do
