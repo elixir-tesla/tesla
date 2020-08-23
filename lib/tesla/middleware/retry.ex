@@ -60,22 +60,11 @@ defmodule Tesla.Middleware.Retry do
   def call(env, next, opts) do
     opts = opts || []
 
-    max_delay =
-      opts
-      |> Keyword.get(:max_delay, @defaults[:delay])
-      |> max(1)
-
-    delay =
-      opts
-      |> Keyword.get(:max_delay, @defaults[:delay])
-      |> max(1)
-      |> min(max_delay)
-
     context = %{
       retries: 0,
-      delay: delay,
-      max_retries: Keyword.get(opts, :max_retries, @defaults[:max_retries]),
-      max_delay: max_delay,
+      delay: integer_opt!(opts, :delay, 1),
+      max_retries: integer_opt!(opts, :max_retries, 0),
+      max_delay: integer_opt!(opts, :max_delay, 1),
       should_retry: Keyword.get(opts, :should_retry, &match?({:error, _}, &1))
     }
 
@@ -110,5 +99,17 @@ defmodule Tesla.Middleware.Retry do
     delay = :rand.uniform(max_sleep)
 
     :timer.sleep(delay)
+  end
+
+  defp integer_opt!(opts, key, min) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} when is_integer(value) and value >= min -> value
+      {:ok, invalid} -> invalid_integer(key, invalid, min)
+      :error -> @defaults[key]
+    end
+  end
+
+  defp invalid_integer(key, value, min) do
+    raise(ArgumentError, "expected :#{key} to be an integer >= #{min}, got #{inspect(value)}")
   end
 end
