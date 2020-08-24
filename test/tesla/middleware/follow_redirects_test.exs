@@ -220,7 +220,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
     setup :setup_client
 
     test "Keep authorization header on redirect to the same domain", %{client: client} do
-      assert {:ok, env} =
+      assert {:ok, _env} =
                Tesla.post(client, "http://example.com/keep", "",
                  headers: [
                    {"content-type", "text/plain"},
@@ -242,7 +242,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
     end
 
     test "Strip authorization header on redirect to a different domain", %{client: client} do
-      assert {:ok, env} =
+      assert {:ok, _env} =
                Tesla.post(client, "http://example.com/drop", "",
                  headers: [
                    {"content-type", "text/plain"},
@@ -263,7 +263,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
     end
 
     test "Keep custom host header on redirect to a different domain", %{client: client} do
-      assert {:ok, env} =
+      assert {:ok, _env} =
                Tesla.post(client, "http://example.com/keep", "",
                  headers: [
                    {"host", "example.xyz"}
@@ -282,7 +282,7 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
     end
 
     test "Strip custom host header on redirect to a different domain", %{client: client} do
-      assert {:ok, env} =
+      assert {:ok, _env} =
                Tesla.post(client, "http://example.com/drop", "",
                  headers: [
                    {"host", "example.xyz"}
