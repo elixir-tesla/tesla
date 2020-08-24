@@ -61,7 +61,12 @@ defmodule Tesla.Middleware.FormUrlencoded do
     end
   end
 
-  defp encode(env, opts) do
+  @doc """
+  Encode response body as querystring.
+
+  It is used by `Tesla.Middleware.EncodeFormUrlencoded`.
+  """
+  def encode(env, opts) do
     if encodable?(env) do
       env
       |> Map.update!(:body, &encode_body(&1, opts))
@@ -78,7 +83,12 @@ defmodule Tesla.Middleware.FormUrlencoded do
   defp encode_body(body, _opts) when is_binary(body), do: body
   defp encode_body(body, opts), do: do_encode(body, opts)
 
-  defp decode(env, opts) do
+  @doc """
+  Decode response body as querystring.
+
+  It is used by `Tesla.Middleware.DecodeFormUrlencoded`.
+  """
+  def decode(env, opts) do
     if decodable?(env) do
       env
       |> Map.update!(:body, &decode_body(&1, opts))
@@ -110,5 +120,31 @@ defmodule Tesla.Middleware.FormUrlencoded do
   defp do_decode(data, opts) do
     decoder = Keyword.get(opts, :decode, &URI.decode_query/1)
     decoder.(data)
+  end
+end
+
+defmodule Tesla.Middleware.DecodeFormUrlencoded do
+  @behaviour Tesla.Middleware
+
+  @impl true
+  def call(env, next, opts) do
+    opts = opts || []
+
+    with {:ok, env} <- Tesla.run(env, next) do
+      {:ok, Tesla.Middleware.FormUrlencoded.decode(env, opts)}
+    end
+  end
+end
+
+defmodule Tesla.Middleware.EncodeFormUrlencoded do
+  @behaviour Tesla.Middleware
+
+  @impl true
+  def call(env, next, opts) do
+    opts = opts || []
+
+    with env <- Tesla.Middleware.FormUrlencoded.encode(env, opts) do
+      Tesla.run(env, next)
+    end
   end
 end
