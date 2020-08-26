@@ -84,4 +84,64 @@ defmodule Tesla.Middleware.RetryTest do
   test "raise in case or unexpected error" do
     assert_raise RuntimeError, fn -> DefunctClient.get("/blow") end
   end
+
+  test "ensures delay option is positive" do
+    defmodule ClientWithZeroDelay do
+      use Tesla
+      plug Tesla.Middleware.Retry, delay: 0
+      adapter LaggyAdapter
+    end
+
+    assert_raise ArgumentError, "expected :delay to be an integer >= 1, got 0", fn ->
+      ClientWithZeroDelay.get("/ok")
+    end
+  end
+
+  test "ensures delay option is an integer" do
+    defmodule ClientWithFloatDelay do
+      use Tesla
+      plug Tesla.Middleware.Retry, delay: 0.25
+      adapter LaggyAdapter
+    end
+
+    assert_raise ArgumentError, "expected :delay to be an integer >= 1, got 0.25", fn ->
+      ClientWithFloatDelay.get("/ok")
+    end
+  end
+
+  test "ensures max_delay option is positive" do
+    defmodule ClientWithNegativeMaxDelay do
+      use Tesla
+      plug Tesla.Middleware.Retry, max_delay: -1
+      adapter LaggyAdapter
+    end
+
+    assert_raise ArgumentError, "expected :max_delay to be an integer >= 1, got -1", fn ->
+      ClientWithNegativeMaxDelay.get("/ok")
+    end
+  end
+
+  test "ensures max_delay option is an integer" do
+    defmodule ClientWithStringMaxDelay do
+      use Tesla
+      plug Tesla.Middleware.Retry, max_delay: "500"
+      adapter LaggyAdapter
+    end
+
+    assert_raise ArgumentError, "expected :max_delay to be an integer >= 1, got \"500\"", fn ->
+      ClientWithStringMaxDelay.get("/ok")
+    end
+  end
+
+  test "ensures max_retries option is not negative" do
+    defmodule ClientWithNegativeMaxRetries do
+      use Tesla
+      plug Tesla.Middleware.Retry, max_retries: -1
+      adapter LaggyAdapter
+    end
+
+    assert_raise ArgumentError, "expected :max_retries to be an integer >= 0, got -1", fn ->
+      ClientWithNegativeMaxRetries.get("/ok")
+    end
+  end
 end

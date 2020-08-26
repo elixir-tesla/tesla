@@ -39,11 +39,14 @@ defmodule Tesla.Middleware.Retry do
 
   ## Options
 
-  - `:delay` - The base delay in milliseconds (defaults to 50)
-  - `:max_retries` - maximum number of retries (defaults to 5)
-  - `:max_delay` - maximum delay in milliseconds (defaults to 5000)
+  - `:delay` - The base delay in milliseconds (positive integer, defaults to 50)
+  - `:max_retries` - maximum number of retries (non-negative integer, defaults to 5)
+  - `:max_delay` - maximum delay in milliseconds (positive integer, defaults to 5000)
   - `:should_retry` - function to determine if request should be retried
   """
+
+  # Not necessary in Elixir 1.10+
+  use Bitwise, skip_operators: true
 
   @behaviour Tesla.Middleware
 
@@ -59,9 +62,9 @@ defmodule Tesla.Middleware.Retry do
 
     context = %{
       retries: 0,
-      delay: Keyword.get(opts, :delay, @defaults[:delay]),
-      max_retries: Keyword.get(opts, :max_retries, @defaults[:max_retries]),
-      max_delay: Keyword.get(opts, :max_delay, @defaults[:max_delay]),
+      delay: integer_opt!(opts, :delay, 1),
+      max_retries: integer_opt!(opts, :max_retries, 0),
+      max_delay: integer_opt!(opts, :max_delay, 1),
       should_retry: Keyword.get(opts, :should_retry, &match?({:error, _}, &1))
     }
 
@@ -91,10 +94,22 @@ defmodule Tesla.Middleware.Retry do
 
   # Exponential backoff with jitter
   defp backoff(cap, base, attempt) do
-    factor = :math.pow(2, attempt)
-    max_sleep = trunc(min(cap, base * factor))
+    factor = Bitwise.bsl(1, attempt)
+    max_sleep = min(cap, base * factor)
     delay = :rand.uniform(max_sleep)
 
     :timer.sleep(delay)
+  end
+
+  defp integer_opt!(opts, key, min) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} when is_integer(value) and value >= min -> value
+      {:ok, invalid} -> invalid_integer(key, invalid, min)
+      :error -> @defaults[key]
+    end
+  end
+
+  defp invalid_integer(key, value, min) do
+    raise(ArgumentError, "expected :#{key} to be an integer >= #{min}, got #{inspect(value)}")
   end
 end
