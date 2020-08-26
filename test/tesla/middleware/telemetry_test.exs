@@ -42,13 +42,13 @@ defmodule Tesla.Middleware.TelemetryTest do
 
       Client.get(path)
 
-      assert_receive {:event, [:tesla, :request, :start], %{system_time: time},
-                      %{env: %Tesla.Env{url: path, method: :get}}}
+      assert_receive {:event, [:tesla, :request, :start], %{system_time: _time},
+                      %{env: %Tesla.Env{url: ^path, method: :get}}}
 
-      assert_receive {:event, [:tesla, :request, :stop], %{duration: time},
-                      %{env: %Tesla.Env{url: path, method: :get}}}
+      assert_receive {:event, [:tesla, :request, :stop], %{duration: _time},
+                      %{env: %Tesla.Env{url: ^path, method: :get}}}
 
-      assert_receive {:event, [:tesla, :request], %{request_time: time}, %{result: result}}
+      assert_receive {:event, [:tesla, :request], %{request_time: _time}, %{result: _result}}
     end)
   end
 
@@ -61,11 +61,11 @@ defmodule Tesla.Middleware.TelemetryTest do
       Client.get("/telemetry_exception")
     end
 
-    assert_receive {:event, [:tesla, :request, :exception], %{duration: time},
+    assert_receive {:event, [:tesla, :request, :exception], %{duration: _time},
                     %{
-                      kind: kind,
-                      reason: reason,
-                      stacktrace: stacktrace
+                      kind: _kind,
+                      reason: _reason,
+                      stacktrace: _stacktrace
                     }}
   end
 

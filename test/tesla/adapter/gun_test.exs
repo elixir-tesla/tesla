@@ -48,7 +48,7 @@ defmodule Tesla.Adapter.GunTest do
       ]
     }
 
-    assert {:ok, %Env{status: 200} = response} = call(request)
+    assert {:ok, %Env{status: 200} = _response} = call(request)
   end
 
   test "ipv4 request" do
@@ -104,7 +104,7 @@ defmodule Tesla.Adapter.GunTest do
       url: "#{@https}"
     }
 
-    assert {:ok, %Env{} = response} =
+    assert {:ok, %Env{} = _response} =
              call(request,
                certificates_verification: true,
                transport_opts: [
