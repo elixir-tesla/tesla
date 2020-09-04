@@ -53,6 +53,11 @@ defmodule Tesla.Middleware.FollowRedirects do
             prev_uri = URI.parse(env.url)
             next_uri = parse_location(location, res)
 
+            # Copy opts and query params from the response env,
+            # these are not modified in the adapters, but middlewares
+            # that come after might store state there
+            env = %{env | opts: res.opts}
+
             env
             |> filter_headers(prev_uri, next_uri)
             |> new_request(status, URI.to_string(next_uri))
