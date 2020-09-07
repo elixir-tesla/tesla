@@ -30,7 +30,7 @@ defmodule Tesla.Mixfile do
     [applications: applications(Mix.env())]
   end
 
-  def applications(:test), do: applications(:dev) ++ [:httparrot, :hackney, :ibrowse, :gun]
+  def applications(:test), do: applications(:dev) ++ [:httparrot, :hackney, :ibrowse, :gun, :finch]
   def applications(_), do: [:logger, :ssl, :inets]
 
   defp description do
@@ -62,6 +62,7 @@ defmodule Tesla.Mixfile do
       {:gun, "~> 1.3", optional: true},
       {:castore, "~> 0.1", optional: true},
       {:mint, "~> 1.0", optional: true},
+      {:finch, "~> 0.3", optional: true},
 
       # json parsers
       {:jason, ">= 1.0.0", optional: true},

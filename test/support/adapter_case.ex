@@ -8,6 +8,8 @@ defmodule Tesla.AdapterCase do
       defp call(env, opts \\ []) do
         @adapter.call(env, opts)
       end
+
+      defoverridable call: 2
     end
   end
 end
