@@ -1,6 +1,6 @@
 # Tesla
 
-[![Build Status](https://github.com/teamon/tesla/workflows/Test/badge.svg)](https://github.com/teamon/tesla/actions)
+[![Build Status](https://github.com/teamon/tesla/workflows/Test/badge.svg?branch=master)](https://github.com/teamon/tesla/actions)
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](http://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dw/tesla.svg)](https://hex.pm/packages/tesla)
