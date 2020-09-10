@@ -4,7 +4,7 @@ defmodule Tesla.Middleware.TelemetryTest do
   defmodule Client do
     use Tesla
 
-    plug Tesla.Middleware.Telemetry
+    plug Tesla.Middleware.Telemetry, metadata: %{custom: "meta"}
 
     adapter fn env ->
       case env.url do
@@ -42,11 +42,11 @@ defmodule Tesla.Middleware.TelemetryTest do
 
       Client.get(path)
 
-      assert_receive {:event, [:tesla, :request, :start], %{system_time: _time},
-                      %{env: %Tesla.Env{url: ^path, method: :get}}}
+      assert_receive {:event, [:tesla, :request, :start], %{system_time: _time}, metadata}
+      assert %{env: %Tesla.Env{url: ^path, method: :get}, custom: "meta"} = metadata
 
-      assert_receive {:event, [:tesla, :request, :stop], %{duration: _time},
-                      %{env: %Tesla.Env{url: ^path, method: :get}}}
+      assert_receive {:event, [:tesla, :request, :stop], %{duration: _time}, metadata}
+      assert %{env: %Tesla.Env{url: ^path, method: :get}, custom: "meta"} = metadata
 
       assert_receive {:event, [:tesla, :request], %{request_time: _time}, %{result: _result}}
     end)
@@ -61,12 +61,8 @@ defmodule Tesla.Middleware.TelemetryTest do
       Client.get("/telemetry_exception")
     end
 
-    assert_receive {:event, [:tesla, :request, :exception], %{duration: _time},
-                    %{
-                      kind: _kind,
-                      reason: _reason,
-                      stacktrace: _stacktrace
-                    }}
+    assert_receive {:event, [:tesla, :request, :exception], %{duration: _time}, metadata}
+    assert %{kind: _kind, reason: _reason, stacktrace: _stacktrace, custom: "meta"} = metadata
   end
 
   def echo_event(event, measurements, metadata, config) do
