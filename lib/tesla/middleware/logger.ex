@@ -5,7 +5,7 @@ defmodule Tesla.Middleware.Logger.Formatter do
   # https://github.com/elixir-lang/elixir/blob/v1.6.4/lib/logger/lib/logger/formatter.ex
 
   @default_format "$method $url -> $status ($time ms)"
-  @keys ~w(method url status time)
+  @keys ~w(method url status time query)
 
   @type format :: [atom | binary]
 
@@ -27,6 +27,7 @@ defmodule Tesla.Middleware.Logger.Formatter do
     Enum.map(format, &output(&1, request, response, time))
   end
 
+  defp output(:query, env, _, _), do: env.query |> inspect()
   defp output(:method, env, _, _), do: env.method |> to_string() |> String.upcase()
   defp output(:url, env, _, _), do: env.url
   defp output(:status, _, {:ok, env}, _), do: to_string(env.status)
