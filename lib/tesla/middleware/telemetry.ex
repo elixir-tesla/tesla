@@ -10,13 +10,16 @@ if Code.ensure_loaded?(:telemetry) do
       use Tesla
 
       plug Tesla.Middleware.Telemetry
-
     end
 
     :telemetry.attach("my-tesla-telemetry", [:tesla, :request, :stop], fn event, measurements, meta, config ->
       # Do something with the event
     end)
     ```
+
+    ## Options
+
+    - `:metadata` - additional metadata passed to telemetry events
 
     ## Telemetry Events
 
@@ -47,10 +50,11 @@ if Code.ensure_loaded?(:telemetry) do
     @behaviour Tesla.Middleware
 
     @impl Tesla.Middleware
-    def call(env, next, _opts) do
+    def call(env, next, opts) do
+      metadata = opts[:metadata] || %{}
       start_time = System.monotonic_time()
 
-      emit_start(%{env: env})
+      emit_start(Map.merge(metadata, %{env: env}))
 
       try do
         Tesla.run(env, next)
@@ -59,14 +63,17 @@ if Code.ensure_loaded?(:telemetry) do
           stacktrace = System.stacktrace()
           duration = System.monotonic_time() - start_time
 
-          emit_exception(duration, %{kind: kind, reason: reason, stacktrace: stacktrace})
+          emit_exception(
+            duration,
+            Map.merge(metadata, %{kind: kind, reason: reason, stacktrace: stacktrace})
+          )
 
           :erlang.raise(kind, reason, stacktrace)
       else
         {:ok, env} = result ->
           duration = System.monotonic_time() - start_time
 
-          emit_stop(duration, %{env: env})
+          emit_stop(duration, Map.merge(metadata, %{env: env}))
           emit_legacy_event(duration, result)
 
           result
@@ -74,7 +81,7 @@ if Code.ensure_loaded?(:telemetry) do
         {:error, reason} = result ->
           duration = System.monotonic_time() - start_time
 
-          emit_stop(duration, %{env: env, error: reason})
+          emit_stop(duration, Map.merge(metadata, %{env: env, error: reason}))
           emit_legacy_event(duration, result)
 
           result
