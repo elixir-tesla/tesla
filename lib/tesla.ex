@@ -497,7 +497,7 @@ defmodule Tesla do
     url <> join <> encode_query(query)
   end
 
-  defp encode_query(query) do
+  def encode_query(query) do
     query
     |> Enum.flat_map(&encode_pair/1)
     |> URI.encode_query()
