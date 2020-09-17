@@ -429,7 +429,7 @@ response.headers
 {:ok, response} = Tesla.get("http://httpbin.org/get", query: [a: 1, b: "foo"])
 
 response.url
-# => "http://httpbin.org/get?a=1&b=foo"
+# => "http://httpbin.org/get"
 
 # Example post request
 {:ok, response} =
