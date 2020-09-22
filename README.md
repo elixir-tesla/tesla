@@ -428,9 +428,6 @@ response.headers
 
 {:ok, response} = Tesla.get("http://httpbin.org/get", query: [a: 1, b: "foo"])
 
-response.url
-# => "http://httpbin.org/get?a=1&b=foo"
-
 # Example post request
 {:ok, response} =
   Tesla.post("http://httpbin.org/post", "data", headers: [{"content-type", "application/json"}])
