@@ -123,4 +123,29 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
 
     assert env.body == "decodedbody"
   end
+
+  describe "Encode / Decode" do
+    defmodule EncodeDecodeFormUrlencodedClient do
+      use Tesla
+
+      plug Tesla.Middleware.DecodeFormUrlencoded
+      plug Tesla.Middleware.EncodeFormUrlencoded
+
+      adapter fn env ->
+        {status, headers, body} =
+          case env.url do
+            "/foo2baz" ->
+              {200, [{"content-type", "application/x-www-form-urlencoded"}],
+               env.body |> String.replace("foo", "baz")}
+          end
+
+        {:ok, %{env | status: status, headers: headers, body: body}}
+      end
+    end
+
+    test "work without options" do
+      assert {:ok, env} = EncodeDecodeFormUrlencodedClient.post("/foo2baz", %{"foo" => "bar"})
+      assert env.body == %{"baz" => "bar"}
+    end
+  end
 end

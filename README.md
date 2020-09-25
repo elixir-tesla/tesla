@@ -1,6 +1,6 @@
 # Tesla
 
-[![Build Status](https://github.com/teamon/tesla/workflows/Test/badge.svg)](https://github.com/teamon/tesla/actions)
+[![Build Status](https://github.com/teamon/tesla/workflows/Test/badge.svg?branch=master)](https://github.com/teamon/tesla/actions)
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](http://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dw/tesla.svg)](https://hex.pm/packages/tesla)
@@ -73,7 +73,7 @@ defp deps do
     {:tesla, "~> 1.3.0"},
 
     # optional, but recommended adapter
-    {:hackney, "~> 1.15.2"},
+    {:hackney, "~> 1.16.0"},
 
     # optional, required by JSON middleware
     {:jason, ">= 1.0.0"}
@@ -198,6 +198,7 @@ Tesla supports multiple HTTP adapter that do the actual HTTP request processing.
 - [`Tesla.Adapter.Ibrowse`](https://hexdocs.pm/tesla/Tesla.Adapter.Ibrowse.html) - [ibrowse](https://github.com/cmullaparthi/ibrowse), "Erlang HTTP client"
 - [`Tesla.Adapter.Gun`](https://hexdocs.pm/tesla/Tesla.Adapter.Gun.html) - [gun](https://github.com/ninenines/gun), "HTTP/1.1, HTTP/2 and Websocket client for Erlang/OTP"
 - [`Tesla.Adapter.Mint`](https://hexdocs.pm/tesla/Tesla.Adapter.Mint.html) - [mint](https://github.com/elixir-mint/mint), "Functional HTTP client for Elixir with support for HTTP/1 and HTTP/2"
+- [`Tesla.Adapter.Finch`](https://hexdocs.pm/tesla/Tesla.Adapter.Finch.html) - [finch](https://github.com/keathley/finch), "An HTTP client with a focus on performance, built on top of [Mint](https://github.com/elixir-mint/mint) and [NimblePool](https://github.com/dashbitco/nimble_pool)."
 
 When using adapter other than httpc remember to add it to the dependencies list in `mix.exs`
 
@@ -427,9 +428,6 @@ response.headers
 
 {:ok, response} = Tesla.get("http://httpbin.org/get", query: [a: 1, b: "foo"])
 
-response.url
-# => "http://httpbin.org/get?a=1&b=foo"
-
 # Example post request
 {:ok, response} =
   Tesla.post("http://httpbin.org/post", "data", headers: [{"content-type", "application/json"}])
@@ -521,4 +519,10 @@ end
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
-Copyright (c) 2015-2018 [Tymon Tobolski](http://teamon.eu/about/)
+Copyright (c) 2015-2020 [Tymon Tobolski](https://teamon.me/about/)
+
+---
+
+## Sponsors
+
+This project is sponsored by [ubots - Useful bots for Slack](https://ubots.xyz/)

@@ -5,7 +5,7 @@ defmodule Tesla.Middleware.Logger.Formatter do
   # https://github.com/elixir-lang/elixir/blob/v1.6.4/lib/logger/lib/logger/formatter.ex
 
   @default_format "$method $url -> $status ($time ms)"
-  @keys ~w(method url status time)
+  @keys ~w(method url status time query)
 
   @type format :: [atom | binary]
 
@@ -27,6 +27,7 @@ defmodule Tesla.Middleware.Logger.Formatter do
     Enum.map(format, &output(&1, request, response, time))
   end
 
+  defp output(:query, env, _, _), do: env.query |> Tesla.encode_query()
   defp output(:method, env, _, _), do: env.method |> to_string() |> String.upcase()
   defp output(:url, env, _, _), do: env.url
   defp output(:status, _, {:ok, env}, _), do: to_string(env.status)
@@ -53,6 +54,7 @@ defmodule Tesla.Middleware.Logger do
   ## Options
   - `:log_level` - custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
+  - `:debug` - show detailed request/response logging
 
   ## Custom log format
 
@@ -106,6 +108,29 @@ defmodule Tesla.Middleware.Logger do
   # config/dev.local.exs
   config :tesla, Tesla.Middleware.Logger, debug: false
   ```
+
+  Note that the logging configuration is evaluated at compile time,
+  so Tesla must be recompiled for the configuration to take effect:
+
+  ```
+  mix deps.clean --build tesla
+  mix deps.compile tesla
+  ```
+
+  In order to be able to set `:debug` at runtime we can
+  pass it as a option to the middleware at runtime.
+
+  ```elixir
+  def client do
+    middleware = [
+      # ...
+      {Tesla.Middleware.Logger, debug: false}
+    ]
+
+    Tesla.client(middleware)
+  end
+  ```
+
   ### Filter headers
 
   To sanitize sensitive headers such as `authorization` in
@@ -133,11 +158,14 @@ defmodule Tesla.Middleware.Logger do
   @impl Tesla.Middleware
   def call(env, next, opts) do
     {time, response} = :timer.tc(Tesla, :run, [env, next])
-    level = log_level(response, opts)
+
+    config = Keyword.merge(@config, opts)
+
+    level = log_level(response, config)
     Logger.log(level, fn -> Formatter.format(env, response, time, @format) end)
 
-    if Keyword.get(@config, :debug, true) do
-      Logger.debug(fn -> debug(env, response, opts) end)
+    if Keyword.get(config, :debug, true) do
+      Logger.debug(fn -> debug(env, response, config) end)
     end
 
     response
@@ -145,8 +173,8 @@ defmodule Tesla.Middleware.Logger do
 
   defp log_level({:error, _}, _), do: :error
 
-  defp log_level({:ok, env}, opts) do
-    case Keyword.get(opts, :log_level) do
+  defp log_level({:ok, env}, config) do
+    case Keyword.get(config, :log_level) do
       nil ->
         default_log_level(env)
 
@@ -175,28 +203,28 @@ defmodule Tesla.Middleware.Logger do
   @debug_no_body "(no body)"
   @debug_stream "[Elixir.Stream]"
 
-  defp debug(request, {:ok, response}, opts) do
+  defp debug(request, {:ok, response}, config) do
     [
       "\n>>> REQUEST >>>\n",
       debug_query(request.query),
       ?\n,
-      debug_headers(request.headers, opts),
+      debug_headers(request.headers, config),
       ?\n,
       debug_body(request.body),
       ?\n,
       "\n<<< RESPONSE <<<\n",
-      debug_headers(response.headers, opts),
+      debug_headers(response.headers, config),
       ?\n,
       debug_body(response.body)
     ]
   end
 
-  defp debug(request, {:error, error}, opts) do
+  defp debug(request, {:error, error}, config) do
     [
       "\n>>> REQUEST >>>\n",
       debug_query(request.query),
       ?\n,
-      debug_headers(request.headers, opts),
+      debug_headers(request.headers, config),
       ?\n,
       debug_body(request.body),
       ?\n,
@@ -213,10 +241,10 @@ defmodule Tesla.Middleware.Logger do
     |> Enum.map(fn {k, v} -> ["Query: ", to_string(k), ": ", to_string(v), ?\n] end)
   end
 
-  defp debug_headers([], _opts), do: @debug_no_headers
+  defp debug_headers([], _config), do: @debug_no_headers
 
-  defp debug_headers(headers, opts) do
-    filtered = Keyword.get(opts, :filter_headers, [])
+  defp debug_headers(headers, config) do
+    filtered = Keyword.get(config, :filter_headers, [])
 
     Enum.map(headers, fn {k, v} ->
       v = if k in filtered, do: "[FILTERED]", else: v

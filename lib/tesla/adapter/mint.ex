@@ -5,7 +5,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     Caution: The minimum supported Elixir version for mint is 1.5.0
 
-    Remember to add `{:mint, "~> 1.0"}` and `{:castore, "~> 0.1"}` to dependencies
+    Remember to add `{:mint, "~> 1.0"}` and `{:castore, "~> 0.1"}` to dependencies.
     Also, you need to recompile tesla after adding `:mint` dependency:
 
     ```
@@ -29,7 +29,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     ## Adapter specific options:
 
-    - `:timeout` - Time, while process, will wait for mint messages.
+    - `:timeout` - Time in milliseconds, while process, will wait for mint messages. Defaults to `2_000`.
     - `:body_as` - What will be returned in `%Tesla.Env{}` body key. Possible values - `:plain`, `:stream`, `:chunks`. Defaults to `:plain`.
       - `:plain` - as binary.
       - `:stream` - as stream. If you don't want to close connection (because you want to reuse it later) pass `close_conn: false` in adapter opts.
@@ -50,6 +50,8 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     @default timeout: 2_000, body_as: :plain, close_conn: true, mode: :active
 
+    @tags [:tcp_error, :ssl_error, :tcp_closed, :ssl_closed, :tcp, :ssl]
+
     @impl Tesla.Adapter
     def call(env, opts) do
       opts = Tesla.Adapter.opts(@default, env, opts)
@@ -67,7 +69,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     @spec read_chunk(HTTP.t(), reference(), keyword()) ::
             {:fin, HTTP.t(), binary()} | {:nofin, HTTP.t(), binary()}
     def read_chunk(conn, ref, opts) do
-      with {:ok, conn, acc} <- receive_packet(conn, ref, opts),
+      with {:ok, conn, acc} <- receive_packet(conn, ref, Enum.into(opts, %{})),
            {state, data} <- response_state(acc) do
         {:ok, conn} =
           if state == :fin and opts[:close_conn] do
@@ -312,7 +314,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     defp receive_message(conn, %{mode: :active} = opts) do
       receive do
-        message ->
+        message when is_tuple(message) and elem(message, 0) in @tags ->
           HTTP.stream(conn, message)
       after
         opts[:timeout] -> {:error, :timeout}

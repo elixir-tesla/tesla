@@ -93,6 +93,16 @@ defmodule Tesla.Middleware.LoggerTest do
       assert log =~ "/ok -> 200"
       assert log =~ "Stream"
     end
+
+    test "config at runtime" do
+      client =
+        Tesla.client([{Tesla.Middleware.Logger, debug: false}], fn env ->
+          {:ok, %{env | body: "response"}}
+        end)
+
+      log = capture_log(fn -> Tesla.get(client, "/ok", query: %{"test" => "true"}) end)
+      refute log =~ "Query: test: true"
+    end
   end
 
   describe "Debug mode with custom structs" do
@@ -219,7 +229,7 @@ defmodule Tesla.Middleware.LoggerTest do
 
   describe "Formatter: format/2" do
     setup do
-      format = Formatter.compile("$method $url -> $status | $time")
+      format = Formatter.compile("$method $url $query -> $status | $time")
       {:ok, format: format}
     end
 
@@ -228,7 +238,7 @@ defmodule Tesla.Middleware.LoggerTest do
       res = {:error, :econnrefused}
 
       assert IO.chardata_to_string(Formatter.format(req, res, 200_000, format)) ==
-               "GET /error -> error: :econnrefused | 200.000"
+               "GET /error  -> error: :econnrefused | 200.000"
     end
 
     test "format ok response", %{format: format} do
@@ -236,7 +246,25 @@ defmodule Tesla.Middleware.LoggerTest do
       res = {:ok, %Tesla.Env{method: :get, url: "/ok", status: 201}}
 
       assert IO.chardata_to_string(Formatter.format(req, res, 200_000, format)) ==
-               "GET /ok -> 201 | 200.000"
+               "GET /ok  -> 201 | 200.000"
+    end
+
+    test "format query string", %{format: format} do
+      req = %Tesla.Env{
+        method: :get,
+        url: "/get",
+        query: [
+          page: 1,
+          sort: "desc",
+          status: ["a", "b", "c"],
+          user: [name: "Jon", age: 20]
+        ]
+      }
+
+      res = {:ok, %Tesla.Env{method: :get, url: "/ok", status: 201}}
+
+      assert IO.chardata_to_string(Formatter.format(req, res, 200_000, format)) ==
+               "GET /get page=1&sort=desc&status%5B%5D=a&status%5B%5D=b&status%5B%5D=c&user%5Bname%5D=Jon&user%5Bage%5D=20 -> 201 | 200.000"
     end
   end
 end

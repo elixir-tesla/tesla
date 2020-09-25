@@ -50,10 +50,17 @@ defmodule Tesla.Middleware.FollowRedirects do
             {:ok, res}
 
           location ->
-            location = parse_location(location, res)
+            prev_uri = URI.parse(env.url)
+            next_uri = parse_location(location, res)
+
+            # Copy opts and query params from the response env,
+            # these are not modified in the adapters, but middlewares
+            # that come after might store state there
+            env = %{env | opts: res.opts}
 
             env
-            |> new_request(res.status, location)
+            |> filter_headers(prev_uri, next_uri)
+            |> new_request(status, URI.to_string(next_uri))
             |> redirect(next, left - 1)
         end
 
@@ -76,13 +83,18 @@ defmodule Tesla.Middleware.FollowRedirects do
 
   defp new_request(env, _, location), do: %{env | url: location, query: []}
 
-  defp parse_location("https://" <> _rest = location, _env), do: location
-  defp parse_location("http://" <> _rest = location, _env), do: location
+  defp parse_location("https://" <> _rest = location, _env), do: URI.parse(location)
+  defp parse_location("http://" <> _rest = location, _env), do: URI.parse(location)
+  defp parse_location(location, env), do: env.url |> URI.parse() |> URI.merge(location)
 
-  defp parse_location(location, env) do
-    env.url
-    |> URI.parse()
-    |> URI.merge(location)
-    |> URI.to_string()
+  # See https://github.com/teamon/tesla/issues/362
+  # See https://github.com/teamon/tesla/issues/360
+  @filter_headers ["authorization", "host"]
+  defp filter_headers(env, prev, next) do
+    if next.host != prev.host || next.port != prev.port || next.scheme != prev.scheme do
+      %{env | headers: Enum.filter(env.headers, fn {k, _} -> k not in @filter_headers end)}
+    else
+      env
+    end
   end
 end

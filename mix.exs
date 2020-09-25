@@ -1,7 +1,7 @@
 defmodule Tesla.Mixfile do
   use Mix.Project
 
-  @version "1.3.2"
+  @version "1.3.3"
 
   def project do
     [
@@ -10,13 +10,13 @@ defmodule Tesla.Mixfile do
       description: description(),
       package: package(),
       source_url: "https://github.com/teamon/tesla",
-      elixir: "~> 1.5",
+      elixir: "~> 1.7",
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       lockfile: lockfile(System.get_env("LOCKFILE")),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
-        plt_add_apps: [:inets],
+        plt_add_apps: [:inets, :idna, :ssl_verify_fun],
         plt_add_deps: :project
       ],
       docs: docs()
@@ -27,11 +27,11 @@ defmodule Tesla.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: applications(Mix.env())]
+    [applications: apps(Mix.env())]
   end
 
-  def applications(:test), do: applications(:dev) ++ [:httparrot, :hackney, :ibrowse, :gun]
-  def applications(_), do: [:logger, :ssl, :inets]
+  def apps(:test), do: apps(:dev) ++ [:httparrot, :hackney, :ibrowse, :gun, :finch]
+  def apps(_), do: [:logger, :ssl, :inets]
 
   defp description do
     "HTTP client library, with support for middleware and multiple adapters."
@@ -60,6 +60,7 @@ defmodule Tesla.Mixfile do
       {:ibrowse, "~> 4.4.0", optional: true},
       {:hackney, "~> 1.6", optional: true},
       {:gun, "~> 1.3", optional: true},
+      {:finch, "~> 0.3", optional: true},
       {:castore, "~> 0.1", optional: true},
       {:mint, "~> 1.0", optional: true},
 
@@ -70,15 +71,15 @@ defmodule Tesla.Mixfile do
 
       # other
       {:fuse, "~> 2.4", optional: true},
-      {:telemetry, "~> 0.3", optional: true},
+      {:telemetry, "~> 0.4", optional: true},
 
       # testing & docs
       {:excoveralls, "~> 0.8", only: :test},
       {:httparrot, "~> 1.2", only: :test},
       {:ex_doc, "~> 0.21", only: :dev},
       {:mix_test_watch, "~> 1.0", only: :dev},
-      {:dialyxir, "~> 1.0.0-rc.3", only: [:dev, :test]},
-      {:inch_ex, "~> 0.5.6", only: :docs}
+      {:dialyxir, "~> 1.0", only: [:dev, :test]},
+      {:inch_ex, "~> 2.0", only: :docs}
     ]
   end
 
@@ -97,7 +98,8 @@ defmodule Tesla.Mixfile do
           Tesla.Adapter.Hackney,
           Tesla.Adapter.Httpc,
           Tesla.Adapter.Ibrowse,
-          Tesla.Adapter.Mint
+          Tesla.Adapter.Mint,
+          Tesla.Adapter.Finch
         ],
         Middlewares: [
           Tesla.Middleware.BaseUrl,

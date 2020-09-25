@@ -13,9 +13,6 @@ jobs:
           - 1.8-otp-22
           - 1.8-slim    # otp 21
           - 1.7-slim    # otp 21
-          - 1.6-otp-21
-          - 1.6-slim    # otp 20
-          - 1.5-slim    # opt 20
     container:
       image: elixir:${{ matrix.elixir }}
     steps:
@@ -34,7 +31,7 @@ jobs:
     name: run tests against v1.0.0
     runs-on: ubuntu-latest
     container:
-      image: elixir:1.6-slim
+      image: elixir:1.7-slim
     steps:
     - uses: actions/checkout@v2
 

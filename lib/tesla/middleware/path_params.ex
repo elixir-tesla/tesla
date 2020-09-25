@@ -10,7 +10,7 @@ defmodule Tesla.Middleware.PathParams do
   defmodule MyClient do
     use Tesla
 
-    plug Tesla.Middleware.BaseURl, "https://api.example.com"
+    plug Tesla.Middleware.BaseUrl, "https://api.example.com"
     plug Tesla.Middleware.Logger # or some monitoring middleware
     plug Tesla.Middleware.PathParams
 

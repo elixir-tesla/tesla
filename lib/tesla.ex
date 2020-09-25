@@ -35,7 +35,7 @@ defmodule Tesla.Env do
 
   @type body :: any
   @type status :: integer | nil
-  @type opts :: [any]
+  @type opts :: keyword
 
   @type stack :: [{atom, atom, any} | {atom, atom} | {:fn, (t -> t)} | {:fn, (t, stack -> t)}]
   @type result :: {:ok, t()} | {:error, any}
@@ -61,21 +61,6 @@ defmodule Tesla.Env do
             opts: [],
             __module__: nil,
             __client__: nil
-end
-
-defmodule Tesla.Client do
-  @type adapter :: module | {module, any} | (Tesla.Env.t() -> Tesla.Env.result())
-  @type middleware :: module | {module, any}
-
-  @type t :: %__MODULE__{
-          pre: Tesla.Env.stack(),
-          post: Tesla.Env.stack(),
-          adapter: adapter | nil
-        }
-  defstruct fun: nil,
-            pre: [],
-            post: [],
-            adapter: nil
 end
 
 defmodule Tesla.Middleware do
@@ -512,7 +497,7 @@ defmodule Tesla do
     url <> join <> encode_query(query)
   end
 
-  defp encode_query(query) do
+  def encode_query(query) do
     query
     |> Enum.flat_map(&encode_pair/1)
     |> URI.encode_query()
