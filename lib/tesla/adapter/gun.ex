@@ -239,7 +239,12 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    defp do_open_conn(uri, %{proxy: {proxy_type, proxy_host, proxy_port}}, gun_opts, tls_opts) do
+    defp do_open_conn(
+           uri,
+           %{proxy: {proxy_type, proxy_host, proxy_port}} = opts,
+           gun_opts,
+           tls_opts
+         ) do
       version =
         proxy_type
         |> to_string()
@@ -254,6 +259,7 @@ if Code.ensure_loaded?(:gun) do
         |> tunnel_opts()
         |> tunnel_tls_opts(uri.scheme, tls_opts)
         |> Map.put(:version, version)
+        |> add_socks_proxy_auth_credentials(opts)
 
       gun_opts =
         gun_opts
@@ -360,6 +366,12 @@ if Code.ensure_loaded?(:gun) do
          do: Map.merge(opts, %{username: username, password: password})
 
     defp add_proxy_auth_credentials(opts, _), do: opts
+
+    defp add_socks_proxy_auth_credentials(opts, %{proxy_auth: {username, password}})
+         when not is_nil(username) and not is_nil(password),
+         do: Map.put(opts, :auth, {:username_password, username, password})
+
+    defp add_socks_proxy_auth_credentials(opts, _), do: opts
 
     defp open_stream(pid, method, path, headers, body, opts) do
       req_opts = %{reply_to: opts[:reply_to] || self()}
