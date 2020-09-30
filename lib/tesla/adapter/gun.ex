@@ -38,6 +38,7 @@ if Code.ensure_loaded?(:gun) do
     - `:close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections. Defaults to `true`.
     - `:certificates_verification` - Add SSL certificates verification. [erlang-certifi](https://github.com/certifi/erlang-certifi) [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
     - `:proxy` - Proxy for requests. **Socks proxy are supported only for gun master branch**. Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, `{:socks5, 'localhost', 1234}`.
+                NOTE: By default GUN uses TLS as transport if the specified port is 443, if TLS is required for proxy conection on another port please specify transport using the Gun options below otherwise tcp will be used
     - `:proxy_auth` - Auth to be passed along with the proxy opt, supports Basic auth for regular and Socks proxy. Format: `{proxy_username, proxy_password}`.
 
     ## [Gun options](https://ninenines.eu/docs/en/gun/1.3/manual/gun/)
@@ -279,6 +280,9 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    # In case of a proxy being used the transport opt for initial gun open must be in accordance with the proxy host and port
+    # and not force TLS
+    defp maybe_add_transport(_, %{proxy: proxy_opts} = opts) when not is_nil(proxy_opts), do: opts
     defp maybe_add_transport(%URI{scheme: "https"}, opts), do: Map.put(opts, :transport, :tls)
     defp maybe_add_transport(_, opts), do: opts
 
