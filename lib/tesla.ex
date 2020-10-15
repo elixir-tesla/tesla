@@ -511,7 +511,7 @@ defmodule Tesla do
   ## Example
 
       iex> Tesla.build_url("http://api.example.com", [{:user, 3}, {:page, 2}])
-      "http://api.example.com?user=3&status=true"
+      "http://api.example.com?user=3&page=2"
 
       # URL that already contains query params
       iex> url = "http://api.example.com?user=3"
