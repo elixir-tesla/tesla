@@ -273,4 +273,25 @@ defmodule TeslaTest do
       assert get_header(env, "server") == "Cowboy"
     end
   end
+
+  describe "build_url/2" do
+    setup do
+      {:ok, url: "http://api.example.com"}
+    end
+
+    test "returns URL with query params from keyword list", %{url: url} do
+      query_params = [{:user, 3}, {:page, 2}]
+      assert build_url(url, query_params) === url <> "?user=3&page=2"
+    end
+
+    test "returns URL with new query params concated from keyword list", %{url: url} do
+      url_with_param = url <> "?user=4"
+      query_params = [{:page, 2}, {:status, true}]
+      assert build_url(url_with_param, query_params) === url <> "?user=4&page=2&status=true"
+    end
+
+    test "returns normal URL when query list is empty", %{url: url} do
+      assert build_url(url, []) == url
+    end
+  end
 end
