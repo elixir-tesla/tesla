@@ -293,5 +293,13 @@ defmodule TeslaTest do
     test "returns normal URL when query list is empty", %{url: url} do
       assert build_url(url, []) == url
     end
+
+    test "returns error when passing wrong params" do
+      wrong_url = 2
+      wrong_query = :test
+      assert_raise FunctionClauseError, fn ->
+        build_url(wrong_url, wrong_query)
+      end
+    end
   end
 end
