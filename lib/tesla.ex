@@ -503,6 +503,23 @@ defmodule Tesla do
   @deprecated "Use client/1 or client/2 instead"
   def build_adapter(fun), do: Tesla.Builder.client([], [], fun)
 
+  @doc """
+  Builds URL with the given query params.
+
+  Useful when you need to create an URL with dynamic query params from a Keyword list
+
+  ## Example
+
+      iex> Tesla.build_url("http://api.example.com", [{:user, 3}, {:page, 2}])
+      "http://api.example.com?user=3&status=true"
+
+      # URL that already contains query params
+      iex> url = "http://api.example.com?user=3"
+      iex> Tesla.build_url(url, [{:page, 2}, {:status, true}])
+      "http://api.example.com?user=3&page=2&status=true"
+
+  """
+  @spec build_url(binary, [{binary(), binary()}]) :: binary
   def build_url(url, []), do: url
 
   def build_url(url, query) do
