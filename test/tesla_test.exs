@@ -297,6 +297,7 @@ defmodule TeslaTest do
     test "returns error when passing wrong params" do
       wrong_url = 2
       wrong_query = :test
+
       assert_raise FunctionClauseError, fn ->
         build_url(wrong_url, wrong_query)
       end
