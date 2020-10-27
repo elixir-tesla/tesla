@@ -26,7 +26,8 @@ defmodule Tesla.Middleware.RetryTest do
 
     plug Tesla.Middleware.Retry,
       delay: 10,
-      max_retries: 10
+      max_retries: 10,
+      jitter_factor: 0.25
 
     adapter LaggyAdapter
   end
@@ -133,15 +134,29 @@ defmodule Tesla.Middleware.RetryTest do
     end
   end
 
-  test "ensures max_retries option is not negative" do
-    defmodule ClientWithNegativeMaxRetries do
+  test "ensures jitter_factor option is a float between 0 and 1" do
+    defmodule ClientWithJitterFactorLt0 do
       use Tesla
-      plug Tesla.Middleware.Retry, max_retries: -1
+      plug Tesla.Middleware.Retry, jitter_factor: -0.1
       adapter LaggyAdapter
     end
 
-    assert_raise ArgumentError, "expected :max_retries to be an integer >= 0, got -1", fn ->
-      ClientWithNegativeMaxRetries.get("/ok")
+    defmodule ClientWithJitterFactorGt1 do
+      use Tesla
+      plug Tesla.Middleware.Retry, jitter_factor: 1.1
+      adapter LaggyAdapter
     end
+
+    assert_raise ArgumentError,
+                 "expected :jitter_factor to be a float >= 0 and <= 1, got -0.1",
+                 fn ->
+                   ClientWithJitterFactorLt0.get("/ok")
+                 end
+
+    assert_raise ArgumentError,
+                 "expected :jitter_factor to be a float >= 0 and <= 1, got 1.1",
+                 fn ->
+                   ClientWithJitterFactorGt1.get("/ok")
+                 end
   end
 end
