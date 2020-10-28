@@ -15,9 +15,9 @@ defmodule Tesla.Middleware.Retry do
   we can see.
 
   In order to find the actual delay value we apply additive noise which is proportional to the
-  current desired delay. This ensures that the actual delay is kept within the expected order of magnitude,
-  while still having some randomness, which ensures that our retried requests don't "harmonize" making it harder for the downstream
-  service to heal.
+  current desired delay. This ensures that the actual delay is kept within the expected order
+  of magnitude, while still having some randomness, which ensures that our retried requests
+  don't "harmonize" making it harder for the downstream service to heal.
 
   ## Example
 
