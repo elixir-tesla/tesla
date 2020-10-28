@@ -97,13 +97,11 @@ defmodule Tesla.Middleware.Retry do
 
   # Exponential backoff with jitter
   defp backoff(cap, base, attempt, jitter_factor) do
-    factor = :math.pow(2, attempt)
+    factor = Bitwise.bsl(1, attempt)
     max_sleep = min(cap, base * factor)
 
     # This ensures that the delay's order of magnitude is kept intact,
-    # while still having some jitter.
-
-    # This generates a value x where 1-jitter_factor <= x <= 1 + jitter_factor
+    # while still having some jitter. Generates a value x where 1-jitter_factor <= x <= 1 + jitter_factor
     jitter = 1 + 2 * jitter_factor * :rand.uniform() - jitter_factor
 
     # The actual delay is in the range max_sleep * (1 - jitter_factor), max_sleep * (1 + jitter_factor)
