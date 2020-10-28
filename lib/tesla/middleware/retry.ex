@@ -43,7 +43,7 @@ defmodule Tesla.Middleware.Retry do
   - `:max_retries` - maximum number of retries (non-negative integer, defaults to 5)
   - `:max_delay` - maximum delay in milliseconds (positive integer, defaults to 5000)
   - `:should_retry` - function to determine if request should be retried
-  - `:jitter_factor` -
+  - `:jitter_factor` - additive noise proportionality constant (float between 0 and 1, defaults to 0.2)
   """
 
   # Not necessary in Elixir 1.10+
