@@ -27,7 +27,10 @@ defmodule Tesla.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: apps(Mix.env())]
+    [
+      extra_applications: [:gun, :hackney, :mint, :castore, :telemetry, :mime],
+      applications: apps(Mix.env())
+    ]
   end
 
   def apps(:test), do: apps(:dev) ++ [:httparrot, :hackney, :ibrowse, :gun, :finch]
