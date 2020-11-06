@@ -27,11 +27,8 @@ defmodule Tesla.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: apps(Mix.env())]
+    [extra_applications: [:logger, :ssl, :inets]]
   end
-
-  def apps(:test), do: apps(:dev) ++ [:httparrot, :hackney, :ibrowse, :gun, :finch]
-  def apps(_), do: [:logger, :ssl, :inets]
 
   defp description do
     "HTTP client library, with support for middleware and multiple adapters."
@@ -78,7 +75,7 @@ defmodule Tesla.Mixfile do
       {:httparrot, "~> 1.2", only: :test},
       {:ex_doc, "~> 0.21", only: :dev},
       {:mix_test_watch, "~> 1.0", only: :dev},
-      {:dialyxir, "~> 1.0", only: [:dev, :test]},
+      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:inch_ex, "~> 2.0", only: :docs}
     ]
   end
