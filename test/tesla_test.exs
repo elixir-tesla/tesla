@@ -280,13 +280,13 @@ defmodule TeslaTest do
     end
 
     test "returns URL with query params from keyword list", %{url: url} do
-      query_params = [{:user, 3}, {:page, 2}]
+      query_params = [user: 3, page: 2]
       assert build_url(url, query_params) === url <> "?user=3&page=2"
     end
 
     test "returns URL with new query params concated from keyword list", %{url: url} do
       url_with_param = url <> "?user=4"
-      query_params = [{:page, 2}, {:status, true}]
+      query_params = [page: 2, status: true]
       assert build_url(url_with_param, query_params) === url <> "?user=4&page=2&status=true"
     end
 
