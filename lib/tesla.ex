@@ -221,9 +221,9 @@ defmodule Tesla do
   `use Tesla` macro will generate basic http functions (e.g. get, post) inside your module.
   It supports following options:
 
-  - `:only` - builder will generate only functions included in list given in this option
-  - `:except` - builder won't generate functions included in list given in this option
-  - `:docs` - when set to false builder will won't add documentation to generated functions
+  - `:only` - builder will generate only functions included in the given list
+  - `:except` - builder will not generate the functions that are listed in the options
+  - `:docs` - when set to false builder will not add documentation to generated functions
 
   ### Example
 
@@ -239,6 +239,19 @@ defmodule Tesla do
       end
 
   In example above `ExampleApi.fetch_data/0` is equivalent of `ExampleApi.get("/data")`.
+
+      defmodule ExampleApi do
+        use Tesla, except: [:post, :delete]
+
+        plug Tesla.Middleware.BaseUrl, "http://api.example.com"
+        plug Tesla.Middleware.JSON
+
+        def fetch_data do
+          get("/data")
+        end
+      end
+
+  In example above `except: [:post, :delete]` will make sure that post functions will not be generated for this module.
 
   ## Direct usage
 
@@ -490,6 +503,23 @@ defmodule Tesla do
   @deprecated "Use client/1 or client/2 instead"
   def build_adapter(fun), do: Tesla.Builder.client([], [], fun)
 
+  @doc """
+  Builds URL with the given query params.
+
+  Useful when you need to create an URL with dynamic query params from a Keyword list
+
+  ## Example
+
+      iex> Tesla.build_url("http://api.example.com", [user: 3, page: 2])
+      "http://api.example.com?user=3&page=2"
+
+      # URL that already contains query params
+      iex> url = "http://api.example.com?user=3"
+      iex> Tesla.build_url(url, [page: 2, status: true])
+      "http://api.example.com?user=3&page=2&status=true"
+
+  """
+  @spec build_url(binary, [{binary(), binary()}]) :: binary
   def build_url(url, []), do: url
 
   def build_url(url, query) do
