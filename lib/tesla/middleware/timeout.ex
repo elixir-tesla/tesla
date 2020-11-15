@@ -45,7 +45,7 @@ defmodule Tesla.Middleware.Timeout do
         {:ok, func.()}
       rescue
         e in _ ->
-          {:exception, e, System.stacktrace()}
+          {:exception, e, __STACKTRACE__}
       catch
         type, value ->
           {type, value}

@@ -234,6 +234,6 @@ defmodule Tesla.Mock do
     fun.(env)
   rescue
     ex in FunctionClauseError ->
-      raise Tesla.Mock.Error, env: env, ex: ex, stacktrace: System.stacktrace()
+      raise Tesla.Mock.Error, env: env, ex: ex, stacktrace: __STACKTRACE__
   end
 end

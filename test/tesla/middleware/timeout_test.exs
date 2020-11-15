@@ -92,7 +92,7 @@ defmodule Tesla.Middleware.TimeoutTest do
         Client.get("/raise")
       rescue
         _ in RuntimeError ->
-          [{last_module, _, _, file_info} | _] = System.stacktrace()
+          [{last_module, _, _, file_info} | _] = __STACKTRACE__
 
           assert Tesla.Middleware.TimeoutTest.Client == last_module
           assert [file: 'lib/tesla/builder.ex', line: 23] == file_info
@@ -107,7 +107,7 @@ defmodule Tesla.Middleware.TimeoutTest do
         Client.get("/raise")
       rescue
         _ in RuntimeError ->
-          [_, {timeout_module, _, _, module_file_info} | _] = System.stacktrace()
+          [_, {timeout_module, _, _, module_file_info} | _] = __STACKTRACE__
 
           assert Tesla.Middleware.Timeout == timeout_module
           assert module_file_info == [file: 'lib/tesla/middleware/timeout.ex', line: 45]
