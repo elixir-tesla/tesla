@@ -14,10 +14,10 @@ defmodule Tesla.Middleware.Retry do
   or the maximum delay specified. This creates an upper bound on the maximum delay
   we can see.
 
-  In order to find the actual delay value we take a random number between 0 and
-  the maximum delay based on a uniform distribution. This randomness ensures that
-  our retried requests don't "harmonize" making it harder for the downstream
-  service to heal.
+  In order to find the actual delay value we apply additive noise which is proportional to the
+  current desired delay. This ensures that the actual delay is kept within the expected order
+  of magnitude, while still having some randomness, which ensures that our retried requests
+  don't "harmonize" making it harder for the downstream service to heal.
 
   ## Example
 
@@ -43,6 +43,7 @@ defmodule Tesla.Middleware.Retry do
   - `:max_retries` - maximum number of retries (non-negative integer, defaults to 5)
   - `:max_delay` - maximum delay in milliseconds (positive integer, defaults to 5000)
   - `:should_retry` - function to determine if request should be retried
+  - `:jitter_factor` - additive noise proportionality constant (float between 0 and 1, defaults to 0.2)
   """
 
   # Not necessary in Elixir 1.10+
@@ -53,7 +54,8 @@ defmodule Tesla.Middleware.Retry do
   @defaults [
     delay: 50,
     max_retries: 5,
-    max_delay: 5_000
+    max_delay: 5_000,
+    jitter_factor: 0.2
   ]
 
   @impl Tesla.Middleware
@@ -65,7 +67,8 @@ defmodule Tesla.Middleware.Retry do
       delay: integer_opt!(opts, :delay, 1),
       max_retries: integer_opt!(opts, :max_retries, 0),
       max_delay: integer_opt!(opts, :max_delay, 1),
-      should_retry: Keyword.get(opts, :should_retry, &match?({:error, _}, &1))
+      should_retry: Keyword.get(opts, :should_retry, &match?({:error, _}, &1)),
+      jitter_factor: float_opt!(opts, :jitter_factor, 0, 1)
     }
 
     retry(env, next, context)
@@ -84,7 +87,7 @@ defmodule Tesla.Middleware.Retry do
     res = Tesla.run(env, next)
 
     if context.should_retry.(res) do
-      backoff(context.max_delay, context.delay, context.retries)
+      backoff(context.max_delay, context.delay, context.retries, context.jitter_factor)
       context = update_in(context, [:retries], &(&1 + 1))
       retry(env, next, context)
     else
@@ -93,10 +96,16 @@ defmodule Tesla.Middleware.Retry do
   end
 
   # Exponential backoff with jitter
-  defp backoff(cap, base, attempt) do
+  defp backoff(cap, base, attempt, jitter_factor) do
     factor = Bitwise.bsl(1, attempt)
     max_sleep = min(cap, base * factor)
-    delay = :rand.uniform(max_sleep)
+
+    # This ensures that the delay's order of magnitude is kept intact,
+    # while still having some jitter. Generates a value x where 1-jitter_factor <= x <= 1 + jitter_factor
+    jitter = 1 + 2 * jitter_factor * :rand.uniform() - jitter_factor
+
+    # The actual delay is in the range max_sleep * (1 - jitter_factor), max_sleep * (1 + jitter_factor)
+    delay = trunc(max_sleep + jitter)
 
     :timer.sleep(delay)
   end
@@ -109,7 +118,22 @@ defmodule Tesla.Middleware.Retry do
     end
   end
 
+  defp float_opt!(opts, key, min, max) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} when is_float(value) and value >= min and value <= max -> value
+      {:ok, invalid} -> invalid_float(key, invalid, min, max)
+      :error -> @defaults[key]
+    end
+  end
+
   defp invalid_integer(key, value, min) do
     raise(ArgumentError, "expected :#{key} to be an integer >= #{min}, got #{inspect(value)}")
+  end
+
+  defp invalid_float(key, value, min, max) do
+    raise(
+      ArgumentError,
+      "expected :#{key} to be a float >= #{min} and <= #{max}, got #{inspect(value)}"
+    )
   end
 end
