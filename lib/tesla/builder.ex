@@ -225,7 +225,13 @@ defmodule Tesla.Builder do
   defp gen_doc(method, safe, :client, :opts, true) do
     request = to_string(req(safe))
     name = name(method, safe)
-    body = if method in @body, do: ~s|, %{name: "Jon"}|, else: ""
+
+    {body, body_line} =
+      if method in @body do
+        {~s|, %{name: "Jon"}|, ""}
+      else
+        {"", ~s|#{name}(client, "/users", body: %{name: "Jon"})|}
+      end
 
     quote location: :keep do
       @doc """
@@ -237,6 +243,7 @@ defmodule Tesla.Builder do
           #{unquote(name)}("/users"#{unquote(body)}, query: [scope: "admin"])
           #{unquote(name)}(client, "/users"#{unquote(body)})
           #{unquote(name)}(client, "/users"#{unquote(body)}, query: [scope: "admin"])
+          #{unquote(body_line)}
       """
     end
   end

@@ -84,7 +84,7 @@ defmodule Tesla.Mixfile do
     [
       main: "readme",
       source_ref: "v#{@version}",
-      extras: ["README.md"],
+      extras: ["README.md", "LICENSE"],
       groups_for_modules: [
         Behaviours: [
           Tesla.Adapter,
@@ -103,10 +103,12 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware.BasicAuth,
           Tesla.Middleware.Compression,
           Tesla.Middleware.CompressRequest,
+          Tesla.Middleware.DecodeFormUrlencoded,
           Tesla.Middleware.DecodeJson,
           Tesla.Middleware.DecodeRels,
           Tesla.Middleware.DecompressResponse,
           Tesla.Middleware.DigestAuth,
+          Tesla.Middleware.EncodeFormUrlencoded,
           Tesla.Middleware.EncodeJson,
           Tesla.Middleware.FollowRedirects,
           Tesla.Middleware.FormUrlencoded,
