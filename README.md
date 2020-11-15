@@ -18,12 +18,6 @@ It embraces the concept of middleware when processing the request/response cycle
 
 ## [`0.x` to `1.0` Migration Guide](https://github.com/teamon/tesla/wiki/0.x-to-1.0-Migration-Guide)
 
-```elixir
-defp deps do
-  [{:tesla, "~> 1.3.0"}]
-end
-```
-
 [Documentation for 0.x branch](https://github.com/teamon/tesla/tree/0.x)
 
 ---
@@ -70,7 +64,7 @@ Add `tesla` as dependency in `mix.exs`:
 ```elixir
 defp deps do
   [
-    {:tesla, "~> 1.3.0"},
+    {:tesla, "~> 1.4.0"},
 
     # optional, but recommended adapter
     {:hackney, "~> 1.16.0"},
@@ -204,7 +198,7 @@ When using adapter other than httpc remember to add it to the dependencies list 
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 1.3.0"},
+  [{:tesla, "~> 1.4.0"},
    {:jason, ">= 1.0.0"}, # optional, required by JSON middleware
    {:hackney, "~> 1.10"}] # or :gun etc.
 end
