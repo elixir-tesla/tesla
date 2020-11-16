@@ -10,7 +10,18 @@ defmodule Tesla.Adapter.FinchTest do
   use Tesla.AdapterCase.SSL
 
   setup do
-    start_supervised!({Finch, name: @finch_name})
+    opts = [
+      name: @finch_name,
+      pools: %{
+        @https => [
+          conn_opts: [
+            transport_opts: [cacertfile: "./deps/httparrot/priv/ssl/server-ca.crt"]
+          ]
+        ]
+      }
+    ]
+
+    start_supervised!({Finch, opts})
     :ok
   end
 end
