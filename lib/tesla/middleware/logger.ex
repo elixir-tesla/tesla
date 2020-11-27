@@ -149,7 +149,6 @@ defmodule Tesla.Middleware.Logger do
   alias Tesla.Middleware.Logger.Formatter
 
   @config Application.get_env(:tesla, __MODULE__, [])
-  @format Formatter.compile(@config[:format])
 
   @type log_level :: :info | :warn | :error
 
@@ -161,8 +160,12 @@ defmodule Tesla.Middleware.Logger do
 
     config = Keyword.merge(@config, opts)
 
+    format =
+      Keyword.get(config, :format)
+      |> Formatter.compile()
+
     level = log_level(response, config)
-    Logger.log(level, fn -> Formatter.format(env, response, time, @format) end)
+    Logger.log(level, fn -> Formatter.format(env, response, time, format) end)
 
     if Keyword.get(config, :debug, true) do
       Logger.debug(fn -> debug(env, response, config) end)
