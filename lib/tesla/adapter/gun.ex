@@ -38,7 +38,7 @@ if Code.ensure_loaded?(:gun) do
     - `:close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections. Defaults to `true`.
     - `:certificates_verification` - Add SSL certificates verification. [erlang-certifi](https://github.com/certifi/erlang-certifi) [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
     - `:proxy` - Proxy for requests. **Socks proxy are supported only for gun master branch**. Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, `{:socks5, 'localhost', 1234}`.
-                NOTE: By default GUN uses TLS as transport if the specified port is 443, if TLS is required for proxy conection on another port please specify transport using the Gun options below otherwise tcp will be used
+                NOTE: By default GUN uses TLS as transport if the specified port is 443, if TLS is required for proxy connection on another port please specify transport using the Gun options below otherwise tcp will be used
     - `:proxy_auth` - Auth to be passed along with the proxy opt, supports Basic auth for regular and Socks proxy. Format: `{proxy_username, proxy_password}`.
 
     ## [Gun options](https://ninenines.eu/docs/en/gun/1.3/manual/gun/)
@@ -367,13 +367,13 @@ if Code.ensure_loaded?(:gun) do
     defp tunnel_tls_opts(opts, _, _), do: opts
 
     defp add_proxy_auth_credentials(opts, %{proxy_auth: {username, password}})
-         when not is_nil(username) and not is_nil(password),
+         when is_binary(username) and is_binary(password),
          do: Map.merge(opts, %{username: username, password: password})
 
     defp add_proxy_auth_credentials(opts, _), do: opts
 
     defp add_socks_proxy_auth_credentials(opts, %{proxy_auth: {username, password}})
-         when not is_nil(username) and not is_nil(password),
+         when is_binary(username) and is_binary(password),
          do: Map.put(opts, :auth, {:username_password, username, password})
 
     defp add_socks_proxy_auth_credentials(opts, _), do: opts
