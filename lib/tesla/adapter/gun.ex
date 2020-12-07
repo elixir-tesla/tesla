@@ -38,6 +38,8 @@ if Code.ensure_loaded?(:gun) do
     - `:close_conn` - Close connection or not after receiving full response body. Is used for reusing gun connections. Defaults to `true`.
     - `:certificates_verification` - Add SSL certificates verification. [erlang-certifi](https://github.com/certifi/erlang-certifi) [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
     - `:proxy` - Proxy for requests. **Socks proxy are supported only for gun master branch**. Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, `{:socks5, 'localhost', 1234}`.
+                NOTE: By default GUN uses TLS as transport if the specified port is 443, if TLS is required for proxy connection on another port please specify transport using the Gun options below otherwise tcp will be used
+    - `:proxy_auth` - Auth to be passed along with the proxy opt, supports Basic auth for regular and Socks proxy. Format: `{proxy_username, proxy_password}`.
 
     ## [Gun options](https://ninenines.eu/docs/en/gun/1.3/manual/gun/)
 
@@ -178,9 +180,14 @@ if Code.ensure_loaded?(:gun) do
       conn_scheme =
         case info do
           # gun master branch support, which has `origin_scheme` in connection info
-          %{origin_scheme: scheme} -> scheme
-          %{transport: :tls} -> "https"
-          _ -> "http"
+          %{origin_scheme: scheme} ->
+            scheme
+
+          %{transport: :tls} ->
+            "https"
+
+          _ ->
+            "http"
         end
 
       conn_host =
@@ -215,6 +222,67 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    defp do_open_conn(uri, %{proxy: {proxy_host, proxy_port}} = opts, gun_opts, tls_opts) do
+      connect_opts =
+        uri
+        |> tunnel_opts()
+        |> tunnel_tls_opts(uri.scheme, tls_opts)
+        |> add_proxy_auth_credentials(opts)
+
+      with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
+           {:ok, _} <- :gun.await_up(pid),
+           stream <- :gun.connect(pid, connect_opts),
+           {:response, :fin, 200, _} <- :gun.await(pid, stream) do
+        {:ok, pid}
+      else
+        {:response, :nofin, 403, _} -> {:error, :unauthorized}
+        {:response, :nofin, 407, _} -> {:error, :proxy_auth_failed}
+        error -> error
+      end
+    end
+
+    defp do_open_conn(
+           uri,
+           %{proxy: {proxy_type, proxy_host, proxy_port}} = opts,
+           gun_opts,
+           tls_opts
+         ) do
+      version =
+        proxy_type
+        |> to_string()
+        |> String.last()
+        |> case do
+          "4" -> 4
+          _ -> 5
+        end
+
+      socks_opts =
+        uri
+        |> tunnel_opts()
+        |> tunnel_tls_opts(uri.scheme, tls_opts)
+        |> Map.put(:version, version)
+        |> add_socks_proxy_auth_credentials(opts)
+
+      gun_opts =
+        gun_opts
+        |> Map.put(:protocols, [:socks])
+        |> Map.update(:socks_opts, socks_opts, &Map.merge(socks_opts, &1))
+
+      with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
+           {:ok, _} <- :gun.await_up(pid) do
+        {:ok, pid}
+      else
+        {:error, {:options, {:protocols, [:socks]}}} ->
+          {:error, "socks protocol is not supported"}
+
+        error ->
+          error
+      end
+    end
+
+    # In case of a proxy being used the transport opt for initial gun open must be in accordance with the proxy host and port
+    # and not force TLS
+    defp maybe_add_transport(_, %{proxy: proxy_opts} = opts) when not is_nil(proxy_opts), do: opts
     defp maybe_add_transport(%URI{scheme: "https"}, opts), do: Map.put(opts, :transport, :tls)
     defp maybe_add_transport(_, opts), do: opts
 
@@ -243,53 +311,6 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp maybe_add_verify_options(tls_opts, _, _), do: tls_opts
-
-    defp do_open_conn(uri, %{proxy: {proxy_host, proxy_port}}, gun_opts, tls_opts) do
-      connect_opts =
-        uri
-        |> tunnel_opts()
-        |> tunnel_tls_opts(uri.scheme, tls_opts)
-
-      with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
-           {:ok, _} <- :gun.await_up(pid),
-           stream <- :gun.connect(pid, connect_opts),
-           {:response, :fin, 200, _} <- :gun.await(pid, stream) do
-        {:ok, pid}
-      end
-    end
-
-    defp do_open_conn(uri, %{proxy: {proxy_type, proxy_host, proxy_port}}, gun_opts, tls_opts) do
-      version =
-        proxy_type
-        |> to_string()
-        |> String.last()
-        |> case do
-          "4" -> 4
-          _ -> 5
-        end
-
-      socks_opts =
-        uri
-        |> tunnel_opts()
-        |> tunnel_tls_opts(uri.scheme, tls_opts)
-        |> Map.put(:version, version)
-
-      gun_opts =
-        gun_opts
-        |> Map.put(:protocols, [:socks])
-        |> Map.update(:socks_opts, socks_opts, &Map.merge(socks_opts, &1))
-
-      with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
-           {:ok, _} <- :gun.await_up(pid) do
-        {:ok, pid}
-      else
-        {:error, {:options, {:protocols, [:socks]}}} ->
-          {:error, "socks protocol is not supported"}
-
-        error ->
-          error
-      end
-    end
 
     @dialyzer [{:nowarn_function, do_open_conn: 4}, :no_match]
     defp do_open_conn(uri, opts, gun_opts, tls_opts) do
@@ -344,6 +365,18 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp tunnel_tls_opts(opts, _, _), do: opts
+
+    defp add_proxy_auth_credentials(opts, %{proxy_auth: {username, password}})
+         when is_binary(username) and is_binary(password),
+         do: Map.merge(opts, %{username: username, password: password})
+
+    defp add_proxy_auth_credentials(opts, _), do: opts
+
+    defp add_socks_proxy_auth_credentials(opts, %{proxy_auth: {username, password}})
+         when is_binary(username) and is_binary(password),
+         do: Map.put(opts, :auth, {:username_password, username, password})
+
+    defp add_socks_proxy_auth_credentials(opts, _), do: opts
 
     defp open_stream(pid, method, path, headers, body, opts) do
       req_opts = %{reply_to: opts[:reply_to] || self()}
