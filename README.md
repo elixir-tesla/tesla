@@ -64,17 +64,19 @@ Add `tesla` as dependency in `mix.exs`:
 ```elixir
 defp deps do
   [
-    {:tesla, "~> 1.4.0"},
+    {:tesla, "~> 1.4"},
 
     # optional, but recommended adapter
-    {:hackney, "~> 1.16.0"},
+    {:hackney, "~> 1.16"},
 
     # optional, required by JSON middleware
-    {:jason, ">= 1.0.0"}
+    {:jason, "~> 1.0"}
   ]
 end
 
 ```
+
+Tesla uses [Semantic Versioning](https://semver.org) 2.0.
 
 Configure default adapter in `config/config.exs` (optional).
 
@@ -198,8 +200,8 @@ When using adapter other than httpc remember to add it to the dependencies list 
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 1.4.0"},
-   {:jason, ">= 1.0.0"}, # optional, required by JSON middleware
+  [{:tesla, "~> 1.4"},
+   {:jason, "~> 1.0"}, # optional, required by JSON middleware
    {:hackney, "~> 1.10"}] # or :gun etc.
 end
 ```
