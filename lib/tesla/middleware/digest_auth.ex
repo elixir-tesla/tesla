@@ -58,7 +58,7 @@ defmodule Tesla.Middleware.DigestAuth do
     with {:ok, unauthorized_response} <-
            env.__module__.request(
              env.__client__,
-             method: env.method,
+             method: env.opts[:pre_auth_method] || env.method,
              url: env.url,
              opts: Keyword.put(env.opts || [], :digest_auth_handshake, true)
            ) do
