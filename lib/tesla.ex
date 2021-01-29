@@ -107,7 +107,7 @@ defmodule Tesla.Middleware do
   """
 
   @doc """
-  Invoked when a requset runs.
+  Invoked when a request runs.
 
   - (optionally) read and/or writes request data
   - calls `Tesla.run/2`
