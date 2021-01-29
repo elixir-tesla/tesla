@@ -519,7 +519,7 @@ defmodule Tesla do
       "http://api.example.com?user=3&page=2&status=true"
 
   """
-  @spec build_url(binary, [{binary(), binary()}]) :: binary
+  @spec build_url(Tesla.Env.url(), Tesla.Env.query()) :: binary
   def build_url(url, []), do: url
 
   def build_url(url, query) do
