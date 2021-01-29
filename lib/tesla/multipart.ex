@@ -103,7 +103,7 @@ defmodule Tesla.Multipart do
         false -> headers
       end
 
-    data = File.stream!(path, [:read], 2048)
+    data = File.stream!(path, [], 2048)
     add_file_content(mp, data, filename, opts ++ [headers: headers])
   end
 
