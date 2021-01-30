@@ -2,6 +2,7 @@
 
 [![Build Status](https://github.com/teamon/tesla/workflows/Test/badge.svg?branch=master)](https://github.com/teamon/tesla/actions)
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](http://hex.pm/packages/tesla)
+[![Hexdocs.pm](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/tesla/)
 [![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dw/tesla.svg)](https://hex.pm/packages/tesla)
 [![codecov](https://codecov.io/gh/teamon/tesla/branch/master/graph/badge.svg)](https://codecov.io/gh/teamon/tesla)
@@ -13,6 +14,8 @@ It embraces the concept of middleware when processing the request/response cycle
 > Note that this README refers to the `master` branch of Tesla, not the latest
   released version on Hex. See [the documentation](http://hexdocs.pm/tesla) for
   the documentation of the version you're using.
+
+For list of changes, checkout the latest [release notes](https://github.com/teamon/tesla/releases).
 
 ---
 
@@ -59,18 +62,14 @@ See below for documentation.
 
 ## Installation
 
-Add `tesla` as dependency in `mix.exs`:
+Add `:tesla` as dependency in `mix.exs`:
 
 ```elixir
 defp deps do
   [
     {:tesla, "~> 1.4.0"},
-
-    # optional, but recommended adapter
-    {:hackney, "~> 1.16.0"},
-
-    # optional, required by JSON middleware
-    {:jason, ">= 1.0.0"}
+    {:hackney, "~> 1.16.0"}, # optional, but recommended adapter
+    {:jason, ">= 1.0.0"} # optional, required by JSON middleware
   ]
 end
 
@@ -113,17 +112,17 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 - [`Tesla.Middleware.Headers`](https://hexdocs.pm/tesla/Tesla.Middleware.Headers.html) - set request headers
 - [`Tesla.Middleware.Query`](https://hexdocs.pm/tesla/Tesla.Middleware.Query.html) - set query parameters
 - [`Tesla.Middleware.Opts`](https://hexdocs.pm/tesla/Tesla.Middleware.Opts.html) - set request options
-- [`Tesla.Middleware.FollowRedirects`](https://hexdocs.pm/tesla/Tesla.Middleware.FollowRedirects.html) - follow 3xx redirects
-- [`Tesla.Middleware.MethodOverride`](https://hexdocs.pm/tesla/Tesla.Middleware.MethodOverride.html) - set X-Http-Method-Override
-- [`Tesla.Middleware.Logger`](https://hexdocs.pm/tesla/Tesla.Middleware.Logger.html) - log requests (method, url, status, time)
-- [`Tesla.Middleware.KeepRequest`](https://hexdocs.pm/tesla/Tesla.Middleware.KeepRequest.html) - keep request body & headers
+- [`Tesla.Middleware.FollowRedirects`](https://hexdocs.pm/tesla/Tesla.Middleware.FollowRedirects.html) - follow HTTP 3xx redirects
+- [`Tesla.Middleware.MethodOverride`](https://hexdocs.pm/tesla/Tesla.Middleware.MethodOverride.html) - set `X-Http-Method-Override` header
+- [`Tesla.Middleware.Logger`](https://hexdocs.pm/tesla/Tesla.Middleware.Logger.html) - log requests (method, url, status, and time)
+- [`Tesla.Middleware.KeepRequest`](https://hexdocs.pm/tesla/Tesla.Middleware.KeepRequest.html) - keep request `body` and `headers`
 - [`Tesla.Middleware.PathParams`](https://hexdocs.pm/tesla/Tesla.Middleware.PathParams.html) - use templated URLs
 
 ### Formats
 
 - [`Tesla.Middleware.FormUrlencoded`](https://hexdocs.pm/tesla/Tesla.Middleware.FormUrlencoded.html) - urlencode POST body, useful for POSTing a map/keyword list
 - [`Tesla.Middleware.JSON`](https://hexdocs.pm/tesla/Tesla.Middleware.JSON.html) - JSON request/response body
-- [`Tesla.Middleware.Compression`](https://hexdocs.pm/tesla/Tesla.Middleware.Compression.html) - gzip & deflate
+- [`Tesla.Middleware.Compression`](https://hexdocs.pm/tesla/Tesla.Middleware.Compression.html) - `gzip` and `deflate`
 - [`Tesla.Middleware.DecodeRels`](https://hexdocs.pm/tesla/Tesla.Middleware.DecodeRels.html) - decode `Link` header into `opts[:rels]` field in response
 
 ### Auth
@@ -139,7 +138,7 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 
 ## Runtime middleware
 
-All HTTP functions (`get`, `post`, etc.) can take a dynamic client as the first argument.
+All HTTP functions, such as `Tesla.get/3` and `Tesla.post/4`, can take a dynamic client as the first argument.
 This allow to use convenient syntax for modifying the behaviour in runtime.
 
 Consider the following case: GitHub API can be accessed using OAuth token authorization.
@@ -194,13 +193,15 @@ Tesla supports multiple HTTP adapter that do the actual HTTP request processing.
 - [`Tesla.Adapter.Mint`](https://hexdocs.pm/tesla/Tesla.Adapter.Mint.html) - [mint](https://github.com/elixir-mint/mint), "Functional HTTP client for Elixir with support for HTTP/1 and HTTP/2"
 - [`Tesla.Adapter.Finch`](https://hexdocs.pm/tesla/Tesla.Adapter.Finch.html) - [finch](https://github.com/keathley/finch), "An HTTP client with a focus on performance, built on top of [Mint](https://github.com/elixir-mint/mint) and [NimblePool](https://github.com/dashbitco/nimble_pool)."
 
-When using adapter other than httpc remember to add it to the dependencies list in `mix.exs`
+When using adapter other than `:httpc` remember to add it to the dependencies list in `mix.exs`
 
 ```elixir
 defp deps do
-  [{:tesla, "~> 1.4.0"},
-   {:jason, ">= 1.0.0"}, # optional, required by JSON middleware
-   {:hackney, "~> 1.10"}] # or :gun etc.
+  [
+    {:tesla, "~> 1.4.0"},
+    {:jason, ">= 1.0.0"}, # optional, required by JSON middleware
+    {:hackney, "~> 1.10"} # when using hackney adapter
+  ]
 end
 ```
 
@@ -228,7 +229,7 @@ def new(...) do
 end
 ```
 
-Passing directly to `get`/`post`/etc.
+Passing directly to request functions such as `MyClient.get/3` or `Tesla.get/3`.
 
 ```elixir
 MyClient.get("/", opts: [adapter: [recv_timeout: 30_000]])
@@ -253,11 +254,11 @@ defmodule ElasticSearch do
 end
 ```
 
-Each piece of stream will be encoded as JSON and sent as a new line (conforming to JSON stream format)
+Each piece of stream will be encoded as JSON and sent as a new line (conforming to JSON stream format).
 
 ## Multipart
 
-You can pass a `Tesla.Multipart` struct as the body.
+You can pass a `Tesla.Multipart` struct as the body:
 
 ```elixir
 alias Tesla.Multipart
@@ -278,7 +279,7 @@ mp =
 
 ## Testing
 
-You can set the adapter to `Tesla.Mock` in tests.
+You can set the adapter to `Tesla.Mock` in tests:
 
 ```elixir
 # config/test.exs
@@ -318,8 +319,7 @@ end
 
 ## Writing middleware
 
-A Tesla middleware is a module with `c:Tesla.Middleware.call/3` function, that at some point calls `Tesla.run/2` with `env` and `next` to process
-the rest of stack.
+A Tesla middleware is a module with `c:Tesla.Middleware.call/3` function, that at some point calls `Tesla.run/2` with `env` and `next` to process the rest of stack.
 
 ```elixir
 defmodule MyMiddleware do
@@ -382,7 +382,7 @@ defmodule Tesla.Middleware.SomeMiddleware do
   Longer description, including e.g. additional dependencies.
 
 
-  ### Example usage
+  ### Examples
 
   ```
   defmodule MyClient do
@@ -513,7 +513,7 @@ end
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
-Copyright (c) 2015-2020 [Tymon Tobolski](https://teamon.me/about/)
+Copyright (c) 2015-2021 [Tymon Tobolski](https://teamon.me/about/)
 
 ---
 

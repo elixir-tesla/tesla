@@ -65,7 +65,7 @@ end
 
 defmodule Tesla.Middleware do
   @moduledoc """
-  The middleware specification
+  The middleware specification.
 
   Middleware is an extension of basic `Tesla` functionality. It is a module that must
   implement `c:Tesla.Middleware.call/3`.
@@ -76,7 +76,7 @@ defmodule Tesla.Middleware do
 
       plug Tesla.Middleware.BaseUrl, "https://example.com"
 
-  or inside tuple in case of dynamic middleware (`Tesla.client/1`)
+  or inside tuple in case of dynamic middleware (`Tesla.client/1`):
 
       Tesla.client([{Tesla.Middleware.BaseUrl, "https://example.com"}])
 
@@ -86,7 +86,7 @@ defmodule Tesla.Middleware do
 
   See `c:Tesla.Middleware.call/3` for details.
 
-  ### Example
+  ### Examples
 
       defmodule MyProject.InspectHeadersMiddleware do
         @behaviour Tesla.Middleware
@@ -137,7 +137,7 @@ defmodule Tesla.Adapter do
 
   See `c:Tesla.Adapter.call/2` for details.
 
-  ### Example
+  ### Examples
 
       defmodule MyProject.CustomAdapter do
         alias Tesla.Multipart
@@ -214,18 +214,20 @@ defmodule Tesla do
   @default_adapter Tesla.Adapter.Httpc
 
   @moduledoc """
-  A HTTP toolkit for building API clients using middlewares
+  A HTTP toolkit for building API clients using middlewares.
 
   ## Building API client
 
-  `use Tesla` macro will generate basic http functions (e.g. get, post) inside your module.
+  `use Tesla` macro will generate basic HTTP functions (e.g. `get/3`, `post/4`,
+  and etc.) inside your module.
+
   It supports following options:
 
   - `:only` - builder will generate only functions included in the given list
   - `:except` - builder will not generate the functions that are listed in the options
   - `:docs` - when set to false builder will not add documentation to generated functions
 
-  ### Example
+  ### Examples
 
       defmodule ExampleApi do
         use Tesla, only: [:get], docs: false
@@ -276,16 +278,16 @@ defmodule Tesla do
         end
       end
 
-  call to `ExampleApi.fetch_data/0` will fail, because request will be missing base url.
+  call to `ExampleApi.fetch_data/0` will fail, because request will be missing base URL.
 
   ## Default adapter
 
   By default `Tesla` is using `Tesla.Adapter.Httpc`, because `:httpc` is included in Erlang/OTP and
-  doen not require installation of any additional dependency. It can be changed globally with config
+  does not require installation of any additional dependency. It can be changed globally with config:
 
       config :tesla, :adapter, Tesla.Adapter.Hackney
 
-  or by `Tesla.Builder.adapter/2` macro for given API client module
+  or by `Tesla.Builder.adapter/2` macro for given API client module:
 
       defmodule ExampleApi do
         use Tesla
@@ -379,7 +381,7 @@ defmodule Tesla do
 
   Useful when there's need to store additional middleware data in `Tesla.Env`
 
-  ## Example
+  ## Examples
 
       iex> %Tesla.Env{opts: []} |> Tesla.put_opt(:option, "value")
       %Tesla.Env{opts: [option: "value"]}
@@ -508,7 +510,7 @@ defmodule Tesla do
 
   Useful when you need to create an URL with dynamic query params from a Keyword list
 
-  ## Example
+  ## Examples
 
       iex> Tesla.build_url("http://api.example.com", [user: 3, page: 2])
       "http://api.example.com?user=3&page=2"

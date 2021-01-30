@@ -4,7 +4,7 @@ defmodule Tesla.Middleware.BasicAuth do
 
   [Wiki on the topic](https://en.wikipedia.org/wiki/Basic_access_authentication)
 
-  ## Example
+  ## Examples
 
   ```
   defmodule MyClient do

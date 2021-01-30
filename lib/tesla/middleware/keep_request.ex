@@ -1,8 +1,8 @@
 defmodule Tesla.Middleware.KeepRequest do
   @moduledoc """
-  Store request body & headers into opts.
+  Store request body and headers into `:opts`.
 
-  ## Example
+  ## Examples
 
   ```
   defmodule MyClient do

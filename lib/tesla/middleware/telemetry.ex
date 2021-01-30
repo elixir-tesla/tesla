@@ -3,7 +3,7 @@ if Code.ensure_loaded?(:telemetry) do
     @moduledoc """
     Emits events using the `:telemetry` library to expose instrumentation.
 
-    ## Example usage
+    ## Examples
 
     ```
     defmodule MyClient do
@@ -37,10 +37,15 @@ if Code.ensure_loaded?(:telemetry) do
 
     ## Legacy Telemetry Events
 
-      * `[:tesla, :request]` - This event is emitted for backwards compatibility only and should be considered deprecated.
-      This event can be disabled by setting `config :tesla, Tesla.Middleware.Telemetry, disable_legacy_event: true` in your config. Be sure to run `mix deps.compile --force tesla` after changing this setting to ensure the change is picked up.
+      * `[:tesla, :request]` - This event is emitted for backwards
+        compatibility only and should be considered deprecated.
 
-    Please check the [telemetry](https://hexdocs.pm/telemetry/) for the further usage.
+        This event can be disabled by setting `config :tesla,
+        Tesla.Middleware.Telemetry, disable_legacy_event: true` in your config.
+        Be sure to run `mix deps.compile --force tesla` after changing this
+        setting to ensure the change is picked up.  
+
+        Please check the [telemetry](https://hexdocs.pm/telemetry/) for the further usage.
     """
 
     @disable_legacy_event Application.get_env(:tesla, Tesla.Middleware.Telemetry,

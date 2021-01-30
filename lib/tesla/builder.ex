@@ -24,7 +24,8 @@ defmodule Tesla.Builder do
 
         ## Options
 
-        - `:method` - the request method, one of [:head, :get, :delete, :trace, :options, :post, :put, :patch]
+        - `:method` - the request method, one of [`:head`, `:get`, `:delete`,
+          `:trace`, `:options`, `:post`, `:put`, `:patch`]
         - `:url` - either full url e.g. "http://example.com/some/path" or just "/some/path" if using `Tesla.Middleware.BaseUrl`
         - `:query` - a keyword list of query params, e.g. `[page: 1, per_page: 100]`
         - `:headers` - a keyworld list of headers, e.g. `[{"content-type", "text/plain"}]`

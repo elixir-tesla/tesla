@@ -1,8 +1,8 @@
 defmodule Tesla.Middleware.FollowRedirects do
   @moduledoc """
-  Follow 3xx redirects
+  Follow HTTP 3xx redirects.
 
-  ## Example
+  ## Examples
 
   ```
   defmodule MyClient do

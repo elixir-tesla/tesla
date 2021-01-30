@@ -2,7 +2,7 @@ defmodule Tesla.Multipart do
   @moduledoc """
   Multipart functionality.
 
-  ## Example
+  ## Examples
 
   ```
   mp =
