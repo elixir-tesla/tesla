@@ -11,7 +11,7 @@ if Code.ensure_loaded?(:ibrowse) do
     mix deps.compile tesla
     ```
 
-    ## Example usage
+    ## Examples
 
     ```
     # set globally in config/config.exs

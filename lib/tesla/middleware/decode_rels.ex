@@ -2,7 +2,7 @@ defmodule Tesla.Middleware.DecodeRels do
   @moduledoc """
   Decode `Link` Hypermedia HTTP header into `opts[:rels]` field in response.
 
-  ## Example usage
+  ## Examples
 
   ```
   defmodule MyClient do

@@ -9,7 +9,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
   is `application/x-www-form-urlencoded`, so `"foo=bar"` becomes
   `%{"foo" => "bar"}`.
 
-  ## Example usage
+  ## Examples
 
   ```
   defmodule Myclient do

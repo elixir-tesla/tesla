@@ -2,10 +2,10 @@ defmodule Tesla.Middleware.BaseUrl do
   @moduledoc """
   Set base URL for all requests.
 
-  The base URL will be prepended to request path/url only
+  The base URL will be prepended to request path/URL only
   if it does not include http(s).
 
-  ## Example usage
+  ## Examples
 
   ```
   defmodule MyClient do
@@ -55,7 +55,7 @@ defmodule Tesla.Middleware.Headers do
   @moduledoc """
   Set default headers for all requests
 
-  ## Example usage
+  ## Examples
 
   ```
   defmodule Myclient do
@@ -80,7 +80,7 @@ defmodule Tesla.Middleware.Query do
   @moduledoc """
   Set default query params for all requests
 
-  ## Example usage
+  ## Examples
 
   ```
   defmodule Myclient do
@@ -111,7 +111,7 @@ defmodule Tesla.Middleware.Opts do
   @moduledoc """
   Set default opts for all requests.
 
-  ## Example usage
+  ## Examples
 
   ```
   defmodule Myclient do
