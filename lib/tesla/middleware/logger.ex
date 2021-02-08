@@ -161,7 +161,8 @@ defmodule Tesla.Middleware.Logger do
     config = Keyword.merge(@config, opts)
 
     format =
-      Keyword.get(config, :format)
+      config
+      |> Keyword.get(:format)
       |> Formatter.compile()
 
     level = log_level(response, config)
