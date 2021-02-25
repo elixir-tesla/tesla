@@ -2,5 +2,5 @@ image:
   file: .gitpod.Dockerfile
 
 tasks:
-  - init: mix deps.get
+  - init: mix do deps.get, deps.compile
     command: mix test
