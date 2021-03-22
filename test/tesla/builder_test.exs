@@ -156,9 +156,13 @@ defmodule Tesla.BuilderTest do
                  Enum.find(docs, &match?({{:function, :get, 3}, _, _, _, _}, &1))
 
         assert doc != :hidden
+
+        assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:type, :option, 0}, _, _, _, _}, &1))
+
+        assert doc != :hidden
       end
 
-      test "do not generate docs for HTTP methods when docs: false" do
+      test "do not generate docs for HTTP methods or types when docs: false" do
         {:docs_v1, _, :elixir, _, _, _, docs} = Code.fetch_docs(TeslaDocsTest.NoDocs)
 
         assert {_, _, _, doc, _} =
@@ -170,6 +174,10 @@ defmodule Tesla.BuilderTest do
                  Enum.find(docs, &match?({{:function, :custom, 1}, _, _, _, _}, &1))
 
         assert doc["en"] =~ ~r/something/
+
+        assert {_, _, _, doc, _} = Enum.find(docs, &match?({{:type, :option, 0}, _, _, _, _}, &1))
+
+        assert doc == :hidden
       end
     else
       # Use Code.get_docs/2 for elixir <1.7
