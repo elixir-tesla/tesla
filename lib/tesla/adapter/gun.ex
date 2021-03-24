@@ -222,6 +222,39 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
+    # In case of a proxy being used the transport opt for initial gun open must be in accordance with the proxy host and port
+    # and not force TLS
+    defp maybe_add_transport(_, %{proxy: proxy_opts} = opts) when not is_nil(proxy_opts), do: opts
+    defp maybe_add_transport(%URI{scheme: "https"}, opts), do: Map.put(opts, :transport, :tls)
+    defp maybe_add_transport(_, opts), do: opts
+
+    # Support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
+    # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
+    # TODO: remove after update to gun 2.0
+    defp fetch_tls_opts(%{tls_opts: tls_opts}) when is_list(tls_opts), do: tls_opts
+    defp fetch_tls_opts(%{transport_opts: tls_opts}) when is_list(tls_opts), do: tls_opts
+    defp fetch_tls_opts(_), do: []
+
+    defp maybe_add_verify_options(tls_opts, %{certificates_verification: true}, %{host: host}) do
+      charlist =
+        host
+        |> to_charlist()
+        |> :idna.encode()
+
+      security_opts = [
+        verify: :verify_peer,
+        cacertfile: CAStore.file_path(),
+        depth: 20,
+        reuse_sessions: false,
+        verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: charlist]}
+      ]
+
+      Keyword.merge(security_opts, tls_opts)
+    end
+
+    defp maybe_add_verify_options(tls_opts, _, _), do: tls_opts
+
+    @dialyzer [{:nowarn_function, do_open_conn: 4}, :no_match]
     defp do_open_conn(uri, %{proxy: {proxy_host, proxy_port}} = opts, gun_opts, tls_opts) do
       connect_opts =
         uri
@@ -280,39 +313,6 @@ if Code.ensure_loaded?(:gun) do
       end
     end
 
-    # In case of a proxy being used the transport opt for initial gun open must be in accordance with the proxy host and port
-    # and not force TLS
-    defp maybe_add_transport(_, %{proxy: proxy_opts} = opts) when not is_nil(proxy_opts), do: opts
-    defp maybe_add_transport(%URI{scheme: "https"}, opts), do: Map.put(opts, :transport, :tls)
-    defp maybe_add_transport(_, opts), do: opts
-
-    # Support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
-    # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
-    # TODO: remove after update to gun 2.0
-    defp fetch_tls_opts(%{tls_opts: tls_opts}) when is_list(tls_opts), do: tls_opts
-    defp fetch_tls_opts(%{transport_opts: tls_opts}) when is_list(tls_opts), do: tls_opts
-    defp fetch_tls_opts(_), do: []
-
-    defp maybe_add_verify_options(tls_opts, %{certificates_verification: true}, %{host: host}) do
-      charlist =
-        host
-        |> to_charlist()
-        |> :idna.encode()
-
-      security_opts = [
-        verify: :verify_peer,
-        cacertfile: CAStore.file_path(),
-        depth: 20,
-        reuse_sessions: false,
-        verify_fun: {&:ssl_verify_hostname.verify_fun/3, [check_hostname: charlist]}
-      ]
-
-      Keyword.merge(security_opts, tls_opts)
-    end
-
-    defp maybe_add_verify_options(tls_opts, _, _), do: tls_opts
-
-    @dialyzer [{:nowarn_function, do_open_conn: 4}, :no_match]
     defp do_open_conn(uri, opts, gun_opts, tls_opts) do
       tcp_opts = Map.get(opts, :tcp_opts, [])
 
