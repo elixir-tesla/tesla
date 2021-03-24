@@ -60,7 +60,7 @@ if Code.ensure_loaded?(:telemetry) do
         Tesla.run(env, next)
       catch
         kind, reason ->
-          stacktrace = System.stacktrace()
+          stacktrace = __STACKTRACE__
           duration = System.monotonic_time() - start_time
 
           emit_exception(
