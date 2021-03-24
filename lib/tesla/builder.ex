@@ -10,6 +10,12 @@ defmodule Tesla.Builder do
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
       Module.register_attribute(__MODULE__, :__adapter__, [])
 
+      if unquote(docs) do
+        @typedoc "Options that may be passed to a request function. See `request/2` for detailed descriptions."
+      else
+        @typedoc false
+      end
+
       @type option ::
               {:method, Tesla.Env.method()}
               | {:url, Tesla.Env.url()}
