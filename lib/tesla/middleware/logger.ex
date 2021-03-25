@@ -40,9 +40,10 @@ defmodule Tesla.Middleware.Logger do
   @moduledoc """
   Log requests using Elixir's Logger.
 
-  With the default settings it logs request method, url, response status and time taken in milliseconds.
+  With the default settings it logs request method, URL, response status, and time taken in milliseconds.
 
-  ## Example usage
+  ## Examples
+
   ```
   defmodule MyClient do
     use Tesla
@@ -52,6 +53,7 @@ defmodule Tesla.Middleware.Logger do
   ```
 
   ## Options
+
   - `:log_level` - custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
   - `:debug` - show detailed request/response logging
@@ -74,6 +76,7 @@ defmodule Tesla.Middleware.Logger do
   ## Custom log levels
 
   By default, the following log levels will be used:
+
   - `:error` - for errors, 5xx and 4xx responses
   - `:warn` - for 3xx responses
   - `:info` - for 2xx responses

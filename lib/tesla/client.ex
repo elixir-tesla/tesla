@@ -16,7 +16,7 @@ defmodule Tesla.Client do
   Returns the client's adapter in the same form it was provided.
   This can be used to copy an adapter from one client to another.
 
-  ## Example
+  ## Examples
 
       iex> client = Tesla.client([], {Tesla.Adapter.Hackney, [recv_timeout: 30_000]})
       iex> Tesla.Client.adapter(client)
@@ -31,7 +31,7 @@ defmodule Tesla.Client do
   Returns the client's middleware in the same form it was provided.
   This can be used to copy middleware from one client to another.
 
-  ## Example
+  ## Examples
 
       iex> middleware = [Tesla.Middleware.JSON, {Tesla.Middleware.BaseUrl, "https://api.github.com"}]
       iex> client = Tesla.client(middleware)

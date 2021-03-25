@@ -2,17 +2,17 @@ defmodule Tesla.Middleware.JSON do
   @moduledoc """
   Encode requests and decode responses as JSON.
 
-  This middleware requires [jason](https://hex.pm/packages/jason) (or other engine) as dependency.
+  This middleware requires [Jason](https://hex.pm/packages/jason) (or other engine) as dependency.
 
-  Remember to add `{:jason, ">= 1.0"}` to dependencies
-  Also, you need to recompile tesla after adding `:jason` dependency:
+  Remember to add `{:jason, ">= 1.0"}` to dependencies.
+  Also, you need to recompile Tesla after adding `:jason` dependency:
 
   ```
   mix deps.clean tesla
   mix deps.compile tesla
   ```
 
-  ## Example usage
+  ## Examples
 
   ```
   defmodule MyClient do

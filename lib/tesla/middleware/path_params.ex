@@ -4,7 +4,7 @@ defmodule Tesla.Middleware.PathParams do
 
   Useful when logging or reporting metric per URL.
 
-  ## Example usage
+  ## Examples
 
   ```
   defmodule MyClient do

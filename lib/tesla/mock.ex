@@ -12,7 +12,7 @@ defmodule Tesla.Mock do
   config :tesla, MyClient, adapter: Tesla.Mock
   ```
 
-  ## Example test
+  ## Examples
 
   ```
   defmodule MyAppTest do
@@ -147,7 +147,7 @@ defmodule Tesla.Mock do
   @type response_opts :: [{response_opt, any}]
 
   @doc """
-  Return json response.
+  Return JSON response.
 
   Example
 

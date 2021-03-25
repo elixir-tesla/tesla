@@ -1,13 +1,13 @@
 defmodule Tesla.Middleware.DigestAuth do
   @moduledoc """
-  Digest access authentication middleware
+  Digest access authentication middleware.
 
   [Wiki on the topic](https://en.wikipedia.org/wiki/Digest_access_authentication)
 
   **NOTE**: Currently the implementation is incomplete and works only for MD5 algorithm
-  and auth qop.
+  and auth "quality of protection" (qop).
 
-  ## Example
+  ## Examples
 
   ```
   defmodule MyClient do

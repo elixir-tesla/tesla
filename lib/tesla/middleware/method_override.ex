@@ -1,11 +1,11 @@
 defmodule Tesla.Middleware.MethodOverride do
   @moduledoc """
-  Middleware that adds X-Http-Method-Override header with original request
+  Middleware that adds `X-HTTP-Method-Override` header with original request
   method and sends the request as post.
 
-  Useful when there's an issue with sending non-post request.
+  Useful when there's an issue with sending non-POST request.
 
-  ## Example
+  ## Examples
 
   ```
   defmodule MyClient do
@@ -17,8 +17,7 @@ defmodule Tesla.Middleware.MethodOverride do
 
   ## Options
 
-  - `:override` - list of http methods that should be overriden,
-  everything except `:get` and `:post` if not specified
+  - `:override` - list of HTTP methods that should be overriden, everything except `:get` and `:post` if not specified
   """
 
   @behaviour Tesla.Middleware

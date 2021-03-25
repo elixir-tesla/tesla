@@ -1,25 +1,25 @@
 defmodule Tesla.Middleware.Retry do
   @moduledoc """
-  Retry using exponential backoff and full jitter. This middleware only retries in the
-  case of connection errors (`nxdomain`, `connrefused` etc). Application error
-  checking for retry can be customized through `:should_retry` option by
-  providing a function in returning a boolean.
+  Retry using exponential backoff and full jitter.
+
+  By defaults, this middleware only retries in the case of connection errors (`nxdomain`, `connrefused`, etc).
+  Application error checking for retry can be customized through `:should_retry` option.
 
   ## Backoff algorithm
 
   The backoff algorithm optimizes for tight bounds on completing a request successfully.
   It does this by first calculating an exponential backoff factor based on the
-  number of retries that have been performed. It then multiplies this factor against the
-  base delay. The total maximum delay is found by taking the minimum of either the calculated delay
-  or the maximum delay specified. This creates an upper bound on the maximum delay
-  we can see.
+  number of retries that have been performed.  It then multiplies this factor against
+  the base delay. The total maximum delay is found by taking the minimum of either
+  the calculated delay or the maximum delay specified. This creates an upper bound
+  on the maximum delay we can see.
 
-  In order to find the actual delay value we apply additive noise which is proportional to the
-  current desired delay. This ensures that the actual delay is kept within the expected order
-  of magnitude, while still having some randomness, which ensures that our retried requests
-  don't "harmonize" making it harder for the downstream service to heal.
+  In order to find the actual delay value we apply additive noise which is proportional
+  to the current desired delay. This ensures that the actual delay is kept within
+  the expected order of magnitude, while still having some randomness, which ensures
+  that our retried requests don't "harmonize" making it harder for the downstream service to heal.
 
-  ## Example
+  ## Examples
 
   ```
   defmodule MyClient do
@@ -43,7 +43,8 @@ defmodule Tesla.Middleware.Retry do
   - `:max_retries` - maximum number of retries (non-negative integer, defaults to 5)
   - `:max_delay` - maximum delay in milliseconds (positive integer, defaults to 5000)
   - `:should_retry` - function to determine if request should be retried
-  - `:jitter_factor` - additive noise proportionality constant (float between 0 and 1, defaults to 0.2)
+  - `:jitter_factor` - additive noise proportionality constant
+      (float between 0 and 1, defaults to 0.2)
   """
 
   # Not necessary in Elixir 1.10+
@@ -100,8 +101,8 @@ defmodule Tesla.Middleware.Retry do
     factor = Bitwise.bsl(1, attempt)
     max_sleep = min(cap, base * factor)
 
-    # This ensures that the delay's order of magnitude is kept intact,
-    # while still having some jitter. Generates a value x where 1-jitter_factor <= x <= 1 + jitter_factor
+    # This ensures that the delay's order of magnitude is kept intact, while still having some jitter.
+    # Generates a value x where 1-jitter_factor <= x <= 1 + jitter_factor
     jitter = 1 + 2 * jitter_factor * :rand.uniform() - jitter_factor
 
     # The actual delay is in the range max_sleep * (1 - jitter_factor), max_sleep * (1 + jitter_factor)

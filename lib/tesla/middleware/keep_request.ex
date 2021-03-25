@@ -1,8 +1,8 @@
 defmodule Tesla.Middleware.KeepRequest do
   @moduledoc """
-  Store request body, headers and path into `%Tesla.Env{}` opts.
+  Store request url ,body and headers into `:opts`.
 
-  ## Example
+  ## Examples
 
   ```
   defmodule MyClient do
