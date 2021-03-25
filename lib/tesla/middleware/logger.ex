@@ -161,8 +161,13 @@ defmodule Tesla.Middleware.Logger do
 
     config = Keyword.merge(@config, opts)
 
+    optional_runtime_format = Keyword.get(config, :format)
+
+    format =
+      if optional_runtime_format, do: Formatter.compile(optional_runtime_format), else: @format
+
     level = log_level(response, config)
-    Logger.log(level, fn -> Formatter.format(env, response, time, @format) end)
+    Logger.log(level, fn -> Formatter.format(env, response, time, format) end)
 
     if Keyword.get(config, :debug, true) do
       Logger.debug(fn -> debug(env, response, config) end)
