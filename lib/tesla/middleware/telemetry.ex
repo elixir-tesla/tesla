@@ -29,9 +29,7 @@ if Code.ensure_loaded?(:telemetry) do
 
     * `[:tesla, :request, :stop]` - emitted at the end of the request.
       * Measurement: `%{duration: native_time}`
-      * Metadata: `%{env: Tesla.Env.t(), request_url: String.t()} | %{env: Tesla.Env.t(), request_url: String.t(), error: term()}`
-        `:request_url` represents the path initially received by the middleware. \
-        This is useful for use in combination with `Tesla.Middleware.PathParams`
+      * Metadata: `%{env: Tesla.Env.t()} | %{env: Tesla.Env.t(), error: term()}`
 
     * `[:tesla, :request, :exception]` - emitted when an exception has been raised.
       * Measurement: `%{duration: native_time}`
@@ -62,7 +60,7 @@ if Code.ensure_loaded?(:telemetry) do
         Tesla.run(env, next)
       catch
         kind, reason ->
-          stacktrace = System.stacktrace()
+          stacktrace = __STACKTRACE__
           duration = System.monotonic_time() - start_time
 
           emit_exception(
@@ -72,10 +70,10 @@ if Code.ensure_loaded?(:telemetry) do
 
           :erlang.raise(kind, reason, stacktrace)
       else
-        {:ok, after_env} = result ->
+        {:ok, env} = result ->
           duration = System.monotonic_time() - start_time
 
-          emit_stop(duration, Map.merge(metadata, %{env: after_env, request_url: env.url}))
+          emit_stop(duration, Map.merge(metadata, %{env: env}))
           emit_legacy_event(duration, result)
 
           result
@@ -83,11 +81,7 @@ if Code.ensure_loaded?(:telemetry) do
         {:error, reason} = result ->
           duration = System.monotonic_time() - start_time
 
-          emit_stop(
-            duration,
-            Map.merge(metadata, %{env: env, request_url: env.url, error: reason})
-          )
-
+          emit_stop(duration, Map.merge(metadata, %{env: env, error: reason}))
           emit_legacy_event(duration, result)
 
           result
