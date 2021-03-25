@@ -76,6 +76,8 @@ end
 
 ```
 
+Tesla uses [Semantic Versioning](https://semver.org) 2.0.
+
 Configure default adapter in `config/config.exs` (optional).
 
 ```elixir
