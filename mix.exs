@@ -92,12 +92,12 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware
         ],
         Adapters: [
+          Tesla.Adapter.Finch,
           Tesla.Adapter.Gun,
           Tesla.Adapter.Hackney,
           Tesla.Adapter.Httpc,
           Tesla.Adapter.Ibrowse,
-          Tesla.Adapter.Mint,
-          Tesla.Adapter.Finch
+          Tesla.Adapter.Mint
         ],
         Middlewares: [
           Tesla.Middleware.BaseUrl,
