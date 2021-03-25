@@ -3,7 +3,7 @@ if Code.ensure_loaded?(:telemetry) do
     @moduledoc """
     Emits events using the `:telemetry` library to expose instrumentation.
 
-    ## Example usage
+    ## Base usage
 
     ```
     defmodule MyClient do
@@ -14,6 +14,32 @@ if Code.ensure_loaded?(:telemetry) do
 
     :telemetry.attach("my-tesla-telemetry", [:tesla, :request, :stop], fn event, measurements, meta, config ->
       # Do something with the event
+    end)
+    ```
+
+    ### URL event scoping with `Tesla.Middleware.PathParams` and `Tesla.Middleware.KeepRequest`
+
+    Sometimes, it is useful to have access to a template url (i.e. `"/users/:user_id"`) for grouping
+    Telemetry events. For such cases, a combination of the `Tesla.Middleware.PathParams`,
+    `Tesla.Middleware.Telemetry` and `Tesla.Middleware.KeepRequest` may be used.
+
+    ```
+    defmodule MyClient do
+      use Tesla
+
+      # The KeepRequest middleware sets the template url as a Tesla.Env.opts entry
+      # Said entry must be used because on happy-path scenarios,
+      # the Telemetry middleware will receive the Tesla.Env.url resolved by PathParams.
+      plug Tesla.Middleware.KeepRequest
+      plug Tesla.Middleware.Telemetry
+      plug Tesla.Middleware.PathParams
+    end
+
+    :telemetry.attach("my-tesla-telemetry", [:tesla, :request, :stop], fn event, measurements, meta, config ->
+      path_params_template_url = meta.env.opts[:req_url]
+      # The meta.env.url key will only present the resolved URL on happy-path scenarios.
+      # Error cases will still return the original template url.
+      path_params_resolved_url = meta.env.url
     end)
     ```
 
