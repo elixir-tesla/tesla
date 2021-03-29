@@ -42,7 +42,7 @@ if Code.ensure_loaded?(Finch) do
 
     ## [Finch options](https://hexdocs.pm/finch/Finch.html#request/3)
 
-      * `:pool_timeout` - This timeout is applied when a connection is checekd
+      * `:pool_timeout` - This timeout is applied when a connection is checked
         out from the pool. Default value is `5_000`.
 
       * `:receive_timeout` - The maximum time to wait for a response before
