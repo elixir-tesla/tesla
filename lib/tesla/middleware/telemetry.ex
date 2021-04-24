@@ -12,9 +12,14 @@ if Code.ensure_loaded?(:telemetry) do
       plug Tesla.Middleware.Telemetry
     end
 
-    :telemetry.attach("my-tesla-telemetry", [:tesla, :request, :stop], fn event, measurements, meta, config ->
-      # Do something with the event
-    end)
+    :telemetry.attach(
+      "my-tesla-telemetry",
+      [:tesla, :request, :stop],
+      fn event, measurements, meta, config ->
+        # Do something with the event
+      end,
+      nil
+    )
     ```
 
     ## Options
@@ -61,12 +66,17 @@ if Code.ensure_loaded?(:telemetry) do
       plug Tesla.Middleware.PathParams
     end
 
-    :telemetry.attach("my-tesla-telemetry", [:tesla, :request, :stop], fn event, measurements, meta, config ->
-      path_params_template_url = meta.env.opts[:req_url]
-      # The meta.env.url key will only present the resolved URL on happy-path scenarios.
-      # Error cases will still return the original template url.
-      path_params_resolved_url = meta.env.url
-    end)
+    :telemetry.attach(
+      "my-tesla-telemetry",
+      [:tesla, :request, :stop],
+      fn event, measurements, meta, config ->
+        path_params_template_url = meta.env.opts[:req_url]
+        # The meta.env.url key will only present the resolved URL on happy-path scenarios.
+        # Error cases will still return the original template url.
+        path_params_resolved_url = meta.env.url
+      end,
+      nil
+    )
     ```
     """
 
