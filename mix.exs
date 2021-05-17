@@ -52,6 +52,7 @@ defmodule Tesla.Mixfile do
   defp deps do
     [
       {:mime, "~> 1.0"},
+      {:nimble_options, "~> 0.3.0"},
 
       # http clients
       {:ibrowse, "~> 4.4.0", optional: true},

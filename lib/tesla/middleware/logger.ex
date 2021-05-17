@@ -37,6 +37,33 @@ defmodule Tesla.Middleware.Logger.Formatter do
 end
 
 defmodule Tesla.Middleware.Logger do
+  @config_schema [
+    format: [
+      type: :string,
+      doc: "Log format (see below).",
+      default: "$method $url -> $status ($time ms)",
+      global: true
+    ],
+    log_level: [
+      type: {:or, [{:fun, 1}, :atom]},
+      doc: "Custom function for calculating log level (see below).",
+      default: &Tesla.Middleware.Logger.default_log_level/1,
+      global: true
+    ],
+    filter_headers: [
+      type: {:list, :string},
+      doc: "Sanitizes sensitive headers before logging in debug mode (see below).",
+      default: [],
+      global: true
+    ],
+    debug: [
+      type: :boolean,
+      doc: "Show detailed request/response logging.",
+      default: true,
+      global: true
+    ]
+  ]
+
   @moduledoc """
   Log requests using Elixir's Logger.
 
@@ -54,9 +81,7 @@ defmodule Tesla.Middleware.Logger do
 
   ## Options
 
-  - `:log_level` - custom function for calculating log level (see below)
-  - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
-  - `:debug` - show detailed request/response logging
+  #{Tesla.Middleware.Config.docs(@config_schema)}
 
   ## Custom log format
 
@@ -151,9 +176,6 @@ defmodule Tesla.Middleware.Logger do
 
   alias Tesla.Middleware.Logger.Formatter
 
-  @config Application.get_env(:tesla, __MODULE__, [])
-  @format Formatter.compile(@config[:format])
-
   @type log_level :: :info | :warn | :error
 
   require Logger
@@ -162,17 +184,17 @@ defmodule Tesla.Middleware.Logger do
   def call(env, next, opts) do
     {time, response} = :timer.tc(Tesla, :run, [env, next])
 
-    config = Keyword.merge(@config, opts)
-
-    optional_runtime_format = Keyword.get(config, :format)
+    config = Tesla.Middleware.Config.build!(__MODULE__, @config_schema, opts)
 
     format =
-      if optional_runtime_format, do: Formatter.compile(optional_runtime_format), else: @format
+      config
+      |> Keyword.fetch!(:format)
+      |> Formatter.compile()
 
     level = log_level(response, config)
     Logger.log(level, fn -> Formatter.format(env, response, time, format) end)
 
-    if Keyword.get(config, :debug, true) do
+    if Keyword.fetch!(config, :debug) do
       Logger.debug(fn -> debug(env, response, config) end)
     end
 
@@ -183,9 +205,6 @@ defmodule Tesla.Middleware.Logger do
 
   defp log_level({:ok, env}, config) do
     case Keyword.get(config, :log_level) do
-      nil ->
-        default_log_level(env)
-
       fun when is_function(fun) ->
         case fun.(env) do
           :default -> default_log_level(env)
@@ -252,7 +271,7 @@ defmodule Tesla.Middleware.Logger do
   defp debug_headers([], _config), do: @debug_no_headers
 
   defp debug_headers(headers, config) do
-    filtered = Keyword.get(config, :filter_headers, [])
+    filtered = Keyword.fetch!(config, :filter_headers)
 
     Enum.map(headers, fn {k, v} ->
       v = if k in filtered, do: "[FILTERED]", else: v
