@@ -127,6 +127,7 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 ### Auth
 
 - [`Tesla.Middleware.BasicAuth`](https://hexdocs.pm/tesla/Tesla.Middleware.BasicAuth.html) - HTTP Basic Auth
+- [`Tesla.Middleware.BearerAuth`](https://hexdocs.pm/tesla/Tesla.Middleware.BearerAuth.html) - HTTP Bearer Auth
 - [`Tesla.Middleware.DigestAuth`](https://hexdocs.pm/tesla/Tesla.Middleware.DigestAuth.html) - Digest access authentication
 
 ### Error handling
