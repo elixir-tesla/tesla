@@ -16,7 +16,7 @@ defmodule Tesla.Middleware.BearerAuth do
     # dynamic token
     def new(token) do
       Tesla.client [
-        {Tesla.Middleware.BearerAuth, token: token)}
+        {Tesla.Middleware.BearerAuth, token: token}
       ]
     end
   end
