@@ -61,7 +61,7 @@ Add `:tesla` as dependency in `mix.exs`:
 ```elixir
 defp deps do
   [
-    {:tesla, "~> 1.4.0"},
+    {:tesla, "~> 1.4"},
 
     # optional, but recommended adapter
     {:hackney, "~> 1.17.0"},
