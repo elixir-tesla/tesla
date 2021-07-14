@@ -84,6 +84,11 @@ defmodule Tesla.Builder do
   @doc """
   Attach middleware to your API client.
 
+  Notice that this has one important difference to Plug's plug that you might be used to.
+  Here `opts` aren't passed by value but as the AST and evaluated at run time.
+  This means, while you can't pass a secret string directly, you can call a function that
+  retrieves the secret and it will be called at run time.
+
   ```
   defmodule ExampleApi do
     use Tesla
@@ -96,6 +101,9 @@ defmodule Tesla.Builder do
 
     # or a custom middleware
     plug MyProject.CustomMiddleware
+
+    # or pass a function to get the token
+    plug Tesla.Middleware.Headers, [{"authorization", get_api_key()}]
   end
   """
 

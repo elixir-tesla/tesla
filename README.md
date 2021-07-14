@@ -182,6 +182,8 @@ client |> GitHub.user_repos("teamon")
 client |> GitHub.get("/me")
 ```
 
+However, if insted of a pure String you use a function call that is evaluated at run time and works: `plug Tesla.Middleware.Headers, [{"authorization", get_api_key()}]`
+
 ## Adapters
 
 Tesla supports multiple HTTP adapter that do the actual HTTP request processing.
