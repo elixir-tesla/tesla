@@ -206,7 +206,13 @@ end
 
 ### Adapter options
 
-In case there is a need to pass specific adapter options you can do it in one of three ways:
+In case there is a need to pass specific adapter options you can do it in one of four ways:
+
+Supplying them as a keyword list in a tuple via config:
+
+```elixir
+config :tesla, adapter: {Tesla.Adapter.Hackney, [recv_timeout: 30_000]}
+```
 
 Using `adapter` macro:
 
