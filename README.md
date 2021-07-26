@@ -64,7 +64,7 @@ defp deps do
     {:tesla, "~> 1.4"},
 
     # optional, but recommended adapter
-    {:hackney, "~> 1.17.0"},
+    {:hackney, "~> 1.17"},
 
     # optional, required by JSON middleware
     {:jason, ">= 1.0.0"}
