@@ -61,6 +61,12 @@ defmodule Tesla.Mock do
   Tesla.Mock.mock(fn
     %{method: :post} -> {201, %{}, %{id: 42}}
   end)
+
+  # mock will also accept error tuples in the form
+  # of {:error, reason}
+  Tesla.Mock.mock(fn
+    %{method: :post} -> {:error, :timeout}
+  end)
   ```
 
   ## Global mocks
