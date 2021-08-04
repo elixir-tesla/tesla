@@ -5,7 +5,12 @@ defmodule Tesla.Adapter.HttpcTest do
   use Tesla.AdapterCase.Basic
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
-  use Tesla.AdapterCase.SSL
+
+  use Tesla.AdapterCase.SSL,
+    ssl: [
+      verify: :verify_peer,
+      cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
+    ]
 
   # see https://github.com/teamon/tesla/issues/147
   test "Set content-type for DELETE requests" do

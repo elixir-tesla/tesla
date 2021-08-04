@@ -8,6 +8,7 @@ jobs:
     strategy:
       matrix:
         elixir:
+          - 1.12-slim   # top 24
           - 1.11-slim   # otp 23
           - 1.10-slim   # otp 22
           - 1.9-slim    # otp 22

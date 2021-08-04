@@ -8,6 +8,7 @@ defmodule Tesla.Adapter.HackneyTest do
 
   use Tesla.AdapterCase.SSL,
     ssl_options: [
+      verify: :verify_peer,
       cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
     ]
 

@@ -5,8 +5,16 @@ defmodule Tesla.Adapter.GunTest do
   use Tesla.AdapterCase.Basic
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
-  use Tesla.AdapterCase.SSL
+
+  use Tesla.AdapterCase.SSL,
+    certificates_verification: true,
+    transport_opts: [
+      cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
+    ]
+
   alias Tesla.Adapter.Gun
+
+  import ExUnit.CaptureLog
 
   setup do
     on_exit(fn -> assert Supervisor.which_children(:gun_sup) == [] end)
@@ -108,7 +116,7 @@ defmodule Tesla.Adapter.GunTest do
              call(request,
                certificates_verification: true,
                transport_opts: [
-                 cacertfile: "./deps/httparrot/priv/ssl/server-ca.crt"
+                 cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
                ]
              )
   end
@@ -210,17 +218,22 @@ defmodule Tesla.Adapter.GunTest do
       url: "#{@https}"
     }
 
-    {time, resp} =
-      :timer.tc(fn ->
-        call(request,
-          timeout: 60_000,
-          certificates_verification: true
-        )
+    log =
+      capture_log(fn ->
+        {time, resp} =
+          :timer.tc(fn ->
+            call(request,
+              timeout: 60_000,
+              certificates_verification: true
+            )
+          end)
+
+        assert resp == {:error, :timeout}
+
+        assert time / 1_000_000 < 6
       end)
 
-    assert resp == {:error, :timeout}
-
-    assert time / 1_000_000 < 6
+    assert log =~ "Unknown CA"
   end
 
   defp read_body(pid, stream, opts, acc \\ "") do

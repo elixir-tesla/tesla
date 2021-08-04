@@ -4,17 +4,17 @@ defmodule Tesla.Middleware.TelemetryTest do
   defmodule Client do
     use Tesla
 
-    plug Tesla.Middleware.KeepRequest
-    plug Tesla.Middleware.Telemetry, metadata: %{custom: "meta"}
-    plug Tesla.Middleware.PathParams
+    plug(Tesla.Middleware.KeepRequest)
+    plug(Tesla.Middleware.Telemetry, metadata: %{custom: "meta"})
+    plug(Tesla.Middleware.PathParams)
 
-    adapter fn env ->
+    adapter(fn env ->
       case env.url do
         "/telemetry_error" -> {:error, :econnrefused}
         "/telemetry_exception" -> raise "some exception"
         "/telemetry" <> _ -> {:ok, env}
       end
-    end
+    end)
   end
 
   setup do
@@ -30,15 +30,15 @@ defmodule Tesla.Middleware.TelemetryTest do
 
   test "events are all emitted properly" do
     Enum.each(["/telemetry", "/telemetry_error"], fn path ->
-      :telemetry.attach("start event", [:tesla, :request, :start], &echo_event/4, %{
+      :telemetry.attach("start event", [:tesla, :request, :start], &__MODULE__.echo_event/4, %{
         caller: self()
       })
 
-      :telemetry.attach("stop event", [:tesla, :request, :stop], &echo_event/4, %{
+      :telemetry.attach("stop event", [:tesla, :request, :stop], &__MODULE__.echo_event/4, %{
         caller: self()
       })
 
-      :telemetry.attach("legacy event", [:tesla, :request], &echo_event/4, %{
+      :telemetry.attach("legacy event", [:tesla, :request], &__MODULE__.echo_event/4, %{
         caller: self()
       })
 
@@ -55,9 +55,12 @@ defmodule Tesla.Middleware.TelemetryTest do
   end
 
   test "with an exception raised" do
-    :telemetry.attach("with_exception", [:tesla, :request, :exception], &echo_event/4, %{
-      caller: self()
-    })
+    :telemetry.attach(
+      "with_exception",
+      [:tesla, :request, :exception],
+      &__MODULE__.echo_event/4,
+      %{caller: self()}
+    )
 
     assert_raise RuntimeError, fn ->
       Client.get("/telemetry_exception")
@@ -70,15 +73,15 @@ defmodule Tesla.Middleware.TelemetryTest do
   test "middleware works in tandem with PathParams and KeepRequest" do
     path = "/telemetry/:event_id"
 
-    :telemetry.attach("start event", [:tesla, :request, :start], &echo_event/4, %{
+    :telemetry.attach("start event", [:tesla, :request, :start], &__MODULE__.echo_event/4, %{
       caller: self()
     })
 
-    :telemetry.attach("stop event", [:tesla, :request, :stop], &echo_event/4, %{
+    :telemetry.attach("stop event", [:tesla, :request, :stop], &__MODULE__.echo_event/4, %{
       caller: self()
     })
 
-    :telemetry.attach("legacy event", [:tesla, :request], &echo_event/4, %{
+    :telemetry.attach("legacy event", [:tesla, :request], &__MODULE__.echo_event/4, %{
       caller: self()
     })
 
