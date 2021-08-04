@@ -135,8 +135,11 @@ defmodule Tesla.Mock do
 
   This mock will only be available to the current process.
   """
-  @spec mock((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: no_return
-  def mock(fun) when is_function(fun), do: pdict_set(fun)
+  @spec mock((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: :ok
+  def mock(fun) when is_function(fun) do
+    pdict_set(fun)
+    :ok
+  end
 
   @doc """
   Setup global mocks.
@@ -144,8 +147,11 @@ defmodule Tesla.Mock do
   **WARNING**: This mock will be available to ALL processes.
   It might cause conflicts when running tests in parallel!
   """
-  @spec mock_global((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: no_return
-  def mock_global(fun) when is_function(fun), do: agent_set(fun)
+  @spec mock_global((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: :ok
+  def mock_global(fun) when is_function(fun) do
+    agent_set(fun)
+    :ok
+  end
 
   ## HELPERS
 
@@ -225,10 +231,13 @@ defmodule Tesla.Mock do
   defp agent_set(fun) do
     case Process.whereis(__MODULE__) do
       nil ->
-        ExUnit.Callbacks.start_supervised!(%{
-          id: __MODULE__,
-          start: {Agent, :start_link, [fn -> fun end, [{:name, __MODULE__}]]}
-        })
+        ExUnit.Callbacks.start_supervised!(
+          %{
+            id: __MODULE__,
+            start: {Agent, :start_link, [fn -> fun end, [{:name, __MODULE__}]]}
+          },
+          []
+        )
 
       pid ->
         Agent.update(pid, fn _ -> fun end)
