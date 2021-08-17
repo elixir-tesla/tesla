@@ -537,7 +537,7 @@ defmodule Tesla do
 
   @doc false
   def encode_pair({key, value}) when is_list(value) do
-    if Keyword.keyword?(value) do
+    if Keyword.keyword?(value) or Enum.all?(value, &is_list_of_tuples?/1) do
       Enum.flat_map(value, fn {k, v} -> encode_pair({"#{key}[#{k}]", v}) end)
     else
       Enum.map(value, fn e -> {"#{key}[]", e} end)
@@ -546,4 +546,7 @@ defmodule Tesla do
 
   @doc false
   def encode_pair({key, value}), do: [{key, value}]
+
+  defp is_list_of_tuples?({k, _}) when is_binary(k), do: true
+  defp is_list_of_tuples?(_), do: false
 end
