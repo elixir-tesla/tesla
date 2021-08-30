@@ -4,15 +4,15 @@ end
 
 defmodule TestPetstoreAdapter do
   @headers [{"content-type", "application/json"}]
-  def call(%{method: :get, url: "/pets"}, _opts) do
+  def call(%{method: :get, url: "http://petstore.swagger.io/api/pets"}, _opts) do
     {:ok, %Tesla.Env{status: 200, body: [], headers: @headers}}
   end
 
-  def call(%{method: :get, url: "/pets/1"}, _opts) do
+  def call(%{method: :get, url: "http://petstore.swagger.io/api/pets/1"}, _opts) do
     {:ok, %Tesla.Env{status: 200, body: ~s|{"id": 1}|, headers: @headers}}
   end
 
-  def call(%{method: :get, url: "/pets/404"}, _opts) do
+  def call(%{method: :get, url: "http://petstore.swagger.io/api/pets/404"}, _opts) do
     {:ok,
      %Tesla.Env{
        status: 404,
