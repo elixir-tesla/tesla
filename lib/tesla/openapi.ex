@@ -1,4 +1,11 @@
 defmodule Tesla.OpenApi do
+  @moduledoc """
+  Generate API client for given OpenApi specification.
+
+  Notes:
+  - `operationId` is required to generate API functions
+  """
+
   defmacro __using__(opts \\ []) do
     file = Keyword.fetch!(opts, :spec)
     spec = Jason.decode!(File.read!(file))
@@ -18,60 +25,92 @@ defmodule Tesla.OpenApi do
 
   def gen_schemas(spec) do
     for {name, definition} <- spec["definitions"] do
-      props = properties(definition, spec)
-      struct = Enum.map(props, fn p -> {p.key, nil} end)
-      types = Enum.map(props, fn p -> {p.key, type(p.type, p.required)} end)
-      build = Enum.map(props, fn p -> {p.key, quote(do: body[unquote(p.name)])} end)
+      case schema(definition, spec) do
+        {:list, type} ->
+          quote do
+            defmodule unquote(module(name)) do
+              @type t :: [unquote(type).t()]
 
-      quote do
-        defmodule unquote({:__aliases__, [alias: false], [String.to_atom(name)]}) do
-          defstruct unquote(struct)
-          @type t :: %__MODULE__{unquote_splicing(types)}
-
-          def decode(body) do
-            %__MODULE__{unquote_splicing(build)}
+              def decode(items) do
+                for item <- items, do: unquote(type).decode(item)
+              end
+            end
           end
-        end
+
+        {:struct, props} ->
+          struct = Enum.map(props, fn p -> {p.key, nil} end)
+          types = Enum.map(props, fn p -> {p.key, p.type} end)
+          build = Enum.map(props, fn p -> {p.key, quote(do: body[unquote(p.name)])} end)
+
+          quote do
+            defmodule unquote(module(name)) do
+              defstruct unquote(struct)
+              @type t :: %__MODULE__{unquote_splicing(types)}
+
+              def decode(body) do
+                %__MODULE__{unquote_splicing(build)}
+              end
+            end
+          end
       end
     end
   end
 
-  defp type(type, true), do: type(type)
-  defp type(type, false), do: quote(do: unquote(type(type)) | nil)
-  defp type("string"), do: quote(do: binary)
-  defp type("integer"), do: quote(do: integer)
+  defp module(name), do: {:__aliases__, [alias: false], [String.to_atom(name)]}
 
-  defp properties(%{"properties" => properties} = def, _spec) do
+  defp schema(%{"type" => "object", "allOf" => all_of}, spec) do
+    props =
+      Enum.flat_map(all_of, fn
+        %{"$ref" => "#/definitions/" <> schema} -> props(spec["definitions"][schema])
+        schema -> props(schema)
+      end)
+
+    {:struct, props}
+  end
+
+  defp schema(%{"type" => "array", "items" => %{"$ref" => "#/definitions/" <> schema}}, _spec) do
+    {:list, module(schema)}
+  end
+
+  defp schema(%{"properties" => _properties} = def, _spec) do
+    {:struct, props(def)}
+  end
+
+  defp props(%{"properties" => properties} = def) do
     required = Map.get(def, "required", [])
 
-    for {name, %{"type" => type}} <- properties do
-      %{name: name, key: String.to_atom(name), type: type, required: name in required}
+    for {name, map} <- properties do
+      %{
+        name: name,
+        key: String.to_atom(name),
+        required: name in required,
+        type: prop_type_or_nil(prop_type(map), name in required)
+      }
     end
   end
 
-  defp properties(%{"type" => "object", "allOf" => all_of}, spec) do
-    Enum.flat_map(all_of, &properties(&1, spec))
-  end
+  defp prop_type(%{"type" => "string"}), do: quote(do: binary)
+  defp prop_type(%{"type" => "integer"}), do: quote(do: integer)
+  defp prop_type(%{"type" => "number"}), do: quote(do: number)
 
-  defp properties(%{"$ref" => "#/definitions/" <> schema}, spec) do
-    properties(spec["definitions"][schema], spec)
-  end
+  defp prop_type(%{"type" => "array", "items" => items}),
+    do: quote(do: [unquote(prop_type(items))])
+
+  defp prop_type(%{"$ref" => "#/definitions/" <> schema}),
+    do: quote(do: unquote(module(schema)).t())
+
+  defp prop_type_or_nil(type, true), do: type
+  defp prop_type_or_nil(type, false), do: quote(do: unquote(type) | nil)
 
   defp response({:default, %{"schema" => %{"$ref" => "#/definitions/" <> schema}}}) do
     body = Macro.var(:body, __MODULE__)
-    schema = {:__aliases__, [alias: false], [String.to_atom(schema)]}
 
-    match =
-      quote do
-        {:ok, %{body: unquote(body)}}
-      end
-
-    resp =
-      quote do
-        {:error, unquote(schema).decode(unquote(body))}
-      end
-
-    {match, resp}
+    quote do
+      {
+        {:ok, %{body: unquote(body)}},
+        {:error, unquote(module(schema)).decode(unquote(body))}
+      }
+    end
   end
 
   defp response({:default, _}) do
@@ -88,51 +127,43 @@ defmodule Tesla.OpenApi do
           }}
        ) do
     body = Macro.var(:body, __MODULE__)
-    schema = {:__aliases__, [alias: false], [String.to_atom(schema)]}
 
-    match =
-      quote do
+    quote do
+      {
         {:ok, %{status: unquote(String.to_integer(code)), body: unquote(body)}}
-        when is_list(body)
-      end
-
-    resp =
-      quote do
-        {:ok, Enum.map(body, fn item -> unquote(schema).decode(item) end)}
-      end
-
-    {match, resp}
+        when is_list(body),
+        {:ok, Enum.map(body, fn item -> unquote(module(schema)).decode(item) end)}
+      }
+    end
   end
 
   defp response({code, %{"schema" => %{"$ref" => "#/definitions/" <> schema}}}) do
     body = Macro.var(:body, __MODULE__)
-    schema = {:__aliases__, [alias: false], [String.to_atom(schema)]}
 
-    match =
-      quote do
-        {:ok, %{status: unquote(String.to_integer(code)), body: unquote(body)}}
-      end
-
-    resp =
-      quote do
-        {:ok, unquote(schema).decode(unquote(body))}
-      end
-
-    {match, resp}
+    quote do
+      {
+        {:ok, %{status: unquote(String.to_integer(code)), body: unquote(body)}},
+        {:ok, unquote(module(schema)).decode(unquote(body))}
+      }
+    end
   end
 
   defp response({code, _}) do
-    match =
-      quote do
-        {:ok, %{status: unquote(String.to_integer(code))}}
-      end
-
-    resp = :ok
-    {match, resp}
+    quote do
+      {
+        {:ok, %{status: unquote(String.to_integer(code))}},
+        :ok
+      }
+    end
   end
 
   defp response(:error) do
-    {quote(do: {:error, error}), quote(do: {:error, error})}
+    quote do
+      {
+        {:error, error},
+        {:error, error}
+      }
+    end
   end
 
   defp response_type({:default, %{"schema" => %{"$ref" => "#/definitions/" <> schema}}}) do
@@ -172,8 +203,8 @@ defmodule Tesla.OpenApi do
 
   def gen_operations(spec) do
     for {path, methods} <- spec["paths"] do
-      for {method, operation} <- methods do
-        name = String.to_atom(Macro.underscore(operation["operationId"]))
+      for {method, %{"operationId" => operation_id} = operation} <- methods do
+        name = String.to_atom(Macro.underscore(operation_id))
         {args_in, args_out, args_types, extra_types} = args(path, method, operation)
 
         responses = Map.get(operation, "responses", %{})
@@ -286,9 +317,9 @@ defmodule Tesla.OpenApi do
     path_types =
       parameters
       |> Enum.filter(&match?(%{"in" => "path"}, &1))
-      |> Enum.map(fn %{"name" => name, "type" => type} ->
+      |> Enum.map(fn %{"name" => name} = prop ->
         var = String.to_atom(name)
-        quote(do: unquote(Macro.var(var, __MODULE__)) :: unquote(type(type)))
+        quote(do: unquote(Macro.var(var, __MODULE__)) :: unquote(prop_type(prop)))
       end)
 
     path_out = {:<<>>, [], parts}
@@ -302,16 +333,12 @@ defmodule Tesla.OpenApi do
         %{
           "name" => name,
           "type" => "array",
-          "items" => %{"type" => type},
           "collectionFormat" => "csv"
-        } ->
-          {String.to_atom(name), :csv, quote(do: [unquote(type(type))])}
+        } = prop ->
+          {String.to_atom(name), :csv, prop_type(prop)}
 
-        %{"name" => name, "type" => "array", "items" => %{"type" => type}} ->
-          {String.to_atom(name), nil, quote(do: [unquote(type(type))])}
-
-        %{"name" => name, "type" => type} ->
-          {String.to_atom(name), nil, type(type)}
+        %{"name" => name} = prop ->
+          {String.to_atom(name), nil, prop_type(prop)}
       end)
 
     query_in = quote(do: query \\ [])
@@ -383,14 +410,14 @@ defmodule Tesla.OpenApi do
   end
 
   defp encoders(spec) do
-    Enum.map(spec["consumes"], fn
+    Enum.map(spec["consumes"] || [], fn
       "application/json" -> Tesla.Middleware.EncodeJson
       _ -> []
     end)
   end
 
   defp decoders(spec) do
-    Enum.map(spec["produces"], fn
+    Enum.map(spec["produces"] || [], fn
       "application/json" -> Tesla.Middleware.DecodeJson
       _ -> []
     end)
