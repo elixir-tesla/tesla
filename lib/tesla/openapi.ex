@@ -364,7 +364,7 @@ defmodule Tesla.OpenApi do
       end
 
       def match(_schema, _var), do: raise("Not Implemented")
-      def decode(_schema, _var), do: raise("Not Implemented")
+      def decode(_schema, var), do: var
     end
   end
 
@@ -381,10 +381,9 @@ defmodule Tesla.OpenApi do
       def type(%{name: name}), do: quote(do: unquote(Gen.module_name(name)).t())
 
       def schema(%{name: name, properties: properties} = schema, _spec) do
+        var = Macro.var(:body, __MODULE__)
         struct = Enum.map(properties, fn p -> {Gen.key(p), nil} end)
         types = Enum.map(properties, fn p -> {Gen.key(p), Gen.type(p)} end)
-        # TODO: Add nested decoding
-        build = Enum.map(properties, fn p -> {Gen.key(p), quote(do: body[unquote(p.name)])} end)
 
         quote do
           defmodule unquote(Gen.module_name(name)) do
@@ -392,18 +391,30 @@ defmodule Tesla.OpenApi do
             defstruct unquote(struct)
             @type t :: %__MODULE__{unquote_splicing(types)}
 
-            def decode(body) do
+            def decode(unquote(var)) do
               # TODO: Move into {:ok, ...} | {:error, ...}
-              %__MODULE__{unquote_splicing(build)}
+              %__MODULE__{unquote_splicing(props_build(properties, var))}
             end
           end
         end
       end
 
-      def match(_schema, _var), do: raise("Not Implemented")
+      def match(_schema, var), do: var
 
-      def decode(%{name: name} = schema, var) do
-        quote(do: unquote(Gen.module_name(name)).decode(unquote(var)))
+      def decode(%{name: nil, properties: properties}, var) do
+        quote do
+          %{unquote_splicing(props_build(properties, var))}
+        end
+      end
+
+      def decode(%{name: name}, var) do
+        quote do
+          unquote(Gen.module_name(name)).decode(unquote(var))
+        end
+      end
+
+      defp props_build(properties, var) do
+        Enum.map(properties, fn p -> {Gen.key(p), quote(do: unquote(var)[unquote(p.name)])} end)
       end
     end
   end
@@ -462,8 +473,8 @@ defmodule Tesla.OpenApi do
         nil
       end
 
-      def match(_schema, _var), do: raise("Not Implemented")
-      def decode(_schema, _var), do: raise("Not Implemented")
+      def match(_schema, var), do: var
+      def decode(_schema, _var), do: {:TODO, :OneOfDecode}
     end
   end
 
@@ -700,10 +711,11 @@ defmodule Tesla.OpenApi do
       Operation.generate(spec),
       New.generate(spec)
     ]
-    |> tap(&print/1)
+
+    # |> tap(&print/1)
   end
 
-  defp print(x), do: x |> Macro.to_string() |> Code.format_string!() |> IO.puts()
+  # defp print(x), do: x |> Macro.to_string() |> Code.format_string!() |> IO.puts()
 
   def encode_query(query, keys) do
     Enum.reduce(keys, [], fn
