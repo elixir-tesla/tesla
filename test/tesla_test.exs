@@ -284,6 +284,21 @@ defmodule TeslaTest do
       assert build_url(url, query_params) === url <> "?user=3&page=2"
     end
 
+    test "returns URL with query params from nested keyword list", %{url: url} do
+      query_params = [nested: [more_nested: [argument: 1]]]
+      assert build_url(url, query_params) === url <> "?nested%5Bmore_nested%5D%5Bargument%5D=1"
+    end
+
+    test "returns URL with query params from tuple list", %{url: url} do
+      query_params = [{"user", 3}, {"page", 2}]
+      assert build_url(url, query_params) === url <> "?user=3&page=2"
+    end
+
+    test "returns URL with query params from nested tuple list", %{url: url} do
+      query_params = [{"nested", [{"more_nested", [{"argument", 1}]}]}]
+      assert build_url(url, query_params) === url <> "?nested%5Bmore_nested%5D%5Bargument%5D=1"
+    end
+
     test "returns URL with new query params concated from keyword list", %{url: url} do
       url_with_param = url <> "?user=4"
       query_params = [page: 2, status: true]
