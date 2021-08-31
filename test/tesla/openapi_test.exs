@@ -17,9 +17,13 @@ defmodule Tesla.OpenApiTest do
     use Tesla.OpenApi, spec: "test/support/openapi/petstore-expanded.json"
   end
 
-  # defmodule Slack do
-  #   use Tesla.OpenApi, spec: "test/support/openapi/slack_web_openapi_v2.json"
-  # end
+  defmodule Slack do
+    use Tesla.OpenApi, spec: "test/support/openapi/slack_web_openapi_v2.json"
+  end
+
+  defmodule Uber do
+    use Tesla.OpenApi, spec: "test/support/openapi/uber.json"
+  end
 
   defmodule PetstoreAdapter do
     @headers [{"content-type", "application/json"}]
@@ -41,38 +45,26 @@ defmodule Tesla.OpenApiTest do
     end
   end
 
-  # setup do
-  #   client = PetstoreSimple.new(adapter: PetstoreAdapter)
-  #   [client: client]
-  # end
+  setup do
+    client = PetstoreSimple.new(adapter: PetstoreAdapter)
+    [client: client]
+  end
 
-  # describe "find_pets" do
-  #   test "empty", %{client: client} do
-  #     assert {:ok, []} = PetstoreSimple.find_pets(client)
-  #   end
-  # end
+  describe "find_pets" do
+    test "empty", %{client: client} do
+      assert {:ok, []} = PetstoreSimple.find_pets(client)
+    end
+  end
 
-  # describe "find_pet_by_id" do
-  #   test "found", %{client: client} do
-  #     assert {:ok, pet} = PetstoreSimple.find_pet_by_id(client, 1)
-  #     assert %PetstoreSimple.Pet{id: 1} = pet
-  #   end
+  describe "find_pet_by_id" do
+    test "found", %{client: client} do
+      assert {:ok, pet} = PetstoreSimple.find_pet_by_id(client, 1)
+      assert %PetstoreSimple.Pet{id: 1} = pet
+    end
 
-  #   test "not found", %{client: client} do
-  #     assert {:error, error} = PetstoreSimple.find_pet_by_id(client, 404)
-  #     assert %PetstoreSimple.ErrorModel{code: 1} = error
-  #   end
-  # end
-
-  # test "uber" do
-  #   defmodule Uber do
-  #     use Tesla.OpenApi, spec: "test/support/openapi/uber.json"
-  #   end
-  # end
-
-  test "slack" do
-    # defmodule Slack do
-    #   use Tesla.OpenApi, spec: "test/support/openapi/slack_web_openapi_v2.json"
-    # end
+    test "not found", %{client: client} do
+      assert {:error, error} = PetstoreSimple.find_pet_by_id(client, 404)
+      assert %PetstoreSimple.ErrorModel{code: 1} = error
+    end
   end
 end
