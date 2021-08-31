@@ -29,6 +29,7 @@ defmodule Tesla.OpenApi do
         {:list, type} ->
           quote do
             defmodule unquote(module(name)) do
+              unquote(doc_schema(definition))
               @type t :: [unquote(type).t()]
 
               def decode(items) do
@@ -44,6 +45,7 @@ defmodule Tesla.OpenApi do
 
           quote do
             defmodule unquote(module(name)) do
+              unquote(doc_schema(definition))
               defstruct unquote(struct)
               @type t :: %__MODULE__{unquote_splicing(types)}
 
@@ -52,11 +54,30 @@ defmodule Tesla.OpenApi do
               end
             end
           end
+
+        :ignore ->
+          []
       end
     end
   end
 
-  defp module(name), do: {:__aliases__, [alias: false], [String.to_atom(name)]}
+  defp module(name) do
+    name = Macro.camelize(name)
+    {:__aliases__, [alias: false], [String.to_atom(name)]}
+  end
+
+  defp schema(%{"type" => "array", "items" => %{"$ref" => "#/definitions/" <> schema}}, _spec) do
+    {:list, module(schema)}
+  end
+
+  defp schema(%{"type" => "array", "items" => items}, _spec) when items === %{} do
+    :ignore
+  end
+
+  defp schema(%{"items" => _items}, _spec) do
+    # TODO: Handle this weird case of items without type=array
+    :ignore
+  end
 
   defp schema(%{"type" => "object", "allOf" => all_of}, spec) do
     props =
@@ -68,12 +89,12 @@ defmodule Tesla.OpenApi do
     {:struct, props}
   end
 
-  defp schema(%{"type" => "array", "items" => %{"$ref" => "#/definitions/" <> schema}}, _spec) do
-    {:list, module(schema)}
-  end
-
   defp schema(%{"properties" => _properties} = def, _spec) do
     {:struct, props(def)}
+  end
+
+  defp schema(%{"type" => primitive}, _spec) when primitive in ["string", "boolean", "object"] do
+    :ignore
   end
 
   defp props(%{"properties" => properties} = def) do
@@ -89,18 +110,50 @@ defmodule Tesla.OpenApi do
     end
   end
 
+  defp prop_type(%{"type" => [_ | _] = types}) when is_list(types) do
+    types
+    |> Enum.map(fn type -> prop_type(%{"type" => type}) end)
+    |> Enum.reduce(fn x, xs -> quote(do: unquote(x) | unquote(xs)) end)
+  end
+
+  defp prop_type(%{"items" => items}) when is_list(items) do
+    # treat this as oneOf
+
+    items
+    |> Enum.map(fn type -> prop_type(type) end)
+    |> Enum.reduce(fn x, xs -> quote(do: unquote(x) | unquote(xs)) end)
+  end
+
+  defp prop_type(%{"type" => "null"}), do: quote(do: nil)
   defp prop_type(%{"type" => "string"}), do: quote(do: binary)
   defp prop_type(%{"type" => "integer"}), do: quote(do: integer)
   defp prop_type(%{"type" => "number"}), do: quote(do: number)
+  defp prop_type(%{"type" => "boolean"}), do: quote(do: boolean)
+  defp prop_type(%{"type" => "object"}), do: quote(do: map)
 
   defp prop_type(%{"type" => "array", "items" => items}),
     do: quote(do: [unquote(prop_type(items))])
 
+  defp prop_type(%{"type" => "array"}), do: quote(do: list)
+
   defp prop_type(%{"$ref" => "#/definitions/" <> schema}),
     do: quote(do: unquote(module(schema)).t())
 
-  defp prop_type_or_nil(type, true), do: type
-  defp prop_type_or_nil(type, false), do: quote(do: unquote(type) | nil)
+  defp prop_type_or_nil(type, true) do
+    type
+  end
+
+  defp prop_type_or_nil(type, false) do
+    type
+    |> flattype()
+    |> Enum.reject(&is_nil/1)
+    |> Kernel.++([nil])
+    |> Enum.reverse()
+    |> Enum.reduce(fn x, xs -> quote(do: unquote(x) | unquote(xs)) end)
+  end
+
+  defp flattype({:|, _, [lhs, rhs]}), do: flattype(lhs) ++ flattype(rhs)
+  defp flattype(t), do: [t]
 
   defp response({:default, %{"schema" => %{"$ref" => "#/definitions/" <> schema}}}) do
     body = Macro.var(:body, __MODULE__)
@@ -226,7 +279,7 @@ defmodule Tesla.OpenApi do
           |> Enum.reduce(fn x, xs -> quote(do: unquote(x) | unquote(xs)) end)
 
         quote do
-          unquote(doc(operation))
+          unquote(doc_operation(operation))
           unquote(spec(name, args_types, extra_types, types))
 
           def unquote(name)(unquote_splicing(args_in)) do
@@ -254,18 +307,23 @@ defmodule Tesla.OpenApi do
     end
   end
 
-  defp doc(operation) do
+  defp doc_schema(schema) do
+    quote do
+      @moduledoc """
+      #{unquote(schema["title"])}
+      """
+    end
+  end
+
+  defp doc_operation(operation) do
     parameters = Map.get(operation, "parameters", [])
 
     query_doc =
       parameters
       |> Enum.filter(&match?(%{"in" => "query"}, &1))
       |> Enum.map(fn
-        %{
-          "name" => name,
-          "description" => desc
-        } ->
-          "- `#{name}`: #{desc}"
+        %{"name" => name, "description" => desc} -> "- `#{name}`: #{desc}"
+        %{"name" => name} -> "- `#{name}`"
       end)
 
     quote do
@@ -279,6 +337,11 @@ defmodule Tesla.OpenApi do
       
           #{Enum.join(qs, "\n")}
           """
+      end)}
+
+      #{unquote(case Map.get(operation, "externalDocs") do
+        %{"description" => description, "url" => url} -> "[#{description}](#{url})"
+        _ -> ""
       end)}
       """
     end
@@ -372,7 +435,7 @@ defmodule Tesla.OpenApi do
     args_in = [client_in | path_in]
     opts_out = [method: String.to_atom(method), url: path_out]
 
-    args_types = [quote(do: client :: Tesla.client()) | path_types]
+    args_types = [quote(do: client :: Tesla.Client.t()) | path_types]
 
     if query? do
       {
