@@ -19,6 +19,15 @@ defmodule Tesla.OpenApiTest do
 
   defmodule Slack do
     use Tesla.OpenApi, spec: "test/support/openapi/slack_web_openapi_v2.json"
+
+    def new(token, adapter \\ Tesla.Adapter.Mint) do
+      middlewares = [
+        {Tesla.Middleware.BearerAuth, token: token},
+        Tesla.Middleware.Logger
+      ]
+
+      super(middlewares, adapter)
+    end
   end
 
   defmodule Uber do
@@ -46,7 +55,7 @@ defmodule Tesla.OpenApiTest do
   end
 
   setup do
-    client = PetstoreSimple.new(adapter: PetstoreAdapter)
+    client = PetstoreSimple.new([], PetstoreAdapter)
     [client: client]
   end
 
