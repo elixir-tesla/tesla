@@ -6,108 +6,311 @@ defmodule Tesla.OpenApi do
   - `operationId` is required to generate API functions
   """
 
+  defmodule Docs do
+    def module(spec) do
+      quote do
+        @moduledoc """
+        #{unquote(spec.info.title)}
+
+        #{unquote(spec.info.description)}
+
+        Version #{unquote(spec.info.version)}
+        """
+      end
+    end
+  end
+
+  defprotocol GenP do
+    def schema(schema, spec)
+    def type(schema)
+  end
+
+  defmodule Gen do
+    def module(spec) do
+      quote do
+        @external_resource unquote(spec.file)
+        unquote(Docs.module(spec))
+      end
+    end
+
+    def schemas(spec) do
+      for {_, definition} <- spec.definitions do
+        GenP.schema(definition, spec)
+      end
+    end
+
+    def type_name(name), do: Macro.var(String.to_atom(name), __MODULE__)
+
+    def type(%{required: false} = schema) do
+      sumtype([GenP.type(schema), nil])
+    end
+
+    def type(%{required: true} = schema) do
+      GenP.type(schema)
+    end
+
+    def sumtype(types) do
+      types
+      |> Enum.flat_map(&flatsum/1)
+      |> Enum.uniq()
+      |> Enum.reverse()
+      |> Enum.reduce(fn x, xs -> quote(do: unquote(x) | unquote(xs)) end)
+    end
+
+    defp flatsum({:|, _, [lhs, rhs]}), do: flatsum(lhs) ++ flatsum(rhs)
+    defp flatsum(t), do: [t]
+
+    defdelegate schema(schema, spec), to: GenP
+
+    ## UTILS
+
+    def module_name(name) do
+      name = Macro.camelize(name)
+      {:__aliases__, [alias: false], [String.to_atom(name)]}
+    end
+
+    def key(%{name: name}), do: String.to_atom(Macro.underscore(name))
+  end
+
+  defmodule Primitive do
+    defstruct name: nil, type: nil, format: nil, required: false
+
+    defimpl GenP do
+      def type(%{type: "string"}), do: quote(do: binary)
+      def type(%{type: "boolean"}), do: quote(do: boolean)
+      def type(%{type: "integer"}), do: quote(do: integer)
+      def type(%{type: "number"}), do: quote(do: number)
+      def type(%{type: "null"}), do: nil
+
+      def schema(%{name: name} = schema, _spec) do
+        quote do
+          @type unquote(Gen.type_name(name)) :: unquote(type(schema))
+        end
+      end
+    end
+  end
+
+  defmodule Object do
+    defstruct name: nil, title: nil, properties: [], required: false
+
+    defimpl GenP do
+      def type(%{name: nil, properties: _properties}) do
+        # TODO: Generate ad-hoc type
+        # types = Enum.map(properties, fn p -> {Gen.key(p), Gen.type(p)} end)
+        quote(do: map)
+      end
+
+      def type(%{name: name}), do: quote(do: unquote(Gen.module_name(name)).t())
+
+      def schema(%{name: name, title: title, properties: properties}, _spec) do
+        struct = Enum.map(properties, fn p -> {Gen.key(p), nil} end)
+        types = Enum.map(properties, fn p -> {Gen.key(p), Gen.type(p)} end)
+        # TODO: Add nested decoding
+        build = Enum.map(properties, fn p -> {Gen.key(p), quote(do: body[unquote(p.name)])} end)
+
+        quote do
+          defmodule unquote(Gen.module_name(name)) do
+            @moduledoc """
+            #{unquote(title)}
+            """
+
+            defstruct unquote(struct)
+            @type t :: %__MODULE__{unquote_splicing(types)}
+
+            def decode(body) do
+              # TODO: Move into {:ok, ...} | {:error, ...}
+              %__MODULE__{unquote_splicing(build)}
+            end
+          end
+        end
+      end
+    end
+  end
+
+  defmodule Array do
+    defstruct name: nil, items: nil, required: false
+
+    defimpl GenP do
+      def type(%{items: nil}), do: quote(do: list)
+      def type(%{items: items}), do: quote(do: [unquote(Gen.type(items))])
+
+      def schema(%{name: name, items: nil}, _spec) do
+        quote do
+          @type unquote(Gen.type_name(name)) :: list
+        end
+      end
+
+      def schema(%{name: name, items: items}, _spec) do
+        quote do
+          defmodule unquote(Gen.module_name(name)) do
+            @type t :: [unquote(Gen.type(items))]
+
+            def decode(items) do
+              # TODO: Move into {:ok, ...} | {:error, ...}
+              # TODO: Handle decoding
+              for item <- items, do: unquote(items).decode(item)
+            end
+          end
+        end
+      end
+    end
+  end
+
+  defmodule OneOf do
+    defstruct name: nil, values: [], required: false
+
+    defimpl GenP do
+      def type(%{values: values}), do: values |> Enum.map(&Gen.type/1) |> Gen.sumtype()
+
+      def schema(%{name: _name, values: _values}, _spec) do
+        # TODO: Handle this
+        nil
+      end
+    end
+  end
+
+  defmodule DefRef do
+    defstruct name: nil, ref: nil, required: false
+
+    defimpl GenP do
+      def type(%{ref: ref}), do: quote(do: unquote(Gen.module_name(ref)).t())
+    end
+  end
+
+  defmodule AllOf do
+    defstruct name: nil, items: [], required: false
+
+    defimpl GenP do
+      def schema(%{name: name, items: items}, spec) do
+        # compose Object
+
+        properties =
+          Enum.flat_map(items, fn
+            %Object{properties: properties} ->
+              properties
+
+            %DefRef{ref: ref} ->
+              %Object{properties: properties} = spec.definitions[ref]
+              properties
+          end)
+
+        object = %Object{name: name, properties: properties}
+        Gen.schema(object, spec)
+      end
+    end
+  end
+
+  defmodule Unknown do
+    defstruct name: nil, schema: nil, required: false
+  end
+
+  defmodule Spec do
+    defstruct file: nil, info: %{}, definitions: %{}, operations: %{}
+
+    def load!(file) do
+      json = Jason.decode!(File.read!(file))
+
+      %__MODULE__{
+        file: file,
+        info: load_info(json),
+        definitions: load_definitions(json)
+      }
+    end
+
+    defp load_info(json) do
+      %{
+        title: json["info"]["title"],
+        description: json["info"]["description"],
+        version: json["info"]["version"]
+      }
+    end
+
+    defp load_definitions(json) do
+      json
+      |> Map.get("definitions", %{})
+      |> Enum.into(%{}, fn {name, spec} ->
+        # {name, load_definition(name, spec)}
+        {name, %{load_schema(spec) | name: name}}
+      end)
+    end
+
+    defp load_schema(%{"type" => type} = spec)
+         when type in ["integer", "number", "string", "boolean", "null"] do
+      %Primitive{type: type, format: spec["format"]}
+    end
+
+    defp load_schema(%{"type" => "object", "allOf" => all_of}) do
+      %AllOf{items: Enum.map(all_of, &load_schema/1)}
+    end
+
+    defp load_schema(%{"type" => "object", "properties" => properties} = spec) do
+      %Object{properties: load_properties(properties, spec), title: spec["title"]}
+    end
+
+    defp load_schema(%{"type" => "object"} = spec) do
+      %Object{title: spec["title"]}
+    end
+
+    defp load_schema(%{"type" => "array", "items" => items}) when items === %{} do
+      %Array{}
+    end
+
+    defp load_schema(%{"type" => "array"}) do
+      %Array{}
+    end
+
+    defp load_schema(%{"items" => %{"type" => _type} = schema}) do
+      %Array{items: load_schema(schema)}
+    end
+
+    defp load_schema(%{"items" => schemas}) when is_list(schemas) do
+      %OneOf{values: Enum.map(schemas, &load_schema/1)}
+    end
+
+    defp load_schema(%{"type" => [_ | _] = types}) when is_list(types) do
+      %OneOf{values: Enum.map(types, fn type -> load_schema(%{"type" => type}) end)}
+    end
+
+    defp load_schema(%{"properties" => properties} = spec) do
+      %Object{properties: load_properties(properties, spec)}
+    end
+
+    defp load_schema(%{"$ref" => "#/definitions/" <> schema}) do
+      %DefRef{ref: schema}
+    end
+
+    defp load_schema(schema) do
+      %Unknown{schema: schema}
+    end
+
+    defp load_properties(properties, spec) do
+      required = Map.get(spec, "required", [])
+
+      for {name, spec} <- properties do
+        %{load_schema(spec) | name: name, required: name in required}
+      end
+    end
+  end
+
   defmacro __using__(opts \\ []) do
     file = Keyword.fetch!(opts, :spec)
-    spec = Jason.decode!(File.read!(file))
+    spec = Spec.load!(file)
+    # IO.inspect(spec)
 
     [
-      quote do
-        @external_resource unquote(file)
-      end,
-      gen_schemas(spec),
-      gen_operations(spec),
-      gen_new(spec)
+      Gen.module(spec),
+      Gen.schemas(spec)
+      # gen_operations(spec),
+      # gen_new(spec)
     ]
     |> tap(&print/1)
   end
 
   defp print(x), do: x |> Macro.to_string() |> Code.format_string!() |> IO.puts()
 
-  def gen_schemas(spec) do
-    for {name, definition} <- spec["definitions"] do
-      case schema(definition, spec) do
-        {:list, type} ->
-          quote do
-            defmodule unquote(module(name)) do
-              unquote(doc_schema(definition))
-              @type t :: [unquote(type).t()]
-
-              def decode(items) do
-                for item <- items, do: unquote(type).decode(item)
-              end
-            end
-          end
-
-        {:struct, props} ->
-          struct = Enum.map(props, fn p -> {p.key, nil} end)
-          types = Enum.map(props, fn p -> {p.key, p.type} end)
-          build = Enum.map(props, fn p -> {p.key, quote(do: body[unquote(p.name)])} end)
-
-          quote do
-            defmodule unquote(module(name)) do
-              unquote(doc_schema(definition))
-              defstruct unquote(struct)
-              @type t :: %__MODULE__{unquote_splicing(types)}
-
-              def decode(body) do
-                %__MODULE__{unquote_splicing(build)}
-              end
-            end
-          end
-
-        :ignore ->
-          []
-      end
-    end
-  end
-
   defp module(name) do
     name = Macro.camelize(name)
     {:__aliases__, [alias: false], [String.to_atom(name)]}
-  end
-
-  defp schema(%{"type" => "array", "items" => %{"$ref" => "#/definitions/" <> schema}}, _spec) do
-    {:list, module(schema)}
-  end
-
-  defp schema(%{"type" => "array", "items" => items}, _spec) when items === %{} do
-    :ignore
-  end
-
-  defp schema(%{"items" => _items}, _spec) do
-    # TODO: Handle this weird case of items without type=array
-    :ignore
-  end
-
-  defp schema(%{"type" => "object", "allOf" => all_of}, spec) do
-    props =
-      Enum.flat_map(all_of, fn
-        %{"$ref" => "#/definitions/" <> schema} -> props(spec["definitions"][schema])
-        schema -> props(schema)
-      end)
-
-    {:struct, props}
-  end
-
-  defp schema(%{"properties" => _properties} = def, _spec) do
-    {:struct, props(def)}
-  end
-
-  defp schema(%{"type" => primitive}, _spec) when primitive in ["string", "boolean", "object"] do
-    :ignore
-  end
-
-  defp props(%{"properties" => properties} = def) do
-    required = Map.get(def, "required", [])
-
-    for {name, map} <- properties do
-      %{
-        name: name,
-        key: String.to_atom(name),
-        required: name in required,
-        type: prop_type_or_nil(prop_type(map), name in required)
-      }
-    end
   end
 
   defp prop_type(%{"type" => [_ | _] = types}) when is_list(types) do
@@ -220,8 +423,7 @@ defmodule Tesla.OpenApi do
   end
 
   defp response_type({:default, %{"schema" => %{"$ref" => "#/definitions/" <> schema}}}) do
-    schema = {:__aliases__, [alias: false], [String.to_atom(schema)]}
-    quote(do: {:error, unquote(schema).t()})
+    quote(do: {:error, unquote(module(schema)).t()})
   end
 
   defp response_type({:default, _}) do
@@ -237,14 +439,16 @@ defmodule Tesla.OpenApi do
             }
           }}
        ) do
-    schema = {:__aliases__, [alias: false], [String.to_atom(schema)]}
-    quote(do: {:ok, [unquote(schema).t()]})
+    quote(do: {:ok, [unquote(module(schema)).t()]})
   end
 
   defp response_type({_code, %{"schema" => %{"$ref" => "#/definitions/" <> schema}}}) do
-    schema = {:__aliases__, [alias: false], [String.to_atom(schema)]}
-    quote(do: {:ok, unquote(schema).t()})
+    quote(do: {:ok, unquote(module(schema)).t()})
   end
+
+  # defp response_type({_code, %{"schema" => %{"properties" => props}}}) do
+
+  # end
 
   defp response_type({_code, _}) do
     quote(do: :ok)
@@ -258,12 +462,15 @@ defmodule Tesla.OpenApi do
     for {path, methods} <- spec["paths"] do
       for {method, %{"operationId" => operation_id} = operation} <- methods do
         name = String.to_atom(Macro.underscore(operation_id))
+
         {args_in, args_out, args_types, extra_types} = args(path, method, operation)
 
         responses = Map.get(operation, "responses", %{})
         {default, responses} = Map.pop(responses, "default")
 
         cases = Map.to_list(responses) ++ [{:default, default}, :error]
+
+        if name == :team_info, do: print(cases)
 
         matches =
           cases
