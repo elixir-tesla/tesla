@@ -62,6 +62,7 @@ defmodule Tesla.OpenApi do
     def type(schema, spec)
     def match(schema, var, spec)
     def decode(schema, var, spec)
+    def encode(schema, var, spec)
   end
 
   defmodule Gen do
@@ -84,6 +85,7 @@ defmodule Tesla.OpenApi do
     def schema(schema, spec), do: GenP.schema(schema, spec)
     def match(schema, var, spec), do: GenP.match(schema, var, spec)
     def decode(schema, var, spec), do: GenP.decode(schema, var, spec)
+    def encode(schema, var, spec), do: GenP.encode(schema, var, spec)
 
     ## UTILS
 
@@ -160,6 +162,7 @@ defmodule Tesla.OpenApi do
               method: nil,
               path_params: [],
               query_params: [],
+              body_params: [],
               description: nil,
               responses: [],
               external_docs: nil
@@ -174,7 +177,7 @@ defmodule Tesla.OpenApi do
         unquote(spec(op, spec))
 
         def unquote(name(op))(unquote_splicing(args_in(op))) do
-          case Tesla.request(unquote_splicing(args_out(op))) do
+          case Tesla.request(unquote_splicing(args_out(op, spec))) do
             unquote(matches(op, spec))
           end
         end
@@ -187,64 +190,29 @@ defmodule Tesla.OpenApi do
 
     # TODO: Consider using Macro.unique_var for client and query
 
-    defp args_in(op), do: [client_arg_in() | path_args_in(op)] ++ query_arg_in(op)
-    defp args_out(op), do: [client_arg_out(), opts_out(op)]
-
     defp args_types(op, spec) do
-      [client_arg_type() | path_args_types(op, spec)] ++ query_arg_type(op)
+      [client_type() | path_types(op, spec)] ++ body_type(op, spec) ++ query_type(op)
     end
 
-    defp client_arg_in, do: quote(do: client \\ new())
-    defp client_arg_out, do: quote(do: client)
-    defp client_arg_type, do: quote(do: Tesla.Client.t())
+    defp args_in(op), do: [client_in() | path_in(op)] ++ body_in(op) ++ query_in(op)
+    defp args_out(op, spec), do: [client_out(), opts_out(op, spec)]
 
-    defp path_args_in(%{path_params: params}) do
-      for %{name: name} <- params, do: Macro.var(String.to_atom(name), __MODULE__)
-    end
+    defp client_type, do: quote(do: Tesla.Client.t())
+    defp client_in, do: quote(do: client \\ new())
+    defp client_out, do: quote(do: client)
 
-    defp path_args_types(%{path_params: params}, spec) do
+    defp method_out(op), do: String.to_atom(op.method)
+
+    defp path_types(%{path_params: params}, spec) do
       for %{schema: schema} <- params, do: Gen.type(schema, spec)
     end
 
-    defp query_arg_in(%{query_params: []}), do: []
-    defp query_arg_in(%{query_params: _}), do: [quote(do: query \\ [])]
-    defp query_arg_type(%{query_params: []}), do: []
-    defp query_arg_type(%{query_params: _}), do: [quote(do: [opt])]
-
-    defp query_opts_out(%{query_params: []}), do: []
-    defp query_opts_out(op), do: [query: query_opt_out(op)]
-
-    defp query_opt_out(%{query_params: params}) do
-      keys =
-        Enum.map(params, fn
-          %{name: name, format: format} -> {String.to_atom(name), format}
-        end)
-
-      quote do
-        Tesla.OpenApi.encode_query(query, unquote(keys))
-      end
+    defp path_in(%{path_params: params}) do
+      for %{name: name} <- params, do: Macro.var(String.to_atom(name), __MODULE__)
     end
-
-    defp query_opt_type(%{query_params: params}, spec) do
-      types =
-        params
-        |> Enum.map(fn param -> {String.to_atom(param.name), Gen.type(param.schema, spec)} end)
-        |> Gen.sumtype()
-
-      [opt: types]
-    end
-
-    defp opts_out(op) do
-      [
-        method: method_opt_out(op),
-        url: path_opt_out(op)
-      ] ++ query_opts_out(op)
-    end
-
-    defp method_opt_out(op), do: String.to_atom(op.method)
 
     @path_rx ~r/\{([^}]+?)\}/
-    defp path_opt_out(op) do
+    defp path_out(op) do
       parts =
         @path_rx
         |> Regex.split(op.path, include_captures: true, trim: true)
@@ -267,6 +235,60 @@ defmodule Tesla.OpenApi do
       {:<<>>, [], parts}
     end
 
+    defp body_type(%{body_params: params}, spec) do
+      for %{schema: schema} <- params, do: Gen.type(schema, spec)
+    end
+
+    defp body_in(%{body_params: params}) do
+      for %{name: name} <- params, do: Macro.var(String.to_atom(name), __MODULE__)
+    end
+
+    defp body_out(%{body_params: [%{name: name, schema: schema}]}, spec) do
+      var = Macro.var(String.to_atom(name), __MODULE__)
+      Gen.encode(schema, var, spec)
+    end
+
+    defp query_type(%{query_params: []}), do: []
+    defp query_type(%{query_params: _}), do: [quote(do: [opt])]
+
+    defp query_in(%{query_params: []}), do: []
+    defp query_in(%{query_params: _}), do: [quote(do: query \\ [])]
+
+    defp query_out(%{query_params: params}) do
+      keys =
+        Enum.map(params, fn
+          %{name: name, format: format} -> {String.to_atom(name), format}
+        end)
+
+      quote do
+        Tesla.OpenApi.encode_query(query, unquote(keys))
+      end
+    end
+
+    defp query_types(%{query_params: params}, spec) do
+      types =
+        params
+        |> Enum.map(fn param -> {String.to_atom(param.name), Gen.type(param.schema, spec)} end)
+        |> Gen.sumtype()
+
+      [opt: types]
+    end
+
+    defp opts_out(op, spec) do
+      base = [
+        method: method_out(op),
+        url: path_out(op)
+      ]
+
+      base ++ opts_out_body(op, spec) ++ opts_out_query(op)
+    end
+
+    defp opts_out_body(%{body_params: []}, _spec), do: []
+    defp opts_out_body(op, spec), do: [body: body_out(op, spec)]
+
+    defp opts_out_query(%{query_params: []}), do: []
+    defp opts_out_query(op), do: [query: query_out(op)]
+
     defp spec(%{query_params: []} = op, spec) do
       quote do
         @spec unquote(name(op))(unquote_splicing(args_types(op, spec))) ::
@@ -278,7 +300,7 @@ defmodule Tesla.OpenApi do
       quote do
         @spec unquote(name(op))(unquote_splicing(args_types(op, spec))) ::
                 unquote(responses_types(op, spec))
-              when unquote(query_opt_type(op, spec))
+              when unquote(query_types(op, spec))
       end
     end
 
@@ -381,6 +403,7 @@ defmodule Tesla.OpenApi do
 
       def match(_schema, _var, _spec), do: raise("Not Implemented")
       def decode(_schema, var, _spec), do: var
+      def encode(_schema, var, _spec), do: var
     end
   end
 
@@ -388,16 +411,15 @@ defmodule Tesla.OpenApi do
     defstruct name: nil, title: nil, properties: [], required: true
 
     defimpl GenP do
-      def type(%{name: nil, properties: _properties}, _spec) do
-        # TODO: Generate ad-hoc type
-        # types = Enum.map(properties, fn p -> {Gen.key(p), Gen.type(p)} end)
-        quote(do: map)
+      def type(%{name: nil, properties: properties}, spec) do
+        types = Enum.map(properties, fn p -> {Gen.key(p), Gen.type(p, spec)} end)
+        quote(do: %{unquote_splicing(types)})
       end
 
       def type(%{name: name}, spec), do: quote(do: unquote(Gen.module_ref(name, spec)).t())
 
       def schema(%{name: name, properties: properties} = schema, spec) do
-        var = Macro.var(:body, __MODULE__)
+        var = Macro.var(:data, __MODULE__)
         struct = Enum.map(properties, fn p -> {Gen.key(p), nil} end)
         types = Enum.map(properties, fn p -> {Gen.key(p), Gen.type(p, spec)} end)
 
@@ -409,7 +431,11 @@ defmodule Tesla.OpenApi do
 
             def decode(unquote(var)) do
               # TODO: Move into {:ok, ...} | {:error, ...}
-              %__MODULE__{unquote_splicing(props_build(properties, var, spec))}
+              %__MODULE__{unquote_splicing(decode_props(properties, var, spec))}
+            end
+
+            def encode(unquote(var)) do
+              %{unquote_splicing(encode_props(properties, var, spec))}
             end
           end
         end
@@ -419,7 +445,7 @@ defmodule Tesla.OpenApi do
 
       def decode(%{name: nil, properties: properties}, var, spec) do
         quote do
-          %{unquote_splicing(props_build(properties, var, spec))}
+          %{unquote_splicing(decode_props(properties, var, spec))}
         end
       end
 
@@ -433,9 +459,31 @@ defmodule Tesla.OpenApi do
         end
       end
 
-      defp props_build(properties, var, spec) do
+      def encode(%{name: nil, properties: properties}, var, spec) do
+        quote do
+          %{unquote_splicing(decode_props(properties, var, spec))}
+        end
+      end
+
+      def encode(%{name: name} = schema, var, spec) do
+        if spec.definitions[name] do
+          quote do
+            unquote(Gen.module_ref(name, spec)).encode(unquote(var))
+          end
+        else
+          encode(%{schema | name: nil}, var, spec)
+        end
+      end
+
+      defp decode_props(properties, var, spec) do
         Enum.map(properties, fn p ->
           {Gen.key(p), Gen.decode(p, quote(do: unquote(var)[unquote(p.name)]), spec)}
+        end)
+      end
+
+      defp encode_props(properties, var, spec) do
+        Enum.map(properties, fn p ->
+          {p.name, Gen.encode(p, quote(do: unquote(var).unquote(Gen.key(p))), spec)}
         end)
       end
     end
@@ -493,6 +541,26 @@ defmodule Tesla.OpenApi do
           end
         end
       end
+
+      def encode(%{items: nil}, var, _spec) do
+        var
+      end
+
+      def encode(%{items: items}, var, spec) do
+        item = Macro.var(:item, __MODULE__)
+
+        quote do
+          case unquote(var) do
+            nil ->
+              nil
+
+            _ ->
+              Enum.map(unquote(var), fn unquote(item) ->
+                unquote(GenP.encode(items, item, spec))
+              end)
+          end
+        end
+      end
     end
   end
 
@@ -513,6 +581,7 @@ defmodule Tesla.OpenApi do
 
       def match(_schema, var, _spec), do: var
       def decode(_schema, _var, _spec), do: {:TODO, :OneOfDecode}
+      def encode(_schema, _var, _spec), do: {:TODO, :OneOfEncode}
     end
   end
 
@@ -524,6 +593,7 @@ defmodule Tesla.OpenApi do
       def match(%{ref: ref}, var, spec), do: Gen.match(spec.definitions[ref], var, spec)
       def schema(_schema, _spec), do: raise("Not Implemented")
       def decode(%{ref: ref}, var, spec), do: Gen.decode(spec.definitions[ref], var, spec)
+      def encode(%{ref: ref}, var, spec), do: Gen.encode(spec.definitions[ref], var, spec)
     end
   end
 
@@ -535,6 +605,7 @@ defmodule Tesla.OpenApi do
       def schema(schema, spec), do: Gen.schema(object(schema, spec), spec)
       def match(schema, var, spec), do: Gen.match(object(schema, spec), var, spec)
       def decode(schema, var, spec), do: Gen.decode(object(schema, spec), var, spec)
+      def encode(schema, var, spec), do: Gen.encode(object(schema, spec), var, spec)
 
       defp object(%{name: name, items: items}, spec) do
         properties =
@@ -560,6 +631,7 @@ defmodule Tesla.OpenApi do
       def schema(_schema, _spec), do: nil
       def match(_schema, _var, _spec), do: quote(do: _any)
       def decode(_schema, _var, _spec), do: nil
+      def encode(_schema, _var, _spec), do: nil
     end
   end
 
@@ -571,6 +643,7 @@ defmodule Tesla.OpenApi do
       def schema(_schema, _spec), do: nil
       def match(_schema, var, _spec), do: var
       def decode(_schema, var, _spec), do: var
+      def encode(_schema, var, _spec), do: var
     end
   end
 
@@ -668,6 +741,10 @@ defmodule Tesla.OpenApi do
       %DefRef{ref: schema}
     end
 
+    defp load_schema(%{"schema" => schema}) do
+      load_schema(schema)
+    end
+
     defp load_schema(schema) do
       %Unknown{schema: schema}
     end
@@ -700,6 +777,11 @@ defmodule Tesla.OpenApi do
         |> Enum.filter(&match?(%{"in" => "path"}, &1))
         |> Enum.map(&load_param/1)
 
+      body_params =
+        parameters
+        |> Enum.filter(&match?(%{"in" => "body"}, &1))
+        |> Enum.map(&load_param/1)
+
       responses =
         operation
         |> Map.get("responses", %{})
@@ -708,6 +790,7 @@ defmodule Tesla.OpenApi do
       %Operation{
         query_params: query_params,
         path_params: path_params,
+        body_params: body_params,
         responses: responses,
         description: operation["description"],
         external_docs: load_external_docs(operation["externalDocs"])
@@ -745,6 +828,7 @@ defmodule Tesla.OpenApi do
   defmacro __using__(opts \\ []) do
     file = Keyword.fetch!(opts, :spec)
     spec = Spec.load!(file, __CALLER__.module)
+    # IO.inspect(spec)
 
     [
       Gen.module(spec),
@@ -752,8 +836,9 @@ defmodule Tesla.OpenApi do
       Operation.generate(spec),
       New.generate(spec)
     ]
-    |> tap(&print/1)
-    |> tap(&dump/1)
+
+    # |> tap(&print/1)
+    # |> tap(&dump/1)
   end
 
   defp print(x), do: x |> Macro.to_string() |> Code.format_string!() |> IO.puts()
