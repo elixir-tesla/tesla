@@ -531,11 +531,12 @@ defmodule Tesla.OpenApi do
     defstruct name: nil, items: [], required: true
 
     defimpl GenP do
-      def type(_schema, _spec), do: raise("Not Implemented")
+      def type(schema, spec), do: Gen.type(object(schema, spec), spec)
+      def schema(schema, spec), do: Gen.schema(object(schema, spec), spec)
+      def match(schema, var, spec), do: Gen.match(object(schema, spec), var, spec)
+      def decode(schema, var, spec), do: Gen.decode(object(schema, spec), var, spec)
 
-      def schema(%{name: name, items: items}, spec) do
-        # compose Object
-
+      defp object(%{name: name, items: items}, spec) do
         properties =
           Enum.flat_map(items, fn
             %Object{properties: properties} ->
@@ -546,12 +547,8 @@ defmodule Tesla.OpenApi do
               properties
           end)
 
-        object = %Object{name: name, properties: properties}
-        Gen.schema(object, spec)
+        %Object{name: name, properties: properties}
       end
-
-      def match(_schema, _var, _spec), do: raise("Not Implemented")
-      def decode(_schema, _var, _spec), do: raise("Not Implemented")
     end
   end
 
@@ -755,6 +752,7 @@ defmodule Tesla.OpenApi do
       Operation.generate(spec),
       New.generate(spec)
     ]
+    |> tap(&print/1)
     |> tap(&dump/1)
   end
 
