@@ -93,11 +93,25 @@ defmodule Tesla.OpenApi do
 
     def operation(op) do
       query_doc =
-        op.query_params
-        |> Enum.map(fn
-          %{name: name, description: desc} -> "- `#{name}`: #{desc}"
-          %{name: name} -> "- `#{name}`"
-        end)
+        case op.query_params do
+          [] ->
+            ""
+
+          qs ->
+            list =
+              qs
+              |> Enum.map(fn
+                %{name: name, description: desc} -> "- `#{name}`: #{desc}"
+                %{name: name} -> "- `#{name}`"
+              end)
+              |> Enum.join("\n")
+
+            """
+            ### Query parameters
+
+            #{list}
+            """
+        end
 
       quote do
         @doc """
@@ -105,14 +119,7 @@ defmodule Tesla.OpenApi do
 
         #{unquote(op.description)}
 
-        #{unquote(case query_doc do
-          [] -> ""
-          qs -> """
-            ### Query parameters
-        
-            #{Enum.join(qs, "\n")}
-            """
-        end)}
+        #{unquote(query_doc)}
 
         #{unquote(case op.external_docs do
           %{description: description, url: url} -> "[#{description}](#{url})"
