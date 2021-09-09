@@ -113,6 +113,12 @@ defmodule Tesla.OpenApi do
             """
         end
 
+      external_docs =
+        case op.external_docs do
+          %{description: description, url: url} -> "[#{description}](#{url})"
+          _ -> ""
+        end
+
       quote do
         @doc """
         #{unquote(op.summary)}
@@ -121,10 +127,7 @@ defmodule Tesla.OpenApi do
 
         #{unquote(query_doc)}
 
-        #{unquote(case op.external_docs do
-          %{description: description, url: url} -> "[#{description}](#{url})"
-          _ -> ""
-        end)}
+        #{unquote(external_docs)}
         """
       end
     end
