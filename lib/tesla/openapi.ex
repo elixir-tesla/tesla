@@ -402,7 +402,10 @@ defmodule Tesla.OpenApi do
     end
 
     defp response(%{code: code, schema: schema}, spec) do
-      var = Macro.unique_var(:body, __MODULE__)
+      # TODO:Use Macro.unique_var/2 after dropping Elixir 1.11
+      # var = Macro.unique_var(:body, __MODULE__)
+      var = {:body, [counter: :elixir_module.next_counter(__MODULE__)], __MODULE__}
+
       match = Gen.match(schema, var, spec)
       decode = Gen.decode(%{schema | required: true}, var, spec)
 
@@ -958,7 +961,12 @@ defmodule Tesla.OpenApi do
       Operation.generate(spec),
       New.generate(spec)
     ]
-    |> tap(&dump(&1, spec, dump))
+    # TODO: Use tap/2 after dropping Elixir 1.11
+    # |> tap(&dump(&1, spec, dump))
+    |> (fn code ->
+          dump(code, spec, dump)
+          code
+        end).()
   end
 
   defp dump(_code, _spec, false), do: :ok
