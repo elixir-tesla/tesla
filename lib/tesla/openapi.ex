@@ -404,7 +404,7 @@ defmodule Tesla.OpenApi do
     defp response(%{code: code, schema: schema}, spec) do
       # TODO:Use Macro.unique_var/2 after dropping Elixir 1.11
       # var = Macro.unique_var(:body, __MODULE__)
-      var = {:body, [counter: :elixir_module.next_counter(__MODULE__)], __MODULE__}
+      var = Macro.var(:body, __MODULE__)
 
       match = Gen.match(schema, var, spec)
       decode = Gen.decode(%{schema | required: true}, var, spec)
