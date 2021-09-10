@@ -228,7 +228,10 @@ defmodule Tesla.OpenApi do
             scheme <> "://" <> spec.host <> spec.base_path
         end
 
-      {Tesla.Middleware.BaseUrl, url}
+      [
+        {Tesla.Middleware.BaseUrl, url},
+        Tesla.Middleware.PathParams
+      ]
     end
 
     defp encoders(spec) do
@@ -247,7 +250,8 @@ defmodule Tesla.OpenApi do
   end
 
   defmodule Operation do
-    defstruct id: nil,
+    defstruct key: nil,
+              id: nil,
               path: nil,
               method: nil,
               path_params: [],
@@ -267,17 +271,15 @@ defmodule Tesla.OpenApi do
         unquote(Docs.operation(op))
         unquote(spec(op, spec))
 
-        def unquote(name(op))(unquote_splicing(args_in(op))) do
+        def unquote(op.key)(unquote_splicing(args_in(op))) do
           case Tesla.request(unquote_splicing(args_out(op, spec))) do
             unquote(matches(op, spec))
           end
         end
 
-        defoverridable unquote([{name(op), length(args_in(op))}])
+        defoverridable unquote([{op.key, length(args_in(op))}])
       end
     end
-
-    defp name(op), do: String.to_atom(Macro.underscore(op.id))
 
     # TODO: Consider using Macro.unique_var for client and query
 
@@ -299,31 +301,12 @@ defmodule Tesla.OpenApi do
     end
 
     defp path_in(%{path_params: params}) do
-      for %{name: name} <- params, do: Macro.var(String.to_atom(name), __MODULE__)
+      for %{key: key} <- params, do: Macro.var(key, __MODULE__)
     end
 
     @path_rx ~r/\{([^}]+?)\}/
     defp path_out(op) do
-      parts =
-        @path_rx
-        |> Regex.split(op.path, include_captures: true, trim: true)
-        |> Enum.map(fn chunk ->
-          case Regex.run(@path_rx, chunk) do
-            [_, name] -> {:var, name}
-            _ -> chunk
-          end
-        end)
-        |> Enum.map(fn
-          {:var, name} ->
-            # TODO: Can this be done better?
-            var = Macro.var(String.to_atom(name), __MODULE__)
-            {:"::", [], [{{:., [], [Kernel, :to_string]}, [], [var]}, {:binary, [], Elixir}]}
-
-          raw ->
-            raw
-        end)
-
-      {:<<>>, [], parts}
+      Regex.replace(@path_rx, op.path, fn _, name -> ":" <> Macro.underscore(name) end)
     end
 
     defp body_type(%{body_params: params}, spec) do
@@ -331,11 +314,11 @@ defmodule Tesla.OpenApi do
     end
 
     defp body_in(%{body_params: params}) do
-      for %{name: name} <- params, do: Macro.var(String.to_atom(name), __MODULE__)
+      for %{key: key} <- params, do: Macro.var(key, __MODULE__)
     end
 
-    defp body_out(%{body_params: [%{name: name, schema: schema}]}, spec) do
-      var = Macro.var(String.to_atom(name), __MODULE__)
+    defp body_out(%{body_params: [%{key: key, schema: schema}]}, spec) do
+      var = Macro.var(key, __MODULE__)
       Gen.encode(schema, var, spec)
     end
 
@@ -371,7 +354,14 @@ defmodule Tesla.OpenApi do
         url: path_out(op)
       ]
 
-      base ++ opts_out_body(op, spec) ++ opts_out_query(op)
+      base ++ opts_out_path_params(op) ++ opts_out_body(op, spec) ++ opts_out_query(op)
+    end
+
+    defp opts_out_path_params(%{path_params: []}), do: []
+    defp opts_out_path_params(op), do: [opts: [path_params: path_params_out(op)]]
+
+    defp path_params_out(%{path_params: params}) do
+      for %{key: key} <- params, do: {key, Macro.var(key, __MODULE__)}
     end
 
     defp opts_out_body(%{body_params: []}, _spec), do: []
@@ -382,14 +372,14 @@ defmodule Tesla.OpenApi do
 
     defp spec(%{query_params: []} = op, spec) do
       quote do
-        @spec unquote(name(op))(unquote_splicing(args_types(op, spec))) ::
+        @spec unquote(op.key)(unquote_splicing(args_types(op, spec))) ::
                 unquote(responses_types(op, spec))
       end
     end
 
     defp spec(op, spec) do
       quote do
-        @spec unquote(name(op))(unquote_splicing(args_types(op, spec))) ::
+        @spec unquote(op.key)(unquote_splicing(args_types(op, spec))) ::
                 unquote(responses_types(op, spec))
               when unquote(query_types(op, spec))
       end
@@ -402,7 +392,7 @@ defmodule Tesla.OpenApi do
     end
 
     defp response(%{code: code, schema: schema}, spec) do
-      # TODO:Use Macro.unique_var/2 after dropping Elixir 1.11
+      # TODO: Use Macro.unique_var/2 after dropping Elixir 1.11
       # var = Macro.unique_var(:body, __MODULE__)
       var = Macro.var(:body, __MODULE__)
 
@@ -470,7 +460,13 @@ defmodule Tesla.OpenApi do
   end
 
   defmodule Param do
-    defstruct name: nil, required: false, schema: nil, format: nil, description: nil
+    defstruct key: nil,
+              id: nil,
+              name: nil,
+              required: false,
+              schema: nil,
+              format: nil,
+              description: nil
   end
 
   defmodule Response do
@@ -881,7 +877,13 @@ defmodule Tesla.OpenApi do
     defp load_operations(json) do
       for {path, methods} <- Map.get(json, "paths", %{}),
           {method, %{"operationId" => id} = operation} <- methods do
-        %{load_operation(operation) | id: id, path: path, method: method}
+        %{
+          load_operation(operation)
+          | id: id,
+            key: String.to_atom(Macro.underscore(id)),
+            path: path,
+            method: method
+        }
       end
     end
 
@@ -921,6 +923,7 @@ defmodule Tesla.OpenApi do
 
     defp load_param(%{"name" => name} = spec) do
       %Param{
+        key: String.to_atom(Macro.underscore(name)),
         name: name,
         required: Map.get(spec, "required", false),
         schema: %{load_schema(spec) | required: true},
