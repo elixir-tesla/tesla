@@ -6,6 +6,13 @@ defmodule Tesla.OpenApiTest do
   describe "Petstore" do
     defmodule Petstore do
       use Tesla.OpenApi, spec: "test/support/openapi/petstore.json"
+
+      def new_with_telemetry() do
+        # In case certain middleware needs to be inserted in the middle of the existing stack
+        # use Tesla.Client.insert/3
+        new([], PetstoreAdapter)
+        |> Tesla.Client.insert(Tesla.Middleware.Telemetry, before: Tesla.Middleware.PathParams)
+      end
     end
 
     defmodule PetstoreAdapter do
@@ -44,6 +51,19 @@ defmodule Tesla.OpenApiTest do
     test "find_pet_by_id - not found", %{client: client} do
       assert {:error, error} = Petstore.find_pet_by_id(client, 404)
       assert %Petstore.ErrorModel{code: 1} = error
+    end
+
+    test "new_with_telemetry" do
+      assert %Tesla.Client{
+               pre: [
+                 _,
+                 {Tesla.Middleware.Telemetry, _, _},
+                 {Tesla.Middleware.PathParams, _, _},
+                 _,
+                 _,
+                 _
+               ]
+             } = Petstore.new_with_telemetry()
     end
   end
 
