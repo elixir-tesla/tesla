@@ -47,4 +47,27 @@ defmodule Tesla.Client do
   defp unruntime({module, :call, [[]]}) when is_atom(module), do: module
   defp unruntime({module, :call, [opts]}) when is_atom(module), do: {module, opts}
   defp unruntime({:fn, fun}) when is_function(fun), do: fun
+
+  def insert(client, new, before: target) when is_atom(target) do
+    insert_at(client, new, target, 0)
+  end
+
+  def insert(client, new, after: target) when is_atom(target) do
+    insert_at(client, new, target, 1)
+  end
+
+  def insert_at(client, new, target, adjust) do
+    pre = middleware(client)
+
+    index =
+      Enum.find_index(client.pre, fn
+        {^target, :call, _} -> true
+        _ -> false
+      end)
+
+    if index == nil, do: raise("Middleware #{inspect(target)} not found in #{inspect(client)}")
+
+    pre = List.insert_at(pre, index + adjust, new)
+    Tesla.Builder.client(pre, unruntime(client.post), adapter(client))
+  end
 end
