@@ -416,12 +416,24 @@ defmodule Tesla.OpenApi do
 
       decode1 =
         case {code, decode} do
-          {:default, nil} -> quote(do: :error)
-          {:default, decode} -> quote(do: {:error, unquote(decode)})
-          {status, nil} when status in 200..299 -> quote(do: :ok)
-          {status, decode} when status in 200..299 -> quote(do: {:ok, unquote(decode)})
-          {status, nil} -> quote(do: {:error, unquote(status)})
-          {_status, decode} -> quote(do: {:error, unquote(decode)})
+          {status, nil} when status in 200..299 ->
+            quote(do: :ok)
+
+          {status, decode} when status in 200..299 ->
+            quote(do: unquote(decode))
+
+          {:default, nil} ->
+            quote(do: :error)
+
+          {status, {:ok, nil}} ->
+            quote(do: {:error, unquote(status)})
+
+          {_status, decode} ->
+            quote do
+              with {:ok, data} <- unquote(decode) do
+                {:error, data}
+              end
+            end
         end
 
       {:->, [], [[match1], decode1]}
@@ -490,7 +502,36 @@ defmodule Tesla.OpenApi do
       end
 
       def match(_schema, _var, _spec), do: raise("Not Implemented")
-      def decode(_schema, var, _spec), do: var
+
+      def decode(%{required: required, type: type} = schema, var, _spec) do
+        {guard, msg} =
+          case type do
+            "string" -> {quote(do: is_binary(x)), :invalid_string}
+            "boolean" -> {quote(do: is_boolean(x)), :invalid_boolean}
+            "integer" -> {quote(do: is_integer(x)), :invalid_integer}
+            "number" -> {quote(do: is_number(x)), :invalid_number}
+            "null" -> {quote(do: is_nil(x)), :invalid_null}
+          end
+
+        when0 =
+          if required || type == "null" do
+            guard
+          else
+            quote(do: is_nil(x) or unquote(guard))
+          end
+
+        quote do
+          case unquote(var) do
+            x when unquote(when0) -> {:ok, x}
+            x -> {:error, {:decode, {unquote(msg), x}, [unquote(schema.name)]}}
+          end
+        end
+      end
+
+      def decode(_schema, var, _spec) do
+        {:ok, var}
+      end
+
       def encode(_schema, var, _spec), do: var
     end
   end
@@ -508,6 +549,22 @@ defmodule Tesla.OpenApi do
         end
       end
 
+      def schema(%{name: name, properties: []} = schema, _spec) do
+        quote do
+          defmodule unquote(Gen.module_name(name)) do
+            unquote(Docs.schema(schema))
+            defstruct []
+            @type t :: %__MODULE__{}
+
+            @doc false
+            def decode(_), do: {:ok, %__MODULE__{}}
+
+            @doc false
+            def encode(_), do: %{}
+          end
+        end
+      end
+
       def schema(%{name: name, properties: properties} = schema, spec) do
         var = Macro.var(:data, __MODULE__)
         struct = Enum.map(properties, fn p -> {Gen.key(p), nil} end)
@@ -521,8 +578,15 @@ defmodule Tesla.OpenApi do
 
             @doc false
             def decode(unquote(var)) do
-              # TODO: Move into {:ok, ...} | {:error, ...}
-              %__MODULE__{unquote_splicing(decode_props(properties, var, spec))}
+              with unquote_splicing(decode_with_props(properties, var, spec)) do
+                {:ok, %__MODULE__{unquote_splicing(decode_build_map(properties))}}
+              else
+                {:error, {:decode, reason, trace}} ->
+                  {:error, {:decode, reason, [unquote(name) | trace]}}
+
+                error ->
+                  error
+              end
             end
 
             @doc false
@@ -533,11 +597,27 @@ defmodule Tesla.OpenApi do
         end
       end
 
+      defp decode_with_props(properties, var, spec) do
+        for prop <- properties do
+          item = Macro.var(Gen.key(prop), __MODULE__)
+          data = quote(do: unquote(var)[unquote(prop.name)])
+          {:<-, [], [{:ok, item}, Gen.decode(prop, data, spec)]}
+        end
+      end
+
+      defp decode_build_map(properties) do
+        for prop <- properties do
+          {Gen.key(prop), Macro.var(Gen.key(prop), __MODULE__)}
+        end
+      end
+
       def match(_schema, var, _spec), do: var
 
       def decode(%{name: nil, properties: properties}, var, spec) do
         quote do
-          %{unquote_splicing(decode_props(properties, var, spec))}
+          with unquote_splicing(decode_with_props(properties, var, spec)) do
+            {:ok, %{unquote_splicing(decode_build_map(properties))}}
+          end
         end
       end
 
@@ -553,7 +633,7 @@ defmodule Tesla.OpenApi do
 
       def encode(%{name: nil, properties: properties}, var, spec) do
         quote do
-          %{unquote_splicing(decode_props(properties, var, spec))}
+          %{unquote_splicing(encode_props(properties, var, spec))}
         end
       end
 
@@ -568,15 +648,15 @@ defmodule Tesla.OpenApi do
       end
 
       defp decode_props(properties, var, spec) do
-        Enum.map(properties, fn p ->
-          {Gen.key(p), Gen.decode(p, quote(do: unquote(var)[unquote(p.name)]), spec)}
-        end)
+        for prop <- properties do
+          {Gen.key(prop), Gen.decode(prop, quote(do: unquote(var)[unquote(prop.name)]), spec)}
+        end
       end
 
       defp encode_props(properties, var, spec) do
-        Enum.map(properties, fn p ->
-          {p.name, Gen.encode(p, quote(do: unquote(var).unquote(Gen.key(p))), spec)}
-        end)
+        for prop <- properties do
+          {prop.name, Gen.encode(prop, quote(do: unquote(var).unquote(Gen.key(prop))), spec)}
+        end
       end
     end
   end
@@ -615,35 +695,36 @@ defmodule Tesla.OpenApi do
       end
 
       def decode(%{items: nil}, var, _spec) do
-        var
+        {:ok, var}
       end
 
       def decode(%{items: %Object{properties: []}}, var, _spec) do
-        var
+        {:ok, var}
       end
 
-      def decode(%{items: items, required: true}, var, spec) do
-        item = Macro.var(:item, __MODULE__)
+      def decode(%{items: schema, required: true}, var, spec) do
+        data = Macro.var(:data, __MODULE__)
 
         quote do
-          Enum.map(unquote(var), fn unquote(item) ->
-            unquote(GenP.decode(items, item, spec))
+          unquote(var)
+          |> Enum.reverse()
+          |> Enum.reduce({:ok, []}, fn
+            unquote(data), {:ok, items} ->
+              with {:ok, item} <- unquote(Gen.decode(schema, data, spec)) do
+                {:ok, [item | items]}
+              end
+
+            _, error ->
+              error
           end)
         end
       end
 
       def decode(%{items: items}, var, spec) do
-        item = Macro.var(:item, __MODULE__)
-
         quote do
           case unquote(var) do
-            nil ->
-              nil
-
-            _ ->
-              Enum.map(unquote(var), fn unquote(item) ->
-                unquote(GenP.decode(items, item, spec))
-              end)
+            nil -> nil
+            _ -> unquote(decode(%{items: items, required: true}, var, spec))
           end
         end
       end
@@ -745,7 +826,7 @@ defmodule Tesla.OpenApi do
       def type(_schema, _spec), do: nil
       def schema(_schema, _spec), do: nil
       def match(_schema, _var, _spec), do: quote(do: _any)
-      def decode(_schema, _var, _spec), do: nil
+      def decode(_schema, _var, _spec), do: {:ok, nil}
       def encode(_schema, _var, _spec), do: nil
     end
   end
@@ -757,7 +838,7 @@ defmodule Tesla.OpenApi do
       def type(_schema, _spec), do: quote(do: any)
       def schema(_schema, _spec), do: nil
       def match(_schema, var, _spec), do: var
-      def decode(_schema, var, _spec), do: var
+      def decode(_schema, var, _spec), do: {:ok, var}
       def encode(_schema, var, _spec), do: var
     end
   end
