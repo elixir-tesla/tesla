@@ -25,6 +25,10 @@ defmodule Tesla.OpenApiTest do
         {:ok, %Tesla.Env{status: 200, body: ~s|{"id": 1}|, headers: @headers}}
       end
 
+      def call(%{method: :get, url: "http://petstore.swagger.io/api/pets/2"}, _opts) do
+        {:ok, %Tesla.Env{status: 200, body: ~s|{"id": 2, "name": "Max"}|, headers: @headers}}
+      end
+
       def call(%{method: :get, url: "http://petstore.swagger.io/api/pets/404"}, _opts) do
         {:ok,
          %Tesla.Env{
@@ -43,9 +47,14 @@ defmodule Tesla.OpenApiTest do
       assert {:ok, []} = Petstore.find_pets(client)
     end
 
+    test "find_pet_by_id - broken", %{client: client} do
+      assert {:error, error} = Petstore.find_pet_by_id(client, 1)
+      assert {:decode, {:invalid_string, nil}, ["Pet", "name"]} = error
+    end
+
     test "find_pet_by_id - found", %{client: client} do
-      assert {:ok, pet} = Petstore.find_pet_by_id(client, 1)
-      assert %Petstore.Pet{id: 1} = pet
+      assert {:ok, pet} = Petstore.find_pet_by_id(client, 2)
+      assert %Petstore.Pet{id: 2, name: "Max"} = pet
     end
 
     test "find_pet_by_id - not found", %{client: client} do
@@ -125,11 +134,7 @@ defmodule Tesla.OpenApiTest do
             status: 422,
             headers: [{"content-type", "application/json"}],
             body: """
-            {
-              "errors": {
-                "body": ["invalid"]
-              }
-            }
+              {"errors": {"body": ["invalid"]}}
             """
           }
       end)
