@@ -139,6 +139,7 @@ defmodule Tesla.OpenApi do
     def match(schema, var, spec)
     def decode(schema, var, spec)
     def encode(schema, var, spec)
+    def refs(schema, spec)
   end
 
   defmodule Gen do
@@ -533,6 +534,8 @@ defmodule Tesla.OpenApi do
       end
 
       def encode(_schema, var, _spec), do: var
+
+      def refs(_, _), do: []
     end
   end
 
@@ -658,6 +661,10 @@ defmodule Tesla.OpenApi do
           {prop.name, Gen.encode(prop, quote(do: unquote(var).unquote(Gen.key(prop))), spec)}
         end
       end
+
+      def refs(%{properties: properties}, spec) do
+        Enum.flat_map(properties, &GenP.refs(&1, spec))
+      end
     end
   end
 
@@ -752,6 +759,9 @@ defmodule Tesla.OpenApi do
           end
         end
       end
+
+      def refs(%{items: nil}, _spec), do: []
+      def refs(%{items: items}, spec), do: GenP.refs(items, spec)
     end
   end
 
@@ -778,18 +788,28 @@ defmodule Tesla.OpenApi do
       def match(_schema, var, _spec), do: var
       def decode(_schema, _var, _spec), do: {:TODO, :OneOfDecode}
       def encode(_schema, _var, _spec), do: {:TODO, :OneOfEncode}
+      def refs(%{values: values}, spec), do: Enum.flat_map(values, &GenP.refs(&1, spec))
     end
   end
 
   defmodule DefRef do
     defstruct name: nil, ref: nil, required: true
 
+    def deref(ref, spec) do
+      case spec.definitions[ref] do
+        nil -> raise "Missing definition for reference #{inspect(ref)}"
+        schema -> schema
+      end
+    end
+
     defimpl GenP do
-      def type(%{ref: ref}, spec), do: Gen.type(spec.definitions[ref], spec)
-      def match(%{ref: ref}, var, spec), do: Gen.match(spec.definitions[ref], var, spec)
+      def type(%{ref: ref}, spec), do: Gen.type(DefRef.deref(ref, spec), spec)
+      def match(%{ref: ref}, var, spec), do: Gen.match(DefRef.deref(ref, spec), var, spec)
       def schema(_schema, _spec), do: raise("Not Implemented")
-      def decode(%{ref: ref}, var, spec), do: Gen.decode(spec.definitions[ref], var, spec)
-      def encode(%{ref: ref}, var, spec), do: Gen.encode(spec.definitions[ref], var, spec)
+      def decode(%{ref: ref}, var, spec), do: Gen.decode(DefRef.deref(ref, spec), var, spec)
+      def encode(%{ref: ref}, var, spec), do: Gen.encode(DefRef.deref(ref, spec), var, spec)
+
+      def refs(%{ref: ref}, _spec), do: [ref]
     end
   end
 
@@ -816,6 +836,8 @@ defmodule Tesla.OpenApi do
 
         %Object{name: name, properties: properties}
       end
+
+      def refs(schema, spec), do: GenP.refs(object(schema, spec), spec)
     end
   end
 
@@ -828,6 +850,7 @@ defmodule Tesla.OpenApi do
       def match(_schema, _var, _spec), do: quote(do: _any)
       def decode(_schema, _var, _spec), do: {:ok, nil}
       def encode(_schema, _var, _spec), do: nil
+      def refs(_schema, _spec), do: []
     end
   end
 
@@ -840,6 +863,7 @@ defmodule Tesla.OpenApi do
       def match(_schema, var, _spec), do: var
       def decode(_schema, var, _spec), do: {:ok, var}
       def encode(_schema, var, _spec), do: var
+      def refs(_schema, _spec), do: []
     end
   end
 
@@ -855,14 +879,14 @@ defmodule Tesla.OpenApi do
               consumes: [],
               schemes: []
 
-    def load!(file, module) do
+    def load!(file, module, extra_definitions) do
       json = Jason.decode!(File.read!(file))
 
       %__MODULE__{
         module: module,
         file: file,
         info: load_info(json),
-        definitions: load_definitions(json),
+        definitions: load_definitions(json, extra_definitions),
         operations: load_operations(json),
         produces: Map.get(json, "produces", []),
         consumes: Map.get(json, "consumes", []),
@@ -880,9 +904,10 @@ defmodule Tesla.OpenApi do
       }
     end
 
-    defp load_definitions(json) do
+    defp load_definitions(json, extra) do
       json
       |> Map.get("definitions", %{})
+      |> Map.merge(extra)
       |> Enum.into(%{}, fn {name, spec} ->
         {name, %{load_schema(spec) | name: name}}
       end)
@@ -1032,12 +1057,77 @@ defmodule Tesla.OpenApi do
     end
 
     defp load_external_docs(_), do: nil
+
+    def filter(spec, opts) do
+      spec
+      |> filter_operations(opts[:only_operations])
+      |> remove_unused_definitions()
+    end
+
+    defp filter_operations(spec, nil), do: spec
+
+    defp filter_operations(spec, ops) do
+      %{spec | operations: Enum.filter(spec.operations, fn op -> op.key in ops end)}
+    end
+
+    defp remove_unused_definitions(spec) do
+      used =
+        spec.operations
+        |> Enum.reduce(%{}, fn op, refs ->
+          [
+            op.query_params,
+            op.path_params,
+            op.body_params,
+            op.responses
+          ]
+          |> Enum.reduce(refs, fn list, refs ->
+            Enum.reduce(list, refs, fn
+              %{schema: schema}, refs ->
+                schema
+                |> GenP.refs(spec)
+                |> Enum.reduce(refs, fn ref, refs -> Map.put(refs, ref, false) end)
+            end)
+          end)
+        end)
+        |> collect(spec)
+        |> Map.keys()
+
+      %{spec | definitions: Map.take(spec.definitions, used)}
+    end
+
+    defp collect(refs, spec) do
+      refs
+      |> Enum.reduce({refs, :done}, fn
+        {_, true}, acc ->
+          acc
+
+        {ref, false}, {refs, _} ->
+          {
+            ref
+            |> DefRef.deref(spec)
+            |> GenP.refs(spec)
+            |> Enum.reduce(refs, fn ref, refs ->
+              Map.put(refs, ref, refs[ref] || false)
+            end)
+            |> Map.put(ref, true),
+            :more
+          }
+      end)
+      |> case do
+        {refs, :done} -> refs
+        {refs, :more} -> collect(refs, spec)
+      end
+    end
   end
 
   defmacro __using__(opts \\ []) do
+    {opts, _} = Code.eval_quoted(opts)
+
     file = Keyword.fetch!(opts, :spec)
     dump = Keyword.get(opts, :dump, false)
-    spec = Spec.load!(file, __CALLER__.module)
+
+    spec = Spec.load!(file, __CALLER__.module, opts[:definitions][:extra] || %{})
+    spec = Spec.filter(spec, only_operations: opts[:operations][:only])
 
     [
       Gen.module(spec),
