@@ -177,7 +177,7 @@ defmodule Tesla.OpenApi do
     defp flatsum({:|, _, [lhs, rhs]}), do: flatsum(lhs) ++ flatsum(rhs)
     defp flatsum(t), do: [t]
 
-    def type_name(name), do: Macro.var(String.to_atom(name), __MODULE__)
+    def type_name(name), do: Macro.var(String.to_atom(Macro.underscore(name)), __MODULE__)
 
     def module_name(name) do
       name = Macro.camelize(name)
@@ -502,7 +502,8 @@ defmodule Tesla.OpenApi do
         end
       end
 
-      def match(_schema, _var, _spec), do: raise("Not Implemented")
+      # TODO: Add guards
+      def match(_schema, var, _spec), do: var
 
       def decode(%{required: required, type: type} = schema, var, _spec) do
         {guard, msg} =
@@ -905,8 +906,11 @@ defmodule Tesla.OpenApi do
     end
 
     defp load_definitions(json, extra) do
-      json
-      |> Map.get("definitions", %{})
+      v2 = json["definitions"] || %{}
+      v3 = json["components"]["schemas"] || %{}
+
+      v2
+      |> Map.merge(v3)
       |> Map.merge(extra)
       |> Enum.into(%{}, fn {name, spec} ->
         {name, %{load_schema(spec) | name: name}}
@@ -961,6 +965,10 @@ defmodule Tesla.OpenApi do
     end
 
     defp load_schema(%{"$ref" => "#/definitions/" <> schema}) do
+      %DefRef{ref: schema}
+    end
+
+    defp load_schema(%{"$ref" => "#/components/schemas/" <> schema}) do
       %DefRef{ref: schema}
     end
 
@@ -1040,6 +1048,12 @@ defmodule Tesla.OpenApi do
 
     defp load_format("csv"), do: :csv
     defp load_format(nil), do: nil
+
+    # v3
+    defp load_response(code, %{"content" => content}) do
+      {_, %{"schema" => schema}} = content |> Map.to_list() |> List.first()
+      %Response{code: load_code(code), schema: load_schema(schema)}
+    end
 
     defp load_response(code, %{"schema" => schema}) do
       %Response{code: load_code(code), schema: load_schema(schema)}
