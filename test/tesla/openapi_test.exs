@@ -1,175 +1,399 @@
+defmodule Tesla.OpenApiTest.Helpers do
+  alias Tesla.OpenApi
+
+  defmacro assert_quoted(code, do: body) do
+    quote do
+      a = unquote(code)
+      b = unquote(render(body))
+      assert a == b, message: "Assert failed\n\n#{a}\n\nis not equal to\n\n#{b}"
+    end
+  end
+
+  def type(field, spec \\ %{}), do: render(OpenApi.type(field, spec))
+
+  def model(field, spec \\ %{}), do: render(OpenApi.model("t", field, spec))
+
+  def encode(field, spec \\ %{}),
+    do: render(OpenApi.encode(field, Macro.var(:x, Tesla.OpenApi), spec))
+
+  def decode(field, spec \\ %{}),
+    do: render(OpenApi.decode(field, Macro.var(:x, Tesla.OpenApi), spec))
+
+  def operation(method, path, op, spec \\ %{}),
+    do: render(OpenApi.operation(method, path, op, spec))
+
+  def render(code) do
+    code
+    |> Macro.to_string()
+    |> Code.format_string!()
+    |> IO.iodata_to_binary()
+  end
+end
+
 defmodule Tesla.OpenApiTest do
   use ExUnit.Case
 
-  # These tests are based on specs stored in test/support/openapi directory
+  import Tesla.OpenApiTest.Helpers
 
-  describe "Petstore" do
-    defmodule Petstore do
-      use Tesla.OpenApi, spec: "test/support/openapi/petstore.json"
+  setup do
+    :erlang.put(:caller, X)
+    :ok
+  end
 
-      def new_with_telemetry() do
-        # In case certain middleware needs to be inserted in the middle of the existing stack
-        # use Tesla.Client.insert/3
-        new([], PetstoreAdapter)
-        |> Tesla.Client.insert(Tesla.Middleware.Telemetry, before: Tesla.Middleware.PathParams)
-      end
+  describe "Specs" do
+    test "Petstore" do
+      compile("test/support/openapi/petstore.json")
     end
 
-    defmodule PetstoreAdapter do
-      @headers [{"content-type", "application/json"}]
-      def call(%{method: :get, url: "http://petstore.swagger.io/api/pets"}, _opts) do
-        {:ok, %Tesla.Env{status: 200, body: [], headers: @headers}}
-      end
-
-      def call(%{method: :get, url: "http://petstore.swagger.io/api/pets/1"}, _opts) do
-        {:ok, %Tesla.Env{status: 200, body: ~s|{"id": 1}|, headers: @headers}}
-      end
-
-      def call(%{method: :get, url: "http://petstore.swagger.io/api/pets/2"}, _opts) do
-        {:ok, %Tesla.Env{status: 200, body: ~s|{"id": 2, "name": "Max"}|, headers: @headers}}
-      end
-
-      def call(%{method: :get, url: "http://petstore.swagger.io/api/pets/404"}, _opts) do
-        {:ok,
-         %Tesla.Env{
-           status: 404,
-           body: ~s|{"code": 1, "type": "error", "message": "Pet not found"}|,
-           headers: @headers
-         }}
-      end
+    test "Slack" do
+      compile("test/support/openapi/slack.json")
     end
 
-    setup do
-      [client: Petstore.new([], PetstoreAdapter)]
+    test "Realworld" do
+      compile("test/support/openapi/realworld.json")
     end
 
-    test "find_pets", %{client: client} do
-      assert {:ok, []} = Petstore.find_pets(client)
-    end
+    defp compile(spec) do
+      mod = {:__aliases__, [alias: false], [:"M#{:rand.uniform(100_000)}"]}
 
-    test "find_pet_by_id - broken", %{client: client} do
-      assert {:error, error} = Petstore.find_pet_by_id(client, 1)
-      assert {:decode, {:invalid_string, nil}, ["Pet", "name"]} = error
-    end
+      code =
+        quote do
+          defmodule unquote(mod) do
+            use Tesla.OpenApi, spec: unquote(spec)
+          end
+        end
 
-    test "find_pet_by_id - found", %{client: client} do
-      assert {:ok, pet} = Petstore.find_pet_by_id(client, 2)
-      assert %Petstore.Pet{id: 2, name: "Max"} = pet
-    end
-
-    test "find_pet_by_id - not found", %{client: client} do
-      assert {:error, error} = Petstore.find_pet_by_id(client, 404)
-      assert %Petstore.ErrorModel{code: 1} = error
-    end
-
-    test "new_with_telemetry" do
-      assert %Tesla.Client{
-               pre: [
-                 _,
-                 {Tesla.Middleware.Telemetry, _, _},
-                 {Tesla.Middleware.PathParams, _, _},
-                 _,
-                 _,
-                 _
-               ]
-             } = Petstore.new_with_telemetry()
+      assert [{_mod, _bin} | _] = Code.compile_quoted(code)
     end
   end
 
-  describe "Slack" do
-    defmodule Slack do
-      use Tesla.OpenApi, spec: "test/support/openapi/slack.json"
+  describe "Schemas" do
+    test "string schema" do
+      schema = %{"type" => "string"}
+
+      assert type(schema) == "binary"
+      assert type({"ref", schema}) == "X.ref()"
+
+      assert model(schema) == "@type t :: binary"
+
+      assert encode(schema) == "x"
+      assert encode({"ref", schema}) == "x"
+
+      assert decode(schema) == "Tesla.OpenApi.decode_binary(x)"
+      assert decode({"ref", schema}) == "Tesla.OpenApi.decode_binary(x)"
     end
 
-    test "new/0" do
-      assert %Tesla.Client{} = Slack.new()
-    end
-  end
+    test "integer schema" do
+      schema = %{"type" => "integer"}
 
-  describe "Realworld" do
-    defmodule Realworld do
-      use Tesla.OpenApi, spec: "test/support/openapi/realworld.json"
-    end
+      assert type(schema) == "integer"
+      assert type({"ref", schema}) == "X.ref()"
 
-    setup do
-      [client: Realworld.new([], Tesla.Mock)]
-    end
+      assert model(schema) == "@type t :: integer"
 
-    test "get_current_user", %{client: client} do
-      Tesla.Mock.mock(fn
-        %{method: :get} ->
-          %Tesla.Env{
-            status: 200,
-            headers: [{"content-type", "application/json"}],
-            body: """
-            {
-              "user": {
-                "email": "jon@example.com",
-                "token": "xyz",
-                "username": "jon",
-                "bio": "",
-                "image": ""
-              }
-            }
-            """
-          }
-      end)
+      assert encode(schema) == "x"
+      assert encode({"ref", schema}) == "x"
 
-      assert {:ok, %Realworld.UserResponse{user: user}} = Realworld.get_current_user(client)
-      assert %Realworld.User{email: "jon@example.com"} = user
+      assert decode(schema) == "Tesla.OpenApi.decode_integer(x)"
+      assert decode({"ref", schema}) == "Tesla.OpenApi.decode_integer(x)"
     end
 
-    test "get_current_user - Unauthorized", %{client: client} do
-      Tesla.Mock.mock(fn
-        %{method: :get} -> %Tesla.Env{status: 401}
-      end)
+    test "array of strings schema" do
+      schema = %{"type" => "array", "items" => %{"type" => "string"}}
 
-      assert {:error, 401} = Realworld.get_current_user(client)
+      assert type(schema) == "[binary]"
+      assert type({"ref", schema}) == "X.Ref.t()"
+
+      assert_quoted model(schema) do
+        defmodule T do
+          @moduledoc ""
+          @type t :: [binary]
+          def decode(data) do
+            Tesla.OpenApi.decode_list(data, fn data -> Tesla.OpenApi.decode_binary(data) end)
+          end
+
+          def encode(data) do
+            Tesla.OpenApi.encode_list(data, fn item -> item end)
+          end
+        end
+      end
+
+      assert_quoted encode(schema) do
+        Tesla.OpenApi.encode_list(x, fn item -> item end)
+      end
+
+      assert_quoted encode({"ref", schema}) do
+        X.Ref.encode(x)
+      end
+
+      assert_quoted decode(schema) do
+        Tesla.OpenApi.decode_list(x, fn data -> Tesla.OpenApi.decode_binary(data) end)
+      end
+
+      assert_quoted decode({"ref", schema}) do
+        X.Ref.decode(x)
+      end
     end
 
-    test "get_current_user - Error", %{client: client} do
-      Tesla.Mock.mock(fn
-        %{method: :get} ->
-          %Tesla.Env{
-            status: 422,
-            headers: [{"content-type", "application/json"}],
-            body: """
-              {"errors": {"body": ["invalid"]}}
-            """
-          }
-      end)
+    test "unknown array schema" do
+      schema = %{"type" => "array"}
 
-      assert {:error, %{errors: %{body: ["invalid"]}}} = Realworld.get_current_user(client)
+      assert type(schema) == "list"
+      assert type({"ref", schema}) == "X.Ref.t()"
+
+      assert_quoted model(schema) do
+        defmodule T do
+          @moduledoc ""
+          @type t :: list
+          def decode(data), do: Tesla.OpenApi.decode_list(data)
+          def encode(data), do: data
+        end
+      end
+
+      assert encode(schema) == "x"
+      assert encode({"ref", schema}) == "X.Ref.encode(x)"
+
+      assert_quoted decode(schema) do
+        Tesla.OpenApi.decode_list(x)
+      end
+
+      assert_quoted decode({"ref", schema}) do
+        X.Ref.decode(x)
+      end
     end
 
-    test "login", %{client: client} do
-      Tesla.Mock.mock(fn
-        %{method: :post, url: "/api/users/login", body: body} ->
-          assert %{"user" => %{"email" => "jon@example.com", "password" => "password"}} ==
-                   Jason.decode!(body)
+    test "oneoff items with schemas" do
+      schema = %{"items" => [%{"type" => "integer"}, %{"type" => "string"}]}
+      assert type(schema) == "integer | binary"
 
-          %Tesla.Env{
-            status: 200,
-            headers: [{"content-type", "application/json"}],
-            body: """
-            {
-              "user": {
-                "email": "jon@example.com",
-                "token": "xyz",
-                "username": "jon",
-                "bio": "",
-                "image": ""
-              }
-            }
-            """
-          }
-      end)
+      assert_quoted model(schema) do
+        defmodule T do
+          @moduledoc ""
+          @type t :: integer | binary
+          def decode(data) do
+            with {:error, _} <- Tesla.OpenApi.decode_integer(data),
+                 {:error, _} <- Tesla.OpenApi.decode_binary(data) do
+              {:error, :invalid_value}
+            end
+          end
 
-      body = %Realworld.LoginUserRequest{
-        user: %Realworld.LoginUser{email: "jon@example.com", password: "password"}
+          def encode(data) do
+            data
+          end
+        end
+      end
+
+      assert encode(schema) == "x"
+
+      assert_quoted decode(schema) do
+        with {:error, _} <- Tesla.OpenApi.decode_integer(x),
+             {:error, _} <- Tesla.OpenApi.decode_binary(x) do
+          {:error, :invalid_value}
+        end
+      end
+    end
+
+    test "object with properties" do
+      schema = %{
+        "type" => "object",
+        "properties" => %{
+          "name" => %{"type" => "string"},
+          "id" => %{"type" => "integer"}
+        }
       }
 
-      assert {:ok, %{user: %{token: "xyz"}}} = Realworld.login(client, body)
+      assert type(schema) == "%{id: integer, name: binary}"
+      assert type({"ref", schema}) == "X.Ref.t()"
+
+      assert_quoted model(schema) do
+        defmodule T do
+          @moduledoc ""
+          defstruct id: nil, name: nil
+          @type t :: %__MODULE__{id: integer, name: binary}
+          def decode(data) do
+            with {:ok, id} <- Tesla.OpenApi.decode_integer(data["id"]),
+                 {:ok, name} <- Tesla.OpenApi.decode_binary(data["name"]) do
+              {:ok, %__MODULE__{id: id, name: name}}
+            end
+          end
+
+          def encode(data) do
+            %{"id" => data.id, "name" => data.name}
+          end
+        end
+      end
+    end
+
+    # test "object without properties"
+
+    test "allof" do
+      schema = %{
+        "allOf" => [
+          %{"properties" => %{"name" => %{"type" => "string"}}},
+          %{"properties" => %{"id" => %{"type" => "integer"}}}
+        ]
+      }
+
+      assert type(schema) == "%{id: integer, name: binary}"
+      assert type({"ref", schema}) == "X.Ref.t()"
+
+      assert_quoted model(schema) do
+        defmodule T do
+          @moduledoc ""
+          defstruct id: nil, name: nil
+          @type t :: %__MODULE__{id: integer, name: binary}
+          def decode(data) do
+            with {:ok, id} <- Tesla.OpenApi.decode_integer(data["id"]),
+                 {:ok, name} <- Tesla.OpenApi.decode_binary(data["name"]) do
+              {:ok, %__MODULE__{id: id, name: name}}
+            end
+          end
+
+          def encode(data) do
+            %{"id" => data.id, "name" => data.name}
+          end
+        end
+      end
+    end
+  end
+
+  describe "Operations" do
+    test "encode name" do
+      op = %{
+        "operationId" => "deeply.nested.function",
+        "responses" => []
+      }
+
+      assert_quoted operation("get", "/", op) do
+        @doc ""
+        @spec deeply_nested_function(Tesla.Client.t()) :: {:error, any}
+        def deeply_nested_function(client \\ new()) do
+          case Tesla.get(client, "/") do
+            {:error, error} -> {:error, error}
+          end
+        end
+
+        defoverridable(deeply_nested_function: 1)
+      end
+    end
+
+    test "params" do
+      op = %{
+        "operationId" => "one",
+        "parameters" => [
+          %{"name" => "id", "in" => "path", "type" => "integer"},
+          %{"name" => "limit", "in" => "query", "type" => "integer"},
+          %{"name" => "sort", "in" => "query", "type" => "string"}
+        ],
+        "responses" => []
+      }
+
+      assert_quoted operation("get", "/{id}", op) do
+        @doc ""
+        @spec one(Tesla.Client.t(), integer, [opt]) :: {:error, any}
+              when opt: {:limit, integer} | {:sort, binary}
+        def one(client \\ new(), id, query \\ []) do
+          case Tesla.get(client, "/:id",
+                 query: Tesla.OpenApi.encode_query(query, limit: nil, sort: nil),
+                 opts: [path_params: [id: id]]
+               ) do
+            {:error, error} -> {:error, error}
+          end
+        end
+
+        defoverridable(one: 3)
+      end
+    end
+
+    test "referenced params" do
+      spec = %{
+        "paths" => %{
+          "/one/{id}" => %{
+            "get" => %{
+              "operationId" => "one",
+              "parameters" => [
+                %{
+                  "name" => "id",
+                  "in" => "path",
+                  "schema" => %{"type" => "integer"}
+                }
+              ],
+              "responses" => []
+            }
+          },
+          "/two/{id}" => %{
+            "get" =>
+              op = %{
+                "operationId" => "two",
+                "parameters" => [
+                  %{"$ref" => "#/paths/~1one~1%7Bid%7D/get/parameters/0"}
+                ],
+                "responses" => []
+              }
+          }
+        }
+      }
+
+      assert_quoted operation("get", "/two/{id}", op, spec) do
+        @doc ""
+        @spec two(Tesla.Client.t(), integer) :: {:error, any}
+        def two(client \\ new(), id) do
+          case Tesla.get(client, "/two/:id", opts: [path_params: [id: id]]) do
+            {:error, error} -> {:error, error}
+          end
+        end
+
+        defoverridable(two: 2)
+      end
+    end
+  end
+
+  describe "References" do
+    import Tesla.OpenApi, only: [dereference: 2]
+
+    test "definition referenc (v2)" do
+      spec = %{
+        "definitions" => %{
+          "Pet" => %{"type" => "object"}
+        }
+      }
+
+      assert dereference("#/definitions/Pet", spec) == {"Pet", %{"type" => "object"}}
+    end
+
+    test "component reference (v3)" do
+      spec = %{
+        "components" => %{
+          "schemas" => %{
+            "Pet" => %{"type" => "object"}
+          }
+        }
+      }
+
+      assert dereference("#/components/schemas/Pet", spec) == {"Pet", %{"type" => "object"}}
+    end
+
+    test "any reference" do
+      spec = %{
+        "paths" => %{
+          "/posts/{postId}/comments/{commentId}/like" => %{
+            "delete" => %{
+              "parameters" => [
+                %{},
+                %{
+                  "schema" => %{"type" => "integer"}
+                },
+                %{}
+              ]
+            }
+          }
+        }
+      }
+
+      ref =
+        "#/paths/~1posts~1%7BpostId%7D~1comments~1%7BcommentId%7D~1like/delete/parameters/1/schema"
+
+      assert dereference(ref, spec) == %{"type" => "integer"}
     end
   end
 end
