@@ -35,6 +35,7 @@ defmodule Tesla.OpenApi do
 
     quote do
       defmodule unquote(:"#{mod}_config") do
+        @moduledoc false
         def op_name(name), do: unquote(op_name)
         def generate?(name), do: unquote(generate)
       end
@@ -66,28 +67,8 @@ defmodule Tesla.OpenApi do
     code
   end
 
-  def decode_binary(nil), do: {:ok, nil}
-  def decode_binary(x) when is_binary(x), do: {:ok, x}
-  def decode_binary(_), do: {:error, :invalid_binary}
-
-  def decode_boolean(nil), do: {:ok, nil}
-  def decode_boolean(x) when is_boolean(x), do: {:ok, x}
-  def decode_boolean(_), do: {:error, :invalid_boolean}
-
-  def decode_integer(nil), do: {:ok, nil}
-  def decode_integer(x) when is_integer(x), do: {:ok, x}
-  def decode_integer(_), do: {:error, :invalid_integer}
-
-  def decode_number(nil), do: {:ok, nil}
-  def decode_number(x) when is_number(x), do: {:ok, x}
-  def decode_number(_), do: {:error, :invalid_number}
-
-  def decode_list(nil), do: {:ok, nil}
-  def decode_list(list) when is_list(list), do: {:ok, list}
-  def decode_list(list) when is_list(list), do: {:error, :invalid_list}
-
-  def decode_list(nil, _fun), do: decode_list(nil)
-  def decode_list(list, _fun) when not is_list(list), do: decode_list(list)
+  def decode_list(nil, _fun), do: {:ok, nil}
+  def decode_list(list, _fun) when not is_list(list), do: {:ok, list}
 
   def decode_list(list, fun) do
     list
@@ -211,29 +192,7 @@ defmodule Tesla.OpenApi do
 
   def decode(empty, var, _spec) when empty == %{}, do: {:ok, var}
 
-  def decode(%{"type" => "string"}, var, _spec) do
-    quote do
-      unquote(__MODULE__).decode_binary(unquote(var))
-    end
-  end
-
-  def decode(%{"type" => "integer"}, var, _spec) do
-    quote do
-      unquote(__MODULE__).decode_integer(unquote(var))
-    end
-  end
-
-  def decode(%{"type" => "number"}, var, _spec) do
-    quote do
-      unquote(__MODULE__).decode_number(unquote(var))
-    end
-  end
-
-  def decode(%{"type" => "boolean"}, var, _spec) do
-    quote do
-      unquote(__MODULE__).decode_boolean(unquote(var))
-    end
-  end
+  def decode(%{"type" => type}, var, _spec) when type in @primitives, do: {:ok, var}
 
   # TODO: Replace with nullable vars
   def decode(%{"type" => "null"}, var, _spec) do

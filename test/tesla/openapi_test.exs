@@ -1,6 +1,11 @@
 defmodule Tesla.OpenApiTest.Helpers do
   alias Tesla.OpenApi
 
+  defmodule Config do
+    def op_name(name), do: name
+    def generate?(_), do: true
+  end
+
   defmacro assert_quoted(code, do: body) do
     quote do
       a = unquote(code)
@@ -19,8 +24,8 @@ defmodule Tesla.OpenApiTest.Helpers do
   def decode(field, spec \\ %{}),
     do: render(OpenApi.decode(field, Macro.var(:x, Tesla.OpenApi), spec))
 
-  def operation(method, path, op, spec \\ %{}, opts \\ []),
-    do: render(OpenApi.operation(method, path, op, spec, opts))
+  def operation(method, path, op, spec \\ %{}, config \\ Config),
+    do: render(OpenApi.operation(method, path, op, spec, config))
 
   def render(code) do
     code
@@ -79,8 +84,8 @@ defmodule Tesla.OpenApiTest do
       assert encode(schema) == "x"
       assert encode({"ref", schema}) == "x"
 
-      assert decode(schema) == "Tesla.OpenApi.decode_binary(x)"
-      assert decode({"ref", schema}) == "Tesla.OpenApi.decode_binary(x)"
+      assert decode(schema) == "{:ok, x}"
+      assert decode({"ref", schema}) == "{:ok, x}"
     end
 
     test "integer schema" do
@@ -94,8 +99,8 @@ defmodule Tesla.OpenApiTest do
       assert encode(schema) == "x"
       assert encode({"ref", schema}) == "x"
 
-      assert decode(schema) == "Tesla.OpenApi.decode_integer(x)"
-      assert decode({"ref", schema}) == "Tesla.OpenApi.decode_integer(x)"
+      assert decode(schema) == "{:ok, x}"
+      assert decode({"ref", schema}) == "{:ok, x}"
     end
 
     test "array of strings schema" do
@@ -109,7 +114,7 @@ defmodule Tesla.OpenApiTest do
           @moduledoc ""
           @type t :: [binary]
           def decode(data) do
-            Tesla.OpenApi.decode_list(data, fn data -> Tesla.OpenApi.decode_binary(data) end)
+            Tesla.OpenApi.decode_list(data, fn data -> {:ok, data} end)
           end
 
           def encode(data) do
@@ -127,7 +132,7 @@ defmodule Tesla.OpenApiTest do
       end
 
       assert_quoted decode(schema) do
-        Tesla.OpenApi.decode_list(x, fn data -> Tesla.OpenApi.decode_binary(data) end)
+        Tesla.OpenApi.decode_list(x, fn data -> {:ok, data} end)
       end
 
       assert_quoted decode({"ref", schema}) do
@@ -171,8 +176,8 @@ defmodule Tesla.OpenApiTest do
           @moduledoc ""
           @type t :: integer | binary
           def decode(data) do
-            with {:error, _} <- Tesla.OpenApi.decode_integer(data),
-                 {:error, _} <- Tesla.OpenApi.decode_binary(data) do
+            with {:error, _} <- {:ok, data},
+                 {:error, _} <- {:ok, data} do
               {:error, :invalid_value}
             end
           end
@@ -186,8 +191,8 @@ defmodule Tesla.OpenApiTest do
       assert encode(schema) == "x"
 
       assert_quoted decode(schema) do
-        with {:error, _} <- Tesla.OpenApi.decode_integer(x),
-             {:error, _} <- Tesla.OpenApi.decode_binary(x) do
+        with {:error, _} <- {:ok, x},
+             {:error, _} <- {:ok, x} do
           {:error, :invalid_value}
         end
       end
@@ -211,8 +216,8 @@ defmodule Tesla.OpenApiTest do
           defstruct id: nil, name: nil
           @type t :: %__MODULE__{id: integer, name: binary}
           def decode(data) do
-            with {:ok, id} <- Tesla.OpenApi.decode_integer(data["id"]),
-                 {:ok, name} <- Tesla.OpenApi.decode_binary(data["name"]) do
+            with {:ok, id} <- {:ok, data["id"]},
+                 {:ok, name} <- {:ok, data["name"]} do
               {:ok, %__MODULE__{id: id, name: name}}
             end
           end
@@ -243,8 +248,8 @@ defmodule Tesla.OpenApiTest do
           defstruct id: nil, name: nil
           @type t :: %__MODULE__{id: integer, name: binary}
           def decode(data) do
-            with {:ok, id} <- Tesla.OpenApi.decode_integer(data["id"]),
-                 {:ok, name} <- Tesla.OpenApi.decode_binary(data["name"]) do
+            with {:ok, id} <- {:ok, data["id"]},
+                 {:ok, name} <- {:ok, data["name"]} do
               {:ok, %__MODULE__{id: id, name: name}}
             end
           end
