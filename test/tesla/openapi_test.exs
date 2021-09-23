@@ -14,18 +14,18 @@ defmodule Tesla.OpenApiTest.Helpers do
     end
   end
 
-  def type(field, spec \\ %{}), do: render(OpenApi.type(field, spec))
+  def type(field), do: render(OpenApi.type(field))
 
-  def model(field, spec \\ %{}), do: render(OpenApi.model("t", field, spec))
+  def model(field), do: render(OpenApi.model("t", field))
 
-  def encode(field, spec \\ %{}),
-    do: render(OpenApi.encode(field, Macro.var(:x, Tesla.OpenApi), spec))
+  def encode(field),
+    do: render(OpenApi.encode(field, Macro.var(:x, Tesla.OpenApi)))
 
-  def decode(field, spec \\ %{}),
-    do: render(OpenApi.decode(field, Macro.var(:x, Tesla.OpenApi), spec))
+  def decode(field),
+    do: render(OpenApi.decode(field, Macro.var(:x, Tesla.OpenApi)))
 
-  def operation(method, path, op, spec \\ %{}, config \\ Config),
-    do: render(OpenApi.operation(method, path, op, spec, config))
+  def operation(method, path, op, config \\ Config),
+    do: render(OpenApi.operation(method, path, op, config))
 
   def render(code) do
     code
@@ -41,7 +41,7 @@ defmodule Tesla.OpenApiTest do
   import Tesla.OpenApiTest.Helpers
 
   setup do
-    :erlang.put(:caller, X)
+    :erlang.put(:__tesla__caller, X)
     :ok
   end
 
@@ -339,7 +339,9 @@ defmodule Tesla.OpenApiTest do
         }
       }
 
-      assert_quoted operation("get", "/two/{id}", op, spec) do
+      :erlang.put(:__tesla__spec, spec)
+
+      assert_quoted operation("get", "/two/{id}", op) do
         @doc ""
         @spec two(Tesla.Client.t(), integer) :: {:error, any}
         def two(client \\ new(), id) do
