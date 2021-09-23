@@ -4,7 +4,7 @@ defmodule Tesla.OpenApi do
     dump = Keyword.get(opts, :dump, false)
 
     spec = file |> File.read!() |> Jason.decode!()
-    spec = filter(spec, opts)
+    [{config, _}] = Code.compile_quoted(config(__CALLER__.module, opts))
 
     # use process dict to store caller module
     :erlang.put(:caller, __CALLER__.module)
@@ -13,33 +13,32 @@ defmodule Tesla.OpenApi do
       @external_resource unquote(file)
       @moduledoc unquote(doc_module(spec))
       unquote_splicing(models(spec))
-      unquote_splicing(operations(spec))
+      unquote_splicing(operations(spec, config))
       unquote(new(spec))
     end
     # |> print()
     |> dump(dump)
   end
 
-  defp filter(spec, opts) do
-    spec
-    |> filter_operations(opts[:operations][:only])
-  end
-
-  defp filter_operations(spec, nil), do: spec
-
-  defp filter_operations(%{"paths" => paths} = spec, only) when is_list(only) do
-    paths =
-      for {path, methods} <- paths, into: %{} do
-        methods =
-          for {method, %{"operationId" => id} = op} <- methods,
-              id in only,
-              into: %{},
-              do: {method, op}
-
-        {path, methods}
+  defp config(mod, opts) do
+    op_name =
+      case opts[:operations][:name] do
+        nil -> quote(do: name)
+        fun -> quote(do: unquote(fun).(name))
       end
 
-    Map.put(spec, "paths", paths)
+    generate =
+      case opts[:operations][:only] do
+        only when is_list(only) -> quote(do: name in unquote(only))
+        nil -> quote(do: name)
+      end
+
+    quote do
+      defmodule unquote(:"#{mod}_config") do
+        def op_name(name), do: unquote(op_name)
+        def generate?(name), do: unquote(generate)
+      end
+    end
   end
 
   defp print(code) do
@@ -396,6 +395,8 @@ defmodule Tesla.OpenApi do
     type(Map.put(schema, "properties", []), spec)
   end
 
+  # TODO: Handle oneOf/anyOf types
+
   def type(%{"type" => [_ | _] = types}, spec) do
     types
     |> Enum.map(fn t -> type(%{"type" => t}, spec) end)
@@ -431,41 +432,43 @@ defmodule Tesla.OpenApi do
 
   ## OPERATIONS
 
-  defp operations(spec) do
+  defp operations(spec, config) do
     for {path, methods} <- Map.get(spec, "paths", %{}),
-        {method, %{"operationId" => _} = operation} <- methods do
-      operation(method, path, operation, spec)
+        {method, %{"operationId" => id} = operation} <- methods,
+        config.generate?(id) do
+      operation(method, path, operation, spec, config)
     end
   end
 
-  def operation(method, path, %{"operationId" => id} = op, spec) do
+  def operation(method, path, %{"operationId" => id} = op, spec, config) do
+    name = key(config.op_name(id))
     params = dereference_params(op["parameters"] || [], spec)
     args_in = args_in(params)
 
     quote do
       @doc unquote(doc_operation(op))
-      @spec unquote(operation_spec(params, op, spec))
+      @spec unquote(operation_spec(name, params, op, spec))
 
-      def unquote(key(id))(unquote_splicing(args_in)) do
+      def unquote(name)(unquote_splicing(args_in)) do
         case Tesla.unquote(key(method))(unquote_splicing(args_out(path, params, spec))) do
           unquote(responses(op, spec) ++ catchall())
         end
       end
 
-      defoverridable unquote([{key(id), length(args_in)}])
+      defoverridable unquote([{name, length(args_in)}])
     end
   end
 
-  defp operation_spec(params, %{"operationId" => id} = op, spec) do
+  defp operation_spec(name, params, op, spec) do
     if has_query_params?(params) do
       quote do
-        unquote(key(id))(unquote_splicing(args_types(params, spec))) ::
+        unquote(name)(unquote_splicing(args_types(params, spec))) ::
           unquote(responses_types(op, spec))
         when opt: unquote(sumtype(query_types(params, spec)))
       end
     else
       quote do
-        unquote(key(id))(unquote_splicing(args_types(params, spec))) ::
+        unquote(name)(unquote_splicing(args_types(params, spec))) ::
           unquote(responses_types(op, spec))
       end
     end

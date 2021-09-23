@@ -19,8 +19,8 @@ defmodule Tesla.OpenApiTest.Helpers do
   def decode(field, spec \\ %{}),
     do: render(OpenApi.decode(field, Macro.var(:x, Tesla.OpenApi), spec))
 
-  def operation(method, path, op, spec \\ %{}),
-    do: render(OpenApi.operation(method, path, op, spec))
+  def operation(method, path, op, spec \\ %{}, opts \\ []),
+    do: render(OpenApi.operation(method, path, op, spec, opts))
 
   def render(code) do
     code
