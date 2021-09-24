@@ -273,9 +273,11 @@ defmodule Tesla.OpenApi do
   def decode(%{"$ref" => ref}, var), do: decode(dereference(ref), var)
 
   # TODO: Handle other/multiple content formats
-  def decode(%{"content" => content}), do: decode(content["application/json"])
+  def decode(%{"content" => content}, var), do: decode(content["application/json"], var)
 
-  def decode(%{} = schema, _var), do: quote(do: {:unknown, unquote(Macro.escape(schema))})
+  def decode(%{"schema" => schema}, var), do: decode(schema, var)
+
+  def decode(%{} = schema, var), do: var
 
   def decode({_name, %{"type" => type} = schema}, var) when type in @primitives do
     decode(schema, var)
@@ -547,6 +549,11 @@ defmodule Tesla.OpenApi do
 
   ## RESPONSES
 
+  defp response(code, %{"content" => content}) do
+    # TODO: Handle other/multiple content formats
+    response(code, content["application/json"])
+  end
+
   defp responses(%{"responses" => responses}) do
     for {status, response} <- responses do
       [match] = response(status, response)
@@ -554,11 +561,7 @@ defmodule Tesla.OpenApi do
     end
   end
 
-  defp response(code, %{"$ref" => ref}) do
-    response(code, dereference(ref))
-  end
-
-  defp response(code, %{"schema" => schema}) do
+  defp response(code, schema) do
     body = Macro.var(:body, __MODULE__)
     code = code_or_default(code)
     decode = decode(schema, body)
@@ -600,14 +603,6 @@ defmodule Tesla.OpenApi do
             end
         end
     end
-  end
-
-  defp response(code, %{}) do
-    response(code, %{"schema" => nil})
-  end
-
-  defp response(code, nil) do
-    response(code, %{"schema" => nil})
   end
 
   defp responses_types(%{"responses" => responses}) do
