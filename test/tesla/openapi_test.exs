@@ -167,14 +167,17 @@ defmodule Tesla.OpenApiTest do
       end
     end
 
-    test "oneoff items with schemas" do
+    test "oneof items with schemas" do
       schema = %{"items" => [%{"type" => "integer"}, %{"type" => "string"}]}
-      assert type(schema) == "integer | binary"
+
+      assert type(schema) == "any"
+      # assert type(schema) == "integer | binary"
 
       assert_quoted model(schema) do
         defmodule T do
           @moduledoc ""
-          @type t :: integer | binary
+          # @type t :: integer | binary
+          @type t :: any
           def decode(data) do
             with {:error, _} <- {:ok, data},
                  {:error, _} <- {:ok, data} do
@@ -184,11 +187,21 @@ defmodule Tesla.OpenApiTest do
 
           def encode(data) do
             data
+            # case data do
+            #   x when is_integer(x) -> data
+            #   x when is_binary(x) -> data
+            # end
           end
         end
       end
 
-      assert encode(schema) == "x"
+      assert_quoted encode(schema) do
+        x
+        # case x do
+        #   x when is_integer(x) -> x
+        #   x when is_binary(x) -> x
+        # end
+      end
 
       assert_quoted decode(schema) do
         with {:error, _} <- {:ok, x},
@@ -197,6 +210,33 @@ defmodule Tesla.OpenApiTest do
         end
       end
     end
+
+    # test "anyof inline objects with props" do
+    #   schema = %{
+    #     "anyOf" => [
+    #       %{
+    #         "type" => "object",
+    #         "properties" => %{
+    #           "id" => %{"type" => "integer"}
+    #         }
+    #       },
+    #       %{
+    #         "type" => "object",
+    #         "properties" => %{
+    #           "fullName" => %{"type" => "string"}
+    #         }
+    #       }
+    #     ]
+    #   }
+
+    #   assert_quoted type(schema) do
+    #     %{id: integer} | %{full_name: binary}
+    #   end
+
+    #   assert_quoted encode(schema) do
+    #     TODO
+    #   end
+    # end
 
     test "object with properties" do
       schema = %{
@@ -351,6 +391,35 @@ defmodule Tesla.OpenApiTest do
         end
 
         defoverridable(two: 2)
+      end
+    end
+
+    test "request body" do
+      op = %{
+        "operationId" => "one",
+        "requestBody" => %{
+          "required" => true,
+          "content" => %{
+            "application/json" => %{
+              "schema" => %{
+                "type" => "integer"
+              }
+            }
+          }
+        },
+        "responses" => []
+      }
+
+      assert_quoted operation("post", "/", op) do
+        @doc ""
+        @spec one(Tesla.Client.t(), integer) :: {:error, any}
+        def one(client \\ new(), body) do
+          case Tesla.post(client, "/", body) do
+            {:error, error} -> {:error, error}
+          end
+        end
+
+        defoverridable(one: 2)
       end
     end
   end

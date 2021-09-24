@@ -272,6 +272,9 @@ defmodule Tesla.OpenApi do
 
   def decode(%{"$ref" => ref}, var), do: decode(dereference(ref), var)
 
+  # TODO: Handle other/multiple content formats
+  def decode(%{"content" => content}), do: decode(content["application/json"])
+
   def decode(%{} = schema, _var), do: quote(do: {:unknown, unquote(Macro.escape(schema))})
 
   def decode({_name, %{"type" => type} = schema}, var) when type in @primitives do
@@ -301,11 +304,14 @@ defmodule Tesla.OpenApi do
     end
   end
 
-  # TODO: Handle encoding oneof/anyof
-  def encode(%{"type" => [_ | _] = _types}, var), do: var
-  def encode(%{"items" => _schemas}, var), do: var
+  def encode(%{"type" => [_ | _] = types}, var), do: encode_anyof(types_to_schemas(types), var)
+  def encode(%{"items" => schemas}, var) when is_list(schemas), do: encode_anyof(schemas, var)
+  def encode(%{"anyOf" => schemas}, var) when is_list(schemas), do: encode_anyof(schemas, var)
 
   def encode(%{"$ref" => ref}, var), do: encode(dereference(ref), var)
+
+  # TODO: Handle other/multiple content formats
+  def encode(%{"content" => content}, var), do: encode(content["application/json"], var)
 
   def encode(%{}, var), do: var
 
@@ -314,6 +320,29 @@ defmodule Tesla.OpenApi do
   def encode({name, _}, var) do
     quote(do: unquote(defmodule_ref(name)).encode(unquote(var)))
   end
+
+  defp encode_anyof([schema], var), do: encode(schema, var)
+
+  # TODO: Handle encoding oneOf/anyOf
+  defp encode_anyof(_schemas, var), do: var
+
+  # defp encode_anyof(schemas, var) do
+  #   quote do
+  #     case unquote(var) do
+  #       unquote(Enum.map(schemas, &encode_anyof_match(&1, var)))
+  #     end
+  #   end
+  # end
+
+  # defp encode_anyof_match(schema, var) do
+  #   match = encode_match(schema)
+  #   encode = encode(schema, var)
+
+  #   {:->, [], [[match], encode]}
+  # end
+
+  # defp encode_match(%{"type" => "string"}), do: quote(do: x when is_binary(x))
+  # defp encode_match(%{"type" => "integer"}), do: quote(do: x when is_integer(x))
 
   ## TYPES
 
@@ -354,19 +383,12 @@ defmodule Tesla.OpenApi do
     type(Map.put(schema, "properties", []))
   end
 
-  # TODO: Handle oneOf/anyOf types
+  def type(%{"anyOf" => schemas}) when is_list(schemas), do: type_anyof(schemas)
+  def type(%{"items" => schemas}) when is_list(schemas), do: type_anyof(schemas)
+  def type(%{"type" => [_ | _] = types}), do: type_anyof(types_to_schemas(types))
 
-  def type(%{"type" => [_ | _] = types}) do
-    types
-    |> Enum.map(fn t -> type(%{"type" => t}) end)
-    |> sumtype()
-  end
-
-  def type(%{"items" => schemas}) do
-    schemas
-    |> Enum.map(&type(&1))
-    |> sumtype()
-  end
+  # TODO: Handle other/multiple content formats
+  def type(%{"content" => content}), do: type(content["application/json"])
 
   def type(%{}), do: :unknown
 
@@ -377,6 +399,14 @@ defmodule Tesla.OpenApi do
   end
 
   def type({name, _}), do: quote(do: unquote(defmodule_ref(name)).t())
+
+  # TODO: Handle anyOf type
+  defp type_anyof(_schemas) do
+    quote(do: any)
+    # schemas
+    # |> Enum.map(&type(&1))
+    # |> sumtype()
+  end
 
   defp sumtype([_ | _] = types) do
     types
@@ -402,14 +432,15 @@ defmodule Tesla.OpenApi do
   def operation(method, path, %{"operationId" => id} = op, config) do
     name = key(config.op_name(id))
     params = dereference_params(op["parameters"] || [])
-    args_in = args_in(params)
+    args_in = args_in(op, params)
+    args_out = args_out(path, op, params)
 
     quote do
       @doc unquote(doc_operation(op))
-      @spec unquote(operation_spec(name, params, op))
+      @spec unquote(operation_spec(name, op, params))
 
       def unquote(name)(unquote_splicing(args_in)) do
-        case Tesla.unquote(key(method))(unquote_splicing(args_out(path, params))) do
+        case Tesla.unquote(key(method))(unquote_splicing(args_out)) do
           unquote(responses(op) ++ catchall())
         end
       end
@@ -418,31 +449,31 @@ defmodule Tesla.OpenApi do
     end
   end
 
-  defp operation_spec(name, params, op) do
+  defp operation_spec(name, op, params) do
     if has_query_params?(params) do
       quote do
-        unquote(name)(unquote_splicing(args_types(params))) ::
+        unquote(name)(unquote_splicing(args_types(op, params))) ::
           unquote(responses_types(op))
         when opt: unquote(sumtype(query_types(params)))
       end
     else
       quote do
-        unquote(name)(unquote_splicing(args_types(params))) ::
+        unquote(name)(unquote_splicing(args_types(op, params))) ::
           unquote(responses_types(op))
       end
     end
   end
 
-  defp args_types(params) do
-    [client_type()] ++ path_types(params) ++ body_type(params) ++ query_type(params)
+  defp args_types(op, params) do
+    [client_type()] ++ path_types(params) ++ body_type(op, params) ++ query_type(params)
   end
 
-  defp args_in(params) do
-    [client_in()] ++ path_in(params) ++ body_in(params) ++ query_in(params)
+  defp args_in(op, params) do
+    [client_in()] ++ path_in(params) ++ body_in(op, params) ++ query_in(params)
   end
 
-  defp args_out(path, params) do
-    [client_out(), path_out(path)] ++ body_out(params) ++ opts_out(params)
+  defp args_out(path, op, params) do
+    [client_out(), path_out(path)] ++ body_out(op, params) ++ opts_out(params)
   end
 
   defp client_type, do: quote(do: Tesla.Client.t())
@@ -462,15 +493,15 @@ defmodule Tesla.OpenApi do
     Regex.replace(@path_rx, path, fn _, name -> ":" <> Macro.underscore(name) end)
   end
 
-  defp body_type(params) do
-    for %{"in" => "body"} = param <- params, do: type(param)
-  end
+  defp body_type(%{"requestBody" => body}, _params), do: [type(body)]
+  defp body_type(_op, params), do: for(%{"in" => "body"} = param <- params, do: type(param))
 
-  defp body_in(params) do
-    for %{"name" => name, "in" => "body"} <- params, do: var(name)
-  end
+  defp body_in(%{"requestBody" => _}, _params), do: [var("body")]
+  defp body_in(_op, params), do: for(%{"name" => name, "in" => "body"} <- params, do: var(name))
 
-  defp body_out(params) do
+  defp body_out(%{"requestBody" => body}, _params), do: [encode(body, var("body"))]
+
+  defp body_out(_, params) do
     for %{"name" => name, "in" => "body"} = param <- params, do: encode(param, var(name))
   end
 
@@ -525,11 +556,6 @@ defmodule Tesla.OpenApi do
 
   defp response(code, %{"$ref" => ref}) do
     response(code, dereference(ref))
-  end
-
-  defp response(code, %{"content" => content}) do
-    # TODO: Handle other/multiple content formats
-    response(code, content["application/json"])
   end
 
   defp response(code, %{"schema" => schema}) do
@@ -695,6 +721,8 @@ defmodule Tesla.OpenApi do
   defp extract_props(%{"properties" => props}), do: props
   defp extract_props(%{}), do: %{}
   defp extract_props({_name, schema}), do: extract_props(schema)
+
+  defp types_to_schemas(types), do: Enum.map(types, &%{"type" => &1})
 
   defp dereference_params(params) do
     Enum.map(params, fn
