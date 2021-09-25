@@ -110,8 +110,7 @@ defmodule Tesla.OpenApi do
   defp models(%{"definitions" => defs}), do: models(defs)
   # 3.x
   defp models(%{"components" => %{"schemas" => defs}}), do: models(defs)
-  defp models(defs) when is_list(defs), do: Enum.map(defs, &model/1)
-  defp models(_spec), do: []
+  defp models(defs) when is_list(defs) or is_map(defs), do: Enum.map(defs, &model/1)
 
   def model({name, schema}), do: model(name, schema)
 
