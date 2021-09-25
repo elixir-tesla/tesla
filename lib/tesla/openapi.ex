@@ -834,10 +834,11 @@ defmodule Tesla.OpenApi do
   ## OPTIMIZATION
 
   def optimize(code) do
-    Macro.prewalk(code, fn
+    Macro.postwalk(code, fn
       ast ->
         ast
         |> optimize_decode_list()
+        |> optimize_encode_list()
         |> optimize_with()
     end)
   end
@@ -852,6 +853,16 @@ defmodule Tesla.OpenApi do
   end
 
   defp optimize_decode_list(ast), do: ast
+
+  defp optimize_encode_list(
+         {{:., _, [__MODULE__, :encode_list]}, [], [var, {:fn, _, [{:->, _, [[data], data]}]}]}
+       ) do
+    # Match `Tesla.OpenApi.encode_list(var, fn data -> data end)`
+    # and replace with `{:ok, var}`
+    var
+  end
+
+  defp optimize_encode_list(ast), do: ast
 
   defp optimize_with({:with, _, clauses} = ast) do
     # Remove unnecessary always-matching clauses like `{:ok, x} <- {:ok, y}`

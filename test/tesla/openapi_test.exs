@@ -560,8 +560,7 @@ defmodule Tesla.OpenApiTest do
       end
     end
 
-    # @tag :focus
-    test "remove unnecesary decode_list" do
+    test "remove unnecesary encode_list / decode_list" do
       schema = %{"type" => "array", "items" => %{"type" => "string"}}
 
       # before
@@ -569,9 +568,17 @@ defmodule Tesla.OpenApiTest do
         Tesla.OpenApi.decode_list(x, fn data -> {:ok, data} end)
       end
 
+      assert_quoted encode(schema) do
+        Tesla.OpenApi.encode_list(x, fn item -> item end)
+      end
+
       # after
       assert_quoted optimize(decode(schema)) do
         {:ok, x}
+      end
+
+      assert_quoted optimize(encode(schema)) do
+        x
       end
     end
   end
