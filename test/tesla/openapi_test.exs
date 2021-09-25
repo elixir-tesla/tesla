@@ -8,24 +8,19 @@ defmodule Tesla.OpenApiTest.Helpers do
 
   defmacro assert_quoted(code, do: body) do
     quote do
-      a = unquote(code)
+      a = render(unquote(code))
       b = unquote(render(body))
       assert a == b, message: "Assert failed\n\n#{a}\n\nis not equal to\n\n#{b}"
     end
   end
 
-  def type(field), do: render(OpenApi.type(field))
-
-  def model(field), do: render(OpenApi.model("t", field))
-
-  def encode(field),
-    do: render(OpenApi.encode(field, Macro.var(:x, Tesla.OpenApi)))
-
-  def decode(field),
-    do: render(OpenApi.decode(field, Macro.var(:x, Tesla.OpenApi)))
+  def type(field), do: OpenApi.type(field)
+  def model(field), do: OpenApi.model("t", field)
+  def encode(field), do: OpenApi.encode(field, Macro.var(:x, Tesla.OpenApi))
+  def decode(field), do: OpenApi.decode(field, Macro.var(:x, Tesla.OpenApi))
 
   def operation(method, path, op, config \\ Config),
-    do: render(OpenApi.operation(method, path, op, config))
+    do: OpenApi.operation(method, path, op, config)
 
   def render(code) do
     code
@@ -76,38 +71,38 @@ defmodule Tesla.OpenApiTest do
     test "string schema" do
       schema = %{"type" => "string"}
 
-      assert type(schema) == "binary"
-      assert type({"ref", schema}) == "X.ref()"
+      assert render(type(schema)) == "binary"
+      assert render(type({"ref", schema})) == "X.ref()"
 
-      assert model(schema) == "@type t :: binary"
+      assert render(model(schema)) == "@type t :: binary"
 
-      assert encode(schema) == "x"
-      assert encode({"ref", schema}) == "x"
+      assert render(encode(schema)) == "x"
+      assert render(encode({"ref", schema})) == "x"
 
-      assert decode(schema) == "{:ok, x}"
-      assert decode({"ref", schema}) == "{:ok, x}"
+      assert render(decode(schema)) == "{:ok, x}"
+      assert render(decode({"ref", schema})) == "{:ok, x}"
     end
 
     test "integer schema" do
       schema = %{"type" => "integer"}
 
-      assert type(schema) == "integer"
-      assert type({"ref", schema}) == "X.ref()"
+      assert render(type(schema)) == "integer"
+      assert render(type({"ref", schema})) == "X.ref()"
 
-      assert model(schema) == "@type t :: integer"
+      assert render(model(schema)) == "@type t :: integer"
 
-      assert encode(schema) == "x"
-      assert encode({"ref", schema}) == "x"
+      assert render(encode(schema)) == "x"
+      assert render(encode({"ref", schema})) == "x"
 
-      assert decode(schema) == "{:ok, x}"
-      assert decode({"ref", schema}) == "{:ok, x}"
+      assert render(decode(schema)) == "{:ok, x}"
+      assert render(decode({"ref", schema})) == "{:ok, x}"
     end
 
     test "array of strings schema" do
       schema = %{"type" => "array", "items" => %{"type" => "string"}}
 
-      assert type(schema) == "[binary]"
-      assert type({"ref", schema}) == "X.Ref.t()"
+      assert render(type(schema)) == "[binary]"
+      assert render(type({"ref", schema})) == "X.Ref.t()"
 
       assert_quoted model(schema) do
         defmodule T do
@@ -143,23 +138,23 @@ defmodule Tesla.OpenApiTest do
     test "unknown array schema" do
       schema = %{"type" => "array"}
 
-      assert type(schema) == "list"
-      assert type({"ref", schema}) == "X.Ref.t()"
+      assert render(type(schema)) == "list"
+      assert render(type({"ref", schema})) == "X.Ref.t()"
 
       assert_quoted model(schema) do
         defmodule T do
           @moduledoc ""
           @type t :: list
-          def decode(data), do: Tesla.OpenApi.decode_list(data)
+          def decode(data), do: {:ok, data}
           def encode(data), do: data
         end
       end
 
-      assert encode(schema) == "x"
-      assert encode({"ref", schema}) == "X.Ref.encode(x)"
+      assert render(encode(schema)) == "x"
+      assert render(encode({"ref", schema})) == "X.Ref.encode(x)"
 
       assert_quoted decode(schema) do
-        Tesla.OpenApi.decode_list(x)
+        {:ok, x}
       end
 
       assert_quoted decode({"ref", schema}) do
@@ -170,7 +165,7 @@ defmodule Tesla.OpenApiTest do
     test "oneof items with schemas" do
       schema = %{"items" => [%{"type" => "integer"}, %{"type" => "string"}]}
 
-      assert type(schema) == "any"
+      assert render(type(schema)) == "any"
       # assert type(schema) == "integer | binary"
 
       assert_quoted model(schema) do
@@ -247,8 +242,8 @@ defmodule Tesla.OpenApiTest do
         }
       }
 
-      assert type(schema) == "%{id: integer, name: binary}"
-      assert type({"ref", schema}) == "X.Ref.t()"
+      assert render(type(schema)) == "%{id: integer, name: binary}"
+      assert render(type({"ref", schema})) == "X.Ref.t()"
 
       assert_quoted model(schema) do
         defmodule T do
@@ -269,6 +264,40 @@ defmodule Tesla.OpenApiTest do
       end
     end
 
+    test "object with references" do
+      schema = %{
+        "type" => "object",
+        "properties" => %{
+          "id" => %{"type" => "integer"},
+          "user" => %{"$ref" => "#/definitions/User"}
+        }
+      }
+
+      spec = %{
+        "definitions" => %{
+          "User" => %{
+            "type" => "object",
+            "properties" => %{
+              "name" => %{
+                "type" => "string"
+              }
+            }
+          }
+        }
+      }
+
+      :erlang.put(:__tesla__spec, spec)
+
+      assert render(type(schema)) == "%{id: integer, user: X.User.t()}"
+
+      assert_quoted decode(schema) do
+        with {:ok, id} <- {:ok, x["id"]},
+             {:ok, user} <- X.User.decode(x["user"]) do
+          {:ok, %{id: id, user: user}}
+        end
+      end
+    end
+
     # test "object without properties"
 
     test "allof" do
@@ -279,8 +308,8 @@ defmodule Tesla.OpenApiTest do
         ]
       }
 
-      assert type(schema) == "%{id: integer, name: binary}"
-      assert type({"ref", schema}) == "X.Ref.t()"
+      assert render(type(schema)) == "%{id: integer, name: binary}"
+      assert render(type({"ref", schema})) == "X.Ref.t()"
 
       assert_quoted model(schema) do
         defmodule T do
@@ -470,6 +499,80 @@ defmodule Tesla.OpenApiTest do
         "#/paths/~1posts~1%7BpostId%7D~1comments~1%7BcommentId%7D~1like/delete/parameters/1/schema"
 
       assert dereference(ref, spec) == %{"type" => "integer"}
+    end
+  end
+
+  describe "Optimization" do
+    # @describetag :focus
+    import Tesla.OpenApi, only: [optimize: 1]
+
+    test "remove unnecessary with clauses" do
+      schema = %{
+        "type" => "object",
+        "properties" => %{
+          "id" => %{"type" => "integer"},
+          "user" => %{"$ref" => "#/definitions/User"}
+        }
+      }
+
+      spec = %{
+        "definitions" => %{
+          "User" => %{
+            "type" => "object",
+            "properties" => %{
+              "name" => %{
+                "type" => "string"
+              }
+            }
+          }
+        }
+      }
+
+      :erlang.put(:__tesla__spec, spec)
+
+      assert_quoted optimize(decode(schema)) do
+        with {:ok, user} <- X.User.decode(x["user"]) do
+          {:ok, %{id: x["id"], user: user}}
+        end
+      end
+    end
+
+    test "remove empty with" do
+      schema = %{
+        "type" => "object",
+        "properties" => %{
+          "id" => %{"type" => "integer"},
+          "name" => %{"type" => "string"}
+        }
+      }
+
+      # before
+      assert_quoted decode(schema) do
+        with {:ok, id} <- {:ok, x["id"]},
+             {:ok, name} <- {:ok, x["name"]} do
+          {:ok, %{id: id, name: name}}
+        end
+      end
+
+      # after
+      assert_quoted optimize(decode(schema)) do
+        {:ok, %{id: x["id"], name: x["name"]}}
+      end
+    end
+
+    # @tag :focus
+    test "remove unnecesary decode_list" do
+      schema = %{"type" => "array", "items" => %{"type" => "string"}}
+
+      # before
+      assert_quoted decode(schema) do
+        Tesla.OpenApi.decode_list(x, fn data -> {:ok, data} end)
+      end
+
+      # after
+      assert_quoted optimize(decode(schema)) do
+        {:ok, x}
+      end
     end
   end
 end

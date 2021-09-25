@@ -13,8 +13,8 @@ defmodule Tesla.OpenApi do
     quote do
       @external_resource unquote(file)
       @moduledoc unquote(doc_module(spec))
-      unquote_splicing(models(spec))
-      unquote_splicing(operations(spec, config))
+      unquote_splicing(optimize(models(spec)))
+      unquote_splicing(optimize(operations(spec, config)))
       unquote(new(spec))
     end
     # |> print()
@@ -220,11 +220,7 @@ defmodule Tesla.OpenApi do
     end
   end
 
-  def decode(%{"type" => "array"}, var) do
-    quote do
-      unquote(__MODULE__).decode_list(unquote(var))
-    end
-  end
+  def decode(%{"type" => "array"}, var), do: {:ok, var}
 
   def decode(%{"allOf" => allof}, var) do
     decode(%{"type" => "object", "properties" => combine_props(allof)}, var)
@@ -833,5 +829,67 @@ defmodule Tesla.OpenApi do
     parts
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n\n")
+  end
+
+  ## OPTIMIZATION
+
+  def optimize(code) do
+    Macro.prewalk(code, fn
+      ast ->
+        ast
+        |> optimize_decode_list()
+        |> optimize_with()
+    end)
+  end
+
+  defp optimize_decode_list(
+         {{:., _, [__MODULE__, :decode_list]}, [],
+          [var, {:fn, _, [{:->, _, [[data], {:ok, data}]}]}]}
+       ) do
+    # Match `Tesla.OpenApi.decode_list(var, fn data -> {:ok, data} end)`
+    # and replace with `{:ok, var}`
+    {:ok, var}
+  end
+
+  defp optimize_decode_list(ast), do: ast
+
+  defp optimize_with({:with, _, clauses} = ast) do
+    # Remove unnecessary always-matching clauses like `{:ok, x} <- {:ok, y}`
+    # Remove `with` once all clauses are removed
+    [[do: body] | matches] = Enum.reverse(clauses)
+
+    case body do
+      # %__MODULE__{id: id, name: name, ... }
+      {:ok, {:%, sctx, [{:__MODULE__, _, _} = struct, {:%{}, _, _} = map]}} ->
+        case optimize_with1(map, matches) do
+          {:ok, map} -> {:ok, {:%, sctx, [struct, map]}}
+          other -> other
+        end
+
+      # %{id: id, name: name, ... }
+      {:ok, {:%{}, _, _} = map} ->
+        optimize_with1(map, matches)
+
+      _ ->
+        ast
+    end
+  end
+
+  defp optimize_with(ast), do: ast
+
+  defp optimize_with1({:%{}, _, assigns}, matches) do
+    {matches, replacements} =
+      Enum.reduce(matches, {[], %{}}, fn
+        {:<-, _, [ok: lhs, ok: rhs]}, {mat, rep} -> {mat, Map.put(rep, lhs, rhs)}
+        other, {mat, rep} -> {[other | mat], rep}
+      end)
+
+    assigns = Enum.map(assigns, fn {key, var} -> {key, Map.get(replacements, var) || var} end)
+    body = {:ok, {:%{}, [], assigns}}
+
+    case matches do
+      [] -> body
+      _ -> {:with, [], Enum.reverse([[do: body] | matches])}
+    end
   end
 end
