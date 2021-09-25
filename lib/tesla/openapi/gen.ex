@@ -1,6 +1,6 @@
 defmodule Tesla.OpenApi3.Gen do
   alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi3.Model
+  alias Tesla.OpenApi3.{Model, Operation}
   alias Tesla.OpenApi3.Spec
 
   ## TYPES
@@ -26,6 +26,52 @@ defmodule Tesla.OpenApi3.Gen do
       quote(do: unquote(moduleref(name)).t())
     end
   end
+
+  def type(%Operation{} = op) do
+    name = key(op.id)
+
+    args =
+      flatten_once([
+        type_client(),
+        type_path_params(op),
+        type_body_params(op),
+        type_query_params(op)
+      ])
+
+    resps = type_responses(op)
+
+    case op.query_params do
+      [] ->
+        quote do
+          unquote(name)(unquote_splicing(args)) :: unquote(resps)
+        end
+
+      _ ->
+        quote do
+          unquote(name)(unquote_splicing(args)) :: unquote(resps)
+          when opt: unquote(type_query_opts(op))
+        end
+    end
+  end
+
+  defp type_client, do: quote(do: Tesla.Client.t())
+  defp type_path_params(%{path_params: params}), do: Enum.map(params, &type(&1.schema))
+  defp type_body_params(%{request_body: %{} = schema}), do: type(schema)
+  defp type_body_params(%{body_params: params}), do: Enum.map(params, &type(&1.schema))
+  defp type_query_params(%{query_params: []}), do: []
+  defp type_query_params(%{query_params: _}), do: quote(do: [[opt]])
+
+  defp type_query_opts(%{query_params: params}) do
+    params
+    |> Enum.map(fn %{name: name, schema: schema} -> {key(name), type(schema)} end)
+    |> uniontypes
+  end
+
+  defp type_responses(%{responses: responses}) do
+    uniontypes(Enum.map(responses, &type/1) ++ [type_catchall()])
+  end
+
+  defp type_catchall, do: quote(do: {:error, any})
 
   defp uniontypes([_ | _] = types) do
     types
@@ -185,6 +231,96 @@ defmodule Tesla.OpenApi3.Gen do
   defp moduleless?(%Array{of: %Any{}}), do: true
   defp moduleless?(_schema), do: false
 
+  ## OPERATION
+
+  def operation(%Operation{id: id, method: method} = op) do
+    name = key(id)
+    in_args = in_args(op)
+    out_args = out_args(op)
+
+    quote do
+      # @doc unquote(doc_operation(op))
+      @spec unquote(type(op))
+
+      def unquote(name)(unquote_splicing(in_args)) do
+        case Tesla.unquote(key(method))(unquote_splicing(out_args)) do
+          unquote(responses(op) ++ catchall())
+        end
+      end
+
+      defoverridable unquote([{name, length(in_args)}])
+    end
+  end
+
+  defp in_args(op) do
+    flatten_once([
+      in_client(),
+      in_path_params(op),
+      in_body_params(op),
+      in_query_params(op)
+    ])
+  end
+
+  defp in_client, do: quote(do: client \\ new())
+  defp in_path_params(%{path_params: params}), do: Enum.map(params, &var(&1.name))
+  defp in_body_params(%{request_body: %{}}), do: var("body")
+  defp in_body_params(%{body_params: params}), do: Enum.map(params, &var(&1.name))
+  defp in_query_params(%{query_params: []}), do: []
+  defp in_query_params(%{query_params: _}), do: quote(do: query \\ [])
+
+  defp out_args(op) do
+    flatten_once([
+      out_client(),
+      out_path(op),
+      out_body_params(op),
+      out_keyword(op)
+    ])
+  end
+
+  defp out_client, do: quote(do: client)
+
+  defp out_path(%{path: path}),
+    do: Regex.replace(~r/\{([^}]+?)\}/, path, fn _, name -> ":" <> Macro.underscore(name) end)
+
+  defp out_body_params(%{request_body: %{} = schema}), do: encode(schema, var("body"))
+  defp out_body_params(%{body_params: []}), do: []
+  defp out_body_params(%{body_params: _params}), do: raise("Not Implemented Yet")
+
+  defp out_keyword(op) do
+    wrapped(
+      nonempty(
+        query: out_query(op),
+        opts: out_opts(op)
+      )
+    )
+  end
+
+  defp out_opts(op), do: nonempty(path_params: out_path_params(op))
+  defp out_query(%{query_params: []}), do: []
+
+  defp out_query(%{query_params: params}) do
+    args = Enum.map(params, &{key(&1.name), nil})
+
+    quote do
+      Tesla.OpenApi.encode_query(query, unquote(args))
+    end
+  end
+
+  defp out_path_params(%{path_params: []}), do: nil
+
+  defp out_path_params(%{path_params: params}),
+    do: Enum.map(params, &{key(&1.name), var(&1.name)})
+
+  defp responses(op) do
+    []
+  end
+
+  defp catchall do
+    quote do
+      {:error, error} -> {:error, error}
+    end
+  end
+
   ## UTILS
 
   defp key(name), do: name |> Macro.underscore() |> String.replace("/", "_") |> String.to_atom()
@@ -198,4 +334,22 @@ defmodule Tesla.OpenApi3.Gen do
 
   defp right(match, body), do: {:->, [], [[match], body]}
   defp left(match, body), do: {:<-, [], [match, body]}
+
+  defp flatten_once(list) do
+    Enum.flat_map(list, fn
+      x when is_list(x) -> x
+      x -> [x]
+    end)
+  end
+
+  defp nonempty(keyword) do
+    Enum.reject(keyword, fn
+      {_, nil} -> true
+      {_, []} -> true
+      _ -> false
+    end)
+  end
+
+  defp wrapped([]), do: []
+  defp wrapped(x), do: [x]
 end

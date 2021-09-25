@@ -1,31 +1,29 @@
 defmodule Tesla.OpenApi.SpecTest do
   use ExUnit.Case
 
-  import Tesla.OpenApiTest.Helpers
-
   alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi3.Model
+  alias Tesla.OpenApi3.{Operation, Param, Response}
   import Tesla.OpenApi3.Spec
 
-  describe "from/1" do
+  describe "schema/1" do
     test "type: boolean" do
-      assert from(%{"type" => "boolean"}) == %Prim{type: :boolean}
+      assert schema(%{"type" => "boolean"}) == %Prim{type: :boolean}
     end
 
     test "type: string" do
-      assert from(%{"type" => "string"}) == %Prim{type: :binary}
+      assert schema(%{"type" => "string"}) == %Prim{type: :binary}
     end
 
     test "type: integer" do
-      assert from(%{"type" => "integer"}) == %Prim{type: :integer}
+      assert schema(%{"type" => "integer"}) == %Prim{type: :integer}
     end
 
     test "type: number" do
-      assert from(%{"type" => "number"}) == %Prim{type: :number}
+      assert schema(%{"type" => "number"}) == %Prim{type: :number}
     end
 
     test "type: array" do
-      assert from(%{"type" => ["null", "string"]}) == %Union{
+      assert schema(%{"type" => ["null", "string"]}) == %Union{
                of: [
                  %Prim{type: :null},
                  %Prim{type: :binary}
@@ -34,7 +32,7 @@ defmodule Tesla.OpenApi.SpecTest do
     end
 
     test "union: items" do
-      assert from(%{
+      assert schema(%{
                "items" => [
                  %{"type" => "boolean"},
                  %{"type" => "integer"}
@@ -48,7 +46,7 @@ defmodule Tesla.OpenApi.SpecTest do
     end
 
     test "union: anyOf" do
-      assert from(%{
+      assert schema(%{
                "anyOf" => [
                  %{
                    "type" => "object",
@@ -104,7 +102,7 @@ defmodule Tesla.OpenApi.SpecTest do
     end
 
     test "union: nested anyOf" do
-      assert from(%{
+      assert schema(%{
                "anyOf" => [
                  %{"type" => "string"},
                  %{
@@ -130,7 +128,7 @@ defmodule Tesla.OpenApi.SpecTest do
     end
 
     test "Object" do
-      assert from(%{
+      assert schema(%{
                "type" => "object",
                "properties" => %{
                  "id" => %{"type" => "integer"},
@@ -143,9 +141,9 @@ defmodule Tesla.OpenApi.SpecTest do
                }
              }
 
-      assert from(%{"type" => "object"}) == %Object{props: %{}}
+      assert schema(%{"type" => "object"}) == %Object{props: %{}}
 
-      assert from(%{
+      assert schema(%{
                "type" => "object",
                "allOf" => [
                  %{"properties" => %{"id" => %{"type" => "integer"}}},
@@ -160,12 +158,12 @@ defmodule Tesla.OpenApi.SpecTest do
     end
 
     test "Array" do
-      assert from(%{"type" => "array", "items" => %{"type" => "string"}}) == %Array{
+      assert schema(%{"type" => "array", "items" => %{"type" => "string"}}) == %Array{
                of: %Prim{type: :binary}
              }
 
-      assert from(%{"type" => "array"}) == %Array{of: %Any{}}
-      assert from(%{"items" => %{"type" => "integer"}}) == %Array{of: %Prim{type: :integer}}
+      assert schema(%{"type" => "array"}) == %Array{of: %Any{}}
+      assert schema(%{"items" => %{"type" => "integer"}}) == %Array{of: %Prim{type: :integer}}
     end
 
     test "Ref" do
@@ -177,19 +175,84 @@ defmodule Tesla.OpenApi.SpecTest do
         }
       })
 
-      assert from(%{"$ref" => "#/definitions/Pet"}) == %Ref{name: "Pet", ref: "#/definitions/Pet"}
+      assert schema(%{"$ref" => "#/definitions/Pet"}) == %Ref{
+               name: "Pet",
+               ref: "#/definitions/Pet"
+             }
 
-      assert from(%{"$ref" => "#/components/schemas/Pet"}) == %Ref{
+      assert schema(%{"$ref" => "#/components/schemas/Pet"}) == %Ref{
                name: "Pet",
                ref: "#/components/schemas/Pet"
              }
 
-      assert from(%{"$ref" => "#/path/to/0/value"}) == %Prim{type: :integer}
+      assert schema(%{"$ref" => "#/path/to/0/value"}) == %Prim{type: :integer}
     end
 
     test "Any" do
-      assert from(%{}) == %Any{}
-      assert from(%{"additionalProperties" => false}) == %Any{}
+      assert schema(%{}) == %Any{}
+      assert schema(%{"additionalProperties" => false}) == %Any{}
+    end
+  end
+
+  describe "operations/1" do
+    test "load operation" do
+      spec = %{
+        "paths" => %{
+          "/pets" => %{
+            "get" => %{
+              "operationId" => "findPets",
+              "parameters" => [
+                %{
+                  "in" => "query",
+                  "items" => %{"type" => "string"},
+                  "name" => "tags",
+                  "type" => "array"
+                },
+                %{
+                  "description" => "maximum number of results to return",
+                  "in" => "query",
+                  "name" => "limit",
+                  "type" => "integer"
+                }
+              ],
+              "responses" => %{
+                "200" => %{
+                  "schema" => %{
+                    "items" => %{"$ref" => "#/definitions/Pet"},
+                    "type" => "array"
+                  }
+                },
+                "default" => %{
+                  "description" => "unexpected error",
+                  "schema" => %{"$ref" => "#/definitions/ErrorModel"}
+                }
+              }
+            }
+          }
+        }
+      }
+
+      assert operations(spec) == [
+               %Operation{
+                 id: "findPets",
+                 method: "get",
+                 path: "/pets",
+                 query_params: [
+                   %Param{name: "tags", schema: %Array{of: %Prim{type: :binary}}},
+                   %Param{name: "limit", schema: %Prim{type: :integer}}
+                 ],
+                 responses: [
+                   %Response{
+                     code: 200,
+                     schema: %Array{of: %Ref{name: "Pet", ref: "#/definitions/Pet"}}
+                   },
+                   %Response{
+                     code: :default,
+                     schema: %Ref{name: "ErrorModel", ref: "#/definitions/ErrorModel"}
+                   }
+                 ]
+               }
+             ]
     end
   end
 end

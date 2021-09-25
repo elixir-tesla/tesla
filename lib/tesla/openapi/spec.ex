@@ -1,66 +1,66 @@
 defmodule Tesla.OpenApi3.Spec do
   alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi3.Model
+  alias Tesla.OpenApi3.{Model, Operation, Param, Response}
 
   defstruct spec: %{}, models: %{}, operations: %{}
   @type t :: %__MODULE__{spec: map(), models: map(), operations: map()}
 
-  @spec from(map) :: Tesla.OpenApi3.schema()
+  @spec schema(map) :: Tesla.OpenApi3.schema()
 
   # Prim
   # TODO: Collapse null type into required/optional fields
-  def from(%{"type" => "null"}), do: %Prim{type: :null}
-  def from(%{"type" => "string"}), do: %Prim{type: :binary}
-  def from(%{"type" => "integer"}), do: %Prim{type: :integer}
-  def from(%{"type" => "number"}), do: %Prim{type: :number}
-  def from(%{"type" => "boolean"}), do: %Prim{type: :boolean}
+  def schema(%{"type" => "null"}), do: %Prim{type: :null}
+  def schema(%{"type" => "string"}), do: %Prim{type: :binary}
+  def schema(%{"type" => "integer"}), do: %Prim{type: :integer}
+  def schema(%{"type" => "number"}), do: %Prim{type: :number}
+  def schema(%{"type" => "boolean"}), do: %Prim{type: :boolean}
 
   # Union
-  def from(%{"type" => types}) when is_list(types),
-    do: collapse(%Union{of: Enum.map(types, &from(%{"type" => &1}))})
+  def schema(%{"type" => types}) when is_list(types),
+    do: collapse(%Union{of: Enum.map(types, &schema(%{"type" => &1}))})
 
-  def from(%{"items" => items}) when is_list(items),
-    do: collapse(%Union{of: Enum.map(items, &from/1)})
+  def schema(%{"items" => items}) when is_list(items),
+    do: collapse(%Union{of: Enum.map(items, &schema/1)})
 
-  def from(%{"anyOf" => anyof}),
-    do: collapse(%Union{of: Enum.map(anyof, &from/1)})
+  def schema(%{"anyOf" => anyof}),
+    do: collapse(%Union{of: Enum.map(anyof, &schema/1)})
 
   # Array
-  def from(%{"type" => "array", "items" => items}), do: %Array{of: from(items)}
-  def from(%{"type" => "array"}), do: %Array{of: %Any{}}
-  def from(%{"items" => %{} = items}), do: %Array{of: from(items)}
+  def schema(%{"type" => "array", "items" => items}), do: %Array{of: schema(items)}
+  def schema(%{"type" => "array"}), do: %Array{of: %Any{}}
+  def schema(%{"items" => %{} = items}), do: %Array{of: schema(items)}
 
   # Object
-  def from(%{"properties" => %{} = props}),
+  def schema(%{"properties" => %{} = props}),
     do: %Object{
       props:
         props
         |> Enum.sort_by(&elem(&1, 0))
-        |> Enum.into(%{}, fn {key, val} -> {key, from(val)} end)
+        |> Enum.into(%{}, fn {key, val} -> {key, schema(val)} end)
     }
 
-  def from(%{"type" => "object", "allOf" => allof}), do: %Object{props: merge_props(allof)}
-  def from(%{"type" => "object"}), do: %Object{props: %{}}
+  def schema(%{"type" => "object", "allOf" => allof}), do: %Object{props: merge_props(allof)}
+  def schema(%{"type" => "object"}), do: %Object{props: %{}}
 
   # Ref
   # v2
-  def from(%{"$ref" => "#/definitions/" <> name = ref}), do: %Ref{name: name, ref: ref}
+  def schema(%{"$ref" => "#/definitions/" <> name = ref}), do: %Ref{name: name, ref: ref}
   # v3
-  def from(%{"$ref" => "#/components/schemas/" <> name = ref}), do: %Ref{name: name, ref: ref}
-  def from(%{"$ref" => ref}), do: fetch(ref)
+  def schema(%{"$ref" => "#/components/schemas/" <> name = ref}), do: %Ref{name: name, ref: ref}
+  def schema(%{"$ref" => ref}), do: fetch(ref)
 
   # Any
-  def from(map) when map === %{}, do: %Any{}
+  def schema(map) when map === %{}, do: %Any{}
 
   # Found in Slack spec
-  def from(%{"additionalProperties" => false}), do: %Any{}
+  def schema(%{"additionalProperties" => false}), do: %Any{}
 
-  def fetch(ref), do: from(dereference(ref))
+  def fetch(ref), do: schema(dereference(ref))
 
   defp merge_props(schemas) do
     Enum.reduce(schemas, %{}, fn schema, acc ->
       props =
-        case from(schema) do
+        case schema(schema) do
           %Object{props: props} -> props
           %Ref{ref: ref} -> dereference(ref)
         end
@@ -163,7 +163,8 @@ defmodule Tesla.OpenApi3.Spec do
 
     %__MODULE__{
       spec: spec,
-      models: models(spec)
+      models: models(spec),
+      operations: operations(spec)
     }
   end
 
@@ -175,6 +176,50 @@ defmodule Tesla.OpenApi3.Spec do
   defp models(%{"components" => %{"schemas" => defs}}), do: models(defs)
 
   defp models(defs) when is_list(defs) or is_map(defs) do
-    for {name, schema} <- defs, do: %Model{name: name, schema: from(schema)}
+    for {name, schema} <- defs, do: %Model{name: name, schema: schema(schema)}
   end
+
+  def operations(spec) do
+    for {path, methods} <- Map.get(spec, "paths", %{}),
+        # match on "operationId" to filter out operations without id
+        {method, %{"operationId" => id} = operation} <- methods do
+      operation(id, method, path, operation)
+    end
+  end
+
+  defp operation(id, method, path, operation) do
+    %Operation{
+      id: id,
+      method: method,
+      path: path,
+      path_params: params(operation, "path"),
+      query_params: params(operation, "query"),
+      body_params: params(operation, "body"),
+      request_body: request_body(operation),
+      responses: responses(operation)
+    }
+  end
+
+  defp params(%{"parameters" => params}, kind) do
+    for %{"name" => name, "in" => ^kind} = param <- params do
+      %Param{name: name, schema: schema(param)}
+    end
+  end
+
+  defp request_body(%{"requestBody" => body}), do: schema(body)
+  defp request_body(_), do: nil
+
+  defp responses(%{"responses" => responses}) do
+    for {code, %{"schema" => schema}} <- responses do
+      %Response{
+        code: code_or_default(code),
+        schema: schema(schema)
+      }
+    end
+  end
+
+  defp responses(_), do: []
+
+  defp code_or_default("default"), do: :default
+  defp code_or_default(code), do: String.to_integer(code)
 end

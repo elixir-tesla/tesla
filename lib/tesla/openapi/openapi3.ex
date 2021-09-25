@@ -41,8 +41,37 @@ defmodule Tesla.OpenApi3 do
     @type t :: %__MODULE__{name: binary, schema: Tesla.OpenApi3.schema()}
   end
 
-  # defmodule Operation do
-  #   defstruct []
-  #   @type t :: %__MODULE__{}
-  # end
+  defmodule Param do
+    @enforce_keys [:name, :schema]
+    defstruct name: nil, schema: nil
+    @type t :: %__MODULE__{name: binary, schema: Tesla.OpenApi3.schema()}
+  end
+
+  defmodule Response do
+    @enforce_keys [:code, :schema]
+    defstruct code: nil, schema: nil
+    @type t :: %__MODULE__{code: integer | :default, schema: Tesla.OpenApi3.schema()}
+  end
+
+  defmodule Operation do
+    defstruct id: nil,
+              path: nil,
+              method: nil,
+              path_params: [],
+              query_params: [],
+              body_params: [],
+              request_body: nil,
+              responses: []
+
+    @type t :: %__MODULE__{
+            id: binary,
+            path: binary,
+            method: binary,
+            path_params: [Param.t()],
+            query_params: [Param.t()],
+            body_params: [Param.t()],
+            request_body: Tesla.OpenApi3.schema() | nil,
+            responses: [Response.t()]
+          }
+  end
 end

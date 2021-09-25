@@ -4,7 +4,7 @@ defmodule Tesla.OpenApi.GenTest do
   import Tesla.OpenApiTest.Helpers
 
   alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi3.Model
+  alias Tesla.OpenApi3.{Model, Operation, Param, Response}
   import Tesla.OpenApi3.Gen
   import Tesla.OpenApi3.Clean, only: [clean: 1]
   import Tesla.OpenApi3.Spec, only: [load: 1]
@@ -643,5 +643,151 @@ defmodule Tesla.OpenApi.GenTest do
         end
       end
     end
+  end
+
+  describe "operation/1" do
+    # %Operation{
+    #   id: "findPets",
+    #   method: "get",
+    #   path: "/pets",
+    #   query_params: [
+    #     %Param{name: "tags", schema: %Array{of: %Prim{type: :binary}}},
+    #     %Param{name: "limit", schema: %Prim{type: :integer}}
+    #   ],
+    #   responses: [
+    #     %Response{
+    #       code: 200,
+    #       schema: %Array{of: %Ref{name: "Pet", ref: "#/definitions/Pet"}}
+    #     },
+    #     %Response{
+    #       code: :default,
+    #       schema: %Ref{name: "ErrorModel", ref: "#/definitions/ErrorModel"}
+    #     }
+    #   ]
+    # }
+
+    test "encode name" do
+      op = %Operation{
+        id: "deeply.nested.function",
+        method: "get",
+        path: "/"
+      }
+
+      assert_code operation(op) do
+        # @doc ""
+        @spec deeply_nested_function(Tesla.Client.t()) :: {:error, any}
+        def deeply_nested_function(client \\ new()) do
+          case Tesla.get(client, "/") do
+            {:error, error} -> {:error, error}
+          end
+        end
+
+        defoverridable(deeply_nested_function: 1)
+      end
+    end
+
+    test "params" do
+      op = %Operation{
+        id: "one",
+        method: "get",
+        path: "/{id}",
+        path_params: [
+          %Param{name: "id", schema: %Prim{type: :integer}}
+        ],
+        query_params: [
+          %Param{name: "limit", schema: %Prim{type: :integer}},
+          %Param{name: "sort", schema: %Prim{type: :binary}}
+        ]
+      }
+
+      assert_code operation(op) do
+        # @doc ""
+        @spec one(Tesla.Client.t(), integer, [opt]) :: {:error, any}
+              when opt: {:limit, integer} | {:sort, binary}
+        def one(client \\ new(), id, query \\ []) do
+          case Tesla.get(client, "/:id",
+                 query: Tesla.OpenApi.encode_query(query, limit: nil, sort: nil),
+                 opts: [path_params: [id: id]]
+               ) do
+            {:error, error} -> {:error, error}
+          end
+        end
+
+        defoverridable(one: 3)
+      end
+    end
+
+    # test "referenced params" do
+    #   spec = %{
+    #     "paths" => %{
+    #       "/one/{id}" => %{
+    #         "get" => %{
+    #           "operationId" => "one",
+    #           "parameters" => [
+    #             %{
+    #               "name" => "id",
+    #               "in" => "path",
+    #               "schema" => %{"type" => "integer"}
+    #             }
+    #           ],
+    #           "responses" => []
+    #         }
+    #       },
+    #       "/two/{id}" => %{
+    #         "get" =>
+    #           op = %{
+    #             "operationId" => "two",
+    #             "parameters" => [
+    #               %{"$ref" => "#/paths/~1one~1%7Bid%7D/get/parameters/0"}
+    #             ],
+    #             "responses" => []
+    #           }
+    #       }
+    #     }
+    #   }
+
+    #   :erlang.put(:__tesla__spec, spec)
+
+    #   assert_quoted operation("get", "/two/{id}", op) do
+    #     @doc ""
+    #     @spec two(Tesla.Client.t(), integer) :: {:error, any}
+    #     def two(client \\ new(), id) do
+    #       case Tesla.get(client, "/two/:id", opts: [path_params: [id: id]]) do
+    #         {:error, error} -> {:error, error}
+    #       end
+    #     end
+
+    #     defoverridable(two: 2)
+    #   end
+    # end
+
+    # test "request body" do
+    #   op = %{
+    #     "operationId" => "one",
+    #     "requestBody" => %{
+    #       "required" => true,
+    #       "content" => %{
+    #         "application/json" => %{
+    #           "schema" => %{
+    #             "type" => "integer"
+    #           }
+    #         }
+    #       }
+    #     },
+    #     "responses" => []
+    #   }
+
+    #   assert_quoted operation("post", "/", op) do
+    #     @doc ""
+    #     @spec one(Tesla.Client.t(), integer) :: {:error, any}
+    #     def one(client \\ new(), body) do
+    #       case Tesla.post(client, "/", body) do
+    #         {:error, error} -> {:error, error}
+    #       end
+    #     end
+
+    #     defoverridable(one: 2)
+    #   end
+    # end
   end
 end
