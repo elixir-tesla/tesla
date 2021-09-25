@@ -98,16 +98,35 @@ defmodule Tesla.OpenApiTest do
       assert render(decode({"ref", schema})) == "{:ok, x}"
     end
 
+    test "integer or null schema" do
+      schema = %{"type" => ["integer", "null"]}
+
+      assert render(type(schema)) == "integer | nil"
+      assert render(model(schema)) == "@type t :: integer | nil"
+
+      assert_quoted encode(schema) do
+        cond do
+          true ->
+            x
+
+          true ->
+            x
+        end
+      end
+
+      assert render(decode(schema)) == "{:ok, x}"
+    end
+
     test "array of strings schema" do
       schema = %{"type" => "array", "items" => %{"type" => "string"}}
 
-      assert render(type(schema)) == "[binary]"
+      assert render(type(schema)) == "list(binary)"
       assert render(type({"ref", schema})) == "X.Ref.t()"
 
       assert_quoted model(schema) do
         defmodule T do
           @moduledoc ""
-          @type t :: [binary]
+          @type t :: list(binary)
           def decode(data) do
             Tesla.OpenApi.decode_list(data, fn data -> {:ok, data} end)
           end
@@ -162,76 +181,165 @@ defmodule Tesla.OpenApiTest do
       end
     end
 
+    test "unknown items schema" do
+      schema = %{"items" => %{"type" => "object"}}
+
+      assert render(type(schema)) == "list(map())"
+
+      assert render(encode(schema)) == "x"
+
+      assert_quoted decode(schema) do
+        Tesla.OpenApi.decode_list(x, fn data -> {:ok, data} end)
+      end
+    end
+
     test "oneof items with schemas" do
       schema = %{"items" => [%{"type" => "integer"}, %{"type" => "string"}]}
 
-      assert render(type(schema)) == "any"
-      # assert type(schema) == "integer | binary"
+      assert render(type(schema)) == "integer | binary"
 
       assert_quoted model(schema) do
         defmodule T do
           @moduledoc ""
-          # @type t :: integer | binary
-          @type t :: any
+          @type t :: integer | binary
           def decode(data) do
-            with {:error, _} <- {:ok, data},
-                 {:error, _} <- {:ok, data} do
-              {:error, :invalid_value}
+            cond do
+              true ->
+                {:ok, data}
+
+              true ->
+                {:ok, data}
             end
           end
 
           def encode(data) do
-            data
-            # case data do
-            #   x when is_integer(x) -> data
-            #   x when is_binary(x) -> data
-            # end
+            cond do
+              true ->
+                data
+
+              true ->
+                data
+            end
           end
         end
       end
 
       assert_quoted encode(schema) do
-        x
-        # case x do
-        #   x when is_integer(x) -> x
-        #   x when is_binary(x) -> x
-        # end
+        cond do
+          true ->
+            x
+
+          true ->
+            x
+        end
       end
 
       assert_quoted decode(schema) do
-        with {:error, _} <- {:ok, x},
-             {:error, _} <- {:ok, x} do
-          {:error, :invalid_value}
+        cond do
+          true ->
+            {:ok, x}
+
+          true ->
+            {:ok, x}
         end
       end
     end
 
-    # test "anyof inline objects with props" do
-    #   schema = %{
-    #     "anyOf" => [
-    #       %{
-    #         "type" => "object",
-    #         "properties" => %{
-    #           "id" => %{"type" => "integer"}
-    #         }
-    #       },
-    #       %{
-    #         "type" => "object",
-    #         "properties" => %{
-    #           "fullName" => %{"type" => "string"}
-    #         }
-    #       }
-    #     ]
-    #   }
+    test "anyof inline objects, lists and primitives" do
+      schema = %{
+        "anyOf" => [
+          %{
+            "type" => "object",
+            "properties" => %{
+              "id" => %{"type" => "integer"},
+              "name" => %{"type" => "string"}
+            }
+          },
+          %{
+            "type" => "object",
+            "properties" => %{
+              "id" => %{"type" => "integer"},
+              "fullName" => %{"type" => "string"}
+            }
+          },
+          %{
+            "type" => "string"
+          },
+          %{
+            "type" => "array",
+            "items" => %{"type" => "integer"}
+          },
+          %{
+            "type" => "array",
+            "items" => %{"type" => "string"}
+          }
+        ]
+      }
 
-    #   assert_quoted type(schema) do
-    #     %{id: integer} | %{full_name: binary}
-    #   end
+      assert_quoted type(schema) do
+        %{full_name: binary, id: integer, name: binary} | list(integer | binary) | binary
+      end
 
-    #   assert_quoted encode(schema) do
-    #     TODO
-    #   end
-    # end
+      assert_quoted encode(schema) do
+        cond do
+          is_map(x) ->
+            %{
+              "fullName" => x.full_name,
+              "id" =>
+                cond do
+                  true -> x.id
+                  true -> x.id
+                end,
+              "name" => x.name
+            }
+
+          is_list(x) ->
+            Tesla.OpenApi.encode_list(x, fn item ->
+              cond do
+                true -> item
+                true -> item
+              end
+            end)
+
+          true ->
+            x
+        end
+      end
+
+      assert_quoted decode(schema) do
+        cond do
+          is_map(x) ->
+            with(
+              {:ok, full_name} <- {:ok, x["fullName"]},
+              {:ok, id} <-
+                cond do
+                  true ->
+                    {:ok, x["id"]}
+
+                  true ->
+                    {:ok, x["id"]}
+                end,
+              {:ok, name} <- {:ok, x["name"]}
+            ) do
+              {:ok, %{full_name: full_name, id: id, name: name}}
+            end
+
+          is_list(x) ->
+            Tesla.OpenApi.decode_list(x, fn data ->
+              cond do
+                true ->
+                  {:ok, data}
+
+                true ->
+                  {:ok, data}
+              end
+            end)
+
+          true ->
+            {:ok, x}
+        end
+      end
+    end
 
     test "object with properties" do
       schema = %{
@@ -503,7 +611,6 @@ defmodule Tesla.OpenApiTest do
   end
 
   describe "Optimization" do
-    # @describetag :focus
     import Tesla.OpenApi, only: [optimize: 1]
 
     test "remove unnecessary with clauses" do
@@ -579,6 +686,62 @@ defmodule Tesla.OpenApiTest do
 
       assert_quoted optimize(encode(schema)) do
         x
+      end
+    end
+
+    test "remove unnecessary conds" do
+      schema = %{
+        "anyOf" => [
+          %{
+            "type" => "object",
+            "properties" => %{
+              "id" => %{"type" => "integer"},
+              "name" => %{"type" => "string"}
+            }
+          },
+          %{
+            "type" => "object",
+            "properties" => %{
+              "id" => %{"type" => "integer"},
+              "fullName" => %{"type" => "string"}
+            }
+          },
+          %{
+            "type" => "array",
+            "items" => %{"type" => "string"}
+          },
+          %{
+            "type" => "array",
+            "items" => %{"type" => "integer"}
+          },
+          %{
+            "type" => "string"
+          },
+          %{
+            "type" => "integer"
+          }
+        ]
+      }
+
+      assert_quoted optimize(encode(schema)) do
+        cond do
+          is_map(x) -> %{"fullName" => x.full_name, "id" => x.id, "name" => x.name}
+          is_list(x) -> x
+          true -> x
+        end
+      end
+
+      assert_quoted optimize(decode(schema)) do
+        cond do
+          is_map(x) ->
+            {:ok, %{full_name: x["fullName"], id: x["id"], name: x["name"]}}
+
+          is_list(x) ->
+            {:ok, x}
+
+          true ->
+            {:ok, x}
+        end
       end
     end
   end

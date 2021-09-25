@@ -124,6 +124,15 @@ defmodule Tesla.OpenApi do
     model(name, %{"type" => "object", "properties" => combine_props(allof)})
   end
 
+  # Special case for nullable type
+  def model(name, %{"type" => ["null", _]} = schema) do
+    quote do
+      @type unquote(var(name)) :: unquote(type(schema))
+    end
+  end
+
+  def model(name, %{"type" => [type, "null"]}), do: model(name, %{"type" => ["null", type]})
+
   def model(name, %{"type" => "object", "properties" => props} = schema) do
     var = var("data")
     struct = Enum.map(props, fn {name, _} -> {key(name), nil} end)
@@ -210,7 +219,7 @@ defmodule Tesla.OpenApi do
     end
   end
 
-  def decode(%{"type" => "array", "items" => items}, var) do
+  def decode(%{"items" => items}, var) when is_map(items) do
     data = var("data")
 
     quote do
@@ -221,6 +230,9 @@ defmodule Tesla.OpenApi do
   end
 
   def decode(%{"type" => "array"}, var), do: {:ok, var}
+
+  def decode(%{"type" => ["null", type]}, var), do: decode(%{"type" => type}, var)
+  def decode(%{"type" => [type, "null"]}, var), do: decode(%{"type" => type}, var)
 
   def decode(%{"allOf" => allof}, var) do
     decode(%{"type" => "object", "properties" => combine_props(allof)}, var)
@@ -250,19 +262,11 @@ defmodule Tesla.OpenApi do
   end
 
   def decode(%{"anyOf" => schemas}, var) when is_list(schemas) do
-    quote do
-      with unquote_splicing(decode_oneof(schemas, var)) do
-        {:error, :invalid_value}
-      end
-    end
+    decode_anyof(schemas, var)
   end
 
   def decode(%{"items" => schemas}, var) when is_list(schemas) do
-    quote do
-      with unquote_splicing(decode_oneof(schemas, var)) do
-        {:error, :invalid_value}
-      end
-    end
+    decode_anyof(schemas, var)
   end
 
   def decode(%{"$ref" => ref}, var), do: decode(dereference(ref), var)
@@ -280,6 +284,35 @@ defmodule Tesla.OpenApi do
 
   def decode({name, _}, var) do
     quote(do: unquote(defmodule_ref(name)).decode(unquote(var)))
+  end
+
+  defp decode_anyof(schemas, var) do
+    clauses =
+      schemas
+      |> merge()
+      |> Enum.map(&decode_anyof_clause(&1, var))
+
+    quote do
+      cond do
+        unquote(clauses)
+      end
+    end
+  end
+
+  defp decode_anyof_clause(schema, var) do
+    {:->, [], [[decode_anyof_match(schema, var)], decode(schema, var)]}
+  end
+
+  defp decode_anyof_match(%{"type" => "object"}, var) do
+    quote(do: is_map(unquote(var)))
+  end
+
+  defp decode_anyof_match(%{"items" => items}, var) when is_map(items) do
+    quote(do: is_list(unquote(var)))
+  end
+
+  defp decode_anyof_match(_schema, _var) do
+    true
   end
 
   def encode(%{"type" => "array", "items" => items}, var) do
@@ -320,8 +353,34 @@ defmodule Tesla.OpenApi do
 
   defp encode_anyof([schema], var), do: encode(schema, var)
 
-  # TODO: Handle encoding oneOf/anyOf
-  defp encode_anyof(_schemas, var), do: var
+  defp encode_anyof(schemas, var) do
+    clauses =
+      schemas
+      |> merge()
+      |> Enum.map(&encode_anyof_clause(&1, var))
+
+    quote do
+      cond do
+        unquote(clauses)
+      end
+    end
+  end
+
+  defp encode_anyof_clause(schema, var) do
+    {:->, [], [[encode_anyof_match(schema, var)], encode(schema, var)]}
+  end
+
+  defp encode_anyof_match(%{"type" => "object"}, var) do
+    quote(do: is_map(unquote(var)))
+  end
+
+  defp encode_anyof_match(%{"items" => items}, var) when is_map(items) do
+    quote(do: is_list(unquote(var)))
+  end
+
+  defp encode_anyof_match(_schema, _var) do
+    true
+  end
 
   # defp encode_anyof(schemas, var) do
   #   quote do
@@ -355,11 +414,11 @@ defmodule Tesla.OpenApi do
 
   def type(%{"type" => "array", "items" => items}) when is_list(items) do
     types = Enum.map(items, &type(&1))
-    quote(do: [unquote(sumtype(types))])
+    quote(do: list(unquote(sumtype(types))))
   end
 
-  def type(%{"type" => "array", "items" => items}) do
-    quote(do: [unquote(type(items))])
+  def type(%{"items" => items}) when is_map(items) do
+    quote(do: list(unquote(type(items))))
   end
 
   def type(%{"type" => "array"}), do: quote(do: list)
@@ -371,6 +430,10 @@ defmodule Tesla.OpenApi do
     type(%{"type" => "object", "properties" => combine_props(allof)})
   end
 
+  def type(%{"type" => "object", "properties" => []}) do
+    quote(do: map())
+  end
+
   def type(%{"type" => "object", "properties" => props}) do
     types = for {name, prop} <- props, do: {key(name), type(prop)}
     quote(do: %{unquote_splicing(types)})
@@ -380,6 +443,10 @@ defmodule Tesla.OpenApi do
     type(Map.put(schema, "properties", []))
   end
 
+  # Special case for nullable type
+  def type(%{"type" => ["null", type]}), do: sumtype([type(%{"type" => type}), type(nil)])
+  def type(%{"type" => [type, "null"]}), do: sumtype([type(%{"type" => type}), type(nil)])
+
   def type(%{"anyOf" => schemas}) when is_list(schemas), do: type_anyof(schemas)
   def type(%{"items" => schemas}) when is_list(schemas), do: type_anyof(schemas)
   def type(%{"type" => [_ | _] = types}), do: type_anyof(types_to_schemas(types))
@@ -387,7 +454,7 @@ defmodule Tesla.OpenApi do
   # TODO: Handle other/multiple content formats
   def type(%{"content" => content}), do: type(content["application/json"])
 
-  def type(%{}), do: :unknown
+  def type(%{}), do: quote(do: map())
 
   def type({name, %{"type" => type}}) when type in @primitives do
     quote do
@@ -397,12 +464,11 @@ defmodule Tesla.OpenApi do
 
   def type({name, _}), do: quote(do: unquote(defmodule_ref(name)).t())
 
-  # TODO: Handle anyOf type
-  defp type_anyof(_schemas) do
-    quote(do: any)
-    # schemas
-    # |> Enum.map(&type(&1))
-    # |> sumtype()
+  defp type_anyof(schemas) do
+    schemas
+    |> merge()
+    |> Enum.map(&type(&1))
+    |> sumtype()
   end
 
   defp sumtype([_ | _] = types) do
@@ -415,6 +481,31 @@ defmodule Tesla.OpenApi do
 
   defp flatsum({:|, _, [lhs, rhs]}), do: flatsum(lhs) ++ flatsum(rhs)
   defp flatsum(t), do: [t]
+
+  defp merge(schemas) do
+    schemas
+    |> Enum.reduce([[], [], []], fn
+      %{"properties" => _} = x, [[], ls, ps] -> [[x], ls, ps]
+      %{"properties" => _} = x, [[y], ls, ps] -> [[merge_map(x, y)], ls, ps]
+      %{"items" => items} = x, [ms, [], ps] when is_map(items) -> [ms, [x], ps]
+      %{"items" => items} = x, [ms, [y], ps] when is_map(items) -> [ms, [merge_list(x, y)], ps]
+      x, [ms, ls, ps] -> [ms, ls, ps ++ [x]]
+    end)
+    |> List.flatten()
+  end
+
+  defp merge_map(%{"properties" => xprops}, %{"properties" => yprops}) do
+    props =
+      Map.merge(xprops, yprops, fn _k, x, y ->
+        %{"anyOf" => [x, y]}
+      end)
+
+    %{"type" => "object", "properties" => props}
+  end
+
+  defp merge_list(%{"items" => xitems}, %{"items" => yitems}) do
+    %{"type" => "array", "items" => %{"anyOf" => [yitems, xitems]}}
+  end
 
   ## OPERATIONS
 
@@ -837,11 +928,28 @@ defmodule Tesla.OpenApi do
     Macro.postwalk(code, fn
       ast ->
         ast
+        |> optimize_cond()
         |> optimize_decode_list()
         |> optimize_encode_list()
         |> optimize_with()
     end)
   end
+
+  defp optimize_cond({:cond, _, [[do: [{:->, [], [[true], var]}]]]}) do
+    # Match `cond do; true -> x; end`
+    # and replace with `x`
+    var
+  end
+
+  defp optimize_cond({:cond, ctx, [[do: clauses]]}) when length(clauses) >= 2 do
+    # Match cond with multiple clauses and make sure they are unique
+    case Enum.uniq(clauses) do
+      [one] -> optimize_cond({:cond, ctx, [[do: [one]]]})
+      many -> {:cond, ctx, [[do: many]]}
+    end
+  end
+
+  defp optimize_cond(ast), do: ast
 
   defp optimize_decode_list(
          {{:., _, [__MODULE__, :decode_list]}, [],
@@ -884,6 +992,9 @@ defmodule Tesla.OpenApi do
       _ ->
         ast
     end
+
+    # TODO: Make assigns unique
+    # TODO: Remove pointless assigns {:error, _} <- {:ok, data["key"]}
   end
 
   defp optimize_with(ast), do: ast
