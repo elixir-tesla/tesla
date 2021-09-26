@@ -1,9 +1,7 @@
 defmodule Tesla.OpenApi.Gen do
   alias Tesla.OpenApi.{Prim, Union, Array, Object, Ref, Any}
   alias Tesla.OpenApi.{Model, Operation, Response}
-  alias Tesla.OpenApi.Spec
-  alias Tesla.OpenApi.Clean
-  alias Tesla.OpenApi.Doc
+  alias Tesla.OpenApi.{Spec, Context, Clean, Doc}
 
   ## GEN
 
@@ -461,7 +459,7 @@ defmodule Tesla.OpenApi.Gen do
     do: {:__aliases__, [alias: false], [String.to_atom(Macro.camelize(name))]}
 
   defp moduleref(name), do: Module.concat([moduleref(), Macro.camelize(name)])
-  defp moduleref(), do: Spec.get_caller()
+  defp moduleref(), do: Context.get_caller()
 
   defp right(match, body), do: {:->, [], [[match], body]}
   defp left(match, body), do: {:<-, [], [match, body]}

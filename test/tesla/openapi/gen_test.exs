@@ -5,14 +5,14 @@ defmodule Tesla.OpenApi.GenTest do
 
   alias Tesla.OpenApi.{Prim, Union, Array, Object, Ref, Any}
   alias Tesla.OpenApi.{Model, Operation, Param, Response}
-  alias Tesla.OpenApi.Spec
+  alias Tesla.OpenApi.{Spec, Context}
   import Tesla.OpenApi.Gen
   import Tesla.OpenApi.Clean, only: [clean: 1]
 
   @var Macro.var(:var, __MODULE__)
 
   setup do
-    :erlang.put(:__tesla__caller, Petstore)
+    Context.put_caller(Petstore)
     :ok
   end
 
@@ -112,7 +112,7 @@ defmodule Tesla.OpenApi.GenTest do
     end
 
     test "ref" do
-      Spec.load(%{"" => %{"type" => "object"}})
+      Context.put_spec(%{"" => %{"type" => "object"}})
 
       assert_code type(%Ref{name: "Pet", ref: "#/"}) do
         Petstore.Pet.t()
@@ -256,7 +256,7 @@ defmodule Tesla.OpenApi.GenTest do
     end
 
     test "array of refs" do
-      Spec.load(%{"" => %{"type" => "object"}})
+      Context.put_spec(%{"" => %{"type" => "object"}})
       schema = %Array{of: %Ref{ref: "#/", name: "Pet"}}
 
       assert_code encode(schema, @var) do
@@ -298,7 +298,7 @@ defmodule Tesla.OpenApi.GenTest do
     end
 
     test "ref" do
-      Spec.load(%{"" => %{"type" => "object"}})
+      Context.put_spec(%{"" => %{"type" => "object"}})
       schema = %Ref{name: "Pet", ref: "#/"}
 
       assert_code encode(schema, @var) do
@@ -473,7 +473,7 @@ defmodule Tesla.OpenApi.GenTest do
     end
 
     test "ref" do
-      Spec.load(%{"" => %{"type" => "object"}})
+      Context.put_spec(%{"" => %{"type" => "object"}})
       schema = %Ref{name: "Pet", ref: "#/"}
 
       assert_code decode(schema, @var) do
@@ -498,7 +498,7 @@ defmodule Tesla.OpenApi.GenTest do
 
       # make sure ref to moduleless schema is inlined
       ref = %Ref{name: "name", ref: "#/"}
-      Spec.load(%{"" => %{"type" => "string"}})
+      Context.put_spec(%{"" => %{"type" => "string"}})
 
       assert_code type(ref) do
         Petstore.name()
@@ -724,7 +724,7 @@ defmodule Tesla.OpenApi.GenTest do
         }
       }
 
-      Spec.load(spec)
+      Context.put_spec(spec)
       [_, op] = Spec.operations(spec)
 
       assert_code operation(op) do

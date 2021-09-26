@@ -3,6 +3,7 @@ defmodule Tesla.OpenApi.SpecTest do
 
   alias Tesla.OpenApi.{Prim, Union, Array, Object, Ref, Any}
   alias Tesla.OpenApi.{Operation, Param, Response}
+  alias Tesla.OpenApi.Context
   import Tesla.OpenApi.Spec
 
   describe "schema/1" do
@@ -200,7 +201,7 @@ defmodule Tesla.OpenApi.SpecTest do
         }
       }
 
-      load(spec)
+      Context.put_spec(spec)
 
       assert schema(spec["definitions"]["NewPet"]) == %Object{
                props: %{
@@ -228,7 +229,7 @@ defmodule Tesla.OpenApi.SpecTest do
     end
 
     test "Ref" do
-      load(%{
+      Context.put_spec(%{
         "path" => %{
           "to" => [
             %{"value" => %{"type" => "integer"}}

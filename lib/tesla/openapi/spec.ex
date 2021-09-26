@@ -1,9 +1,9 @@
 defmodule Tesla.OpenApi.Spec do
   alias Tesla.OpenApi.{Prim, Union, Array, Object, Ref, Any}
   alias Tesla.OpenApi.{Model, Operation, Param, Response}
+  alias Tesla.OpenApi.Context
 
-  defstruct spec: %{},
-            info: %{},
+  defstruct info: %{},
             host: nil,
             base_path: nil,
             schemes: [],
@@ -11,7 +11,7 @@ defmodule Tesla.OpenApi.Spec do
             models: %{},
             operations: %{}
 
-  @type t :: %__MODULE__{spec: map(), info: map(), models: map(), operations: map()}
+  @type t :: %__MODULE__{info: map(), models: map(), operations: map()}
 
   @spec schema(map) :: Tesla.OpenApi3.schema()
 
@@ -72,9 +72,6 @@ defmodule Tesla.OpenApi.Spec do
   def schema(%{}), do: %Any{}
 
   def fetch(ref), do: schema(dereference(ref))
-
-  def get_caller, do: :erlang.get(:__tesla__caller)
-  def put_caller(caller), do: :erlang.put(:__tesla__caller, caller)
 
   defp merge(schemas) do
     case Enum.reject(schemas, &match?(%Any{}, &1)) do
@@ -157,13 +154,7 @@ defmodule Tesla.OpenApi.Spec do
   end
 
   defp dereference(ref) do
-    spec = :erlang.get(:__tesla__spec)
-
-    if spec == :undefined do
-      raise "Spec not found under :__tesla__spec key"
-    end
-
-    case get_in(spec, compile_path(ref)) do
+    case get_in(Context.get_spec(), compile_path(ref)) do
       nil -> raise "Reference #{ref} not found"
       item -> item
     end
@@ -192,14 +183,9 @@ defmodule Tesla.OpenApi.Spec do
 
   defp key_or_index(key), do: key
 
-  @spec read(binary) :: t()
-  def read(file) do
-    spec = file |> File.read!() |> Jason.decode!()
-
-    load(spec)
-
+  @spec new(map()) :: t()
+  def new(spec) do
     %__MODULE__{
-      spec: spec,
       host: spec["host"] || "",
       base_path: spec["basePath"] || "",
       schemes: spec["schemes"] || [],
@@ -209,8 +195,6 @@ defmodule Tesla.OpenApi.Spec do
       operations: operations(spec)
     }
   end
-
-  def load(spec), do: :erlang.put(:__tesla__spec, spec)
 
   defp info(spec) do
     %{

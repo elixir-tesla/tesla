@@ -81,15 +81,19 @@ defmodule Tesla.OpenApi do
 
   alias Tesla.OpenApi.Spec
   alias Tesla.OpenApi.Gen
+  alias Tesla.OpenApi.Context
 
   defmacro __using__(opts \\ []) do
     file = Keyword.fetch!(opts, :spec)
     dump = Keyword.get(opts, :dump, false)
 
-    # [{config, _}] = Code.compile_quoted(config(__CALLER__.module, opts))
+    raw = file |> File.read!() |> Jason.decode!()
 
-    Spec.put_caller(__CALLER__.module)
-    spec = Spec.read(file)
+    Context.put_spec(raw)
+    Context.put_caller(__CALLER__.module)
+    # Context.put_config(config_module(__CALLER__.module, opts))
+
+    spec = Spec.new(raw)
     code = Gen.gen(spec)
 
     quote do
@@ -102,7 +106,7 @@ defmodule Tesla.OpenApi do
   defp dump(code, false), do: code
 
   defp dump(code, file) do
-    caller = :erlang.get(:__tesla__caller)
+    caller = Context.get_caller()
 
     bin =
       quote do
