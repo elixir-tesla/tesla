@@ -42,17 +42,17 @@ defmodule Tesla.OpenApi.Doc do
           """
       end
 
-    # external_docs =
-    #   case op["external_docs"] do
-    #     %{"description" => description, "url" => url} -> "[#{description}](#{url})"
-    #     _ -> nil
-    #   end
+    external_docs =
+      case op.external_docs do
+        %{description: description, url: url} -> "[#{description}](#{url})"
+        _ -> nil
+      end
 
     merge([
       op.summary,
       op.description,
-      query_docs
-      # external_docs
+      query_docs,
+      external_docs
     ])
   end
 

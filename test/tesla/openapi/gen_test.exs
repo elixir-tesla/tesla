@@ -11,8 +11,14 @@ defmodule Tesla.OpenApi.GenTest do
 
   @var Macro.var(:var, __MODULE__)
 
+  defmodule TestConfig do
+    def op_name(name), do: name
+    def op_gen?(_name), do: true
+  end
+
   setup do
     Context.put_caller(Petstore)
+    Context.put_config(TestConfig)
     :ok
   end
 

@@ -57,6 +57,7 @@ defmodule Tesla.OpenApi do
     defstruct id: nil,
               summary: nil,
               description: nil,
+              external_docs: nil,
               path: nil,
               method: nil,
               path_params: [],
@@ -69,6 +70,7 @@ defmodule Tesla.OpenApi do
             id: binary,
             summary: binary | nil,
             description: binary | nil,
+            external_docs: %{description: binary, url: binary} | nil,
             path: binary,
             method: binary,
             path_params: [Param.t()],
@@ -91,7 +93,7 @@ defmodule Tesla.OpenApi do
 
     Context.put_spec(raw)
     Context.put_caller(__CALLER__.module)
-    # Context.put_config(config_module(__CALLER__.module, opts))
+    Context.put_config(config_module(__CALLER__.module, opts))
 
     spec = Spec.new(raw)
     code = Gen.gen(spec)
@@ -121,29 +123,31 @@ defmodule Tesla.OpenApi do
     code
   end
 
-  # [{config, _}] = Code.compile_quoted(config(__CALLER__.module, opts))
+  defp config_module(mod, opts) do
+    op_name =
+      case opts[:operations][:name] do
+        nil -> quote(do: name)
+        fun -> quote(do: unquote(fun).(name))
+      end
 
-  # defp config(mod, opts) do
-  #   op_name =
-  #     case opts[:operations][:name] do
-  #       nil -> quote(do: name)
-  #       fun -> quote(do: unquote(fun).(name))
-  #     end
+    op_gen? =
+      case opts[:operations][:only] do
+        only when is_list(only) -> quote(do: name in unquote(only))
+        nil -> quote(do: name)
+      end
 
-  #   generate =
-  #     case opts[:operations][:only] do
-  #       only when is_list(only) -> quote(do: name in unquote(only))
-  #       nil -> quote(do: name)
-  #     end
+    code =
+      quote do
+        defmodule unquote(:"#{mod}_config") do
+          @moduledoc false
+          def op_name(name), do: unquote(op_name)
+          def op_gen?(name), do: unquote(op_gen?)
+        end
+      end
 
-  #   quote do
-  #     defmodule unquote(:"#{mod}_config") do
-  #       @moduledoc false
-  #       def op_name(name), do: unquote(op_name)
-  #       def generate?(name), do: unquote(generate)
-  #     end
-  #   end
-  # end
+    [{config, _}] = Code.compile_quoted(code)
+    config
+  end
 
   ## UTILITIES
 

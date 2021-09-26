@@ -229,6 +229,7 @@ defmodule Tesla.OpenApi.Spec do
       id: id,
       summary: operation["summary"],
       description: operation["description"],
+      external_docs: external_docs(operation),
       method: method,
       path: path,
       path_params: params(params, "path"),
@@ -238,6 +239,12 @@ defmodule Tesla.OpenApi.Spec do
       responses: responses(operation)
     }
   end
+
+  defp external_docs(%{"external_docs" => %{"description" => description, "url" => url}}) do
+    %{description: description, url: url}
+  end
+
+  defp external_docs(%{}), do: nil
 
   defp params(params, kind) do
     for %{"name" => name, "in" => ^kind} = param <- params do

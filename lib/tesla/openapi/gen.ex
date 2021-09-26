@@ -264,21 +264,25 @@ defmodule Tesla.OpenApi.Gen do
   @body Macro.var(:body, __MODULE__)
 
   def operation(%Operation{id: id, method: method} = op) do
-    name = key(id)
-    in_args = in_args(op)
-    out_args = out_args(op)
+    config = Context.get_config()
 
-    quote do
-      @doc unquote(Doc.operation(op))
-      @spec unquote(type(op))
+    if config.op_gen?(id) do
+      name = key(config.op_name(id))
+      in_args = in_args(op)
+      out_args = out_args(op)
 
-      def unquote(name)(unquote_splicing(in_args)) do
-        case Tesla.unquote(key(method))(unquote_splicing(out_args)) do
-          unquote(responses(op) ++ catchall())
+      quote do
+        @doc unquote(Doc.operation(op))
+        @spec unquote(type(op))
+
+        def unquote(name)(unquote_splicing(in_args)) do
+          case Tesla.unquote(key(method))(unquote_splicing(out_args)) do
+            unquote(responses(op) ++ catchall())
+          end
         end
-      end
 
-      defoverridable unquote([{name, length(in_args)}])
+        defoverridable unquote([{name, length(in_args)}])
+      end
     end
   end
 
