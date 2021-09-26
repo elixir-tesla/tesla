@@ -4,20 +4,6 @@ defmodule Tesla.OpenApiTest do
   alias Tesla.OpenApi.Spec
   alias Tesla.OpenApi.Gen
 
-  describe "Read & Gen" do
-    test "Petstore" do
-      Spec.read("test/support/openapi/petstore.json") |> Gen.gen()
-    end
-
-    test "Slack" do
-      Spec.read("test/support/openapi/slack.json") |> Gen.gen()
-    end
-
-    test "Realworld" do
-      Spec.read("test/support/openapi/realworld.json") |> Gen.gen()
-    end
-  end
-
   describe "__using__" do
     test "Petstore" do
       defmodule Petstore do
