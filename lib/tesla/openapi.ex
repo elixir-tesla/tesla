@@ -140,4 +140,38 @@ defmodule Tesla.OpenApi do
   #     end
   #   end
   # end
+
+  ## UTILITIES
+
+  def encode_list(nil, _fun), do: nil
+  def encode_list(list, fun), do: Enum.map(list, fun)
+
+  def encode_query(query, keys) do
+    Enum.reduce(keys, [], fn
+      {key, format}, qs ->
+        case query[key] do
+          nil -> qs
+          val -> Keyword.put(qs, key, encode_query_value(val, format))
+        end
+    end)
+  end
+
+  def decode_list(nil, _fun), do: {:ok, nil}
+  def decode_list(list, _fun) when not is_list(list), do: {:ok, list}
+
+  def decode_list(list, fun) do
+    list
+    |> Enum.reverse()
+    |> Enum.reduce({:ok, []}, fn
+      data, {:ok, items} ->
+        with {:ok, item} <- fun.(data), do: {:ok, [item | items]}
+
+      _, error ->
+        error
+    end)
+  end
+
+  defp encode_query_value(value, "csv"), do: Enum.join(value, ",")
+  defp encode_query_value(value, "int32"), do: value
+  defp encode_query_value(value, nil), do: value
 end

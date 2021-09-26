@@ -30,8 +30,8 @@ defmodule Tesla.OpenApi.Spec do
   def schema(%{"items" => items}) when is_list(items),
     do: collapse(%Union{of: Enum.map(items, &schema/1)})
 
-  def schema(%{"anyOf" => anyof}),
-    do: collapse(%Union{of: Enum.map(anyof, &schema/1)})
+  def schema(%{"anyOf" => anyof}), do: collapse(%Union{of: Enum.map(anyof, &schema/1)})
+  def schema(%{"oneOf" => oneof}), do: collapse(%Union{of: Enum.map(oneof, &schema/1)})
 
   # Array
   def schema(%{"type" => "array", "items" => items}), do: %Array{of: schema(items)}
@@ -47,7 +47,8 @@ defmodule Tesla.OpenApi.Spec do
         |> Enum.into(%{}, fn {key, val} -> {key, schema(val)} end)
     }
 
-  def schema(%{"type" => "object", "allOf" => allof}), do: %Object{props: merge_props(allof)}
+  def schema(%{"allOf" => [one]}), do: schema(one)
+  def schema(%{"allOf" => allof}), do: merge(Enum.map(allof, &schema/1))
   def schema(%{"type" => "object"}), do: %Object{props: %{}}
 
   # Ref
@@ -60,23 +61,41 @@ defmodule Tesla.OpenApi.Spec do
   # Any
   def schema(map) when map === %{}, do: %Any{}
 
-  # Found in Slack spec
-  def schema(%{"additionalProperties" => false}), do: %Any{}
-
   # wrapped
   def schema(%{"schema" => schema}), do: schema(schema)
 
   # TODO: HACK: Handle "content" => "..." correctly
   def schema(%{"content" => %{"application/json" => schema}}), do: schema(schema)
+  def schema(%{"content" => %{"application/octet-stream" => schema}}), do: schema(schema)
+  def schema(%{"content" => %{"application/x-www-form-urlencoded" => schema}}), do: schema(schema)
+
+  def schema(%{}), do: %Any{}
 
   def fetch(ref), do: schema(dereference(ref))
 
   def get_caller, do: :erlang.get(:__tesla__caller)
   def put_caller(caller), do: :erlang.put(:__tesla__caller, caller)
 
+  defp merge(schemas) do
+    case Enum.reject(schemas, &match?(%Any{}, &1)) do
+      [one] ->
+        one
+
+      schemas ->
+        cond do
+          Enum.all?(schemas, fn
+            %Object{} -> true
+            %Ref{} -> true
+            _ -> false
+          end) ->
+            %Object{props: merge_props(schemas)}
+        end
+    end
+  end
+
   defp merge_props(schemas) do
     Enum.reduce(schemas, %{}, fn schema, acc ->
-      Map.merge(acc, extract_props(schema(schema)))
+      Map.merge(acc, extract_props(schema))
     end)
   end
 
@@ -205,6 +224,7 @@ defmodule Tesla.OpenApi.Spec do
   defp models(%{"definitions" => defs}), do: models(defs)
   # 3.x
   defp models(%{"components" => %{"schemas" => defs}}), do: models(defs)
+  defp models(%{"components" => _}), do: []
 
   defp models(defs) when is_list(defs) or is_map(defs) do
     for {name, schema} <- defs, do: %Model{name: name, schema: schema(schema)}
