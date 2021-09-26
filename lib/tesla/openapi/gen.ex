@@ -1,7 +1,8 @@
 defmodule Tesla.OpenApi3.Gen do
   alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi3.{Model, Operation}
+  alias Tesla.OpenApi3.{Model, Operation, Response}
   alias Tesla.OpenApi3.Spec
+  alias Tesla.OpenApi3.Doc
 
   ## TYPES
 
@@ -26,6 +27,13 @@ defmodule Tesla.OpenApi3.Gen do
       quote(do: unquote(moduleref(name)).t())
     end
   end
+
+  def type(%Response{code: :default, schema: nil}), do: :error
+  def type(%Response{code: :default, schema: s}), do: {:error, type(s)}
+  def type(%Response{code: code, schema: nil}) when code in 200..299, do: :ok
+  def type(%Response{code: code, schema: s}) when code in 200..299, do: {:ok, type(s)}
+  def type(%Response{code: code, schema: nil}) when is_integer(code), do: {:error, var("integer")}
+  def type(%Response{code: code, schema: s}) when is_integer(code), do: {:error, type(s)}
 
   def type(%Operation{} = op) do
     name = key(op.id)
@@ -233,13 +241,15 @@ defmodule Tesla.OpenApi3.Gen do
 
   ## OPERATION
 
+  @body Macro.var(:body, __MODULE__)
+
   def operation(%Operation{id: id, method: method} = op) do
     name = key(id)
     in_args = in_args(op)
     out_args = out_args(op)
 
     quote do
-      # @doc unquote(doc_operation(op))
+      @doc unquote(Doc.operation(op))
       @spec unquote(type(op))
 
       def unquote(name)(unquote_splicing(in_args)) do
@@ -263,7 +273,7 @@ defmodule Tesla.OpenApi3.Gen do
 
   defp in_client, do: quote(do: client \\ new())
   defp in_path_params(%{path_params: params}), do: Enum.map(params, &var(&1.name))
-  defp in_body_params(%{request_body: %{}}), do: var("body")
+  defp in_body_params(%{request_body: %{}}), do: @body
   defp in_body_params(%{body_params: params}), do: Enum.map(params, &var(&1.name))
   defp in_query_params(%{query_params: []}), do: []
   defp in_query_params(%{query_params: _}), do: quote(do: query \\ [])
@@ -282,7 +292,7 @@ defmodule Tesla.OpenApi3.Gen do
   defp out_path(%{path: path}),
     do: Regex.replace(~r/\{([^}]+?)\}/, path, fn _, name -> ":" <> Macro.underscore(name) end)
 
-  defp out_body_params(%{request_body: %{} = schema}), do: encode(schema, var("body"))
+  defp out_body_params(%{request_body: %{} = schema}), do: encode(schema, @body)
   defp out_body_params(%{body_params: []}), do: []
   defp out_body_params(%{body_params: _params}), do: raise("Not Implemented Yet")
 
@@ -311,8 +321,54 @@ defmodule Tesla.OpenApi3.Gen do
   defp out_path_params(%{path_params: params}),
     do: Enum.map(params, &{key(&1.name), var(&1.name)})
 
-  defp responses(op) do
-    []
+  defp responses(%{responses: responses}) do
+    for response <- responses do
+      [match] = response(response)
+      match
+    end
+  end
+
+  defp response(%Response{code: :default, schema: nil}) do
+    quote do
+      {:ok, _} -> :error
+    end
+  end
+
+  defp response(%Response{code: :default, schema: schema}) do
+    quote do
+      {:ok, %{body: unquote(@body)}} ->
+        with {:ok, data} <- unquote(decode(schema, @body)) do
+          {:error, data}
+        end
+    end
+  end
+
+  defp response(%Response{code: code, schema: nil}) when code in 200..299 do
+    quote do
+      {:ok, %{status: unquote(code)}} -> :ok
+    end
+  end
+
+  defp response(%Response{code: code, schema: schema}) when code in 200..299 do
+    quote do
+      {:ok, %{status: unquote(code), body: unquote(@body)}} ->
+        unquote(decode(schema, @body))
+    end
+  end
+
+  defp response(%Response{code: code, schema: nil}) when is_integer(code) do
+    quote do
+      {:ok, %{status: unquote(code)}} -> {:error, unquote(code)}
+    end
+  end
+
+  defp response(%Response{code: code, schema: schema}) when is_integer(code) do
+    quote do
+      {:ok, %{status: unquote(code), body: unquote(@body)}} ->
+        with {:ok, data} <- unquote(decode(schema, @body)) do
+          {:error, data}
+        end
+    end
   end
 
   defp catchall do

@@ -55,6 +55,12 @@ defmodule Tesla.OpenApi3.Spec do
   # Found in Slack spec
   def schema(%{"additionalProperties" => false}), do: %Any{}
 
+  # wrapped
+  def schema(%{"schema" => schema}), do: schema(schema)
+
+  # TODO: HACK: Handle "content" => "..." correctly
+  def schema(%{"content" => %{"application/json" => schema}}), do: schema(schema)
+
   def fetch(ref), do: schema(dereference(ref))
 
   defp merge_props(schemas) do
@@ -77,13 +83,7 @@ defmodule Tesla.OpenApi3.Spec do
     schemas
     |> Enum.reduce([[], [], []], fn
       %Object{} = x, [os, as, ps] -> [collapse(x, os), as, ps]
-      # %Object{} = x, [[], as, ps] -> [[x], as, ps]
-      # %Object{} = x, [[y], as, ps] -> [[collapse(x, y)], as, ps]
-
       %Array{} = x, [os, as, ps] -> [os, collapse(x, as), ps]
-      # %Array{} = x, [os, [], ps] -> [os, [x], ps]
-      # %Array{} = x, [os, [y], ps] -> [os, [collapse(x, y)], ps]
-
       %Prim{} = x, [os, as, ps] -> [os, as, collapse(x, ps)]
       %Union{} = x, [os, as, ps] -> collapse(x, [os, as, ps])
     end)
@@ -117,6 +117,13 @@ defmodule Tesla.OpenApi3.Spec do
 
   defp collapse(x, []) do
     [x]
+  end
+
+  defp dereference_params(params) do
+    Enum.map(params, fn
+      %{"$ref" => ref} -> dereference(ref)
+      other -> other
+    end)
   end
 
   defp dereference(ref) do
@@ -188,19 +195,23 @@ defmodule Tesla.OpenApi3.Spec do
   end
 
   defp operation(id, method, path, operation) do
+    params = dereference_params(operation["parameters"] || [])
+
     %Operation{
       id: id,
+      summary: operation["summary"],
+      description: operation["description"],
       method: method,
       path: path,
-      path_params: params(operation, "path"),
-      query_params: params(operation, "query"),
-      body_params: params(operation, "body"),
+      path_params: params(params, "path"),
+      query_params: params(params, "query"),
+      body_params: params(params, "body"),
       request_body: request_body(operation),
       responses: responses(operation)
     }
   end
 
-  defp params(%{"parameters" => params}, kind) do
+  defp params(params, kind) do
     for %{"name" => name, "in" => ^kind} = param <- params do
       %Param{name: name, schema: schema(param)}
     end

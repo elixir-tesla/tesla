@@ -48,13 +48,15 @@ defmodule Tesla.OpenApi3 do
   end
 
   defmodule Response do
-    @enforce_keys [:code, :schema]
+    @enforce_keys [:code]
     defstruct code: nil, schema: nil
-    @type t :: %__MODULE__{code: integer | :default, schema: Tesla.OpenApi3.schema()}
+    @type t :: %__MODULE__{code: integer | :default, schema: Tesla.OpenApi3.schema() | nil}
   end
 
   defmodule Operation do
     defstruct id: nil,
+              summary: nil,
+              description: nil,
               path: nil,
               method: nil,
               path_params: [],
@@ -65,6 +67,8 @@ defmodule Tesla.OpenApi3 do
 
     @type t :: %__MODULE__{
             id: binary,
+            summary: binary | nil,
+            description: binary | nil,
             path: binary,
             method: binary,
             path_params: [Param.t()],

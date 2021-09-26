@@ -192,6 +192,10 @@ defmodule Tesla.OpenApi.SpecTest do
       assert schema(%{}) == %Any{}
       assert schema(%{"additionalProperties" => false}) == %Any{}
     end
+
+    test "schema wrapped" do
+      assert schema(%{"schema" => %{"type" => "integer"}}) == %Prim{type: :integer}
+    end
   end
 
   describe "operations/1" do
@@ -201,6 +205,8 @@ defmodule Tesla.OpenApi.SpecTest do
           "/pets" => %{
             "get" => %{
               "operationId" => "findPets",
+              "summary" => "Find pets",
+              "description" => "Find all pets",
               "parameters" => [
                 %{
                   "in" => "query",
@@ -215,6 +221,16 @@ defmodule Tesla.OpenApi.SpecTest do
                   "type" => "integer"
                 }
               ],
+              "requestBody" => %{
+                "required" => true,
+                "content" => %{
+                  "application/json" => %{
+                    "schema" => %{
+                      "type" => "integer"
+                    }
+                  }
+                }
+              },
               "responses" => %{
                 "200" => %{
                   "schema" => %{
@@ -235,12 +251,15 @@ defmodule Tesla.OpenApi.SpecTest do
       assert operations(spec) == [
                %Operation{
                  id: "findPets",
+                 summary: "Find pets",
+                 description: "Find all pets",
                  method: "get",
                  path: "/pets",
                  query_params: [
                    %Param{name: "tags", schema: %Array{of: %Prim{type: :binary}}},
                    %Param{name: "limit", schema: %Prim{type: :integer}}
                  ],
+                 request_body: %Prim{type: :integer},
                  responses: [
                    %Response{
                      code: 200,

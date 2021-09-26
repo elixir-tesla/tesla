@@ -5,9 +5,9 @@ defmodule Tesla.OpenApi.GenTest do
 
   alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
   alias Tesla.OpenApi3.{Model, Operation, Param, Response}
+  alias Tesla.OpenApi3.Spec
   import Tesla.OpenApi3.Gen
   import Tesla.OpenApi3.Clean, only: [clean: 1]
-  import Tesla.OpenApi3.Spec, only: [load: 1]
 
   @var Macro.var(:var, __MODULE__)
 
@@ -112,7 +112,7 @@ defmodule Tesla.OpenApi.GenTest do
     end
 
     test "ref" do
-      load(%{"" => %{"type" => "object"}})
+      Spec.load(%{"" => %{"type" => "object"}})
 
       assert_code type(%Ref{name: "Pet", ref: "#/"}) do
         Petstore.Pet.t()
@@ -256,7 +256,7 @@ defmodule Tesla.OpenApi.GenTest do
     end
 
     test "array of refs" do
-      load(%{"" => %{"type" => "object"}})
+      Spec.load(%{"" => %{"type" => "object"}})
       schema = %Array{of: %Ref{ref: "#/", name: "Pet"}}
 
       assert_code encode(schema, @var) do
@@ -298,7 +298,7 @@ defmodule Tesla.OpenApi.GenTest do
     end
 
     test "ref" do
-      load(%{"" => %{"type" => "object"}})
+      Spec.load(%{"" => %{"type" => "object"}})
       schema = %Ref{name: "Pet", ref: "#/"}
 
       assert_code encode(schema, @var) do
@@ -475,7 +475,7 @@ defmodule Tesla.OpenApi.GenTest do
     end
 
     test "ref" do
-      load(%{"" => %{"type" => "object"}})
+      Spec.load(%{"" => %{"type" => "object"}})
       schema = %Ref{name: "Pet", ref: "#/"}
 
       assert_code decode(schema, @var) do
@@ -500,7 +500,7 @@ defmodule Tesla.OpenApi.GenTest do
 
       # make sure ref to moduleless schema is inlined
       ref = %Ref{name: "name", ref: "#/"}
-      load(%{"" => %{"type" => "string"}})
+      Spec.load(%{"" => %{"type" => "string"}})
 
       assert_code type(ref) do
         name
@@ -646,35 +646,16 @@ defmodule Tesla.OpenApi.GenTest do
   end
 
   describe "operation/1" do
-    # %Operation{
-    #   id: "findPets",
-    #   method: "get",
-    #   path: "/pets",
-    #   query_params: [
-    #     %Param{name: "tags", schema: %Array{of: %Prim{type: :binary}}},
-    #     %Param{name: "limit", schema: %Prim{type: :integer}}
-    #   ],
-    #   responses: [
-    #     %Response{
-    #       code: 200,
-    #       schema: %Array{of: %Ref{name: "Pet", ref: "#/definitions/Pet"}}
-    #     },
-    #     %Response{
-    #       code: :default,
-    #       schema: %Ref{name: "ErrorModel", ref: "#/definitions/ErrorModel"}
-    #     }
-    #   ]
-    # }
-
     test "encode name" do
       op = %Operation{
         id: "deeply.nested.function",
+        summary: "Do this",
         method: "get",
         path: "/"
       }
 
       assert_code operation(op) do
-        # @doc ""
+        @doc "Do this"
         @spec deeply_nested_function(Tesla.Client.t()) :: {:error, any}
         def deeply_nested_function(client \\ new()) do
           case Tesla.get(client, "/") do
@@ -701,7 +682,7 @@ defmodule Tesla.OpenApi.GenTest do
       }
 
       assert_code operation(op) do
-        # @doc ""
+        @doc ""
         @spec one(Tesla.Client.t(), integer, [opt]) :: {:error, any}
               when opt: {:limit, integer} | {:sort, binary}
         def one(client \\ new(), id, query \\ []) do
@@ -717,77 +698,134 @@ defmodule Tesla.OpenApi.GenTest do
       end
     end
 
-    # test "referenced params" do
-    #   spec = %{
-    #     "paths" => %{
-    #       "/one/{id}" => %{
-    #         "get" => %{
-    #           "operationId" => "one",
-    #           "parameters" => [
-    #             %{
-    #               "name" => "id",
-    #               "in" => "path",
-    #               "schema" => %{"type" => "integer"}
-    #             }
-    #           ],
-    #           "responses" => []
-    #         }
-    #       },
-    #       "/two/{id}" => %{
-    #         "get" =>
-    #           op = %{
-    #             "operationId" => "two",
-    #             "parameters" => [
-    #               %{"$ref" => "#/paths/~1one~1%7Bid%7D/get/parameters/0"}
-    #             ],
-    #             "responses" => []
-    #           }
-    #       }
-    #     }
-    #   }
+    test "referenced params" do
+      spec = %{
+        "paths" => %{
+          "/one/{id}" => %{
+            "get" => %{
+              "operationId" => "one",
+              "parameters" => [
+                %{
+                  "name" => "id",
+                  "in" => "path",
+                  "schema" => %{"type" => "integer"}
+                }
+              ],
+              "responses" => []
+            }
+          },
+          "/two/{id}" => %{
+            "get" => %{
+              "operationId" => "two",
+              "parameters" => [
+                %{"$ref" => "#/paths/~1one~1%7Bid%7D/get/parameters/0"}
+              ],
+              "responses" => []
+            }
+          }
+        }
+      }
 
-    #   :erlang.put(:__tesla__spec, spec)
+      Spec.load(spec)
+      [_, op] = Spec.operations(spec)
 
-    #   assert_quoted operation("get", "/two/{id}", op) do
-    #     @doc ""
-    #     @spec two(Tesla.Client.t(), integer) :: {:error, any}
-    #     def two(client \\ new(), id) do
-    #       case Tesla.get(client, "/two/:id", opts: [path_params: [id: id]]) do
-    #         {:error, error} -> {:error, error}
-    #       end
-    #     end
+      assert_code operation(op) do
+        @doc ""
+        @spec two(Tesla.Client.t(), integer) :: {:error, any}
+        def two(client \\ new(), id) do
+          case Tesla.get(client, "/two/:id", opts: [path_params: [id: id]]) do
+            {:error, error} -> {:error, error}
+          end
+        end
 
-    #     defoverridable(two: 2)
-    #   end
-    # end
+        defoverridable(two: 2)
+      end
+    end
 
-    # test "request body" do
-    #   op = %{
-    #     "operationId" => "one",
-    #     "requestBody" => %{
-    #       "required" => true,
-    #       "content" => %{
-    #         "application/json" => %{
-    #           "schema" => %{
-    #             "type" => "integer"
-    #           }
-    #         }
-    #       }
-    #     },
-    #     "responses" => []
-    #   }
+    test "request body" do
+      op = %Operation{
+        id: "one",
+        method: "post",
+        path: "/",
+        request_body: %Prim{type: :integer}
+      }
 
-    #   assert_quoted operation("post", "/", op) do
-    #     @doc ""
-    #     @spec one(Tesla.Client.t(), integer) :: {:error, any}
-    #     def one(client \\ new(), body) do
-    #       case Tesla.post(client, "/", body) do
-    #         {:error, error} -> {:error, error}
-    #       end
-    #     end
+      assert_code operation(op) do
+        @doc ""
+        @spec one(Tesla.Client.t(), integer) :: {:error, any}
+        def one(client \\ new(), body) do
+          case Tesla.post(client, "/", body) do
+            {:error, error} -> {:error, error}
+          end
+        end
 
-    #     defoverridable(one: 2)
-    #   end
-    # end
+        defoverridable(one: 2)
+      end
+    end
+
+    test "responses" do
+      op = %Operation{
+        id: "one",
+        method: "get",
+        path: "/",
+        responses: [
+          %Response{code: 200, schema: %Object{props: %{"id" => %Prim{type: :integer}}}},
+          %Response{code: 404},
+          %Response{code: :default, schema: %Prim{type: :binary}}
+        ]
+      }
+
+      assert_code operation(op) do
+        @doc ""
+        @spec one(Tesla.Client.t()) ::
+                {:ok, %{id: integer}} | {:error, integer} | {:error, binary} | {:error, any}
+        def one(client \\ new()) do
+          case Tesla.get(client, "/") do
+            {:ok, %{status: 200, body: body}} ->
+              with({:ok, id} <- {:ok, body["id"]}) do
+                {:ok, %{id: id}}
+              end
+
+            {:ok, %{status: 404}} ->
+              {:error, 404}
+
+            {:ok, %{body: body}} ->
+              with({:ok, data} <- {:ok, body}) do
+                {:error, data}
+              end
+
+            {:error, error} ->
+              {:error, error}
+          end
+        end
+
+        defoverridable(one: 1)
+      end
+
+      assert_code clean(operation(op)) do
+        @doc ""
+        @spec one(Tesla.Client.t()) ::
+                {:ok, %{id: integer}} | {:error, integer} | {:error, binary} | {:error, any}
+        def one(client \\ new()) do
+          case Tesla.get(client, "/") do
+            {:ok, %{status: 200, body: body}} ->
+              {:ok, %{id: body["id"]}}
+
+            {:ok, %{status: 404}} ->
+              {:error, 404}
+
+            {:ok, %{body: body}} ->
+              with({:ok, data} <- {:ok, body}) do
+                {:error, data}
+              end
+
+            {:error, error} ->
+              {:error, error}
+          end
+        end
+
+        defoverridable(one: 1)
+      end
+    end
   end
 end
