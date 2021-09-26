@@ -1,4 +1,4 @@
-defmodule Tesla.OpenApi3.Clean do
+defmodule Tesla.OpenApi.Clean do
   def clean(code), do: Macro.postwalk(code, &c/1)
 
   # Match `cond do; true -> x; end`

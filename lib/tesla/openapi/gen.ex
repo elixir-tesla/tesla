@@ -1,11 +1,28 @@
-defmodule Tesla.OpenApi3.Gen do
-  alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi3.{Model, Operation, Response}
-  alias Tesla.OpenApi3.Spec
-  alias Tesla.OpenApi3.Doc
+defmodule Tesla.OpenApi.Gen do
+  alias Tesla.OpenApi.{Prim, Union, Array, Object, Ref, Any}
+  alias Tesla.OpenApi.{Model, Operation, Response}
+  alias Tesla.OpenApi.Spec
+  alias Tesla.OpenApi.Clean
+  alias Tesla.OpenApi.Doc
+
+  ## GEN
+
+  def gen(%Spec{} = spec) do
+    models = Clean.clean(Enum.map(spec.models, &model/1))
+    operations = Clean.clean(Enum.map(spec.operations, &operation/1))
+    new = new(spec)
+
+    quote do
+      @moduledoc unquote(Doc.module(spec.info))
+      unquote_splicing(models)
+      unquote_splicing(operations)
+      unquote(new)
+    end
+  end
 
   ## TYPES
 
+  def type(%Prim{type: :null}), do: quote(do: nil)
   def type(%Prim{type: :binary}), do: quote(do: binary)
   def type(%Prim{type: :boolean}), do: quote(do: boolean)
   def type(%Prim{type: :integer}), do: quote(do: integer)
@@ -22,7 +39,7 @@ defmodule Tesla.OpenApi3.Gen do
 
   def type(%Ref{name: name, ref: ref}) do
     if moduleless?(Spec.fetch(ref)) do
-      var(name)
+      quote(do: unquote(moduleref()).unquote(var(name)))
     else
       quote(do: unquote(moduleref(name)).t())
     end
@@ -123,6 +140,8 @@ defmodule Tesla.OpenApi3.Gen do
     end
   end
 
+  def encode(%Object{props: props}, var) when props == %{}, do: var
+
   def encode(%Object{props: props}, var) do
     quote do
       %{unquote_splicing(encode_props(props, var))}
@@ -130,7 +149,7 @@ defmodule Tesla.OpenApi3.Gen do
   end
 
   defp encode_props(props, var) do
-    for {name, prop} <- props do
+    for {name, prop} <- sorted(props) do
       {name, encode(prop, quote(do: unquote(var).unquote(key(name))))}
     end
   end
@@ -166,6 +185,8 @@ defmodule Tesla.OpenApi3.Gen do
     end
   end
 
+  def decode(%Object{props: props}, var) when props === %{}, do: {:ok, var}
+
   def decode(%Object{props: props}, var) do
     quote do
       with unquote_splicing(decode_props(props, var)) do
@@ -175,13 +196,13 @@ defmodule Tesla.OpenApi3.Gen do
   end
 
   defp decode_props(props, var) do
-    for {name, prop} <- props do
+    for {name, prop} <- sorted(props) do
       left({:ok, var(name)}, decode(prop, quote(do: unquote(var)[unquote(name)])))
     end
   end
 
   defp props_map(props) do
-    for {name, _prop} <- props, do: {key(name), var(name)}
+    for {name, _prop} <- sorted(props), do: {key(name), var(name)}
   end
 
   ## MATCH
@@ -189,13 +210,14 @@ defmodule Tesla.OpenApi3.Gen do
   def match(%Prim{}, _var), do: true
   def match(%Array{}, var), do: quote(do: is_list(unquote(var)))
   def match(%Object{}, var), do: quote(do: is_map(unquote(var)))
+  def match(%Ref{ref: ref}, var), do: match(Spec.fetch(ref), var)
 
   ## MODEL
 
   def model(%Model{name: name, schema: %Object{props: props}}) do
     var = var("data")
-    types = for {name, prop} <- props, do: {key(name), type(prop)}
-    keys = for {name, _prop} <- props, do: {key(name), nil}
+    types = for {name, prop} <- sorted(props), do: {key(name), type(prop)}
+    keys = for {name, _prop} <- sorted(props), do: {key(name), nil}
 
     quote do
       defmodule unquote(modulename(name)) do
@@ -294,6 +316,7 @@ defmodule Tesla.OpenApi3.Gen do
 
   defp out_body_params(%{request_body: %{} = schema}), do: encode(schema, @body)
   defp out_body_params(%{body_params: []}), do: []
+  defp out_body_params(%{body_params: [%{name: name, schema: s}]}), do: encode(s, var(name))
   defp out_body_params(%{body_params: _params}), do: raise("Not Implemented Yet")
 
   defp out_keyword(op) do
@@ -377,6 +400,58 @@ defmodule Tesla.OpenApi3.Gen do
     end
   end
 
+  ## NEW
+
+  def new(spec) do
+    middleware =
+      List.flatten([
+        mid_url(spec),
+        mid_path(spec),
+        mid_encoders(spec),
+        mid_decoders(spec)
+      ])
+
+    quote do
+      @middleware unquote(middleware)
+
+      @spec new() :: Tesla.Client.t()
+      def new(), do: new([], nil)
+
+      @spec new([Tesla.Client.middleware()], Tesla.Client.adapter()) :: Tesla.Client.t()
+      def new(middleware, adapter) do
+        Tesla.client(@middleware ++ middleware, adapter)
+      end
+
+      defoverridable new: 0, new: 2
+    end
+  end
+
+  defp mid_url(spec) do
+    scheme = if("https" in spec.schemes, do: "https", else: "http")
+
+    case {spec.host, spec.base_path} do
+      {"", ""} -> []
+      {"", base} -> {Tesla.Middleware.BaseUrl, base}
+      {host, base} -> {Tesla.Middleware.BaseUrl, scheme <> "://" <> host <> base}
+    end
+  end
+
+  defp mid_path(_spec), do: Tesla.Middleware.PathParams
+
+  defp mid_encoders(spec) do
+    Enum.map(spec.consumes, fn
+      "application/json" -> Tesla.Middleware.EncodeJson
+      _ -> []
+    end)
+  end
+
+  defp mid_decoders(_spec) do
+    [
+      Tesla.Middleware.DecodeJson,
+      Tesla.Middleware.DecodeFormUrlencoded
+    ]
+  end
+
   ## UTILS
 
   defp key(name), do: name |> Macro.underscore() |> String.replace("/", "_") |> String.to_atom()
@@ -386,7 +461,7 @@ defmodule Tesla.OpenApi3.Gen do
     do: {:__aliases__, [alias: false], [String.to_atom(Macro.camelize(name))]}
 
   defp moduleref(name), do: Module.concat([moduleref(), Macro.camelize(name)])
-  defp moduleref(), do: :erlang.get(:__tesla__caller)
+  defp moduleref(), do: Spec.get_caller()
 
   defp right(match, body), do: {:->, [], [[match], body]}
   defp left(match, body), do: {:<-, [], [match, body]}
@@ -408,4 +483,6 @@ defmodule Tesla.OpenApi3.Gen do
 
   defp wrapped([]), do: []
   defp wrapped(x), do: [x]
+
+  defp sorted(props), do: Enum.sort_by(props, &elem(&1, 0))
 end

@@ -1,9 +1,9 @@
 defmodule Tesla.OpenApi.SpecTest do
   use ExUnit.Case
 
-  alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi3.{Operation, Param, Response}
-  import Tesla.OpenApi3.Spec
+  alias Tesla.OpenApi.{Prim, Union, Array, Object, Ref, Any}
+  alias Tesla.OpenApi.{Operation, Param, Response}
+  import Tesla.OpenApi.Spec
 
   describe "schema/1" do
     test "type: boolean" do
@@ -127,7 +127,7 @@ defmodule Tesla.OpenApi.SpecTest do
              }
     end
 
-    test "Object" do
+    test "object with properties" do
       assert schema(%{
                "type" => "object",
                "properties" => %{
@@ -140,9 +140,13 @@ defmodule Tesla.OpenApi.SpecTest do
                  "name" => %Prim{type: :binary}
                }
              }
+    end
 
+    test "object without properties" do
       assert schema(%{"type" => "object"}) == %Object{props: %{}}
+    end
 
+    test "object with allOf" do
       assert schema(%{
                "type" => "object",
                "allOf" => [
@@ -153,6 +157,63 @@ defmodule Tesla.OpenApi.SpecTest do
                props: %{
                  "id" => %Prim{type: :integer},
                  "name" => %Prim{type: :binary}
+               }
+             }
+    end
+
+    test "object with allOf and references" do
+      spec = %{
+        "definitions" => %{
+          "Pet" => %{
+            "type" => "object",
+            "allOf" => [
+              %{
+                "$ref" => "#/definitions/NewPet"
+              },
+              %{
+                "required" => [
+                  "id"
+                ],
+                "properties" => %{
+                  "id" => %{
+                    "type" => "integer",
+                    "format" => "int64"
+                  }
+                }
+              }
+            ]
+          },
+          "NewPet" => %{
+            "type" => "object",
+            "required" => [
+              "name"
+            ],
+            "properties" => %{
+              "name" => %{
+                "type" => "string"
+              },
+              "tag" => %{
+                "type" => "string"
+              }
+            }
+          }
+        }
+      }
+
+      load(spec)
+
+      assert schema(spec["definitions"]["NewPet"]) == %Object{
+               props: %{
+                 "name" => %Prim{type: :binary},
+                 "tag" => %Prim{type: :binary}
+               }
+             }
+
+      assert schema(spec["definitions"]["Pet"]) == %Object{
+               props: %{
+                 "id" => %Prim{type: :integer},
+                 "name" => %Prim{type: :binary},
+                 "tag" => %Prim{type: :binary}
                }
              }
     end

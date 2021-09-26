@@ -1,19 +1,17 @@
-defmodule Tesla.OpenApi3.Doc do
-  # def module(spec) do
-  #   info = spec["info"]
+defmodule Tesla.OpenApi.Doc do
+  def module(info) do
+    version =
+      case info.version do
+        nil -> nil
+        vsn -> "Version: #{vsn}"
+      end
 
-  #   version =
-  #     case info["version"] do
-  #       nil -> nil
-  #       vsn -> "Version: #{vsn}"
-  #     end
-
-  #   doc_merge([
-  #     info["title"],
-  #     info["description"],
-  #     version
-  #   ])
-  # end
+    merge([
+      info.title,
+      info.description,
+      version
+    ])
+  end
 
   # def schema(schema) do
   # merge([

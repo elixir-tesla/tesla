@@ -3,11 +3,11 @@ defmodule Tesla.OpenApi.GenTest do
 
   import Tesla.OpenApiTest.Helpers
 
-  alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi3.{Model, Operation, Param, Response}
-  alias Tesla.OpenApi3.Spec
-  import Tesla.OpenApi3.Gen
-  import Tesla.OpenApi3.Clean, only: [clean: 1]
+  alias Tesla.OpenApi.{Prim, Union, Array, Object, Ref, Any}
+  alias Tesla.OpenApi.{Model, Operation, Param, Response}
+  alias Tesla.OpenApi.Spec
+  import Tesla.OpenApi.Gen
+  import Tesla.OpenApi.Clean, only: [clean: 1]
 
   @var Macro.var(:var, __MODULE__)
 
@@ -272,11 +272,11 @@ defmodule Tesla.OpenApi.GenTest do
       schema = %Object{props: %{}}
 
       assert_code encode(schema, @var) do
-        %{}
+        var
       end
 
       assert_code clean(encode(schema, @var)) do
-        %{}
+        var
       end
     end
 
@@ -445,13 +445,11 @@ defmodule Tesla.OpenApi.GenTest do
       schema = %Object{props: %{}}
 
       assert_code decode(schema, @var) do
-        with do
-          {:ok, %{}}
-        end
+        {:ok, var}
       end
 
       assert_code clean(decode(schema, @var)) do
-        {:ok, %{}}
+        {:ok, var}
       end
     end
 
@@ -503,7 +501,7 @@ defmodule Tesla.OpenApi.GenTest do
       Spec.load(%{"" => %{"type" => "string"}})
 
       assert_code type(ref) do
-        name
+        Petstore.name()
       end
 
       assert_code encode(ref, @var) do

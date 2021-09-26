@@ -1,9 +1,17 @@
-defmodule Tesla.OpenApi3.Spec do
-  alias Tesla.OpenApi3.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi3.{Model, Operation, Param, Response}
+defmodule Tesla.OpenApi.Spec do
+  alias Tesla.OpenApi.{Prim, Union, Array, Object, Ref, Any}
+  alias Tesla.OpenApi.{Model, Operation, Param, Response}
 
-  defstruct spec: %{}, models: %{}, operations: %{}
-  @type t :: %__MODULE__{spec: map(), models: map(), operations: map()}
+  defstruct spec: %{},
+            info: %{},
+            host: nil,
+            base_path: nil,
+            schemes: [],
+            consumes: [],
+            models: %{},
+            operations: %{}
+
+  @type t :: %__MODULE__{spec: map(), info: map(), models: map(), operations: map()}
 
   @spec schema(map) :: Tesla.OpenApi3.schema()
 
@@ -63,20 +71,23 @@ defmodule Tesla.OpenApi3.Spec do
 
   def fetch(ref), do: schema(dereference(ref))
 
+  def get_caller, do: :erlang.get(:__tesla__caller)
+  def put_caller(caller), do: :erlang.put(:__tesla__caller, caller)
+
   defp merge_props(schemas) do
     Enum.reduce(schemas, %{}, fn schema, acc ->
-      props =
-        case schema(schema) do
-          %Object{props: props} -> props
-          %Ref{ref: ref} -> dereference(ref)
-        end
-
-      Map.merge(acc, props)
+      Map.merge(acc, extract_props(schema(schema)))
     end)
   end
 
+  defp extract_props(%Object{props: props}), do: props
+  defp extract_props(%Ref{ref: ref}), do: extract_props(fetch(ref))
+
   defp collapse(%Union{of: of}) do
-    %Union{of: List.flatten(collapse(of))}
+    case List.flatten(collapse(of)) do
+      [one] -> one
+      more -> %Union{of: more}
+    end
   end
 
   defp collapse(schemas) when is_list(schemas) do
@@ -84,8 +95,8 @@ defmodule Tesla.OpenApi3.Spec do
     |> Enum.reduce([[], [], []], fn
       %Object{} = x, [os, as, ps] -> [collapse(x, os), as, ps]
       %Array{} = x, [os, as, ps] -> [os, collapse(x, as), ps]
-      %Prim{} = x, [os, as, ps] -> [os, as, collapse(x, ps)]
       %Union{} = x, [os, as, ps] -> collapse(x, [os, as, ps])
+      x, [os, as, ps] -> [os, as, collapse(x, ps)]
     end)
   end
 
@@ -98,13 +109,13 @@ defmodule Tesla.OpenApi3.Spec do
     [%Array{of: collapse(%Union{of: [x, y]})}]
   end
 
-  defp collapse(%Prim{} = x, prims) do
-    Enum.uniq(prims ++ [x])
-  end
-
   defp collapse(%Union{of: of}, [yos, yas, yps]) do
     [xos, xas, xps] = collapse(of)
     [collapse(xos, yos), collapse(xas, yas), collapse(xps, yps)]
+  end
+
+  defp collapse(%{} = x, prims) do
+    Enum.uniq(prims ++ [x])
   end
 
   defp collapse([x], ys) do
@@ -170,12 +181,25 @@ defmodule Tesla.OpenApi3.Spec do
 
     %__MODULE__{
       spec: spec,
+      host: spec["host"] || "",
+      base_path: spec["basePath"] || "",
+      schemes: spec["schemes"] || [],
+      consumes: spec["consumes"] || [],
+      info: info(spec),
       models: models(spec),
       operations: operations(spec)
     }
   end
 
   def load(spec), do: :erlang.put(:__tesla__spec, spec)
+
+  defp info(spec) do
+    %{
+      title: spec["info"]["title"],
+      description: spec["info"]["description"],
+      version: spec["info"]["version"]
+    }
+  end
 
   # 2.x
   defp models(%{"definitions" => defs}), do: models(defs)

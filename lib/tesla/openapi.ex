@@ -1,55 +1,102 @@
 defmodule Tesla.OpenApi do
+  defmodule Prim do
+    @enforce_keys [:type]
+    defstruct type: nil
+    @type t :: %__MODULE__{type: :binary | :integer | :number | :boolean}
+  end
+
+  defmodule Union do
+    @enforce_keys [:of]
+    defstruct of: nil
+    @type t :: %__MODULE__{of: [Object.t() | Array.t() | Prim.t()]}
+  end
+
+  defmodule Array do
+    @enforce_keys [:of]
+    defstruct of: nil
+    @type t :: %__MODULE__{of: Tesla.OpenApi.schema()}
+  end
+
+  defmodule Object do
+    defstruct props: %{}
+    @type t :: %__MODULE__{props: %{binary => Tesla.OpenApi.schema()}}
+  end
+
+  defmodule Ref do
+    @enforce_keys [:ref]
+    defstruct ref: nil, name: nil
+    @type t :: %__MODULE__{name: binary | nil, ref: binary}
+  end
+
+  defmodule Any do
+    defstruct []
+    @type t :: %__MODULE__{}
+  end
+
+  @type schema :: Prim.t() | Union.t() | Array.t() | Object.t() | Ref.t() | Any.t()
+
+  defmodule Model do
+    @enforce_keys [:name, :schema]
+    defstruct name: nil, schema: nil
+    @type t :: %__MODULE__{name: binary, schema: Tesla.OpenApi.schema()}
+  end
+
+  defmodule Param do
+    @enforce_keys [:name, :schema]
+    defstruct name: nil, schema: nil
+    @type t :: %__MODULE__{name: binary, schema: Tesla.OpenApi.schema()}
+  end
+
+  defmodule Response do
+    @enforce_keys [:code]
+    defstruct code: nil, schema: nil
+    @type t :: %__MODULE__{code: integer | :default, schema: Tesla.OpenApi.schema() | nil}
+  end
+
+  defmodule Operation do
+    defstruct id: nil,
+              summary: nil,
+              description: nil,
+              path: nil,
+              method: nil,
+              path_params: [],
+              query_params: [],
+              body_params: [],
+              request_body: nil,
+              responses: []
+
+    @type t :: %__MODULE__{
+            id: binary,
+            summary: binary | nil,
+            description: binary | nil,
+            path: binary,
+            method: binary,
+            path_params: [Param.t()],
+            query_params: [Param.t()],
+            body_params: [Param.t()],
+            request_body: Tesla.OpenApi.schema() | nil,
+            responses: [Response.t()]
+          }
+  end
+
+  alias Tesla.OpenApi.Spec
+  alias Tesla.OpenApi.Gen
+
   defmacro __using__(opts \\ []) do
     file = Keyword.fetch!(opts, :spec)
     dump = Keyword.get(opts, :dump, false)
 
-    spec = file |> File.read!() |> Jason.decode!()
-    [{config, _}] = Code.compile_quoted(config(__CALLER__.module, opts))
+    # [{config, _}] = Code.compile_quoted(config(__CALLER__.module, opts))
 
-    # use process dict to store caller module and spec
-    :erlang.put(:__tesla__caller, __CALLER__.module)
-    :erlang.put(:__tesla__spec, spec)
+    Spec.put_caller(__CALLER__.module)
+    spec = Spec.read(file)
+    code = Gen.gen(spec)
 
     quote do
       @external_resource unquote(file)
-      @moduledoc unquote(doc_module(spec))
-      unquote_splicing(optimize(models(spec)))
-      unquote_splicing(optimize(operations(spec, config)))
-      unquote(new(spec))
+      unquote(code)
     end
-    # |> print()
     |> dump(dump)
-  end
-
-  defp config(mod, opts) do
-    op_name =
-      case opts[:operations][:name] do
-        nil -> quote(do: name)
-        fun -> quote(do: unquote(fun).(name))
-      end
-
-    generate =
-      case opts[:operations][:only] do
-        only when is_list(only) -> quote(do: name in unquote(only))
-        nil -> quote(do: name)
-      end
-
-    quote do
-      defmodule unquote(:"#{mod}_config") do
-        @moduledoc false
-        def op_name(name), do: unquote(op_name)
-        def generate?(name), do: unquote(generate)
-      end
-    end
-  end
-
-  defp print(code) do
-    code
-    |> Macro.to_string()
-    |> Code.format_string!()
-    |> IO.puts()
-
-    code
   end
 
   defp dump(code, false), do: code
@@ -70,948 +117,27 @@ defmodule Tesla.OpenApi do
     code
   end
 
-  def decode_list(nil, _fun), do: {:ok, nil}
-  def decode_list(list, _fun) when not is_list(list), do: {:ok, list}
+  # [{config, _}] = Code.compile_quoted(config(__CALLER__.module, opts))
+
+  # defp config(mod, opts) do
+  #   op_name =
+  #     case opts[:operations][:name] do
+  #       nil -> quote(do: name)
+  #       fun -> quote(do: unquote(fun).(name))
+  #     end
+
+  #   generate =
+  #     case opts[:operations][:only] do
+  #       only when is_list(only) -> quote(do: name in unquote(only))
+  #       nil -> quote(do: name)
+  #     end
 
-  def decode_list(list, fun) do
-    list
-    |> Enum.reverse()
-    |> Enum.reduce({:ok, []}, fn
-      data, {:ok, items} ->
-        with {:ok, item} <- fun.(data), do: {:ok, [item | items]}
-
-      _, error ->
-        error
-    end)
-  end
-
-  def encode_list(nil, _fun), do: nil
-  def encode_list(list, fun), do: Enum.map(list, fun)
-
-  def encode_query(query, keys) do
-    Enum.reduce(keys, [], fn
-      {key, format}, qs ->
-        case query[key] do
-          nil -> qs
-          val -> Keyword.put(qs, key, encode_query_value(val, format))
-        end
-    end)
-  end
-
-  defp encode_query_value(value, "csv"), do: Enum.join(value, ",")
-  defp encode_query_value(value, "int32"), do: value
-  defp encode_query_value(value, nil), do: value
-
-  @primitives ["integer", "number", "string", "boolean", "null"]
-
-  ## MODELS
-
-  # 2.x
-  defp models(%{"definitions" => defs}), do: models(defs)
-  # 3.x
-  defp models(%{"components" => %{"schemas" => defs}}), do: models(defs)
-  defp models(defs) when is_list(defs) or is_map(defs), do: Enum.map(defs, &model/1)
-
-  def model({name, schema}), do: model(name, schema)
-
-  def model(name, %{"type" => type} = schema) when type in @primitives do
-    quote do
-      @type unquote(var(name)) :: unquote(type(schema))
-    end
-  end
-
-  def model(name, %{"allOf" => allof}) do
-    model(name, %{"type" => "object", "properties" => combine_props(allof)})
-  end
-
-  # Special case for nullable type
-  def model(name, %{"type" => ["null", _]} = schema) do
-    quote do
-      @type unquote(var(name)) :: unquote(type(schema))
-    end
-  end
-
-  def model(name, %{"type" => [type, "null"]}), do: model(name, %{"type" => ["null", type]})
-
-  def model(name, %{"type" => "object", "properties" => props} = schema) do
-    var = var("data")
-    struct = Enum.map(props, fn {name, _} -> {key(name), nil} end)
-    types = Enum.map(props, fn {name, prop} -> {key(name), type(prop)} end)
-
-    quote do
-      defmodule unquote(defmodule_name(name)) do
-        @moduledoc unquote(doc_schema(schema))
-        defstruct unquote(struct)
-        @type t :: %__MODULE__{unquote_splicing(types)}
-
-        def decode(unquote(var)) do
-          with unquote_splicing(decode_props(props, var)) do
-            {:ok, %__MODULE__{unquote_splicing(build_props_map(props))}}
-          end
-        end
-
-        def encode(unquote(var)) do
-          %{unquote_splicing(encode_props(props, var))}
-        end
-      end
-    end
-  end
-
-  def model(name, schema) do
-    var = var("data")
-
-    quote do
-      defmodule unquote(defmodule_name(name)) do
-        @moduledoc unquote(doc_schema(schema))
-        @type t :: unquote(type(schema))
-        def decode(unquote(var)), do: unquote(decode(schema, var))
-        def encode(unquote(var)), do: unquote(encode(schema, var))
-      end
-    end
-  end
-
-  defp build_props_map(props) do
-    for {name, _prop} <- props do
-      {key(name), var(name)}
-    end
-  end
-
-  defp decode_props(props, var) do
-    for {name, prop} <- props do
-      item = var(name)
-      data = quote(do: unquote(var)[unquote(name)])
-      {:<-, [], [{:ok, item}, decode(prop, data)]}
-    end
-  end
-
-  defp encode_props(props, var) do
-    for {name, prop} <- props do
-      {name, encode(prop, quote(do: unquote(var).unquote(key(name))))}
-    end
-  end
-
-  defp decode_oneof(schemas, var) do
-    for schema <- schemas do
-      {:<-, [], [quote(do: {:error, _}), decode(schema, var)]}
-    end
-  end
-
-  def decode(nil, var), do: {:ok, var}
-
-  def decode(empty, var) when empty == %{}, do: {:ok, var}
-
-  def decode(%{"type" => type}, var) when type in @primitives, do: {:ok, var}
-
-  # TODO: Replace with nullable vars
-  def decode(%{"type" => "null"}, var) do
-    {:ok, var}
-  end
-
-  def decode(%{"type" => "array", "items" => items}, var) when is_list(items) do
-    data = var("data")
-
-    quote do
-      unquote(__MODULE__).decode_list(unquote(var), fn unquote(data) ->
-        with unquote_splicing(decode_oneof(items, data)) do
-          {:error, :invalid_value}
-        end
-      end)
-    end
-  end
-
-  def decode(%{"items" => items}, var) when is_map(items) do
-    data = var("data")
-
-    quote do
-      unquote(__MODULE__).decode_list(unquote(var), fn unquote(data) ->
-        unquote(decode(items, data))
-      end)
-    end
-  end
-
-  def decode(%{"type" => "array"}, var), do: {:ok, var}
-
-  def decode(%{"type" => ["null", type]}, var), do: decode(%{"type" => type}, var)
-  def decode(%{"type" => [type, "null"]}, var), do: decode(%{"type" => type}, var)
-
-  def decode(%{"allOf" => allof}, var) do
-    decode(%{"type" => "object", "properties" => combine_props(allof)}, var)
-  end
-
-  def decode(%{"type" => "object", "properties" => props}, var) do
-    quote do
-      with unquote_splicing(decode_props(props, var)) do
-        {:ok, %{unquote_splicing(build_props_map(props))}}
-      end
-    end
-  end
-
-  # TODO: Handle additionalProperties
-  def decode(%{"type" => "object"}, var), do: {:ok, var}
-
-  # TODO: Optimize and remove null from types
-  # TODO: Optimize when there is only one type in the list
-  def decode(%{"type" => [_ | _] = types}, var) do
-    schemas = Enum.map(types, fn t -> %{"type" => t} end)
-
-    quote do
-      with unquote_splicing(decode_oneof(schemas, var)) do
-        {:error, :invalid_value}
-      end
-    end
-  end
-
-  def decode(%{"anyOf" => schemas}, var) when is_list(schemas) do
-    decode_anyof(schemas, var)
-  end
-
-  def decode(%{"items" => schemas}, var) when is_list(schemas) do
-    decode_anyof(schemas, var)
-  end
-
-  def decode(%{"$ref" => ref}, var), do: decode(dereference(ref), var)
-
-  # TODO: Handle other/multiple content formats
-  def decode(%{"content" => content}, var), do: decode(content["application/json"], var)
-
-  def decode(%{"schema" => schema}, var), do: decode(schema, var)
-
-  def decode(%{} = schema, var), do: var
-
-  def decode({_name, %{"type" => type} = schema}, var) when type in @primitives do
-    decode(schema, var)
-  end
-
-  def decode({name, _}, var) do
-    quote(do: unquote(defmodule_ref(name)).decode(unquote(var)))
-  end
-
-  defp decode_anyof(schemas, var) do
-    clauses =
-      schemas
-      |> merge()
-      |> Enum.map(&decode_anyof_clause(&1, var))
-
-    quote do
-      cond do
-        unquote(clauses)
-      end
-    end
-  end
-
-  defp decode_anyof_clause(schema, var) do
-    {:->, [], [[decode_anyof_match(schema, var)], decode(schema, var)]}
-  end
-
-  defp decode_anyof_match(%{"type" => "object"}, var) do
-    quote(do: is_map(unquote(var)))
-  end
-
-  defp decode_anyof_match(%{"items" => items}, var) when is_map(items) do
-    quote(do: is_list(unquote(var)))
-  end
-
-  defp decode_anyof_match(_schema, _var) do
-    true
-  end
-
-  def encode(%{"type" => "array", "items" => items}, var) do
-    item = var("item")
-
-    quote do
-      unquote(__MODULE__).encode_list(unquote(var), fn unquote(item) ->
-        unquote(encode(items, item))
-      end)
-    end
-  end
-
-  def encode(%{"type" => type}, var) when type in @primitives, do: var
-  def encode(%{"schema" => schema}, var), do: encode(schema, var)
-
-  def encode(%{"type" => "object", "properties" => props}, var) do
-    quote do
-      %{unquote_splicing(encode_props(props, var))}
-    end
-  end
-
-  def encode(%{"type" => [_ | _] = types}, var), do: encode_anyof(types_to_schemas(types), var)
-  def encode(%{"items" => schemas}, var) when is_list(schemas), do: encode_anyof(schemas, var)
-  def encode(%{"anyOf" => schemas}, var) when is_list(schemas), do: encode_anyof(schemas, var)
-
-  def encode(%{"$ref" => ref}, var), do: encode(dereference(ref), var)
-
-  # TODO: Handle other/multiple content formats
-  def encode(%{"content" => content}, var), do: encode(content["application/json"], var)
-
-  def encode(%{}, var), do: var
-
-  def encode({_name, %{"type" => type}}, var) when type in @primitives, do: var
-
-  def encode({name, _}, var) do
-    quote(do: unquote(defmodule_ref(name)).encode(unquote(var)))
-  end
-
-  defp encode_anyof([schema], var), do: encode(schema, var)
-
-  defp encode_anyof(schemas, var) do
-    clauses =
-      schemas
-      |> merge()
-      |> Enum.map(&encode_anyof_clause(&1, var))
-
-    quote do
-      cond do
-        unquote(clauses)
-      end
-    end
-  end
-
-  defp encode_anyof_clause(schema, var) do
-    {:->, [], [[encode_anyof_match(schema, var)], encode(schema, var)]}
-  end
-
-  defp encode_anyof_match(%{"type" => "object"}, var) do
-    quote(do: is_map(unquote(var)))
-  end
-
-  defp encode_anyof_match(%{"items" => items}, var) when is_map(items) do
-    quote(do: is_list(unquote(var)))
-  end
-
-  defp encode_anyof_match(_schema, _var) do
-    true
-  end
-
-  # defp encode_anyof(schemas, var) do
   #   quote do
-  #     case unquote(var) do
-  #       unquote(Enum.map(schemas, &encode_anyof_match(&1, var)))
+  #     defmodule unquote(:"#{mod}_config") do
+  #       @moduledoc false
+  #       def op_name(name), do: unquote(op_name)
+  #       def generate?(name), do: unquote(generate)
   #     end
   #   end
   # end
-
-  # defp encode_anyof_match(schema, var) do
-  #   match = encode_match(schema)
-  #   encode = encode(schema, var)
-
-  #   {:->, [], [[match], encode]}
-  # end
-
-  # defp encode_match(%{"type" => "string"}), do: quote(do: x when is_binary(x))
-  # defp encode_match(%{"type" => "integer"}), do: quote(do: x when is_integer(x))
-
-  ## TYPES
-
-  # TODO: Handle required properties
-
-  def type(nil), do: nil
-  def type(empty) when empty == %{}, do: quote(do: any)
-  def type(%{"type" => "string"}), do: quote(do: binary)
-  def type(%{"type" => "boolean"}), do: quote(do: boolean)
-  def type(%{"type" => "integer"}), do: quote(do: integer)
-  def type(%{"type" => "number"}), do: quote(do: number)
-  def type(%{"type" => "null"}), do: nil
-
-  def type(%{"type" => "array", "items" => items}) when is_list(items) do
-    types = Enum.map(items, &type(&1))
-    quote(do: list(unquote(sumtype(types))))
-  end
-
-  def type(%{"items" => items}) when is_map(items) do
-    quote(do: list(unquote(type(items))))
-  end
-
-  def type(%{"type" => "array"}), do: quote(do: list)
-
-  def type(%{"schema" => schema}), do: type(schema)
-  def type(%{"$ref" => ref}), do: type(dereference(ref))
-
-  def type(%{"allOf" => allof}) do
-    type(%{"type" => "object", "properties" => combine_props(allof)})
-  end
-
-  def type(%{"type" => "object", "properties" => []}) do
-    quote(do: map())
-  end
-
-  def type(%{"type" => "object", "properties" => props}) do
-    types = for {name, prop} <- props, do: {key(name), type(prop)}
-    quote(do: %{unquote_splicing(types)})
-  end
-
-  def type(%{"type" => "object"} = schema) do
-    type(Map.put(schema, "properties", []))
-  end
-
-  # Special case for nullable type
-  def type(%{"type" => ["null", type]}), do: sumtype([type(%{"type" => type}), type(nil)])
-  def type(%{"type" => [type, "null"]}), do: sumtype([type(%{"type" => type}), type(nil)])
-
-  def type(%{"anyOf" => schemas}) when is_list(schemas), do: type_anyof(schemas)
-  def type(%{"items" => schemas}) when is_list(schemas), do: type_anyof(schemas)
-  def type(%{"type" => [_ | _] = types}), do: type_anyof(types_to_schemas(types))
-
-  # TODO: Handle other/multiple content formats
-  def type(%{"content" => content}), do: type(content["application/json"])
-
-  def type(%{}), do: quote(do: map())
-
-  def type({name, %{"type" => type}}) when type in @primitives do
-    quote do
-      unquote(defmodule_ref()).unquote(var(name))
-    end
-  end
-
-  def type({name, _}), do: quote(do: unquote(defmodule_ref(name)).t())
-
-  defp type_anyof(schemas) do
-    schemas
-    |> merge()
-    |> Enum.map(&type(&1))
-    |> sumtype()
-  end
-
-  defp sumtype([_ | _] = types) do
-    types
-    |> Enum.flat_map(&flatsum/1)
-    |> Enum.uniq()
-    |> Enum.reverse()
-    |> Enum.reduce(fn x, xs -> quote(do: unquote(x) | unquote(xs)) end)
-  end
-
-  defp flatsum({:|, _, [lhs, rhs]}), do: flatsum(lhs) ++ flatsum(rhs)
-  defp flatsum(t), do: [t]
-
-  defp merge(schemas) do
-    schemas
-    |> Enum.reduce([[], [], []], fn
-      %{"properties" => _} = x, [[], ls, ps] -> [[x], ls, ps]
-      %{"properties" => _} = x, [[y], ls, ps] -> [[merge_map(x, y)], ls, ps]
-      %{"items" => items} = x, [ms, [], ps] when is_map(items) -> [ms, [x], ps]
-      %{"items" => items} = x, [ms, [y], ps] when is_map(items) -> [ms, [merge_list(x, y)], ps]
-      x, [ms, ls, ps] -> [ms, ls, ps ++ [x]]
-    end)
-    |> List.flatten()
-  end
-
-  defp merge_map(%{"properties" => xprops}, %{"properties" => yprops}) do
-    props =
-      Map.merge(xprops, yprops, fn _k, x, y ->
-        %{"anyOf" => [x, y]}
-      end)
-
-    %{"type" => "object", "properties" => props}
-  end
-
-  defp merge_list(%{"items" => xitems}, %{"items" => yitems}) do
-    %{"type" => "array", "items" => %{"anyOf" => [yitems, xitems]}}
-  end
-
-  ## OPERATIONS
-
-  defp operations(spec, config) do
-    for {path, methods} <- Map.get(spec, "paths", %{}),
-        {method, %{"operationId" => id} = operation} <- methods,
-        config.generate?(id) do
-      operation(method, path, operation, config)
-    end
-  end
-
-  def operation(method, path, %{"operationId" => id} = op, config) do
-    name = key(config.op_name(id))
-    params = dereference_params(op["parameters"] || [])
-    args_in = args_in(op, params)
-    args_out = args_out(path, op, params)
-
-    quote do
-      @doc unquote(doc_operation(op))
-      @spec unquote(operation_spec(name, op, params))
-
-      def unquote(name)(unquote_splicing(args_in)) do
-        case Tesla.unquote(key(method))(unquote_splicing(args_out)) do
-          unquote(responses(op) ++ catchall())
-        end
-      end
-
-      defoverridable unquote([{name, length(args_in)}])
-    end
-  end
-
-  defp operation_spec(name, op, params) do
-    if has_query_params?(params) do
-      quote do
-        unquote(name)(unquote_splicing(args_types(op, params))) ::
-          unquote(responses_types(op))
-        when opt: unquote(sumtype(query_types(params)))
-      end
-    else
-      quote do
-        unquote(name)(unquote_splicing(args_types(op, params))) ::
-          unquote(responses_types(op))
-      end
-    end
-  end
-
-  defp args_types(op, params) do
-    [client_type()] ++ path_types(params) ++ body_type(op, params) ++ query_type(params)
-  end
-
-  defp args_in(op, params) do
-    [client_in()] ++ path_in(params) ++ body_in(op, params) ++ query_in(params)
-  end
-
-  defp args_out(path, op, params) do
-    [client_out(), path_out(path)] ++ body_out(op, params) ++ opts_out(params)
-  end
-
-  defp client_type, do: quote(do: Tesla.Client.t())
-  defp client_in, do: quote(do: client \\ new())
-  defp client_out, do: quote(do: client)
-
-  defp path_types(params) do
-    for %{"in" => "path"} = param <- params, do: type(param)
-  end
-
-  defp path_in(params) do
-    for %{"name" => name, "in" => "path"} <- params, do: var(name)
-  end
-
-  @path_rx ~r/\{([^}]+?)\}/
-  defp path_out(path) do
-    Regex.replace(@path_rx, path, fn _, name -> ":" <> Macro.underscore(name) end)
-  end
-
-  defp body_type(%{"requestBody" => body}, _params), do: [type(body)]
-  defp body_type(_op, params), do: for(%{"in" => "body"} = param <- params, do: type(param))
-
-  defp body_in(%{"requestBody" => _}, _params), do: [var("body")]
-  defp body_in(_op, params), do: for(%{"name" => name, "in" => "body"} <- params, do: var(name))
-
-  defp body_out(%{"requestBody" => body}, _params), do: [encode(body, var("body"))]
-
-  defp body_out(_, params) do
-    for %{"name" => name, "in" => "body"} = param <- params, do: encode(param, var(name))
-  end
-
-  defp query_type(op), do: if(has_query_params?(op), do: [quote(do: [opt])], else: [])
-  defp query_in(op), do: if(has_query_params?(op), do: [quote(do: query \\ [])], else: [])
-
-  defp query_types(params) do
-    for %{"name" => name, "in" => "query"} = param <- params do
-      {key(name), type(param)}
-    end
-  end
-
-  defp has_query_params?(params) do
-    Enum.any?(params, &match?(%{"in" => "query"}, &1))
-  end
-
-  defp opts_out(op) do
-    query =
-      case query_params(op) do
-        [] -> []
-        qp -> [query: quote(do: unquote(__MODULE__).encode_query(query, unquote(qp)))]
-      end
-
-    opts =
-      case path_params(op) do
-        [] -> []
-        pp -> [opts: [path_params: pp]]
-      end
-
-    case query ++ opts do
-      [] -> []
-      x -> [x]
-    end
-  end
-
-  defp path_params(params) do
-    for %{"name" => name, "in" => "path"} <- params, do: {key(name), var(name)}
-  end
-
-  defp query_params(params) do
-    for %{"name" => name, "in" => "query"} = p <- params, do: {key(name), p["format"]}
-  end
-
-  ## RESPONSES
-
-  defp response(code, %{"content" => content}) do
-    # TODO: Handle other/multiple content formats
-    response(code, content["application/json"])
-  end
-
-  defp responses(%{"responses" => responses}) do
-    for {status, response} <- responses do
-      [match] = response(status, response)
-      match
-    end
-  end
-
-  defp response(code, schema) do
-    body = Macro.var(:body, __MODULE__)
-    code = code_or_default(code)
-    decode = decode(schema, body)
-
-    case {code, decode} do
-      {status, nil} when status in 200..299 ->
-        quote do
-          {:ok, %{status: unquote(status)}} -> :ok
-        end
-
-      {status, decode} when status in 200..299 ->
-        quote do
-          {:ok, %{status: unquote(status), body: unquote(body)}} -> unquote(decode)
-        end
-
-      {status, nil} when is_integer(status) ->
-        quote do
-          {:ok, %{status: unquote(status)}} -> {:error, unquote(status)}
-        end
-
-      {status, decode} when is_integer(status) ->
-        quote do
-          {:ok, %{status: unquote(status), body: unquote(body)}} ->
-            with {:ok, data} <- unquote(decode) do
-              {:error, data}
-            end
-        end
-
-      {:default, nil} ->
-        quote do
-          {:ok, _} -> :error
-        end
-
-      {:default, decode} ->
-        quote do
-          {:ok, %{body: unquote(body)}} ->
-            with {:ok, data} <- unquote(decode) do
-              {:error, data}
-            end
-        end
-    end
-  end
-
-  defp responses_types(%{"responses" => responses}) do
-    responses
-    |> Enum.map(fn {status, response} -> response_type(status, response) end)
-    |> Kernel.++([catchall_type()])
-    |> sumtype()
-  end
-
-  defp response_type(code, resp) do
-    case {code_or_default(code), type(resp["schema"])} do
-      {code, nil} when code in 200..299 -> :ok
-      {code, t} when code in 200..299 -> {:ok, t}
-      {code, nil} when is_integer(code) -> {:error, quote(do: integer)}
-      {code, t} when is_integer(code) -> {:error, t}
-      {:default, nil} -> :error
-      {:default, t} -> {:error, t}
-    end
-  end
-
-  defp catchall do
-    quote do
-      {:error, error} -> {:error, error}
-    end
-  end
-
-  defp catchall_type, do: quote(do: {:error, any})
-
-  defp code_or_default("default"), do: :default
-  defp code_or_default(code), do: String.to_integer(code)
-
-  ## NEW / MIDDLEWARE
-
-  def new(spec) do
-    middleware = List.flatten([base_url(spec), encoders(spec), decoders(spec)])
-
-    quote do
-      @middleware unquote(middleware)
-
-      @doc """
-      See `new/2`.
-      """
-      @spec new() :: Tesla.Client.t()
-      def new(), do: new([], nil)
-
-      @doc """
-      Get new API client instance
-      """
-
-      @spec new([Tesla.Client.middleware()], Tesla.Client.adapter()) :: Tesla.Client.t()
-      def new(middleware, adapter) do
-        Tesla.client(@middleware ++ middleware, adapter)
-      end
-
-      defoverridable new: 0, new: 2
-    end
-  end
-
-  defp base_url(spec) do
-    host = spec["host"] || ""
-    base = spec["basePath"] || ""
-    schemas = spec["schemes"] || []
-
-    url =
-      case host do
-        "" -> base
-        _ -> if("https" in schemas, do: "https", else: "http") <> "://" <> host <> base
-      end
-
-    [
-      {Tesla.Middleware.BaseUrl, url},
-      Tesla.Middleware.PathParams
-    ]
-  end
-
-  defp encoders(spec) do
-    Enum.map(spec["consumes"] || [], fn
-      "application/json" -> Tesla.Middleware.EncodeJson
-      _ -> []
-    end)
-  end
-
-  defp decoders(_spec) do
-    [
-      Tesla.Middleware.DecodeJson,
-      Tesla.Middleware.DecodeFormUrlencoded
-    ]
-  end
-
-  ## NAMING
-
-  defp key(name), do: name |> Macro.underscore() |> String.replace("/", "_") |> String.to_atom()
-  defp var(name), do: Macro.var(key(name), __MODULE__)
-
-  defp defmodule_name(name),
-    do: {:__aliases__, [alias: false], [String.to_atom(Macro.camelize(name))]}
-
-  def defmodule_ref(name), do: Module.concat([defmodule_ref(), Macro.camelize(name)])
-  def defmodule_ref(), do: :erlang.get(:__tesla__caller)
-
-  ## PROCESSING UTILS
-
-  defp combine_props(allof) do
-    Enum.reduce(allof, %{}, fn item, props ->
-      Map.merge(props, extract_props(item))
-    end)
-  end
-
-  defp extract_props(%{"allOf" => allof}), do: combine_props(allof)
-  defp extract_props(%{"$ref" => ref}), do: extract_props(dereference(ref))
-  defp extract_props(%{"properties" => props}), do: props
-  defp extract_props(%{}), do: %{}
-  defp extract_props({_name, schema}), do: extract_props(schema)
-
-  defp types_to_schemas(types), do: Enum.map(types, &%{"type" => &1})
-
-  defp dereference_params(params) do
-    Enum.map(params, fn
-      %{"$ref" => ref} -> dereference(ref)
-      param -> param
-    end)
-  end
-
-  def dereference(ref), do: dereference(ref, :erlang.get(:__tesla__spec))
-
-  def dereference(ref, spec) do
-    case get_in(spec, compile_path(ref)) do
-      nil ->
-        raise "Reference #{ref} not found"
-
-      item ->
-        # special case for named entities
-        case ref do
-          "#/definitions/" <> name -> {name, item}
-          "#/components/schemas/" <> name -> {name, item}
-          _ -> item
-        end
-    end
-  end
-
-  defp compile_path("#/" <> ref) do
-    ref
-    |> String.split("/")
-    |> Enum.map(&unescape/1)
-  end
-
-  defp unescape(s) do
-    s
-    |> String.replace("~0", "~")
-    |> String.replace("~1", "/")
-    |> URI.decode()
-    |> key_or_index()
-  end
-
-  defp key_or_index(<<d, _::binary>> = key) when d in ?0..?9 do
-    fn
-      :get, data, next when is_list(data) ->
-        data |> Enum.at(String.to_integer(key)) |> next.()
-
-      :get, data, next when is_map(data) ->
-        data |> Map.get(key) |> next.()
-    end
-  end
-
-  defp key_or_index(key), do: key
-
-  ## DOCS
-
-  defp doc_module(spec) do
-    info = spec["info"]
-
-    version =
-      case info["version"] do
-        nil -> nil
-        vsn -> "Version: #{vsn}"
-      end
-
-    doc_merge([
-      info["title"],
-      info["description"],
-      version
-    ])
-  end
-
-  defp doc_schema(schema) do
-    doc_merge([
-      schema["title"],
-      schema["description"]
-    ])
-  end
-
-  defp doc_operation(op) do
-    query_params =
-      for {name, %{"in" => "query"} = param} <- op do
-        case param["description"] do
-          nil -> "- `#{name}`"
-          desc -> "- `#{name}`: #{desc}"
-        end
-      end
-
-    query_docs =
-      case query_params do
-        [] ->
-          nil
-
-        qs ->
-          """
-          ### Query parameters
-
-          #{Enum.join(qs, "\n")}
-          """
-      end
-
-    external_docs =
-      case op["external_docs"] do
-        %{"description" => description, "url" => url} -> "[#{description}](#{url})"
-        _ -> nil
-      end
-
-    doc_merge([
-      op["summary"],
-      op["description"],
-      query_docs,
-      external_docs
-    ])
-  end
-
-  defp doc_merge(parts) do
-    parts
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join("\n\n")
-  end
-
-  ## OPTIMIZATION
-
-  def optimize(code) do
-    Macro.postwalk(code, fn
-      ast ->
-        ast
-        |> optimize_cond()
-        |> optimize_decode_list()
-        |> optimize_encode_list()
-        |> optimize_with()
-    end)
-  end
-
-  defp optimize_cond({:cond, _, [[do: [{:->, [], [[true], var]}]]]}) do
-    # Match `cond do; true -> x; end`
-    # and replace with `x`
-    var
-  end
-
-  defp optimize_cond({:cond, ctx, [[do: clauses]]}) when length(clauses) >= 2 do
-    # Match cond with multiple clauses and make sure they are unique
-    case Enum.uniq(clauses) do
-      [one] -> optimize_cond({:cond, ctx, [[do: [one]]]})
-      many -> {:cond, ctx, [[do: many]]}
-    end
-  end
-
-  defp optimize_cond(ast), do: ast
-
-  defp optimize_decode_list(
-         {{:., _, [__MODULE__, :decode_list]}, [],
-          [var, {:fn, _, [{:->, _, [[data], {:ok, data}]}]}]}
-       ) do
-    # Match `Tesla.OpenApi.decode_list(var, fn data -> {:ok, data} end)`
-    # and replace with `{:ok, var}`
-    {:ok, var}
-  end
-
-  defp optimize_decode_list(ast), do: ast
-
-  defp optimize_encode_list(
-         {{:., _, [__MODULE__, :encode_list]}, [], [var, {:fn, _, [{:->, _, [[data], data]}]}]}
-       ) do
-    # Match `Tesla.OpenApi.encode_list(var, fn data -> data end)`
-    # and replace with `{:ok, var}`
-    var
-  end
-
-  defp optimize_encode_list(ast), do: ast
-
-  defp optimize_with({:with, _, clauses} = ast) do
-    # Remove unnecessary always-matching clauses like `{:ok, x} <- {:ok, y}`
-    # Remove `with` once all clauses are removed
-    [[do: body] | matches] = Enum.reverse(clauses)
-
-    case body do
-      # %__MODULE__{id: id, name: name, ... }
-      {:ok, {:%, sctx, [{:__MODULE__, _, _} = struct, {:%{}, _, _} = map]}} ->
-        case optimize_with1(map, matches) do
-          {:ok, map} -> {:ok, {:%, sctx, [struct, map]}}
-          other -> other
-        end
-
-      # %{id: id, name: name, ... }
-      {:ok, {:%{}, _, _} = map} ->
-        optimize_with1(map, matches)
-
-      _ ->
-        ast
-    end
-
-    # TODO: Make assigns unique
-    # TODO: Remove pointless assigns {:error, _} <- {:ok, data["key"]}
-  end
-
-  defp optimize_with(ast), do: ast
-
-  defp optimize_with1({:%{}, _, assigns}, matches) do
-    {matches, replacements} =
-      Enum.reduce(matches, {[], %{}}, fn
-        {:<-, _, [ok: lhs, ok: rhs]}, {mat, rep} -> {mat, Map.put(rep, lhs, rhs)}
-        other, {mat, rep} -> {[other | mat], rep}
-      end)
-
-    assigns = Enum.map(assigns, fn {key, var} -> {key, Map.get(replacements, var) || var} end)
-    body = {:ok, {:%{}, [], assigns}}
-
-    case matches do
-      [] -> body
-      _ -> {:with, [], Enum.reverse([[do: body] | matches])}
-    end
-  end
 end
