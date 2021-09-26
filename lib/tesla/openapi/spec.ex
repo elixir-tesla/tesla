@@ -194,6 +194,56 @@ defmodule Tesla.OpenApi.Spec do
       models: models(spec),
       operations: operations(spec)
     }
+    |> filter()
+  end
+
+  defp filter(%{models: models, operations: operations} = spec) do
+    config = Context.get_config()
+    operations = Enum.filter(operations, fn op -> config.op_gen?.(op.id) end)
+    refs = collect_refs(extract_refs(operations))
+    names = Enum.map(Map.keys(refs), &elem(&1, 0))
+    models = Enum.filter(models, fn model -> model.name in names end)
+
+    %{spec | models: models, operations: operations}
+  end
+
+  defp extract_refs(list) when is_list(list),
+    do: Enum.reduce(list, %{}, &Map.merge(&2, extract_refs(&1)))
+
+  defp extract_refs(%Object{props: props}) do
+    Enum.reduce(props, %{}, fn {_, prop}, refs -> Map.merge(refs, extract_refs(prop)) end)
+  end
+
+  defp extract_refs(%Operation{} = op) do
+    %{}
+    |> Map.merge(extract_refs(op.body_params))
+    |> Map.merge(extract_refs(op.query_params))
+    |> Map.merge(extract_refs(op.path_params))
+    |> Map.merge(extract_refs(op.request_body))
+    |> Map.merge(extract_refs(op.responses))
+  end
+
+  defp extract_refs(%Ref{name: name, ref: ref}), do: %{{name, ref} => :new}
+  defp extract_refs(%Prim{}), do: %{}
+
+  defp collect_refs(refs) do
+    refs
+    |> Enum.reduce({refs, false}, fn
+      {{_name, _ref}, :seen}, {refs, more?} ->
+        {refs, more?}
+
+      {{name, ref}, :new}, {refs, _} ->
+        {refs
+         |> Map.merge(extract_refs(fetch(ref)), fn
+           _k, :seen, _ -> :seen
+           _k, :new, :new -> :new
+         end)
+         |> Map.put({name, ref}, :seen), true}
+    end)
+    |> case do
+      {refs, true} -> collect_refs(refs)
+      {refs, false} -> refs
+    end
   end
 
   defp info(spec) do
@@ -210,8 +260,15 @@ defmodule Tesla.OpenApi.Spec do
   defp models(%{"components" => %{"schemas" => defs}}), do: models(defs)
   defp models(%{"components" => _}), do: []
 
-  defp models(defs) when is_list(defs) or is_map(defs) do
-    for {name, schema} <- defs, do: %Model{name: name, schema: schema(schema)}
+  defp models(defs) when is_map(defs) do
+    for {name, schema} <- defs do
+      %Model{
+        name: name,
+        title: schema["title"],
+        description: schema["description"],
+        schema: schema(schema)
+      }
+    end
   end
 
   def operations(spec) do
@@ -248,7 +305,7 @@ defmodule Tesla.OpenApi.Spec do
 
   defp params(params, kind) do
     for %{"name" => name, "in" => ^kind} = param <- params do
-      %Param{name: name, schema: schema(param)}
+      %Param{name: name, description: param["description"], schema: schema(param)}
     end
   end
 
@@ -256,10 +313,10 @@ defmodule Tesla.OpenApi.Spec do
   defp request_body(_), do: nil
 
   defp responses(%{"responses" => responses}) do
-    for {code, %{"schema" => schema}} <- responses do
+    for {code, response} <- responses do
       %Response{
         code: code_or_default(code),
-        schema: schema(schema)
+        schema: response["schema"] && schema(response["schema"])
       }
     end
   end

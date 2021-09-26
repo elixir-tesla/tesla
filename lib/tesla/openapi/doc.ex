@@ -13,12 +13,12 @@ defmodule Tesla.OpenApi.Doc do
     ])
   end
 
-  # def schema(schema) do
-  # merge([
-  #   schema.title,
-  #   schema.description
-  # ])
-  # end
+  def model(model) do
+    merge([
+      model.title,
+      model.description
+    ])
+  end
 
   def operation(op) do
     query_params =

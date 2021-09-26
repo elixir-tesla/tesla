@@ -37,14 +37,25 @@ defmodule Tesla.OpenApi do
 
   defmodule Model do
     @enforce_keys [:name, :schema]
-    defstruct name: nil, schema: nil
-    @type t :: %__MODULE__{name: binary, schema: Tesla.OpenApi.schema()}
+    defstruct name: nil, title: nil, description: nil, schema: nil
+
+    @type t :: %__MODULE__{
+            name: binary,
+            title: binary | nil,
+            description: binary | nil,
+            schema: Tesla.OpenApi.schema()
+          }
   end
 
   defmodule Param do
     @enforce_keys [:name, :schema]
-    defstruct name: nil, schema: nil
-    @type t :: %__MODULE__{name: binary, schema: Tesla.OpenApi.schema()}
+    defstruct name: nil, description: nil, schema: nil
+
+    @type t :: %__MODULE__{
+            name: binary,
+            description: binary | nil,
+            schema: Tesla.OpenApi.schema()
+          }
   end
 
   defmodule Response do
@@ -86,14 +97,16 @@ defmodule Tesla.OpenApi do
   alias Tesla.OpenApi.Context
 
   defmacro __using__(opts \\ []) do
+    {opts, _} = Code.eval_quoted(opts)
+
     file = Keyword.fetch!(opts, :spec)
     dump = Keyword.get(opts, :dump, false)
 
-    raw = file |> File.read!() |> Jason.decode!()
+    raw = read_spec(file, opts)
 
     Context.put_spec(raw)
     Context.put_caller(__CALLER__.module)
-    Context.put_config(config_module(__CALLER__.module, opts))
+    Context.put_config(config(opts))
 
     spec = Spec.new(raw)
     code = Gen.gen(spec)
@@ -104,6 +117,14 @@ defmodule Tesla.OpenApi do
     end
     |> dump(dump)
   end
+
+  defp read_spec(file, opts) do
+    raw = file |> File.read!() |> Jason.decode!()
+    merge(raw, opts[:extra])
+  end
+
+  defp merge(x, nil), do: x
+  defp merge(%{} = x, %{} = y), do: Map.merge(x, y, fn _k, x, y -> merge(x, y) end)
 
   defp dump(code, false), do: code
 
@@ -123,30 +144,23 @@ defmodule Tesla.OpenApi do
     code
   end
 
-  defp config_module(mod, opts) do
+  def config(opts) do
     op_name =
       case opts[:operations][:name] do
-        nil -> quote(do: name)
-        fun -> quote(do: unquote(fun).(name))
+        fun when is_function(fun) -> fun
+        nil -> fn name -> name end
       end
 
     op_gen? =
       case opts[:operations][:only] do
-        only when is_list(only) -> quote(do: name in unquote(only))
-        nil -> quote(do: name)
+        only when is_list(only) -> fn name -> name in only end
+        nil -> fn _ -> true end
       end
 
-    code =
-      quote do
-        defmodule unquote(:"#{mod}_config") do
-          @moduledoc false
-          def op_name(name), do: unquote(op_name)
-          def op_gen?(name), do: unquote(op_gen?)
-        end
-      end
-
-    [{config, _}] = Code.compile_quoted(code)
-    config
+    %{
+      op_name: op_name,
+      op_gen?: op_gen?
+    }
   end
 
   ## UTILITIES

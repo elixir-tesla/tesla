@@ -212,17 +212,16 @@ defmodule Tesla.OpenApi.Gen do
 
   ## MODEL
 
-  def model(%Model{name: name, schema: %Object{props: props}}) do
+  def model(%Model{name: name, schema: %Object{props: props}} = model) do
     var = var("data")
     types = for {name, prop} <- sorted(props), do: {key(name), type(prop)}
     keys = for {name, _prop} <- sorted(props), do: {key(name), nil}
 
     quote do
       defmodule unquote(modulename(name)) do
-        # @moduledoc unquote(doc_schema(schema))
+        @moduledoc unquote(Doc.model(model))
         defstruct unquote(keys)
         @type t :: %__MODULE__{unquote_splicing(types)}
-
         def encode(unquote(var)) do
           %{unquote_splicing(encode_props(props, var))}
         end
@@ -236,9 +235,10 @@ defmodule Tesla.OpenApi.Gen do
     end
   end
 
-  def model(%Model{name: name, schema: schema}) do
+  def model(%Model{name: name, schema: schema} = model) do
     if moduleless?(schema) do
       quote do
+        @typedoc unquote(Doc.model(model))
         @type unquote(var(name)) :: unquote(type(schema))
       end
     else
@@ -246,7 +246,7 @@ defmodule Tesla.OpenApi.Gen do
 
       quote do
         defmodule unquote(modulename(name)) do
-          # @moduledoc unquote(doc_schema(schema))
+          @moduledoc unquote(Doc.model(model))
           @type t :: unquote(type(schema))
           def encode(unquote(var)), do: unquote(encode(schema, var))
           def decode(unquote(var)), do: unquote(decode(schema, var))
@@ -266,23 +266,21 @@ defmodule Tesla.OpenApi.Gen do
   def operation(%Operation{id: id, method: method} = op) do
     config = Context.get_config()
 
-    if config.op_gen?(id) do
-      name = key(config.op_name(id))
-      in_args = in_args(op)
-      out_args = out_args(op)
+    name = key(config.op_name.(id))
+    in_args = in_args(op)
+    out_args = out_args(op)
 
-      quote do
-        @doc unquote(Doc.operation(op))
-        @spec unquote(type(op))
+    quote do
+      @doc unquote(Doc.operation(op))
+      @spec unquote(type(op))
 
-        def unquote(name)(unquote_splicing(in_args)) do
-          case Tesla.unquote(key(method))(unquote_splicing(out_args)) do
-            unquote(responses(op) ++ catchall())
-          end
+      def unquote(name)(unquote_splicing(in_args)) do
+        case Tesla.unquote(key(method))(unquote_splicing(out_args)) do
+          unquote(responses(op) ++ catchall())
         end
-
-        defoverridable unquote([{name, length(in_args)}])
       end
+
+      defoverridable unquote([{name, length(in_args)}])
     end
   end
 

@@ -2,7 +2,7 @@ defmodule Tesla.OpenApi.SpecTest do
   use ExUnit.Case
 
   alias Tesla.OpenApi.{Prim, Union, Array, Object, Ref, Any}
-  alias Tesla.OpenApi.{Operation, Param, Response}
+  alias Tesla.OpenApi.{Model, Operation, Param, Response}
   alias Tesla.OpenApi.Context
   import Tesla.OpenApi.Spec
 
@@ -319,7 +319,11 @@ defmodule Tesla.OpenApi.SpecTest do
                  path: "/pets",
                  query_params: [
                    %Param{name: "tags", schema: %Array{of: %Prim{type: :binary}}},
-                   %Param{name: "limit", schema: %Prim{type: :integer}}
+                   %Param{
+                     name: "limit",
+                     description: "maximum number of results to return",
+                     schema: %Prim{type: :integer}
+                   }
                  ],
                  request_body: %Prim{type: :integer},
                  responses: [
@@ -334,6 +338,101 @@ defmodule Tesla.OpenApi.SpecTest do
                  ]
                }
              ]
+    end
+
+    test "empty body" do
+      spec = %{
+        "paths" => %{
+          "/pets" => %{
+            "post" => %{
+              "summary" => "Create a pet",
+              "operationId" => "createPets",
+              "tags" => [
+                "pets"
+              ],
+              "responses" => %{
+                "201" => %{
+                  "description" => "Null response"
+                },
+                "default" => %{
+                  "description" => "unexpected error",
+                  "schema" => %{
+                    "$ref" => "#/definitions/Error"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      assert operations(spec) == [
+               %Operation{
+                 id: "createPets",
+                 summary: "Create a pet",
+                 method: "post",
+                 path: "/pets",
+                 responses: [
+                   %Response{code: 201, schema: nil},
+                   %Response{
+                     code: :default,
+                     schema: %Ref{name: "Error", ref: "#/definitions/Error"}
+                   }
+                 ]
+               }
+             ]
+    end
+  end
+
+  describe "filtering" do
+    test "removed unused models" do
+      spec = %{
+        "definitions" => %{
+          "Pet" => %{
+            "type" => "object",
+            "properties" => %{"data" => %{"$ref" => "#/definitions/NewPet"}}
+          },
+          "NewPet" => %{
+            "type" => "object",
+            "properties" => %{"name" => %{"type" => "string"}}
+          },
+          "Kind" => %{
+            "type" => "string"
+          }
+        },
+        "paths" => %{
+          "/pets" => %{
+            "post" => %{
+              "operationId" => "createPet",
+              "requestBody" => %{
+                "$ref" => "#/definitions/Pet"
+              },
+              "responses" => []
+            },
+            "get" => %{
+              "operationId" => "listPets",
+              "requestBody" => %{
+                "$ref" => "#/definitions/Kind"
+              },
+              "responses" => []
+            }
+          }
+        }
+      }
+
+      Context.put_spec(spec)
+      Context.put_config(Tesla.OpenApi.config(operations: [only: ["createPet"]]))
+
+      spec = new(spec)
+
+      assert [
+               %Operation{id: "createPet"}
+             ] = spec.operations
+
+      assert [
+               %Model{name: "NewPet"},
+               %Model{name: "Pet"}
+             ] = spec.models
     end
   end
 end
