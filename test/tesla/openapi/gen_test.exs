@@ -494,6 +494,7 @@ defmodule Tesla.OpenApi.GenTest do
       model = %Model{name: "name", schema: %Prim{type: :binary}}
 
       assert_code model(model) do
+        @typedoc ""
         @type name :: binary
       end
 
@@ -518,6 +519,7 @@ defmodule Tesla.OpenApi.GenTest do
       model = %Model{name: "name", schema: %Prim{type: :integer}}
 
       assert_code model(model) do
+        @typedoc ""
         @type name :: integer
       end
     end
@@ -526,6 +528,7 @@ defmodule Tesla.OpenApi.GenTest do
       model = %Model{name: "name", schema: %Array{of: %Any{}}}
 
       assert_code model(model) do
+        @typedoc ""
         @type name :: list
       end
     end
@@ -535,7 +538,7 @@ defmodule Tesla.OpenApi.GenTest do
 
       assert_code model(model) do
         defmodule Name do
-          # @moduledoc ""
+          @moduledoc ""
           @type t :: list(binary)
           def encode(data) do
             Tesla.OpenApi.encode_list(data, fn item -> item end)
@@ -549,7 +552,7 @@ defmodule Tesla.OpenApi.GenTest do
 
       assert_code clean(model(model)) do
         defmodule Name do
-          # @moduledoc ""
+          @moduledoc ""
           @type t :: list(binary)
           def encode(data), do: data
           def decode(data), do: {:ok, data}
@@ -570,7 +573,7 @@ defmodule Tesla.OpenApi.GenTest do
 
       assert_code model(model) do
         defmodule Name do
-          # @moduledoc ""
+          @moduledoc ""
           @type t :: binary | integer
           def encode(data) do
             cond do
@@ -590,7 +593,7 @@ defmodule Tesla.OpenApi.GenTest do
 
       assert_code clean(model(model)) do
         defmodule Name do
-          # @moduledoc ""
+          @moduledoc ""
           @type t :: binary | integer
           def encode(data), do: data
           def decode(data), do: {:ok, data}
@@ -611,7 +614,7 @@ defmodule Tesla.OpenApi.GenTest do
 
       assert_code model(model) do
         defmodule Name do
-          # @moduledoc ""
+          @moduledoc ""
           defstruct id: nil, name_of: nil
           @type t :: %__MODULE__{id: integer, name_of: binary}
           def encode(data) do
@@ -629,7 +632,7 @@ defmodule Tesla.OpenApi.GenTest do
 
       assert_code clean(model(model)) do
         defmodule Name do
-          # @moduledoc ""
+          @moduledoc ""
           defstruct id: nil, name_of: nil
           @type t :: %__MODULE__{id: integer, name_of: binary}
           def encode(data) do
@@ -647,7 +650,7 @@ defmodule Tesla.OpenApi.GenTest do
   describe "operation/1" do
     test "encode name" do
       op = %Operation{
-        id: "deeply.nested.function",
+        id: "deeply.nested.function with  spaces ",
         summary: "Do this",
         method: "get",
         path: "/"
@@ -655,14 +658,14 @@ defmodule Tesla.OpenApi.GenTest do
 
       assert_code operation(op) do
         @doc "Do this"
-        @spec deeply_nested_function(Tesla.Client.t()) :: {:error, any}
-        def deeply_nested_function(client \\ new()) do
+        @spec deeply_nested_function_with_spaces(Tesla.Client.t()) :: {:error, any}
+        def deeply_nested_function_with_spaces(client \\ new()) do
           case Tesla.get(client, "/") do
             {:error, error} -> {:error, error}
           end
         end
 
-        defoverridable(deeply_nested_function: 1)
+        defoverridable(deeply_nested_function_with_spaces: 1)
       end
     end
 
@@ -681,7 +684,12 @@ defmodule Tesla.OpenApi.GenTest do
       }
 
       assert_code operation(op) do
-        @doc ""
+        @doc """
+        ### Query parameters
+
+        - `limit`
+        - `sort`
+        """
         @spec one(Tesla.Client.t(), integer, [opt]) :: {:error, any}
               when opt: {:limit, integer} | {:sort, binary}
         def one(client \\ new(), id, query \\ []) do
@@ -807,19 +815,10 @@ defmodule Tesla.OpenApi.GenTest do
                 {:ok, %{id: integer}} | {:error, integer} | {:error, binary} | {:error, any}
         def one(client \\ new()) do
           case Tesla.get(client, "/") do
-            {:ok, %{status: 200, body: body}} ->
-              {:ok, %{id: body["id"]}}
-
-            {:ok, %{status: 404}} ->
-              {:error, 404}
-
-            {:ok, %{body: body}} ->
-              with({:ok, data} <- {:ok, body}) do
-                {:error, data}
-              end
-
-            {:error, error} ->
-              {:error, error}
+            {:ok, %{status: 200, body: body}} -> {:ok, %{id: body["id"]}}
+            {:ok, %{status: 404}} -> {:error, 404}
+            {:ok, %{body: body}} -> {:error, body}
+            {:error, error} -> {:error, error}
           end
         end
 

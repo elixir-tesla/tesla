@@ -8,12 +8,20 @@ defmodule Tesla.OpenApi.Spec do
             base_path: nil,
             schemes: [],
             consumes: [],
-            models: %{},
-            operations: %{}
+            models: [],
+            operations: []
 
-  @type t :: %__MODULE__{info: map(), models: map(), operations: map()}
+  @type t :: %__MODULE__{
+          info: map(),
+          host: binary,
+          base_path: binary,
+          schemes: [binary],
+          consumes: [binary],
+          models: [Model.t()],
+          operations: [Operation.t()]
+        }
 
-  @spec schema(map) :: Tesla.OpenApi3.schema()
+  @spec schema(map) :: Tesla.OpenApi.schema()
 
   # Prim
   # TODO: Collapse null type into required/optional fields
@@ -225,6 +233,12 @@ defmodule Tesla.OpenApi.Spec do
 
   defp extract_refs(%Ref{name: name, ref: ref}), do: %{{name, ref} => :new}
   defp extract_refs(%Prim{}), do: %{}
+  defp extract_refs(%Array{of: of}), do: extract_refs(of)
+  defp extract_refs(%Union{of: of}), do: Enum.reduce(of, %{}, &Map.merge(&2, extract_refs(&1)))
+  defp extract_refs(%Any{}), do: %{}
+  defp extract_refs(%Param{schema: schema}), do: extract_refs(schema)
+  defp extract_refs(%Response{schema: schema}), do: extract_refs(schema)
+  defp extract_refs(nil), do: %{}
 
   defp collect_refs(refs) do
     refs
@@ -314,9 +328,16 @@ defmodule Tesla.OpenApi.Spec do
 
   defp responses(%{"responses" => responses}) do
     for {code, response} <- responses do
+      schema =
+        if response["content"] || response["schema"] do
+          schema(response)
+        else
+          nil
+        end
+
       %Response{
         code: code_or_default(code),
-        schema: response["schema"] && schema(response["schema"])
+        schema: schema
       }
     end
   end

@@ -8,7 +8,10 @@ defmodule Tesla.OpenApi do
   defmodule Union do
     @enforce_keys [:of]
     defstruct of: nil
-    @type t :: %__MODULE__{of: [Object.t() | Array.t() | Prim.t()]}
+
+    @type t :: %__MODULE__{
+            of: [Tesla.OpenApi.Object.t() | Tesla.OpenApi.Array.t() | Tesla.OpenApi.Prim.t()]
+          }
   end
 
   defmodule Array do
@@ -96,16 +99,19 @@ defmodule Tesla.OpenApi do
   alias Tesla.OpenApi.Gen
   alias Tesla.OpenApi.Context
 
-  defmacro __using__(opts \\ []) do
+  defmacro __using__(opts) do
     {opts, _} = Code.eval_quoted(opts)
+    generate(__CALLER__.module, opts)
+  end
 
+  def generate(module, opts) do
     file = Keyword.fetch!(opts, :spec)
     dump = Keyword.get(opts, :dump, false)
 
     raw = read_spec(file, opts)
 
     Context.put_spec(raw)
-    Context.put_caller(__CALLER__.module)
+    Context.put_caller(module)
     Context.put_config(config(opts))
 
     spec = Spec.new(raw)

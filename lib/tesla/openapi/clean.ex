@@ -9,9 +9,35 @@ defmodule Tesla.OpenApi.Clean do
 
   # Match cond with multiple clauses and make sure they are unique
   defp c({:cond, ctx, [[do: clauses]]}) when length(clauses) >= 2 do
-    case Enum.uniq(clauses) do
-      [one] -> c({:cond, ctx, [[do: [one]]]})
-      many -> {:cond, ctx, [[do: many]]}
+    # Combine clauses with the same result into one joined with `or`
+    clauses
+    |> Enum.reduce(%{}, fn
+      {:->, _, [[con], out]}, acc -> Map.update(acc, out, [con], fn xs -> [con | xs] end)
+    end)
+    |> Enum.map(fn {out, conds} ->
+      con =
+        Enum.reduce(conds, fn
+          # if one of the clauses is `true` replace all of them with `true`
+          _, true -> true
+          a, b -> {:or, [], [a, b]}
+        end)
+
+      {:->, [], [[con], out]}
+    end)
+    |> Enum.uniq()
+    |> case do
+      [one] ->
+        c({:cond, ctx, [[do: [one]]]})
+
+      many ->
+        # Make sure the clauses with `true` condition is last
+        {trues, others} =
+          Enum.split_with(many, fn
+            {:->, [], [[true], _]} -> true
+            _ -> false
+          end)
+
+        {:cond, ctx, [[do: others ++ trues]]}
     end
   end
 
@@ -27,20 +53,26 @@ defmodule Tesla.OpenApi.Clean do
     var
   end
 
+  # Replace `with {:ok, x} <- {:ok, y}, do: {:ok/:error, x}`
+  # with    `{:ok/:error, x}`
+  defp c({:with, _, [{:<-, _, [ok: var, ok: rhs]}, [do: {ok, var}]]}) do
+    {ok, rhs}
+  end
+
   # Remove unnecessary always-matching clauses like `{:ok, x} <- {:ok, y}`
   # Remove `with` once all clauses are removed
   defp c({:with, _, clauses} = ast) do
     [[do: body] | matches] = Enum.reverse(clauses)
 
     case body do
-      # %__MODULE__{id: id, name: name, ... }
+      # {:ok, %__MODULE__{id: id, name: name, ... }}
       {:ok, {:%, sctx, [{:__MODULE__, _, _} = struct, {:%{}, _, _} = map]}} ->
         case clean_with(map, matches) do
           {:ok, map} -> {:ok, {:%, sctx, [struct, map]}}
           other -> other
         end
 
-      # %{id: id, name: name, ... }
+      # {:ok, %{id: id, name: name, ... }}
       {:ok, {:%{}, _, _} = map} ->
         clean_with(map, matches)
 

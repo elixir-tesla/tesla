@@ -51,7 +51,8 @@ defmodule Tesla.OpenApi.Gen do
   def type(%Response{code: code, schema: s}) when is_integer(code), do: {:error, type(s)}
 
   def type(%Operation{} = op) do
-    name = key(op.id)
+    config = Context.get_config()
+    name = key(config.op_name.(op.id))
 
     args =
       flatten_once([
@@ -265,7 +266,6 @@ defmodule Tesla.OpenApi.Gen do
 
   def operation(%Operation{id: id, method: method} = op) do
     config = Context.get_config()
-
     name = key(config.op_name.(id))
     in_args = in_args(op)
     out_args = out_args(op)
@@ -454,7 +454,14 @@ defmodule Tesla.OpenApi.Gen do
 
   ## UTILS
 
-  defp key(name), do: name |> Macro.underscore() |> String.replace("/", "_") |> String.to_atom()
+  defp key(name) do
+    name
+    |> String.trim()
+    |> Macro.underscore()
+    |> String.replace(~r/\W+/, "_")
+    |> String.to_atom()
+  end
+
   defp var(name), do: Macro.var(key(name), __MODULE__)
 
   defp modulename(name),
