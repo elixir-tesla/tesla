@@ -216,7 +216,7 @@ defmodule Tesla.OpenApi.GenTest do
             end)
 
           is_map(var) ->
-            %{"id" => var.id}
+            %{"id" => var[:id]}
 
           true ->
             var
@@ -225,8 +225,9 @@ defmodule Tesla.OpenApi.GenTest do
 
       assert_code clean(encode(schema, @var)) do
         cond do
-          is_list(var) -> var
-          is_map(var) -> %{"id" => var.id}
+          # Same result as the last case hance removed
+          # is_list(var) -> var
+          is_map(var) -> %{"id" => var[:id]}
           true -> var
         end
       end
@@ -290,11 +291,11 @@ defmodule Tesla.OpenApi.GenTest do
       }
 
       assert_code encode(schema, @var) do
-        %{"id" => var.id, "nameOf" => var.name_of}
+        %{"id" => var[:id], "nameOf" => var[:name_of]}
       end
 
       assert_code clean(encode(schema, @var)) do
-        %{"id" => var.id, "nameOf" => var.name_of}
+        %{"id" => var[:id], "nameOf" => var[:name_of]}
       end
     end
 
@@ -411,7 +412,8 @@ defmodule Tesla.OpenApi.GenTest do
 
       assert_code clean(decode(schema, @var)) do
         cond do
-          is_list(var) -> {:ok, var}
+          # This case has the same result as the last one, hence removed
+          # is_list(var) -> {:ok, var}
           is_map(var) -> {:ok, %{id: var["id"]}}
           true -> {:ok, var}
         end

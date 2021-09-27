@@ -142,15 +142,12 @@ defmodule Tesla.OpenApi.Gen do
   def encode(%Object{props: props}, var) when props == %{}, do: var
 
   def encode(%Object{props: props}, var) do
-    quote do
-      %{unquote_splicing(encode_props(props, var))}
-    end
-  end
+    encoded =
+      for {name, prop} <- sorted(props) do
+        {name, encode(prop, quote(do: unquote(var)[unquote(key(name))]))}
+      end
 
-  defp encode_props(props, var) do
-    for {name, prop} <- sorted(props) do
-      {name, encode(prop, quote(do: unquote(var).unquote(key(name))))}
-    end
+    quote(do: %{unquote_splicing(encoded)})
   end
 
   ## DECODE
@@ -218,13 +215,18 @@ defmodule Tesla.OpenApi.Gen do
     types = for {name, prop} <- sorted(props), do: {key(name), type(prop)}
     keys = for {name, _prop} <- sorted(props), do: {key(name), nil}
 
+    encoded =
+      for {name, prop} <- sorted(props) do
+        {name, encode(prop, quote(do: unquote(var).unquote(key(name))))}
+      end
+
     quote do
       defmodule unquote(modulename(name)) do
         @moduledoc unquote(Doc.model(model))
         defstruct unquote(keys)
         @type t :: %__MODULE__{unquote_splicing(types)}
         def encode(unquote(var)) do
-          %{unquote_splicing(encode_props(props, var))}
+          %{unquote_splicing(encoded)}
         end
 
         def decode(unquote(var)) do
