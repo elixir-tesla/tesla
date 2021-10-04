@@ -91,7 +91,7 @@ if Code.ensure_loaded?(:gun) do
     - `:tls_opts` - TLS transport options.
         Default: `[]`. Gun from master branch.
 
-    - `:tcp_opts` - TCP trasnport options.
+    - `:tcp_opts` - TCP transport options.
         Default: `[]`. Gun from master branch.
 
     - `:socks_opts` - Options for socks.

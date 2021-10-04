@@ -29,7 +29,7 @@ defmodule Tesla.Middleware.Compression do
     |> decompress()
   end
 
-  defp compressable?(body), do: is_binary(body)
+  defp compressible?(body), do: is_binary(body)
 
   @doc """
   Compress request.
@@ -37,7 +37,7 @@ defmodule Tesla.Middleware.Compression do
   It is used by `Tesla.Middleware.CompressRequest`.
   """
   def compress(env, opts) do
-    if compressable?(env.body) do
+    if compressible?(env.body) do
       format = Keyword.get(opts || [], :format, "gzip")
 
       env
