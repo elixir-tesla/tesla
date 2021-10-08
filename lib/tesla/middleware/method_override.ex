@@ -17,7 +17,7 @@ defmodule Tesla.Middleware.MethodOverride do
 
   ## Options
 
-  - `:override` - list of HTTP methods that should be overriden, everything except `:get` and `:post` if not specified
+  - `:override` - list of HTTP methods that should be overridden, everything except `:get` and `:post` if not specified
   """
 
   @behaviour Tesla.Middleware

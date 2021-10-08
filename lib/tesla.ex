@@ -19,9 +19,9 @@ defmodule Tesla.Env do
     Note: query params passed in url (e.g. `"/get?param=value"`) are not parsed to `query` field.
   - `:headers` - list of request/response headers.
     Example: `[{"content-type", "application/json"}]`.
-    Note: request headers are overriden by response headers when adapter is called.
+    Note: request headers are overridden by response headers when adapter is called.
   - `:body` - request/response body.
-    Note: request body is overriden by response body when adapter is called.
+    Note: request body is overridden by response body when adapter is called.
   - `:status` - response status. Example: `200`
   - `:opts` - list of options. Example: `[adapter: [recv_timeout: 30_000]]`
   """
