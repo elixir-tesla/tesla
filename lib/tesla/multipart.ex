@@ -66,7 +66,7 @@ defmodule Tesla.Multipart do
   @doc """
   Add a field part.
   """
-  @spec add_field(t, String.t(), part_value, Keyword.t()) :: t
+  @spec add_field(t, String.t(), part_value, Keyword.t()) :: t | no_return
   def add_field(%__MODULE__{} = mp, name, value, opts \\ []) do
     :ok = assert_part_value!(value)
     {headers, opts} = Keyword.pop_first(opts, :headers, [])
