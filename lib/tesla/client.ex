@@ -24,7 +24,7 @@ defmodule Tesla.Client do
   """
   @spec adapter(t) :: adapter
   def adapter(client) do
-    unruntime(client.adapter)
+    if client.adapter, do: unruntime(client.adapter)
   end
 
   @doc ~S"""
