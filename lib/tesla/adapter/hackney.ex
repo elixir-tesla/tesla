@@ -73,9 +73,9 @@ if Code.ensure_loaded?(:hackney) do
     defp request(method, url, headers, body, opts) do
       response = :hackney.request(method, url, headers, body || '', opts)
 
-      case Keyword.get(opts, :stream_response, false) do
-        true -> handle_stream(response)
-        false -> handle(response)
+      case Keyword.get(opts, :stream_to_pid) do
+        pid when is_pid(pid) -> handle_stream(response, pid)
+        _ -> handle(response)
       end
     end
 
@@ -114,35 +114,34 @@ if Code.ensure_loaded?(:hackney) do
 
     defp handle({:ok, status, headers, body}), do: {:ok, status, headers, body}
 
-    defp handle_stream({:ok, status, headers, ref}) when is_reference(ref) do
-      state = :hackney_manager.get_state(ref)
+    defp handle_stream({:ok, status, headers, ref}, pid) when is_reference(ref) do
+      :hackney.controlling_process(ref, pid)
 
       body =
         Stream.resource(
-          fn -> state end,
-          fn
-            {:done, state} ->
-              {:halt, state}
+          fn -> nil end,
+          fn _ ->
+            case :hackney.stream_body(ref) do
+              :done ->
+                {:halt, nil}
 
-            {:ok, data, state} ->
-              {[data], state}
+              {:ok, data} ->
+                {[data], nil}
 
-            {:error, reason} ->
-              raise inspect(reason)
-
-            state ->
-              {[], :hackney_response.stream_body(state)}
+              {:error, reason} ->
+                raise inspect(reason)
+            end
           end,
-          &:hackney_response.close/1
+          fn _ -> :hackney.close(ref) end
         )
 
       {:ok, status, headers, body}
     end
 
-    defp handle_stream(response) do
+    defp handle_stream(response, pid) do
       case handle(response) do
         {:ok, _status, _headers, ref} = response when is_reference(ref) ->
-          handle_stream(response)
+          handle_stream(response, pid)
 
         response ->
           response
