@@ -62,4 +62,16 @@ defmodule Tesla.Adapter.HackneyTest do
 
     assert {:error, :fake_error} = call(request)
   end
+
+  test "get with `stream_response: true` option" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/ip"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, stream_response: true)
+
+    assert response.status == 200
+    assert(is_function(response.body))
+  end
 end

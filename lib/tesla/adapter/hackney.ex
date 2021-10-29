@@ -42,7 +42,10 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
-    defp format_body(data) when is_binary(data) or is_reference(data), do: data
+
+    defp format_body(data)
+         when is_binary(data) or is_reference(data) or is_function(data),
+         do: data
 
     defp request(env, opts) do
       request(
@@ -68,7 +71,12 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp request(method, url, headers, body, opts) do
-      handle(:hackney.request(method, url, headers, body || '', opts))
+      response = :hackney.request(method, url, headers, body || '', opts)
+
+      case Keyword.get(opts, :stream_response, false) do
+        true -> handle_stream(response)
+        false -> handle(response)
+      end
     end
 
     defp request_stream(method, url, headers, body, opts) do
@@ -105,6 +113,41 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp handle({:ok, status, headers, body}), do: {:ok, status, headers, body}
+
+    defp handle_stream({:ok, status, headers, ref}) when is_reference(ref) do
+      state = :hackney_manager.get_state(ref)
+
+      body =
+        Stream.resource(
+          fn -> state end,
+          fn
+            {:done, state} ->
+              {:halt, state}
+
+            {:ok, data, state} ->
+              {[data], state}
+
+            {:error, reason} ->
+              raise inspect(reason)
+
+            state ->
+              {[], :hackney_response.stream_body(state)}
+          end,
+          &:hackney_response.close/1
+        )
+
+      {:ok, status, headers, body}
+    end
+
+    defp handle_stream(response) do
+      case handle(response) do
+        {:ok, _status, _headers, ref} = response when is_reference(ref) ->
+          handle_stream(response)
+
+        response ->
+          response
+      end
+    end
 
     defp handle_async_response({ref, %{headers: headers, status: status}})
          when not (is_nil(headers) or is_nil(status)) do
