@@ -27,9 +27,10 @@ defmodule Tesla.Middleware.Cache do
     @type entry :: {Env.status(), Env.headers(), Env.body(), Env.headers()}
     @type vary :: [binary]
     @type data :: entry | vary
+    @type ttl :: integer()
 
     @callback get(key) :: {:ok, data} | :not_found
-    @callback put(key, data) :: :ok
+    @callback put(key, data, ttl) :: :ok
     @callback delete(key) :: :ok
   end
 
@@ -120,6 +121,8 @@ defmodule Tesla.Middleware.Cache do
       end
     end
 
+    def ttl_ms({env, cc}), do: ttl({env, cc}) * 1_000
+
     defp ttl({env, cc}), do: max_age({env, cc}) - age(env)
     defp max_age({env, cc}), do: cc.s_max_age || cc.max_age || expires(env) || 0
     defp age(env), do: age_header(env) || date_header(env) || 0
@@ -172,20 +175,20 @@ defmodule Tesla.Middleware.Cache do
       end
     end
 
-    def put(store, req, res) do
+    def put(store, req, res, ttl) do
       case vary(res.headers) do
         nil ->
           # no Vary, store under URL key
-          store.put(key(:entry, req), entry(req, res))
+          store.put(key(:entry, req), entry(req, res), ttl)
 
         :wildcard ->
           # * Vary, store under URL key
-          store.put(key(:entry, req), entry(req, res))
+          store.put(key(:entry, req), entry(req, res), ttl)
 
         vary ->
           # with Vary, store under URL key
-          store.put(key(:vary, req), vary)
-          store.put(key(:entry, req, vary), entry(req, res))
+          store.put(key(:vary, req), vary, ttl)
+          store.put(key(:entry, req, vary), entry(req, res), ttl)
       end
     end
 
@@ -300,7 +303,7 @@ defmodule Tesla.Middleware.Cache do
 
   defp store({req, _} = _request, {res, _} = response, store, mode) do
     if Response.cacheable?(response, mode) do
-      Storage.put(store, req, ensure_date_header(res))
+      Storage.put(store, req, ensure_date_header(res), Response.ttl_ms(response))
     end
 
     {:ok, response}

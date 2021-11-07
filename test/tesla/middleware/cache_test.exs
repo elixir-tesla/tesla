@@ -16,17 +16,17 @@ defmodule Tesla.Middleware.Cache.StoreTest do
       end
 
       test "put & get vary" do
-        @store.put("KEY0:vary", ["user-agent", "accept"])
+        @store.put("KEY0:vary", ["user-agent", "accept"], 42)
         assert @store.get("KEY0:vary") == {:ok, ["user-agent", "accept"]}
       end
 
       test "put & get entry" do
-        @store.put("KEY0:entry:VARY0", @entry)
+        @store.put("KEY0:entry:VARY0", @entry, 42)
         assert @store.get("KEY0:entry:VARY0") == {:ok, @entry}
       end
 
       test "delete" do
-        @store.put("KEY0:entry:VARY0", @entry)
+        @store.put("KEY0:entry:VARY0", @entry, 42)
         @store.delete("KEY0:entry:VARY0")
         assert @store.get("KEY0:entry:VARY0") == :not_found
       end
@@ -47,7 +47,7 @@ defmodule Tesla.Middleware.CacheTest do
       end
     end
 
-    def put(key, data) do
+    def put(key, data, _ttl) do
       Process.put(key, data)
     end
 
