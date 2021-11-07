@@ -789,12 +789,22 @@ defmodule Tesla.Middleware.CacheTest do
     use StoreTest, TestStore
   end
 
+  describe "Store.ETS" do
+    setup :setup_ets_store
+    use StoreTest, Tesla.Middleware.Cache.Store.ETS
+  end
+
   defp setup_private_cache(%{adapter: adapter}) do
     middleware = [
       {Tesla.Middleware.Cache, store: TestStore, mode: :private}
     ]
 
     %{client: Tesla.client(middleware, adapter)}
+  end
+
+  defp setup_ets_store(_) do
+    _pid = start_supervised!({Tesla.Middleware.Cache.Store.ETS, []})
+    :ok
   end
 
   defp assert_cached({:ok, %{method: method, url: url}}), do: refute_receive({^method, ^url, _})

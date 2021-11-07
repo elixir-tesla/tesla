@@ -34,6 +34,68 @@ defmodule Tesla.Middleware.Cache do
     @callback delete(key) :: :ok
   end
 
+  defmodule Store.ETS do
+    use GenServer
+
+    @behaviour Store
+
+    @ttl_interval :timer.seconds(5)
+
+    def start_link(opts) do
+      opts = Keyword.put_new(opts, :name, __MODULE__)
+      GenServer.start_link(__MODULE__, opts, opts)
+    end
+
+    @impl Store
+    def get(key) do
+      case :ets.lookup(__MODULE__, key) do
+        [{^key, {_exp, data}} | _rest] -> {:ok, data}
+        [] -> :not_found
+      end
+    end
+
+    @impl Store
+    def put(key, data, ttl) do
+      GenServer.call(__MODULE__, {:put, key, data, ttl})
+    end
+
+    @impl Store
+    def delete(key) do
+      GenServer.call(__MODULE__, {:delete, key})
+    end
+
+    @impl GenServer
+    def init(_opts) do
+      :ets.new(__MODULE__, [:named_table])
+      Process.send_after(self(), :cleanup, @ttl_interval)
+      {:ok, %{current_time: 0}}
+    end
+
+    @impl GenServer
+    def handle_call({:put, key, data, ttl}, _from, state) do
+      steps = :erlang.ceil(ttl / @ttl_interval)
+      exp = state.current_time + steps
+      :ets.insert(__MODULE__, {key, {exp, data}})
+      {:reply, :ok, state}
+    end
+
+    def handle_call({:delete, key}, _from, state) do
+      :ets.delete(__MODULE__, key)
+      {:reply, :ok, state}
+    end
+
+    @impl GenServer
+    def handle_info(:cleanup, %{current_time: current_time} = state) do
+      :ets.tab2list(__MODULE__)
+      |> Enum.each(fn {key, {exp, _data}} ->
+        if current_time > exp, do: :ets.delete(__MODULE__, key)
+      end)
+
+      Process.send_after(self(), :cleanup, @ttl_interval)
+      {:noreply, %{state | current_time: current_time + 1}}
+    end
+  end
+
   defmodule CacheControl do
     @moduledoc false
 
