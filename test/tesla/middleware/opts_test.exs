@@ -12,6 +12,15 @@ defmodule Tesla.Middleware.OptsTest do
     adapter fn env -> env end
   end
 
+  defmodule MergeAdapterOptsClient do
+    use Tesla
+
+    plug Tesla.Middleware.Opts, adapter: [first_opt: "1"]
+    plug Tesla.Middleware.Opts, adapter: [second_opt: "2"]
+
+    adapter fn env -> env end
+  end
+
   test "apply middleware options" do
     env = Client.get("/")
 
@@ -19,5 +28,11 @@ defmodule Tesla.Middleware.OptsTest do
     assert env.opts[:int] == 123
     assert env.opts[:list] == ["a", "b", "c"]
     assert env.opts[:fun].(4) == 8
+  end
+
+  test "merge adapter opts" do
+    env = MergeAdapterOptsClient.get("/")
+
+    assert env.opts == [first_opt: "1", second_opt: "2"]
   end
 end

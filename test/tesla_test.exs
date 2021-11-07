@@ -49,7 +49,7 @@ defmodule TeslaTest do
       :ok
     end
 
-    test "defauilt adapter" do
+    test "default adapter" do
       assert Tesla.effective_adapter(EmptyClient) == {Tesla.Adapter.Httpc, :call, [[]]}
     end
 
