@@ -28,10 +28,11 @@ defmodule Tesla.Middleware.Cache do
     @type vary :: [binary]
     @type data :: entry | vary
     @type ttl :: integer()
+    @type opts :: Keyword.t()
 
-    @callback get(key) :: {:ok, data} | :not_found
-    @callback put(key, data, ttl) :: :ok
-    @callback delete(key) :: :ok
+    @callback get(key, opts) :: {:ok, data} | :not_found
+    @callback put(key, data, ttl, opts) :: :ok
+    @callback delete(key, opts) :: :ok
   end
 
   defmodule Store.ETS do
@@ -47,46 +48,51 @@ defmodule Tesla.Middleware.Cache do
     end
 
     @impl Store
-    def get(key) do
-      case :ets.lookup(__MODULE__, key) do
+    def get(key, opts \\ []) do
+      case :ets.lookup(table_name(opts), key) do
         [{^key, {_exp, data}} | _rest] -> {:ok, data}
         [] -> :not_found
       end
     end
 
     @impl Store
-    def put(key, data, ttl) do
-      GenServer.call(__MODULE__, {:put, key, data, ttl})
+    def put(key, data, ttl, opts \\ []) do
+      server = Keyword.get(opts, :name, __MODULE__)
+      GenServer.call(server, {:put, key, data, ttl})
     end
 
     @impl Store
-    def delete(key) do
-      GenServer.call(__MODULE__, {:delete, key})
+    def delete(key, opts \\ []) do
+      server = Keyword.get(opts, :name, __MODULE__)
+      GenServer.call(server, {:delete, key})
     end
 
+    defp table_name(opts), do: Keyword.get(opts, :name, __MODULE__)
+
     @impl GenServer
-    def init(_opts) do
-      :ets.new(__MODULE__, [:named_table])
+    def init(opts) do
+      table_name = table_name(opts)
+      :ets.new(table_name, [:named_table])
       Process.send_after(self(), :cleanup, @ttl_interval)
-      {:ok, %{current_time: 0}}
+      {:ok, %{current_time: 0, table_name: table_name}}
     end
 
     @impl GenServer
     def handle_call({:put, key, data, ttl}, _from, state) do
       steps = :erlang.ceil(ttl / @ttl_interval)
       exp = state.current_time + steps
-      :ets.insert(__MODULE__, {key, {exp, data}})
+      :ets.insert(state.table_name, {key, {exp, data}})
       {:reply, :ok, state}
     end
 
     def handle_call({:delete, key}, _from, state) do
-      :ets.delete(__MODULE__, key)
+      :ets.delete(state.table_name, key)
       {:reply, :ok, state}
     end
 
     @impl GenServer
     def handle_info(:cleanup, %{current_time: current_time} = state) do
-      :ets.tab2list(__MODULE__)
+      :ets.tab2list(state.table_name)
       |> Enum.each(fn {key, {exp, _data}} ->
         if current_time > exp, do: :ets.delete(__MODULE__, key)
       end)
@@ -230,35 +236,35 @@ defmodule Tesla.Middleware.Cache do
       end
     end
 
-    defp get_by_vary(store, req) do
-      case store.get(key(:vary, req)) do
-        {:ok, [_ | _] = vary} -> store.get(key(:entry, req, vary))
-        _ -> store.get(key(:entry, req))
+    defp get_by_vary({store, store_opts}, req) do
+      case store.get(key(:vary, req), store_opts) do
+        {:ok, [_ | _] = vary} -> store.get(key(:entry, req, vary), store_opts)
+        _ -> store.get(key(:entry, req), store_opts)
       end
     end
 
-    def put(store, req, res, ttl) do
+    def put({store, store_opts}, req, res, ttl) do
       case vary(res.headers) do
         nil ->
           # no Vary, store under URL key
-          store.put(key(:entry, req), entry(req, res), ttl)
+          store.put(key(:entry, req), entry(req, res), ttl, store_opts)
 
         :wildcard ->
           # * Vary, store under URL key
-          store.put(key(:entry, req), entry(req, res), ttl)
+          store.put(key(:entry, req), entry(req, res), ttl, store_opts)
 
         vary ->
           # with Vary, store under URL key
-          store.put(key(:vary, req), vary, ttl)
-          store.put(key(:entry, req, vary), entry(req, res), ttl)
+          store.put(key(:vary, req), vary, ttl, store_opts)
+          store.put(key(:entry, req, vary), entry(req, res), ttl, store_opts)
       end
     end
 
-    def delete(store, req) do
+    def delete({store, store_opts}, req) do
       # check if there is stored vary for this URL
-      case store.get(key(:vary, req)) do
-        {:ok, [_ | _] = vary} -> store.delete(key(:entry, req, vary))
-        _ -> store.delete(key(:entry, req))
+      case store.get(key(:vary, req), store_opts) do
+        {:ok, [_ | _] = vary} -> store.delete(key(:entry, req, vary), store_opts)
+        _ -> store.delete(key(:entry, req), store_opts)
       end
     end
 
@@ -311,11 +317,12 @@ defmodule Tesla.Middleware.Cache do
   @impl true
   def call(env, next, opts) do
     store = Keyword.fetch!(opts, :store)
+    store_opts = Keyword.get(opts, :store_opts, [])
     mode = Keyword.get(opts, :mode, :shared)
     request = Request.new(env)
 
-    with {:ok, {env, _}} <- process(request, next, store, mode) do
-      cleanup(env, store)
+    with {:ok, {env, _}} <- process(request, next, {store, store_opts}, mode) do
+      cleanup(env, {store, store_opts})
       {:ok, env}
     end
   end

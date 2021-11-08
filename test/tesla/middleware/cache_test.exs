@@ -10,25 +10,27 @@ defmodule Tesla.Middleware.Cache.StoreTest do
         [{"user-agent", "Agent/1.0"}]
       }
 
-      test "return :not_found when empty" do
-        assert @store.get("KEY0:vary") == :not_found
-        assert @store.get("KEY0:entry") == :not_found
+      setup :ensure_store_opts
+
+      test "return :not_found when empty", %{store_opts: store_opts} do
+        assert @store.get("KEY0:vary", store_opts) == :not_found
+        assert @store.get("KEY0:entry", store_opts) == :not_found
       end
 
-      test "put & get vary" do
-        @store.put("KEY0:vary", ["user-agent", "accept"], 42)
-        assert @store.get("KEY0:vary") == {:ok, ["user-agent", "accept"]}
+      test "put & get vary", %{store_opts: store_opts} do
+        @store.put("KEY0:vary", ["user-agent", "accept"], 42, store_opts)
+        assert @store.get("KEY0:vary", store_opts) == {:ok, ["user-agent", "accept"]}
       end
 
-      test "put & get entry" do
-        @store.put("KEY0:entry:VARY0", @entry, 42)
-        assert @store.get("KEY0:entry:VARY0") == {:ok, @entry}
+      test "put & get entry", %{store_opts: store_opts} do
+        @store.put("KEY0:entry:VARY0", @entry, 42, store_opts)
+        assert @store.get("KEY0:entry:VARY0", store_opts) == {:ok, @entry}
       end
 
-      test "delete" do
-        @store.put("KEY0:entry:VARY0", @entry, 42)
-        @store.delete("KEY0:entry:VARY0")
-        assert @store.get("KEY0:entry:VARY0") == :not_found
+      test "delete", %{store_opts: store_opts} do
+        @store.put("KEY0:entry:VARY0", @entry, 42, store_opts)
+        @store.delete("KEY0:entry:VARY0", store_opts)
+        assert @store.get("KEY0:entry:VARY0", store_opts) == :not_found
       end
     end
   end
@@ -40,18 +42,18 @@ defmodule Tesla.Middleware.CacheTest do
   defmodule TestStore do
     @behaviour Tesla.Middleware.Cache.Store
 
-    def get(key) do
+    def get(key, _opts) do
       case Process.get(key) do
         nil -> :not_found
         data -> {:ok, data}
       end
     end
 
-    def put(key, data, _ttl) do
+    def put(key, data, _ttl, _opts) do
       Process.put(key, data)
     end
 
-    def delete(key) do
+    def delete(key, _opts) do
       Process.delete(key)
     end
   end
@@ -794,6 +796,8 @@ defmodule Tesla.Middleware.CacheTest do
     use StoreTest, Tesla.Middleware.Cache.Store.ETS
   end
 
+  defp ensure_store_opts(state), do: Map.put_new(state, :store_opts, [])
+
   defp setup_private_cache(%{adapter: adapter}) do
     middleware = [
       {Tesla.Middleware.Cache, store: TestStore, mode: :private}
@@ -802,9 +806,9 @@ defmodule Tesla.Middleware.CacheTest do
     %{client: Tesla.client(middleware, adapter)}
   end
 
-  defp setup_ets_store(_) do
-    _pid = start_supervised!({Tesla.Middleware.Cache.Store.ETS, []})
-    :ok
+  defp setup_ets_store(%{test: test}) do
+    _pid = start_supervised!({Tesla.Middleware.Cache.Store.ETS, [name: test]})
+    %{store_opts: [name: test]}
   end
 
   defp assert_cached({:ok, %{method: method, url: url}}), do: refute_receive({^method, ^url, _})
