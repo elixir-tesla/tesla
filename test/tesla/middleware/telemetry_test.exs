@@ -67,7 +67,14 @@ defmodule Tesla.Middleware.TelemetryTest do
     end
 
     assert_receive {:event, [:tesla, :request, :exception], %{duration: _time}, metadata}
-    assert %{kind: _kind, reason: _reason, stacktrace: _stacktrace, custom: "meta"} = metadata
+
+    assert %{
+             env: _env,
+             kind: _kind,
+             reason: _reason,
+             stacktrace: _stacktrace,
+             custom: "meta"
+           } = metadata
   end
 
   test "middleware works in tandem with PathParams and KeepRequest" do

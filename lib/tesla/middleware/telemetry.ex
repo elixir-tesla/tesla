@@ -38,7 +38,7 @@ if Code.ensure_loaded?(:telemetry) do
 
     * `[:tesla, :request, :exception]` - emitted when an exception has been raised.
       * Measurement: `%{duration: native_time}`
-      * Metadata: `%{kind: Exception.kind(), reason: term(), stacktrace: Exception.stacktrace()}`
+      * Metadata: `%{env: Tesla.Env.t(), kind: Exception.kind(), reason: term(), stacktrace: Exception.stacktrace()}`
 
     ## Legacy Telemetry Events
 
@@ -102,7 +102,7 @@ if Code.ensure_loaded?(:telemetry) do
 
           emit_exception(
             duration,
-            Map.merge(metadata, %{kind: kind, reason: reason, stacktrace: stacktrace})
+            Map.merge(metadata, %{env: env, kind: kind, reason: reason, stacktrace: stacktrace})
           )
 
           :erlang.raise(kind, reason, stacktrace)
