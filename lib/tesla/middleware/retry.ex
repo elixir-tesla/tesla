@@ -106,7 +106,7 @@ defmodule Tesla.Middleware.Retry do
     jitter = 1 + 2 * jitter_factor * :rand.uniform() - jitter_factor
 
     # The actual delay is in the range max_sleep * (1 - jitter_factor), max_sleep * (1 + jitter_factor)
-    delay = trunc(max_sleep + jitter)
+    delay = trunc(max_sleep * jitter)
 
     :timer.sleep(delay)
   end
