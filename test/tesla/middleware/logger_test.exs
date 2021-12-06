@@ -167,6 +167,9 @@ defmodule Tesla.Middleware.LoggerTest do
 
           "/ok" ->
             {:ok, %{env | status: 200, body: "ok"}}
+
+          "/specific_error" ->
+            {:error, "a specific error"}
         end
       end
     end
@@ -184,6 +187,55 @@ defmodule Tesla.Middleware.LoggerTest do
     test "ok" do
       log = capture_log(fn -> ClientWithLogLevel.get("/ok") end)
       assert log =~ "[info] GET /ok -> 200"
+    end
+
+    test "specific error" do
+      log = capture_log(fn -> ClientWithLogLevel.get("/specific_error") end)
+      assert log =~ "[error] GET /specific_error -> error"
+    end
+  end
+
+  describe "with log_level which provided build-in level directly" do
+    defmodule ClientWithLogLevelDirectly do
+      use Tesla
+
+      plug Tesla.Middleware.Logger, log_level: :error
+
+      adapter fn env ->
+        case env.url do
+          "/bad-request" ->
+            {:ok, %{env | status: 400, body: "bad request"}}
+
+          "/not-found" ->
+            {:ok, %{env | status: 404, body: "not found"}}
+
+          "/ok" ->
+            {:ok, %{env | status: 200, body: "ok"}}
+
+          "/specific_error" ->
+            {:error, "a specific error"}
+        end
+      end
+    end
+
+    test "not found" do
+      log = capture_log(fn -> ClientWithLogLevelDirectly.get("/not-found") end)
+      assert log =~ "[error] GET /not-found -> 404"
+    end
+
+    test "bad request" do
+      log = capture_log(fn -> ClientWithLogLevelDirectly.get("/bad-request") end)
+      assert log =~ "[error] GET /bad-request -> 400"
+    end
+
+    test "ok" do
+      log = capture_log(fn -> ClientWithLogLevelDirectly.get("/ok") end)
+      assert log =~ "[error] GET /ok -> 200"
+    end
+
+    test "specific error" do
+      log = capture_log(fn -> ClientWithLogLevelDirectly.get("/specific_error") end)
+      assert log =~ "[error] GET /specific_error -> error"
     end
   end
 

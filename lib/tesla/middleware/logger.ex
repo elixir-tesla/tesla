@@ -54,7 +54,7 @@ defmodule Tesla.Middleware.Logger do
 
   ## Options
 
-  - `:log_level` - custom function for calculating log level (see below)
+  - `:log_level` - custom option for calculating log level when get `{:ok, response}` after call.(see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
   - `:debug` - show detailed request/response logging
 
@@ -81,7 +81,7 @@ defmodule Tesla.Middleware.Logger do
   - `:warn` - for 3xx responses
   - `:info` - for 2xx responses
 
-  You can customize this setting by providing your own `log_level/1` function:
+  You can customize this setting by providing your own `log_level/1` function when you get `{:ok, response}` after call:
 
   ```
   defmodule MyClient do
@@ -97,6 +97,19 @@ defmodule Tesla.Middleware.Logger do
     end
   end
   ```
+
+  In some cases, you can also provide the build-in level directly for customization:
+
+  ```
+  defmodule MyClient do
+    use Tesla
+    plug Tesla.Middleware.Logger, log_level: :debug
+  end
+  ```
+  
+  NOTE:
+  - **If you get `{:error, whatever}`, the log_level will be `:error`.**
+  - You can get more log level information from [`Logger.Handler`](https://github.com/elixir-lang/elixir/blob/main/lib/logger/lib/logger/handler.ex)
 
   ## Logger Debug output
 
