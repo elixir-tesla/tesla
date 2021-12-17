@@ -103,7 +103,7 @@ defmodule Tesla.Middleware.Retry do
 
     # This ensures that the delay's order of magnitude is kept intact, while still having some jitter.
     # Generates a value x where 1-jitter_factor <= x <= 1 + jitter_factor
-    jitter = 1 + 2 * jitter_factor * :rand.uniform() - jitter_factor
+    jitter = 1 - jitter_factor * :rand.uniform()
 
     # The actual delay is in the range max_sleep * (1 - jitter_factor), max_sleep * (1 + jitter_factor)
     delay = trunc(max_sleep * jitter)
