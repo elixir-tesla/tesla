@@ -2,7 +2,7 @@ defmodule Tesla.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/teamon/tesla"
-  @version "1.4.3"
+  @version "1.4.4"
 
   def project do
     [

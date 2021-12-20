@@ -24,7 +24,8 @@ if Code.ensure_loaded?(:fuse) do
           {:ok, %{status: status}} when status in [428, 500, 504] -> true
           {:ok, _} -> false
           {:error, _} -> true
-        end
+        end,
+        mode: :sync
     end
     ```
 
@@ -35,6 +36,9 @@ if Code.ensure_loaded?(:fuse) do
     - `:keep_original_error` - boolean to indicate if, in case of melting (based on `should_melt`), it should return the upstream's error or the fixed one `{:error, unavailable}`.
     It's false by default, but it will be true in `2.0.0` version
     - `:should_melt` - function to determine if response should melt the fuse
+    - `:mode` - how to query the fuse, which has two values:
+      - `:sync` - queries are serialized through the `:fuse_server` process (the default)
+      - `:async_dirty` - queries check the fuse state directly, but may not account for recent melts or resets
 
     ## SASL logger
 
@@ -62,10 +66,11 @@ if Code.ensure_loaded?(:fuse) do
       context = %{
         name: Keyword.get(opts, :name, env.__module__),
         keep_original_error: Keyword.get(opts, :keep_original_error, false),
-        should_melt: Keyword.get(opts, :should_melt, &match?({:error, _}, &1))
+        should_melt: Keyword.get(opts, :should_melt, &match?({:error, _}, &1)),
+        mode: Keyword.get(opts, :mode, :sync)
       }
 
-      case :fuse.ask(context.name, :sync) do
+      case :fuse.ask(context.name, context.mode) do
         :ok ->
           run(env, next, context)
 

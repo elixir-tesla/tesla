@@ -95,7 +95,8 @@ defmodule Tesla.Middleware.TimeoutTest do
           [{last_module, _, _, file_info} | _] = __STACKTRACE__
 
           assert Tesla.Middleware.TimeoutTest.Client == last_module
-          assert [file: 'lib/tesla/builder.ex', line: 23] == file_info
+          assert file_info[:file] == 'lib/tesla/builder.ex'
+          assert file_info[:line] == 23
       else
         _ ->
           flunk("Expected exception to be thrown")

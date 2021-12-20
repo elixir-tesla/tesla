@@ -30,6 +30,12 @@ defmodule Tesla.ClientTest do
     end
   end
 
+  test "converts nil adapter properly" do
+    client = Tesla.client([])
+
+    assert Tesla.Client.adapter(client) == nil
+  end
+
   describe "Tesla.Client.middleware/1" do
     test "converts middleware properly" do
       middlewares = [
