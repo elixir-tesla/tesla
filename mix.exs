@@ -67,6 +67,9 @@ defmodule Tesla.Mixfile do
       {:poison, ">= 1.0.0", optional: true},
       {:exjsx, ">= 3.0.0", optional: true},
 
+      # messagepack parsers
+      {:msgpax, "~> 2.3", optional: true},
+
       # other
       {:fuse, "~> 2.4", optional: true},
       {:telemetry, "~> 0.4 or ~> 1.0", optional: true},
