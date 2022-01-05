@@ -59,9 +59,9 @@ defmodule Tesla.Middleware.MessagePack do
     with true <- encodable?(env),
          {:ok, body} <- encode_body(env.body, opts) do
       {:ok,
-        env
-        |> Tesla.put_body(body)
-        |> Tesla.put_headers([{"content-type", encode_content_type(opts)}])}
+       env
+       |> Tesla.put_body(body)
+       |> Tesla.put_headers([{"content-type", encode_content_type(opts)}])}
     else
       false -> {:ok, env}
       error -> error
@@ -71,7 +71,7 @@ defmodule Tesla.Middleware.MessagePack do
   defp encode_body(body, opts), do: process(body, :encode, opts)
 
   defp encode_content_type(opts),
-       do: Keyword.get(opts, :encode_content_type, @default_encode_content_type)
+    do: Keyword.get(opts, :encode_content_type, @default_encode_content_type)
 
   defp encodable?(%{body: nil}), do: false
   defp encodable?(%{body: body}) when is_binary(body), do: false
@@ -109,7 +109,7 @@ defmodule Tesla.Middleware.MessagePack do
   end
 
   defp content_types(opts),
-       do: @default_decode_content_types ++ Keyword.get(opts, :decode_content_types, [])
+    do: @default_decode_content_types ++ Keyword.get(opts, :decode_content_types, [])
 
   defp process(data, op, opts) do
     case do_process(data, op, opts) do

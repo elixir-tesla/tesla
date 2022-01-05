@@ -79,7 +79,8 @@ defmodule Tesla.Middleware.MessagePackTest do
     end
 
     test "return error when decoding invalid msgpack format" do
-      assert {:error, {Tesla.Middleware.MessagePack, :decode, _}} = Client.get("/invalid-msgpack-format")
+      assert {:error, {Tesla.Middleware.MessagePack, :decode, _}} =
+               Client.get("/invalid-msgpack-format")
     end
   end
 
@@ -93,7 +94,8 @@ defmodule Tesla.Middleware.MessagePackTest do
         {status, headers, body} =
           case env.url do
             "/decode" ->
-              {200, [{"content-type", "application/x-custom-msgpack"}], Msgpax.pack!(%{"value" => 123})}
+              {200, [{"content-type", "application/x-custom-msgpack"}],
+               Msgpax.pack!(%{"value" => 123})}
           end
 
         {:ok, %{env | status: status, headers: headers, body: body}}
