@@ -37,7 +37,8 @@ defmodule Tesla.Middleware.MessagePack do
 
   @behaviour Tesla.Middleware
 
-  @content_type "application/msgpack"
+  @default_decode_content_types ["application/msgpack", "application/x-msgpack"]
+  @default_encode_content_type "application/msgpack"
 
   @impl Tesla.Middleware
   def call(env, next, opts) do
@@ -70,7 +71,7 @@ defmodule Tesla.Middleware.MessagePack do
   defp encode_body(body, opts), do: process(body, :encode, opts)
 
   defp encode_content_type(opts),
-       do: Keyword.get(opts, :encode_content_type, @content_type)
+       do: Keyword.get(opts, :encode_content_type, @default_encode_content_type)
 
   defp encodable?(%{body: nil}), do: false
   defp encodable?(%{body: body}) when is_binary(body), do: false
@@ -108,7 +109,7 @@ defmodule Tesla.Middleware.MessagePack do
   end
 
   defp content_types(opts),
-       do: [@content_type] ++ Keyword.get(opts, :decode_content_types, [])
+       do: @default_decode_content_types ++ Keyword.get(opts, :decode_content_types, [])
 
   defp process(data, op, opts) do
     case do_process(data, op, opts) do
