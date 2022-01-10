@@ -96,6 +96,18 @@ defmodule Tesla.AdapterCase.Basic do
 
           assert {:error, _} = call(request)
         end
+
+        test "nil body in POST request" do
+          request = %Env{
+            method: :post,
+            url: "#{@http}/post",
+            body: nil,
+            headers: [{"content-type", "text/plain"}]
+          }
+
+          assert {:ok, %Env{} = response} = call(request)
+          assert response.status == 200
+        end
       end
     end
   end

@@ -180,7 +180,7 @@ if Code.ensure_loaded?(:gun) do
         Tesla.Adapter.Shared.format_method(env.method),
         Tesla.build_url(env.url, env.query),
         format_headers(env.headers),
-        env.body || "",
+        format_request_body(env),
         Tesla.Adapter.opts(
           [close_conn: true, body_as: :plain, send_body: :at_once, receive: true],
           env,
@@ -553,5 +553,10 @@ if Code.ensure_loaded?(:gun) do
           ip
       end
     end
+
+    # it is reasonable to make a post request with an empty body,
+    # however gun does not natively support it
+    defp format_request_body(%{method: :post} = env), do: env.body || "{}"
+    defp format_request_body(env), do: env.body || ""
   end
 end

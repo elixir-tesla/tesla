@@ -54,7 +54,7 @@ defmodule Tesla.Adapter.Httpc do
         Tesla.build_url(env.url, env.query) |> to_charlist,
         Enum.map(env.headers, fn {k, v} -> {to_charlist(k), to_charlist(v)} end),
         content_type,
-        env.body,
+        format_request_body(env),
         Keyword.split(opts, @http_opts)
       )
     )
@@ -106,4 +106,9 @@ defmodule Tesla.Adapter.Httpc do
 
   defp handle({:error, {:failed_connect, _}}), do: {:error, :econnrefused}
   defp handle(response), do: response
+
+  # it is reasonable to make a post request with an empty body,
+  # however httpc does not natively support it
+  defp format_request_body(%{method: :post} = env), do: env.body || ""
+  defp format_request_body(env), do: env.body
 end
