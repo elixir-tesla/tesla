@@ -315,7 +315,7 @@ defmodule MyAppTest do
   end
 
   test "list things" do
-    assert {:ok, %Tesla.Env{} = env} = MyApp.get("/hello")
+    assert {:ok, %Tesla.Env{} = env} = Tesla.get("http://example.com/hello")
     assert env.status == 200
     assert env.body == "hello"
   end
