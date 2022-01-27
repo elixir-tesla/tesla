@@ -8,7 +8,7 @@ if Mix.env() == :test do
     format: "$date $time [$level] $metadata$message\n"
 
   config :httparrot,
-    http_port: 5080,
+    http_port: 5081,
     https_port: 5443,
     ssl: true,
     unix_socket: false

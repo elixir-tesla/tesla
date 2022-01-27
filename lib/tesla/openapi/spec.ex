@@ -23,6 +23,9 @@ defmodule Tesla.OpenApi.Spec do
 
   @spec schema(map) :: Tesla.OpenApi.schema()
 
+  # Wrapped
+  def schema(%{"schema" => schema}), do: schema(schema)
+
   # Prim
   # TODO: Collapse null type into required/optional fields
   def schema(%{"type" => "null"}), do: %Prim{type: :null}
@@ -68,9 +71,6 @@ defmodule Tesla.OpenApi.Spec do
 
   # Any
   def schema(map) when map === %{}, do: %Any{}
-
-  # wrapped
-  def schema(%{"schema" => schema}), do: schema(schema)
 
   # TODO: HACK: Handle "content" => "..." correctly
   def schema(%{"content" => %{"application/json" => schema}}), do: schema(schema)

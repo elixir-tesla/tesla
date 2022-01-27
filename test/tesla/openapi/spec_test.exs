@@ -258,6 +258,13 @@ defmodule Tesla.OpenApi.SpecTest do
     test "schema wrapped" do
       assert schema(%{"schema" => %{"type" => "integer"}}) == %Prim{type: :integer}
     end
+
+    test "type: string & ref" do
+      assert schema(%{
+               "type" => "string",
+               "schema" => %{"$ref" => "#/definitions/Pet"}
+             }) == %Ref{name: "Pet", ref: "#/definitions/Pet"}
+    end
   end
 
   describe "operations/1" do

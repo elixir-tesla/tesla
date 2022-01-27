@@ -105,10 +105,13 @@ defmodule Tesla.OpenApi do
   end
 
   def generate(module, opts) do
-    file = Keyword.fetch!(opts, :spec)
-    dump = Keyword.get(opts, :dump, false)
+    raw =
+      cond do
+        file = opts[:spec] -> read_spec_from_file(file, opts)
+        url = opts[:spec_url] -> read_spec_from_url(url, opts)
+      end
 
-    raw = read_spec(file, opts)
+    dump = Keyword.get(opts, :dump, false)
 
     Context.put_spec(raw)
     Context.put_caller(module)
@@ -117,16 +120,25 @@ defmodule Tesla.OpenApi do
     spec = Spec.new(raw)
     code = Gen.gen(spec)
 
-    quote do
-      @external_resource unquote(file)
-      unquote(code)
-    end
+    [
+      if(opts[:spec], do: quote(do: @external_resource(unquote(opts[:spec])))),
+      code
+    ]
     |> dump(dump)
   end
 
-  defp read_spec(file, opts) do
-    raw = file |> File.read!() |> Jason.decode!()
-    merge(raw, opts[:extra])
+  defp read_spec_from_file(file, opts) do
+    read_spec(File.read!(file), opts)
+  end
+
+  defp read_spec_from_url(url, opts) do
+    client = Tesla.client([], Tesla.Adapter.Httpc)
+    {:ok, %{status: 200, body: body}} = Tesla.get(client, url)
+    read_spec(body, opts)
+  end
+
+  defp read_spec(binary, opts) do
+    merge(Jason.decode!(binary), opts[:extra])
   end
 
   defp merge(x, nil), do: x
