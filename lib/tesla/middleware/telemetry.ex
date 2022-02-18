@@ -147,11 +147,11 @@ if Code.ensure_loaded?(:telemetry) do
       end
     else
       defp emit_legacy_event(duration, result) do
-        duration_µs = System.convert_time_unit(duration, :native, :microsecond)
+        duration = System.convert_time_unit(duration, :native, :microsecond)
 
         :telemetry.execute(
           [:tesla, :request],
-          %{request_time: duration_µs},
+          %{request_time: duration},
           %{result: result}
         )
       end
