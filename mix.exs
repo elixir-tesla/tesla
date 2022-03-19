@@ -57,7 +57,7 @@ defmodule Tesla.Mixfile do
       # http clients
       {:ibrowse, "4.4.0", optional: true},
       {:hackney, "~> 1.6", optional: true},
-      {:gun, "~> 1.3", optional: true},
+      {:gun, "2.0.0-rc.2", optional: true},
       {:finch, "~> 0.3", optional: true},
       {:castore, "~> 0.1", optional: true},
       {:mint, "~> 1.0", optional: true},
