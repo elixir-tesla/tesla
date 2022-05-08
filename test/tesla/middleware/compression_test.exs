@@ -104,4 +104,67 @@ defmodule Tesla.Middleware.CompressionTest do
     assert {:ok, env} = CRDRClient.post("/", "foo bar")
     assert env.body == "foo bar"
   end
+
+  defmodule CompressionHeadersClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression
+
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/" ->
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], env.headers}
+        end
+
+      {:ok, %{env | status: status, headers: headers, body: body}}
+    end
+  end
+
+  test "Compression headers" do
+    assert {:ok, env} = CompressionHeadersClient.get("/")
+    assert env.body == [{"accept-encoding", "gzip, deflate"}]
+  end
+
+  defmodule DecompressResponseHeadersClient do
+    use Tesla
+
+    plug Tesla.Middleware.DecompressResponse
+
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/" ->
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], env.headers}
+        end
+
+      {:ok, %{env | status: status, headers: headers, body: body}}
+    end
+  end
+
+  test "Decompress response headers" do
+    assert {:ok, env} = DecompressResponseHeadersClient.get("/")
+    assert env.body == [{"accept-encoding", "gzip, deflate"}]
+  end
+
+  defmodule CompressRequestHeadersClient do
+    use Tesla
+
+    plug Tesla.Middleware.CompressRequest
+
+    adapter fn env ->
+      {status, headers, body} =
+        case env.url do
+          "/" ->
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], env.headers}
+        end
+
+      {:ok, %{env | status: status, headers: headers, body: body}}
+    end
+  end
+
+  test "Compress request headers" do
+    assert {:ok, env} = CompressRequestHeadersClient.get("/")
+    assert env.body == []
+  end
 end
