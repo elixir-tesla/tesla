@@ -476,6 +476,11 @@ use Tesla, except: [:delete, :options]
 ```elixir
 use Tesla, docs: false
 ```
+### Encode only JSON request (do not decode response)
+
+```elixir
+plug Tesla.Middleware.EncodeJson
+```
 
 ### Decode only JSON response (do not encode request)
 
