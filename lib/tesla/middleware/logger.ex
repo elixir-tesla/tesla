@@ -10,7 +10,10 @@ defmodule Tesla.Middleware.Logger.Formatter do
   @type format :: [atom | binary]
 
   @spec compile(binary | nil) :: format
+  @spec compile(pattern) :: pattern when pattern: function | {module, fun :: atom}
   def compile(nil), do: compile(@default_format)
+  def compile(fun) when is_function(fun), do: fun
+  def compile({mod, fun}) when is_atom(mod) and is_atom(fun), do: {mod, fun}
 
   def compile(binary) do
     ~r/(?<h>)\$[a-z]+(?<t>)/
@@ -22,7 +25,20 @@ defmodule Tesla.Middleware.Logger.Formatter do
   defp compile_key("$" <> key), do: raise(ArgumentError, "$#{key} is an invalid format pattern.")
   defp compile_key(part), do: part
 
-  @spec format(Tesla.Env.t(), Tesla.Env.result(), integer, format) :: IO.chardata()
+  @spec format(
+          Tesla.Env.t(),
+          Tesla.Env.result(),
+          integer,
+          format | function | {module, atom}
+        ) :: IO.chardata()
+  def format(request, response, time, fun) when is_function(fun) do
+    apply(fun, [request, response, time])
+  end
+
+  def format(request, response, time, {mod, fun}) do
+    apply(mod, fun, [request, response, time])
+  end
+
   def format(request, response, time, format) do
     Enum.map(format, &output(&1, request, response, time))
   end
@@ -37,7 +53,7 @@ defmodule Tesla.Middleware.Logger.Formatter do
 end
 
 defmodule Tesla.Middleware.Logger do
-  @moduledoc """
+  @moduledoc ~S"""
   Log requests using Elixir's Logger.
 
   With the default settings it logs request method, URL, response status, and time taken in milliseconds.
@@ -57,6 +73,7 @@ defmodule Tesla.Middleware.Logger do
   - `:log_level` - custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
   - `:debug` - show detailed request/response logging
+  - `:format` - custom string template or function for log message (see below)
 
   ## Custom log format
 
@@ -67,10 +84,24 @@ defmodule Tesla.Middleware.Logger do
   2018-03-25 18:32:40.397 [info]  GET https://bitebot.io -> 200 (88.074 ms)
   ```
 
-  Because log format is processed during compile time it needs to be set in config:
+  It can be changed globally with config:
 
   ```
   config :tesla, Tesla.Middleware.Logger, format: "$method $url ====> $status / time=$time"
+  ```
+
+  Or you can customize this setting by providing your own `format` function:
+
+  ```
+  defmodule MyClient do
+    use Tesla
+
+    plug Tesla.Middleware.Logger, format: &my_format/3
+
+    def my_format(request, response, time) do
+      "request=#{inspect(request)} response=#{inspect(response)} time=#{time}\n"
+    end
+  end
   ```
 
   ## Custom log levels
