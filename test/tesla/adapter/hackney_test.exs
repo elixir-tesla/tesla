@@ -36,6 +36,18 @@ defmodule Tesla.Adapter.HackneyTest do
     assert is_reference(response.body) == true
   end
 
+  test "get with `:max_body` option" do
+    request = %Env{
+      method: :post,
+      url: "#{@http}/post",
+      body: String.duplicate("long response", 1000)
+    }
+
+    assert {:ok, %Env{} = response} = call(request, with_body: true, max_body: 100)
+    assert response.status == 200
+    assert byte_size(response.body) < 2000
+  end
+
   test "request timeout error" do
     request = %Env{
       method: :get,

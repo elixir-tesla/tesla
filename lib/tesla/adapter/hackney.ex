@@ -24,6 +24,10 @@ if Code.ensure_loaded?(:hackney) do
       adapter Tesla.Adapter.Hackney
     end
     ```
+
+    ## Adapter specific options
+
+    - `:max_body` - Max response body size in bytes. Actual response may be bigger because hackney stops after the last chunk that surpasses `:max_body`.
     """
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
