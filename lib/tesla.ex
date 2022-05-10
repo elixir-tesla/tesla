@@ -89,32 +89,19 @@ defmodule Tesla.Middleware do
 
   ### Examples
 
-      defmodule MyProject.InspectHeadersMiddleware do
-        @behaviour Tesla.Middleware
+    defmodule MyProject.InspectHeadersMiddleware do
+      @behaviour Tesla.Middleware
 
-        @impl Tesla.Middleware
-        def call(env, next, options) do
-          env
-          |> pre_inspect_headers(options)
-          |> Tesla.run(next)
-          |> post_inspect_headers(options)
-        end
+      @impl true
+      def call(env, next, options) do
+        IO.inspect(env.headers, options)
 
-        # Prior to Tesla.run you must return the Tesla.Env arg
-        defp pre_inspect_headers(env, options) do
+        with {:ok, env} <- Tesla.run(env, next) do
           IO.inspect(env.headers, options)
-
-          env
-        end
-
-        # Post Tesla.run function must match the :ok/:error tuple
-        # and return the same
-        defp post_inspect_headers({_, env} = result, options) do
-          IO.inspect(env.headers, options)
-
-          result
+          {:ok, env}
         end
       end
+    end
 
   """
 
