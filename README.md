@@ -139,7 +139,7 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 ## Runtime middleware
 
 All HTTP functions, such as `Tesla.get/3` and `Tesla.post/4`, can take a dynamic client as the first argument.
-This allow to use convenient syntax for modifying the behaviour in runtime.
+This allows to use convenient syntax for modifying the behaviour in runtime.
 
 Consider the following case: GitHub API can be accessed using OAuth token authorization.
 
@@ -304,10 +304,10 @@ defmodule MyAppTest do
 
   setup do
     mock(fn
-      %{method: :get, url: "http://example.com/hello"} ->
+      %{method: :get, url: "https://example.com/hello"} ->
         %Tesla.Env{status: 200, body: "hello"}
 
-      %{method: :post, url: "http://example.com/world"} ->
+      %{method: :post, url: "https://example.com/world"} ->
         json(%{"my" => "data"})
     end)
 
@@ -315,7 +315,7 @@ defmodule MyAppTest do
   end
 
   test "list things" do
-    assert {:ok, %Tesla.Env{} = env} = Tesla.get("http://example.com/hello")
+    assert {:ok, %Tesla.Env{} = env} = MyApi.get("https://example.com/hello")
     assert env.status == 200
     assert env.body == "hello"
   end
