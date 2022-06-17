@@ -49,4 +49,19 @@ defmodule Tesla.ClientTest do
       assert middlewares == Tesla.Client.middleware(client)
     end
   end
+
+  describe "Inspect.Tesla.Client" do
+    test "ensures that no secrets are leaked in logs" do
+      middlewares = [
+        {Tesla.Middleware.BasicAuth, username: "secret", password: "secret", other: "OK"},
+        {Tesla.Middleware.BearerAuth, token: "secret", other: "OK"},
+        {Tesla.Middleware.DigestAuth, %{username: "secret", password: "secret", other: "OK"}}
+      ]
+
+      inspected = middlewares |> Tesla.client() |> inspect()
+
+      refute String.contains?(inspected, "secret")
+      assert String.contains?(inspected, "OK")
+    end
+  end
 end
