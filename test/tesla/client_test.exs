@@ -61,7 +61,9 @@ defmodule Tesla.ClientTest do
       inspected = middlewares |> Tesla.client() |> inspect()
 
       refute String.contains?(inspected, "secret")
-      assert String.contains?(inspected, "OK")
+      assert String.contains?(inspected, ~s(password: "[FILTERED]"))
+      assert String.contains?(inspected, ~s(username: "[FILTERED]"))
+      assert String.contains?(inspected, ~s(token: "[FILTERED]"))
     end
   end
 end
