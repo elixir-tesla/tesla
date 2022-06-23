@@ -93,7 +93,7 @@ defmodule Tesla.Middleware do
       @behaviour Tesla.Middleware
 
       @impl true
-      def call(env, next, options) do
+      def call(env, next, _options) do
         IO.inspect(env.headers)
 
         with {:ok, env} <- Tesla.run(env, next) do
