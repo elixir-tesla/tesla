@@ -39,12 +39,13 @@ defmodule Tesla.Middleware.Retry do
 
   ## Options
 
+  - `:before_retry` - function for transforming the env before each retry
   - `:delay` - The base delay in milliseconds (positive integer, defaults to 50)
-  - `:max_retries` - maximum number of retries (non-negative integer, defaults to 5)
-  - `:max_delay` - maximum delay in milliseconds (positive integer, defaults to 5000)
-  - `:should_retry` - function to determine if request should be retried
   - `:jitter_factor` - additive noise proportionality constant
       (float between 0 and 1, defaults to 0.2)
+  - `:max_delay` - maximum delay in milliseconds (positive integer, defaults to 5000)
+  - `:max_retries` - maximum number of retries (non-negative integer, defaults to 5)
+  - `:should_retry` - function to determine if request should be retried
   """
 
   # Not necessary in Elixir 1.10+
@@ -64,12 +65,13 @@ defmodule Tesla.Middleware.Retry do
     opts = opts || []
 
     context = %{
-      retries: 0,
       delay: integer_opt!(opts, :delay, 1),
-      max_retries: integer_opt!(opts, :max_retries, 0),
+      jitter_factor: float_opt!(opts, :jitter_factor, 0, 1),
       max_delay: integer_opt!(opts, :max_delay, 1),
+      max_retries: integer_opt!(opts, :max_retries, 0),
+      retries: 0,
       should_retry: Keyword.get(opts, :should_retry, &match?({:error, _}, &1)),
-      jitter_factor: float_opt!(opts, :jitter_factor, 0, 1)
+      before_retry: Keyword.get(opts, :before_retry, fn _result, env -> env end)
     }
 
     retry(env, next, context)
@@ -90,7 +92,10 @@ defmodule Tesla.Middleware.Retry do
     if context.should_retry.(res) do
       backoff(context.max_delay, context.delay, context.retries, context.jitter_factor)
       context = update_in(context, [:retries], &(&1 + 1))
-      retry(env, next, context)
+
+      res
+      |> context.before_retry.(env)
+      |> retry(next, context)
     else
       res
     end

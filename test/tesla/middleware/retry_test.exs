@@ -14,6 +14,8 @@ defmodule Tesla.Middleware.RetryTest do
             "/nope" -> {:error, :econnrefused}
             "/retry_status" when retries < 5 -> {:ok, %{env | status: 500}}
             "/retry_status" -> {:ok, %{env | status: 200}}
+            "/first_unauthorized" when retries < 1 -> {:ok, %{env | status: 401}}
+            "/first_unauthorized" -> {:ok, %{env | status: 200}}
           end
 
         {response, retries + 1}
@@ -47,6 +49,24 @@ defmodule Tesla.Middleware.RetryTest do
     adapter LaggyAdapter
   end
 
+  defmodule ClientWithUpdateEnvFunction do
+    use Tesla
+
+    plug Tesla.Middleware.BearerAuth, token: "token"
+
+    plug Tesla.Middleware.Retry,
+      before_retry: fn
+        {:ok, %{status: 401}}, env -> Tesla.put_header(env, "authorization", "new-token")
+        _result, env -> env
+      end,
+      should_retry: fn
+        {:ok, %{status: 401}} -> true
+        _ -> false
+      end
+
+    adapter LaggyAdapter
+  end
+
   setup do
     {:ok, _} = LaggyAdapter.start_link()
     :ok
@@ -72,6 +92,16 @@ defmodule Tesla.Middleware.RetryTest do
   test "use custom retry determination function" do
     assert {:ok, %Tesla.Env{url: "/retry_status", method: :get, status: 200}} =
              ClientWithShouldRetryFunction.get("/retry_status")
+  end
+
+  test "update env before next attempt" do
+    assert {:ok,
+            %Tesla.Env{
+              url: "/first_unauthorized",
+              headers: [{"authorization", "new-token"}],
+              method: :get,
+              status: 200
+            }} = ClientWithUpdateEnvFunction.get("/first_unauthorized")
   end
 
   defmodule DefunctClient do
