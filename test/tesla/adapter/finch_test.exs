@@ -6,7 +6,8 @@ defmodule Tesla.Adapter.FinchTest do
   use Tesla.AdapterCase, adapter: {Tesla.Adapter.Finch, [name: @finch_name]}
   use Tesla.AdapterCase.Basic
   use Tesla.AdapterCase.Multipart
-  # use Tesla.AdapterCase.StreamRequestBody
+  use Tesla.AdapterCase.StreamRequestBody
+  use Tesla.AdapterCase.StreamResponseBody
   use Tesla.AdapterCase.SSL
 
   setup do
