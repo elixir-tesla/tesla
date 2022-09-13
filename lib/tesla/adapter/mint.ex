@@ -23,8 +23,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
       use Tesla
       adapter Tesla.Adapter.Mint
     end
+
     # set global custom cacertfile
-    config :tesla, Tesla.Adapter.Mint, cacert: ["path_to_cacert"]
+    config :tesla, adapter: {Tesla.Adapter.Mint, cacert: ["path_to_cacert"]}
     ```
 
     ## Adapter specific options:
