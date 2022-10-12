@@ -50,7 +50,8 @@ defmodule Tesla.Env do
           status: status,
           opts: opts,
           __module__: atom,
-          __client__: client
+          __client__: client,
+          __pid__: pid()
         }
 
   defstruct method: nil,
@@ -61,7 +62,8 @@ defmodule Tesla.Env do
             status: nil,
             opts: [],
             __module__: nil,
-            __client__: nil
+            __client__: nil,
+            __pid__: nil
 end
 
 defmodule Tesla.Middleware do
@@ -322,7 +324,7 @@ defmodule Tesla do
   end
 
   defp prepare(module, %{pre: pre, post: post} = client, options) do
-    env = struct(Env, options ++ [__module__: module, __client__: client])
+    env = struct(Env, options ++ [__module__: module, __client__: client, __pid__: self()])
     stack = pre ++ module.__middleware__ ++ post ++ [effective_adapter(module, client)]
     {env, stack}
   end

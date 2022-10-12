@@ -63,13 +63,14 @@ defmodule Tesla.Adapter.HackneyTest do
     assert {:error, :fake_error} = call(request)
   end
 
-  test "get with `stream_to_pid: pid` option" do
+  test "get with `stream: true` option" do
     request = %Env{
       method: :get,
-      url: "#{@http}/ip"
+      url: "#{@http}/ip",
+      __pid__: self()
     }
 
-    assert {:ok, %Env{} = response} = call(request, stream_to_pid: self())
+    assert {:ok, %Env{} = response} = call(request, stream: true)
 
     assert response.status == 200
     assert is_function(response.body)

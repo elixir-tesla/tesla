@@ -54,6 +54,7 @@ if Code.ensure_loaded?(:hackney) do
         env.headers,
         env.body,
         Tesla.Adapter.opts(env, opts)
+        |> Keyword.put_new(:stream_owner, env.__pid__)
       )
     end
 
@@ -73,8 +74,8 @@ if Code.ensure_loaded?(:hackney) do
     defp request(method, url, headers, body, opts) do
       response = :hackney.request(method, url, headers, body || '', opts)
 
-      case Keyword.get(opts, :stream_to_pid) do
-        pid when is_pid(pid) -> handle_stream(response, pid)
+      case {Keyword.get(opts, :stream), Keyword.get(opts, :stream_owner)} do
+        {true, pid} when is_pid(pid) -> handle_stream(response, pid)
         _ -> handle(response)
       end
     end
