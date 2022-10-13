@@ -67,10 +67,11 @@ defmodule Tesla.Adapter.HackneyTest do
     request = %Env{
       method: :get,
       url: "#{@http}/ip",
+      response: :stream,
       __pid__: self()
     }
 
-    assert {:ok, %Env{} = response} = call(request, stream: true)
+    assert {:ok, %Env{} = response} = call(request)
 
     assert response.status == 200
     assert is_function(response.body)

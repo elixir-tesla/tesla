@@ -53,41 +53,42 @@ if Code.ensure_loaded?(:hackney) do
         Tesla.build_url(env.url, env.query),
         env.headers,
         env.body,
+        env.response,
         Tesla.Adapter.opts(env, opts)
         |> Keyword.put_new(:stream_owner, env.__pid__)
       )
     end
 
-    defp request(method, url, headers, %Stream{} = body, opts),
-      do: request_stream(method, url, headers, body, opts)
+    defp request(method, url, headers, %Stream{} = body, response, opts),
+      do: request_stream(method, url, headers, body, response, opts)
 
-    defp request(method, url, headers, body, opts) when is_function(body),
-      do: request_stream(method, url, headers, body, opts)
+    defp request(method, url, headers, body, response, opts) when is_function(body),
+      do: request_stream(method, url, headers, body, response, opts)
 
-    defp request(method, url, headers, %Multipart{} = mp, opts) do
+    defp request(method, url, headers, %Multipart{} = mp, response, opts) do
       headers = headers ++ Multipart.headers(mp)
       body = Multipart.body(mp)
 
-      request(method, url, headers, body, opts)
+      request(method, url, headers, body, response, opts)
     end
 
-    defp request(method, url, headers, body, opts) do
+    defp request(method, url, headers, body, type, opts) do
       response = :hackney.request(method, url, headers, body || '', opts)
-
-      case {Keyword.get(opts, :stream), Keyword.get(opts, :stream_owner)} do
-        {true, pid} when is_pid(pid) -> handle_stream(response, pid)
-        _ -> handle(response)
-      end
+      handle(response, type, Keyword.get(opts, :stream_owner))
     end
 
-    defp request_stream(method, url, headers, body, opts) do
+    defp request_stream(method, url, headers, body, type, opts) do
+      handle_wrap = fn result ->
+        handle(result, type, Keyword.get(opts, :stream_owner))
+      end
+
       with {:ok, ref} <- :hackney.request(method, url, headers, :stream, opts) do
         case send_stream(ref, body) do
-          :ok -> handle(:hackney.start_response(ref))
-          error -> handle(error)
+          :ok -> handle_wrap.(:hackney.start_response(ref))
+          error -> handle_wrap.(error)
         end
       else
-        e -> handle(e)
+        e -> handle_wrap.(e)
       end
     end
 
@@ -100,22 +101,25 @@ if Code.ensure_loaded?(:hackney) do
       end)
     end
 
-    defp handle({:error, _} = error), do: error
-    defp handle({:ok, status, headers}), do: {:ok, status, headers, []}
+    defp handle({:error, _} = error, _, _), do: error
+    defp handle({:ok, status, headers}, _, _), do: {:ok, status, headers, []}
 
-    defp handle({:ok, ref}) when is_reference(ref) do
+    defp handle({:ok, ref}, :default, _) when is_reference(ref) do
       handle_async_response({ref, %{status: nil, headers: nil}})
     end
 
-    defp handle({:ok, status, headers, ref}) when is_reference(ref) do
+    defp handle({:ok, ref}, :stream, pid) when is_reference(ref) do
+      handle_async_response({ref, %{status: nil, headers: nil}})
+      |> handle(:stream, pid)
+    end
+
+    defp handle({:ok, status, headers, ref}, :default, _) when is_reference(ref) do
       with {:ok, body} <- :hackney.body(ref) do
         {:ok, status, headers, body}
       end
     end
 
-    defp handle({:ok, status, headers, body}), do: {:ok, status, headers, body}
-
-    defp handle_stream({:ok, status, headers, ref}, pid) when is_reference(ref) do
+    defp handle({:ok, status, headers, ref}, :stream, pid) when is_reference(ref) do
       :hackney.controlling_process(ref, pid)
 
       body =
@@ -139,15 +143,7 @@ if Code.ensure_loaded?(:hackney) do
       {:ok, status, headers, body}
     end
 
-    defp handle_stream(response, pid) do
-      case handle(response) do
-        {:ok, _status, _headers, ref} = response when is_reference(ref) ->
-          handle_stream(response, pid)
-
-        response ->
-          response
-      end
-    end
+    defp handle({:ok, status, headers, body}, _, _), do: {:ok, status, headers, body}
 
     defp handle_async_response({ref, %{headers: headers, status: status}})
          when not (is_nil(headers) or is_nil(status)) do

@@ -32,6 +32,7 @@ defmodule Tesla.Env do
   @type param :: binary | [{binary | atom, param}]
   @type query :: [{binary | atom, param}]
   @type headers :: [{binary, binary}]
+  @type response :: :default | :stream
 
   @type body :: any
   @type status :: integer | nil
@@ -48,6 +49,7 @@ defmodule Tesla.Env do
           headers: headers,
           body: body,
           status: status,
+          response: response,
           opts: opts,
           __module__: atom,
           __client__: client,
@@ -60,6 +62,7 @@ defmodule Tesla.Env do
             headers: [],
             body: nil,
             status: nil,
+            response: :default,
             opts: [],
             __module__: nil,
             __client__: nil,
