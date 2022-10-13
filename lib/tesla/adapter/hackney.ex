@@ -113,13 +113,8 @@ if Code.ensure_loaded?(:hackney) do
       |> handle(:stream, pid)
     end
 
-    defp handle({:ok, status, headers, ref}, :default, _) when is_reference(ref) do
-      with {:ok, body} <- :hackney.body(ref) do
-        {:ok, status, headers, body}
-      end
-    end
-
-    defp handle({:ok, status, headers, ref}, :stream, pid) when is_reference(ref) do
+    defp handle({:ok, status, headers, ref}, :stream, pid)
+         when is_reference(ref) and is_pid(pid) do
       :hackney.controlling_process(ref, pid)
 
       body =
@@ -141,6 +136,12 @@ if Code.ensure_loaded?(:hackney) do
         )
 
       {:ok, status, headers, body}
+    end
+
+    defp handle({:ok, status, headers, ref}, _, _) when is_reference(ref) do
+      with {:ok, body} <- :hackney.body(ref) do
+        {:ok, status, headers, body}
+      end
     end
 
     defp handle({:ok, status, headers, body}, _, _), do: {:ok, status, headers, body}
