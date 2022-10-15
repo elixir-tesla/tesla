@@ -72,23 +72,33 @@ if Code.ensure_loaded?(:hackney) do
       request(method, url, headers, body, response, opts)
     end
 
-    defp request(method, url, headers, body, type, opts) do
+    defp request(method, url, headers, body, :stream, opts) do
       response = :hackney.request(method, url, headers, body || '', opts)
-      handle(response, type, Keyword.get(opts, :stream_owner))
+      handle_stream(response, Keyword.get(opts, :stream_owner))
+    end
+
+    defp request(method, url, headers, body, _, opts) do
+      response = :hackney.request(method, url, headers, body || '', opts)
+      handle(response)
     end
 
     defp request_stream(method, url, headers, body, type, opts) do
-      handle_wrap = fn result ->
-        handle(result, type, Keyword.get(opts, :stream_owner))
-      end
-
       with {:ok, ref} <- :hackney.request(method, url, headers, :stream, opts) do
-        case send_stream(ref, body) do
-          :ok -> handle_wrap.(:hackney.start_response(ref))
-          error -> handle_wrap.(error)
+        case {send_stream(ref, body), type} do
+          {:ok, :stream} ->
+            handle_stream(
+              :hackney.start_response(ref),
+              Keyword.get(opts, :stream_owner)
+            )
+
+          {:ok, _} ->
+            handle(:hackney.start_response(ref))
+
+          {error, _} ->
+            handle(error)
         end
       else
-        e -> handle_wrap.(e)
+        e -> handle(e)
       end
     end
 
@@ -101,19 +111,22 @@ if Code.ensure_loaded?(:hackney) do
       end)
     end
 
-    defp handle({:error, _} = error, _, _), do: error
-    defp handle({:ok, status, headers}, _, _), do: {:ok, status, headers, []}
+    defp handle({:error, _} = error), do: error
+    defp handle({:ok, status, headers}), do: {:ok, status, headers, []}
 
-    defp handle({:ok, ref}, :default, _) when is_reference(ref) do
+    defp handle({:ok, ref}) when is_reference(ref) do
       handle_async_response({ref, %{status: nil, headers: nil}})
     end
 
-    defp handle({:ok, ref}, :stream, pid) when is_reference(ref) do
-      handle_async_response({ref, %{status: nil, headers: nil}})
-      |> handle(:stream, pid)
+    defp handle({:ok, status, headers, ref}) when is_reference(ref) do
+      with {:ok, body} <- :hackney.body(ref) do
+        {:ok, status, headers, body}
+      end
     end
 
-    defp handle({:ok, status, headers, ref}, :stream, pid)
+    defp handle({:ok, status, headers, body}), do: {:ok, status, headers, body}
+
+    defp handle_stream({:ok, status, headers, ref}, pid)
          when is_reference(ref) and is_pid(pid) do
       :hackney.controlling_process(ref, pid)
 
@@ -138,13 +151,15 @@ if Code.ensure_loaded?(:hackney) do
       {:ok, status, headers, body}
     end
 
-    defp handle({:ok, status, headers, ref}, _, _) when is_reference(ref) do
-      with {:ok, body} <- :hackney.body(ref) do
-        {:ok, status, headers, body}
+    defp handle_stream(response, pid) do
+      case handle(response) do
+        {:ok, _status, _headers, ref} = response when is_reference(ref) and is_pid(pid) ->
+          handle_stream(response, pid)
+
+        response ->
+          response
       end
     end
-
-    defp handle({:ok, status, headers, body}, _, _), do: {:ok, status, headers, body}
 
     defp handle_async_response({ref, %{headers: headers, status: status}})
          when not (is_nil(headers) or is_nil(status)) do
