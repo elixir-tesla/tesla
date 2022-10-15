@@ -62,4 +62,33 @@ defmodule Tesla.Adapter.HackneyTest do
 
     assert {:error, :fake_error} = call(request)
   end
+
+  test "get with `response: :stream`" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/ip",
+      response: :stream,
+      __pid__: self()
+    }
+
+    assert {:ok, %Env{} = response} = call(request)
+
+    assert response.status == 200
+    assert is_function(response.body)
+    assert is_bitstring(Enum.join(response.body))
+  end
+
+  test "get with `response: stream` and bad pid" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/ip",
+      response: :stream,
+      __pid__: nil
+    }
+
+    assert {:ok, %Env{} = response} = call(request)
+
+    assert response.status == 200
+    assert not is_function(response.body)
+  end
 end

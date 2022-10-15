@@ -42,7 +42,10 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
-    defp format_body(data) when is_binary(data) or is_reference(data), do: data
+
+    defp format_body(data)
+         when is_binary(data) or is_reference(data) or is_function(data),
+         do: data
 
     defp request(env, opts) do
       request(
@@ -50,32 +53,49 @@ if Code.ensure_loaded?(:hackney) do
         Tesla.build_url(env.url, env.query),
         env.headers,
         env.body,
+        env.response,
         Tesla.Adapter.opts(env, opts)
+        |> Keyword.put_new(:stream_owner, env.__pid__)
       )
     end
 
-    defp request(method, url, headers, %Stream{} = body, opts),
-      do: request_stream(method, url, headers, body, opts)
+    defp request(method, url, headers, %Stream{} = body, response, opts),
+      do: request_stream(method, url, headers, body, response, opts)
 
-    defp request(method, url, headers, body, opts) when is_function(body),
-      do: request_stream(method, url, headers, body, opts)
+    defp request(method, url, headers, body, response, opts) when is_function(body),
+      do: request_stream(method, url, headers, body, response, opts)
 
-    defp request(method, url, headers, %Multipart{} = mp, opts) do
+    defp request(method, url, headers, %Multipart{} = mp, response, opts) do
       headers = headers ++ Multipart.headers(mp)
       body = Multipart.body(mp)
 
-      request(method, url, headers, body, opts)
+      request(method, url, headers, body, response, opts)
     end
 
-    defp request(method, url, headers, body, opts) do
-      handle(:hackney.request(method, url, headers, body || '', opts))
+    defp request(method, url, headers, body, :stream, opts) do
+      response = :hackney.request(method, url, headers, body || '', opts)
+      handle_stream(response, Keyword.get(opts, :stream_owner))
     end
 
-    defp request_stream(method, url, headers, body, opts) do
+    defp request(method, url, headers, body, _, opts) do
+      response = :hackney.request(method, url, headers, body || '', opts)
+      handle(response)
+    end
+
+    defp request_stream(method, url, headers, body, type, opts) do
       with {:ok, ref} <- :hackney.request(method, url, headers, :stream, opts) do
-        case send_stream(ref, body) do
-          :ok -> handle(:hackney.start_response(ref))
-          error -> handle(error)
+        case {send_stream(ref, body), type} do
+          {:ok, :stream} ->
+            handle_stream(
+              :hackney.start_response(ref),
+              Keyword.get(opts, :stream_owner)
+            )
+
+          {:ok, _} ->
+            handle(:hackney.start_response(ref))
+
+          {error, _} ->
+            handle(error)
         end
       else
         e -> handle(e)
@@ -105,6 +125,41 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp handle({:ok, status, headers, body}), do: {:ok, status, headers, body}
+
+    defp handle_stream({:ok, status, headers, ref}, pid)
+         when is_reference(ref) and is_pid(pid) do
+      :hackney.controlling_process(ref, pid)
+
+      body =
+        Stream.resource(
+          fn -> nil end,
+          fn _ ->
+            case :hackney.stream_body(ref) do
+              :done ->
+                {:halt, nil}
+
+              {:ok, data} ->
+                {[data], nil}
+
+              {:error, reason} ->
+                raise inspect(reason)
+            end
+          end,
+          fn _ -> :hackney.close(ref) end
+        )
+
+      {:ok, status, headers, body}
+    end
+
+    defp handle_stream(response, pid) do
+      case handle(response) do
+        {:ok, _status, _headers, ref} = response when is_reference(ref) and is_pid(pid) ->
+          handle_stream(response, pid)
+
+        response ->
+          response
+      end
+    end
 
     defp handle_async_response({ref, %{headers: headers, status: status}})
          when not (is_nil(headers) or is_nil(status)) do
