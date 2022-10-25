@@ -68,6 +68,7 @@ defmodule Tesla.Mixfile do
       {:exjsx, ">= 3.0.0", optional: true},
 
       # other
+      {:calendar, "~> 1.0", optional: true},
       {:fuse, "~> 2.4", optional: true},
       {:telemetry, "~> 0.4 or ~> 1.0", optional: true},
 
