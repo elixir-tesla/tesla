@@ -28,4 +28,21 @@ defmodule Tesla.Adapter.HttpcTest do
 
     assert data["headers"]["content-type"] == "text/plain"
   end
+
+  test "that get uses the correct request" do
+    env = %Env{
+      method: :get,
+      body: "",
+      url: "#{@http}/get"
+    }
+
+    env = Tesla.put_header(env, "content-type", "text/plain")
+
+    assert {:ok, %Env{} = response} = call(env)
+    assert response.status == 200
+
+    {:ok, data} = Jason.decode(response.body)
+
+    assert data["headers"]["content-type"] == "text/plain"
+  end
 end
