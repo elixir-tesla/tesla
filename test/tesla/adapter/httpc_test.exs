@@ -9,7 +9,7 @@ defmodule Tesla.Adapter.HttpcTest do
   use Tesla.AdapterCase.SSL,
     ssl: [
       verify: :verify_peer,
-      cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
+      cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
     ]
 
   # see https://github.com/teamon/tesla/issues/147
