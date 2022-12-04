@@ -24,6 +24,10 @@ if Code.ensure_loaded?(:hackney) do
       adapter Tesla.Adapter.Hackney
     end
     ```
+
+    ## Adapter specific options
+
+    - `:max_body` - Max response body size in bytes. Actual response may be bigger because hackney stops after the last chunk that surpasses `:max_body`.
     """
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
@@ -68,17 +72,17 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp request(method, url, headers, body, opts) do
-      handle(:hackney.request(method, url, headers, body || '', opts))
+      handle(:hackney.request(method, url, headers, body || '', opts), opts)
     end
 
     defp request_stream(method, url, headers, body, opts) do
       with {:ok, ref} <- :hackney.request(method, url, headers, :stream, opts) do
         case send_stream(ref, body) do
-          :ok -> handle(:hackney.start_response(ref))
-          error -> handle(error)
+          :ok -> handle(:hackney.start_response(ref), opts)
+          error -> handle(error, opts)
         end
       else
-        e -> handle(e)
+        e -> handle(e, opts)
       end
     end
 
@@ -91,20 +95,20 @@ if Code.ensure_loaded?(:hackney) do
       end)
     end
 
-    defp handle({:error, _} = error), do: error
-    defp handle({:ok, status, headers}), do: {:ok, status, headers, []}
+    defp handle({:error, _} = error, _opts), do: error
+    defp handle({:ok, status, headers}, _opts), do: {:ok, status, headers, []}
 
-    defp handle({:ok, ref}) when is_reference(ref) do
+    defp handle({:ok, ref}, _opts) when is_reference(ref) do
       handle_async_response({ref, %{status: nil, headers: nil}})
     end
 
-    defp handle({:ok, status, headers, ref}) when is_reference(ref) do
-      with {:ok, body} <- :hackney.body(ref) do
+    defp handle({:ok, status, headers, ref}, opts) when is_reference(ref) do
+      with {:ok, body} <- :hackney.body(ref, Keyword.get(opts, :max_body, :infinity)) do
         {:ok, status, headers, body}
       end
     end
 
-    defp handle({:ok, status, headers, body}), do: {:ok, status, headers, body}
+    defp handle({:ok, status, headers, body}, _opts), do: {:ok, status, headers, body}
 
     defp handle_async_response({ref, %{headers: headers, status: status}})
          when not (is_nil(headers) or is_nil(status)) do
