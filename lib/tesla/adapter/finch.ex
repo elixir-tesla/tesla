@@ -1,9 +1,9 @@
 if Code.ensure_loaded?(Finch) do
   defmodule Tesla.Adapter.Finch do
     @moduledoc """
-    Adapter for [finch](https://github.com/keathley/finch).
+    Adapter for [finch](https://github.com/sneako/finch).
 
-    Remember to add `{:finch, "~> 0.3"}` to dependencies. Also, you need to
+    Remember to add `{:finch, "~> 0.14.0"}` to dependencies. Also, you need to
     recompile tesla after adding the `:finch` dependency:
 
     ```
