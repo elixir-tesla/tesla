@@ -59,7 +59,7 @@ defmodule Tesla.Mixfile do
       {:hackney, "~> 1.6", optional: true},
       {:gun, "~> 1.3", optional: true},
       {:finch, "~> 0.13", optional: true},
-      {:castore, "~> 0.1", optional: true},
+      {:castore, "~> 0.1 or ~> 1.0", optional: true},
       {:mint, "~> 1.0", optional: true},
 
       # json parsers
