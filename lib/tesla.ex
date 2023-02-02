@@ -89,20 +89,19 @@ defmodule Tesla.Middleware do
 
   ### Examples
 
-    defmodule MyProject.InspectHeadersMiddleware do
-      @behaviour Tesla.Middleware
+      defmodule MyProject.InspectHeadersMiddleware do
+        @behaviour Tesla.Middleware
 
-      @impl true
-      def call(env, next, _options) do
-        IO.inspect(env.headers)
-
-        with {:ok, env} <- Tesla.run(env, next) do
+        @impl true
+        def call(env, next, _options) do
           IO.inspect(env.headers)
-          {:ok, env}
+
+          with {:ok, env} <- Tesla.run(env, next) do
+            IO.inspect(env.headers)
+            {:ok, env}
+          end
         end
       end
-    end
-
   """
 
   @doc """
