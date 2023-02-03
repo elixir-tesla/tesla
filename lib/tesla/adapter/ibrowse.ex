@@ -57,11 +57,12 @@ if Code.ensure_loaded?(:ibrowse) do
     defp format_body(data) when is_binary(data), do: data
 
     defp request(env, opts) do
+      query_encoding = Keyword.get(env.opts, :query_encoding, :www_form)
       body = env.body || []
 
       handle(
         request(
-          Tesla.build_url(env.url, env.query) |> to_charlist,
+          Tesla.build_url(env.url, env.query, query_encoding) |> to_charlist(),
           env.headers,
           env.method,
           body,

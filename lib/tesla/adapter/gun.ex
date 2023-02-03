@@ -176,9 +176,11 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp request(env, opts) do
+      query_encoding = Keyword.get(env.opts, :query_encoding, :www_form)
+
       request(
         Tesla.Adapter.Shared.format_method(env.method),
-        Tesla.build_url(env.url, env.query),
+        Tesla.build_url(env.url, env.query, query_encoding),
         format_headers(env.headers),
         env.body || "",
         Tesla.Adapter.opts(

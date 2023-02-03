@@ -323,4 +323,28 @@ defmodule TeslaTest do
       end
     end
   end
+
+  describe "build_url/3" do
+    setup do
+      {:ok, url: "http://api.example.com"}
+    end
+
+    test "encoding www_form", %{url: url} do
+      query_params = [name: "foo bar", page: 2]
+      assert build_url(url, query_params, :www_form) === url <> "?name=foo+bar&page=2"
+      assert build_url(url, query_params, :www_form) === build_url(url, query_params)
+    end
+
+    if Version.match?(System.version(), "~> 1.12") do
+      test "encoding rfc3986", %{url: url} do
+        query_params = [name: "foo bar", page: 2]
+        assert build_url(url, query_params, :rfc3986) === url <> "?name=foo%20bar&page=2"
+      end
+    end
+
+    test "default encoding www_form", %{url: url} do
+      query_params = [name: "foo bar", page: 2]
+      assert build_url(url, query_params, :www_form) === build_url(url, query_params)
+    end
+  end
 end
