@@ -318,7 +318,9 @@ defmodule Tesla do
       iex> Tesla.build_url("http://api.example.com", [user_name: "John Smith"], :rfc3986)
       "http://api.example.com?user_name=John%20Smith"
   """
-  @spec build_url(Tesla.Env.url(), Tesla.Env.query(), :rfc3986 | :www_form) :: binary
+  @type encoding_strategy :: :rfc3986 | :www_form
+
+  @spec build_url(Tesla.Env.url(), Tesla.Env.query(), encoding_strategy) :: binary
   def build_url(url, query, encoding \\ :www_form)
 
   def build_url(url, [], _encoding), do: url
