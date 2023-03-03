@@ -13,9 +13,6 @@ jobs:
           - 1.11-slim   # otp 23
           - 1.10-slim   # otp 22
           - 1.9-slim    # otp 22
-          - 1.8-otp-22
-          - 1.8-slim    # otp 21
-          - 1.7-slim    # otp 21
     container:
       image: elixir:${{ matrix.elixir }}
     steps:
@@ -64,7 +61,7 @@ jobs:
   test-poison3:
     runs-on: ubuntu-latest
     container:
-      image: elixir:1.9-slim
+      image: elixir:1.10-slim
     steps:
     - uses: actions/checkout@v2
     - name: Install Dependencies
@@ -81,16 +78,22 @@ jobs:
         LOCKFILE: poison3
       run: mix test --trace
 
-  format:
+  Linting:
     runs-on: ubuntu-latest
-    container:
-      image: elixir:1.9-slim
     steps:
-    - uses: actions/checkout@v2
-    - name: Install Dependencies
-      run: |
-        mix local.rebar --force
-        mix local.hex --force
-        mix deps.get
-    - name: Check Format
-      run: mix format --check-formatted --dry-run
+      - name: Checkout Code
+        uses: actions/checkout@v1
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.14"
+          otp-version: "24.3"
+
+      - name: Install Dependencies
+        run: |
+          mix local.rebar --force
+          mix local.hex --force
+          mix deps.get
+      - name: Run Formatter
+        run: mix format --check-formatted
