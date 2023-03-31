@@ -72,7 +72,10 @@ defmodule Tesla.Mixfile do
 
       # other
       {:fuse, "~> 2.4", optional: true},
+
+      # observability
       {:telemetry, "~> 0.4 or ~> 1.0", optional: true},
+      {:opentelemetry_process_propagator, "~> 0.1", optional: true},
 
       # testing & docs
       {:excoveralls, "~> 0.8", only: :test},
