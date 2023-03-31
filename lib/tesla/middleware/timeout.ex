@@ -21,7 +21,9 @@ defmodule Tesla.Middleware.Timeout do
 
   @default_timeout 1_000
   # Optional context propagation
-  @task_module if Code.ensure_loaded?(:opentelemetry_process_propagator), do: Task, else: OpentelemetryProcessPropagator.Task
+  @task_module if Code.ensure_loaded?(:opentelemetry_process_propagator),
+                 do: Task,
+                 else: OpentelemetryProcessPropagator.Task
 
   @impl Tesla.Middleware
   def call(env, next, opts) do
