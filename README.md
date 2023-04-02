@@ -132,7 +132,7 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 
 ### Error handling
 
-- [`Tesla.Middleware.Timeout`](https://hexdocs.pm/tesla/Tesla.Middleware.Timeout.html) and [`Tesla.Middleware.OpentelemetryTimeout`](https://hexdocs.pm/tesla/Tesla.Middleware.OpentelemetryTimeout.html) - timeout request after X milliseconds despite of server response
+- [`Tesla.Middleware.Timeout`](https://hexdocs.pm/tesla/Tesla.Middleware.Timeout.html) - timeout request after X milliseconds despite of server response
 - [`Tesla.Middleware.Retry`](https://hexdocs.pm/tesla/Tesla.Middleware.Retry.html) - retry few times in case of connection refused
 - [`Tesla.Middleware.Fuse`](https://hexdocs.pm/tesla/Tesla.Middleware.Fuse.html) - fuse circuit breaker integration
 
