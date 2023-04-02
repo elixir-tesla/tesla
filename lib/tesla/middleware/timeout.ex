@@ -21,11 +21,6 @@ defmodule Tesla.Middleware.Timeout do
 
   @default_timeout 1_000
 
-  # Optional. Used for context propagation from parent process to child process
-  @task_module if Code.ensure_loaded?(:opentelemetry_process_propagator),
-                 do: OpentelemetryProcessPropagator.Task,
-                 else: Task
-
   @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
@@ -35,17 +30,17 @@ defmodule Tesla.Middleware.Timeout do
 
     try do
       task
-      |> @task_module.await(timeout)
+      |> Task.await(timeout)
       |> repass_error
     catch
       :exit, {:timeout, _} ->
-        @task_module.shutdown(task, 0)
+        Task.shutdown(task, 0)
         {:error, :timeout}
     end
   end
 
   defp safe_async(func) do
-    @task_module.async(fn ->
+    Task.async(fn ->
       try do
         {:ok, func.()}
       rescue
