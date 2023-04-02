@@ -2,7 +2,7 @@ defmodule Tesla.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/teamon/tesla"
-  @version "1.5.1"
+  @version "1.6.0"
 
   def project do
     [
@@ -75,6 +75,7 @@ defmodule Tesla.Mixfile do
       {:telemetry, "~> 0.4 or ~> 1.0", optional: true},
 
       # testing & docs
+      {:opentelemetry_process_propagator, "~> 0.1", only: [:test, :dev]},
       {:excoveralls, "~> 0.8", only: :test},
       {:httparrot, "~> 1.3", only: :test},
       {:ex_doc, "~> 0.21", only: :dev, runtime: false},
