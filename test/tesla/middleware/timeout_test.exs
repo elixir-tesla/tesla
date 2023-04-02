@@ -49,6 +49,26 @@ defmodule Tesla.Middleware.TimeoutTest do
     end
   end
 
+  defmodule OtelTimeoutClient do
+    use Tesla
+
+    plug Tesla.Middleware.Timeout,
+      timeout: 100,
+      task_module: OpentelemetryProcessPropagator.Task
+
+    adapter fn env ->
+      case env.url do
+        "/sleep_50ms" ->
+          Process.sleep(50)
+          {:ok, %{env | status: 200}}
+
+        "/sleep_150ms" ->
+          Process.sleep(150)
+          {:ok, %{env | status: 200}}
+      end
+    end
+  end
+
   describe "using custom timeout (100ms)" do
     test "should return timeout error when the stack timeout" do
       assert {:error, :timeout} = Client.get("/sleep_150ms")
@@ -124,6 +144,27 @@ defmodule Tesla.Middleware.TimeoutTest do
 
     test "should repass exit value" do
       assert catch_exit(Client.get("/exit")) == :exit_value
+    end
+  end
+
+  describe "swapping task_module for OpentelemetryProcessPropagator.Task" do
+    test "should return timeout error when the stack timeout" do
+      assert {:error, :timeout} = OtelTimeoutClient.get("/sleep_150ms")
+    end
+
+    test "should return the response when not timeout" do
+      assert {:ok, %Tesla.Env{status: 200}} = OtelTimeoutClient.get("/sleep_50ms")
+    end
+
+    test "should not kill calling process" do
+      Process.flag(:trap_exit, true)
+
+      pid =
+        spawn_link(fn ->
+          assert {:error, :timeout} = Client.get("/sleep_150ms")
+        end)
+
+      assert_receive {:EXIT, ^pid, :normal}, 200
     end
   end
 end
