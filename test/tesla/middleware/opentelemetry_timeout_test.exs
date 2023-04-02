@@ -111,7 +111,11 @@ defmodule Tesla.Middleware.OpentelemetryTimeoutTest do
           [_, {timeout_module, _, _, module_file_info} | _] = __STACKTRACE__
 
           assert Tesla.Middleware.OpentelemetryTimeout == timeout_module
-          assert module_file_info == [file: 'lib/tesla/middleware/opentelemetry_timeout.ex', line: 50]
+
+          assert module_file_info == [
+                   file: 'lib/tesla/middleware/opentelemetry_timeout.ex',
+                   line: 50
+                 ]
       else
         _ ->
           flunk("Expected exception to be thrown")
