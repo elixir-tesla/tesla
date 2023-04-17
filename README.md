@@ -274,19 +274,29 @@ response body as a
 
 ```elixir
 defmodule OpenAI do
-  use Tesla
+  def new(token) do
+    middleware = [
+      {Tesla.Middleware.BaseUrl, "https://api.openai.com/v1"},
+      {Tesla.Middleware.BearerAuth, token: token},
+      {Tesla.Middleware.JSON, decode_content_types: ["text/event-stream"]},
+      {Tesla.Middleware.SSE, only: :data}
+    ]
+    Tesla.client(middleware, {Tesla.Adapter.Finch, name: MyFinch})
+  end
 
-  plug Tesla.Middleware.BaseUrl, "https://api.openai.com/v1"
-  plug Tesla.Middleware.JSON
-
-  def completion(messages) do
-    post("/chat/completions", %{model: "gpt-3.5-turbo", messages: messages, stream: true})
+  def completion(client, prompt) do
+    data = %{
+      model: "gpt-3.5-turbo",
+      messages: [%{role: "user", content: prompt}],
+      stream: true
+    }
+    Tesla.post(client, "/chat/completions", data, opts: [adapter: [response: :stream]])
   end
 end
 
 {:ok, env} = OpenAI.completion("What is the meaning of life?")
 env.body
-|> Stream.each(fn chunk -> IO.puts(chunk) end)
+|> Stream.each(fn chunk -> IO.inspect(chunk) end)
 ```
 
 ## Multipart
