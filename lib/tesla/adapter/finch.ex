@@ -131,7 +131,9 @@ if Code.ensure_loaded?(Finch) do
                   Task.await(task)
                   nil
               after
-                opts[:receive_timeout] -> nil
+                opts[:receive_timeout] ->
+                  Task.shutdown(task, :brutal_kill)
+                  nil
               end
             end)
 

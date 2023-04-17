@@ -243,7 +243,11 @@ Tesla.get(client, "/", opts: [adapter: [recv_timeout: 30_000]])
 
 ## Streaming
 
-If adapter supports it, you can pass a [Stream](https://elixir-lang.org/docs/stable/elixir/Stream.html) as body, e.g.:
+### Streaming Request Body
+
+If adapter supports it, you can pass a
+[Stream](https://elixir-lang.org/docs/stable/elixir/Stream.html) as request
+body, e.g.:
 
 ```elixir
 defmodule ElasticSearch do
@@ -259,7 +263,31 @@ defmodule ElasticSearch do
 end
 ```
 
-Each piece of stream will be encoded as JSON and sent as a new line (conforming to JSON stream format).
+Each piece of stream will be encoded as JSON and sent as a new line (conforming
+to JSON stream format).
+
+### Streaming Response Body
+
+If adapter supports it, you can pass a `response: :stream` option to return
+response body as a
+[Stream](https://elixir-lang.org/docs/stable/elixir/Stream.html)
+
+```elixir
+defmodule OpenAI do
+  use Tesla
+
+  plug Tesla.Middleware.BaseUrl, "https://api.openai.com/v1"
+  plug Tesla.Middleware.JSON
+
+  def completion(messages) do
+    post("/chat/completions", %{model: "gpt-3.5-turbo", messages: messages, stream: true})
+  end
+end
+
+{:ok, env} = OpenAI.completion("What is the meaning of life?")
+env.body
+|> Stream.each(fn chunk -> IO.puts(chunk) end)
+```
 
 ## Multipart
 
