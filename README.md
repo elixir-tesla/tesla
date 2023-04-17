@@ -293,8 +293,8 @@ defmodule OpenAI do
     Tesla.post(client, "/chat/completions", data, opts: [adapter: [response: :stream]])
   end
 end
-
-{:ok, env} = OpenAI.completion("What is the meaning of life?")
+client = OpenAI.new("<token>")
+{:ok, env} = OpenAI.completion(client, "What is the meaning of life?")
 env.body
 |> Stream.each(fn chunk -> IO.inspect(chunk) end)
 ```
