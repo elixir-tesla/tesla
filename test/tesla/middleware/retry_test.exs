@@ -4,6 +4,10 @@ defmodule Tesla.Middleware.RetryTest do
   defmodule LaggyAdapter do
     def start_link, do: Agent.start_link(fn -> 0 end, name: __MODULE__)
 
+    def child_spec(_opts) do
+      %{id: __MODULE__, start: {__MODULE__, :start_link, []}}
+    end
+
     def call(env, _opts) do
       Agent.get_and_update(__MODULE__, fn retries ->
         response =
@@ -48,7 +52,7 @@ defmodule Tesla.Middleware.RetryTest do
   end
 
   setup do
-    {:ok, _} = LaggyAdapter.start_link()
+    start_supervised!(LaggyAdapter)
     :ok
   end
 
