@@ -25,4 +25,22 @@ defmodule Tesla.Adapter.FinchTest do
     start_supervised!({Finch, opts})
     :ok
   end
+
+  test "Delay request" do
+    request = %Env{
+      method: :head,
+      url: "#{@http}/delay/1"
+    }
+
+    assert {:error, :timeout} = call(request, receive_timeout: 100)
+  end
+
+  test "Delay request with stream" do
+    request = %Env{
+      method: :head,
+      url: "#{@http}/delay/1"
+    }
+
+    assert {:error, :timeout} = call(request, receive_timeout: 100, response: :stream)
+  end
 end
