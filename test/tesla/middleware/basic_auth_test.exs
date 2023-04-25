@@ -54,6 +54,19 @@ defmodule Tesla.Middleware.BasicAuthTest do
     assert auth_header == "Basic #{base_64_encoded}"
   end
 
+  test "sends request with proper authorization header when config values are functions" do
+    username = "Aladdin"
+    password = "OpenSesame"
+
+    base_64_encoded = Base.encode64("#{username}:#{password}")
+    assert base_64_encoded == "QWxhZGRpbjpPcGVuU2VzYW1l"
+
+    {:ok, request} = BasicClient.client(fn -> username end, fn -> password end) |> BasicClient.get("/basic-auth")
+    auth_header = Tesla.get_header(request, "authorization")
+
+    assert auth_header == "Basic #{base_64_encoded}"
+  end
+
   test "it correctly encodes a blank username and password" do
     base_64_encoded = Base.encode64(":")
     assert base_64_encoded == "Og=="
