@@ -31,6 +31,14 @@ defmodule Tesla.Middleware.TimeoutTest do
     end
   end
 
+  defmodule MockClient do
+    use Tesla
+
+    plug Tesla.Middleware.Timeout, timeout: 100
+
+    adapter Tesla.Mock
+  end
+
   defmodule DefaultTimeoutClient do
     use Tesla
 
@@ -100,6 +108,14 @@ defmodule Tesla.Middleware.TimeoutTest do
     end
   end
 
+  describe "using Tesla.Mock" do
+    test "can return the response when not timeout" do
+      Tesla.Mock.mock(fn %Tesla.Env{} -> {200, [], ""} end)
+
+      assert {:ok, %Tesla.Env{status: 200}} = MockClient.get("/mock")
+    end
+  end
+
   describe "repassing errors and exit" do
     test "should repass rescued errors" do
       assert_raise RuntimeError, "custom_exception", fn ->
@@ -131,7 +147,7 @@ defmodule Tesla.Middleware.TimeoutTest do
           [_, {timeout_module, _, _, module_file_info} | _] = __STACKTRACE__
 
           assert Tesla.Middleware.Timeout == timeout_module
-          assert module_file_info == [file: 'lib/tesla/middleware/timeout.ex', line: 59]
+          assert module_file_info == [file: 'lib/tesla/middleware/timeout.ex', line: 63]
       else
         _ ->
           flunk("Expected exception to be thrown")

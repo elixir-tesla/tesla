@@ -40,7 +40,11 @@ defmodule Tesla.Middleware.Timeout do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     task_module = Keyword.get(opts, :task_module, Task)
 
-    task = safe_async(task_module, fn -> Tesla.run(env, next) end)
+    mock = Tesla.Mock.pdict_get()
+    task = safe_async(task_module, fn ->
+      if mock, do: Tesla.Mock.pdict_set(mock)
+      Tesla.run(env, next)
+    end)
 
     try do
       task

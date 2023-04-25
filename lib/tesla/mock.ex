@@ -225,8 +225,11 @@ defmodule Tesla.Mock do
     end
   end
 
-  defp pdict_set(fun), do: Process.put(__MODULE__, fun)
-  defp pdict_get, do: Process.get(__MODULE__)
+  @doc false
+  def pdict_set(fun), do: Process.put(__MODULE__, fun)
+
+  @doc false
+  def pdict_get, do: Process.get(__MODULE__)
 
   defp agent_set(fun) do
     case Process.whereis(__MODULE__) do
