@@ -176,8 +176,15 @@ if Code.ensure_loaded?(Mint.HTTP) do
       end
     end
 
-    defp make_request(conn, method, path, headers, body),
-      do: HTTP.request(conn, method, path, headers, body)
+    defp make_request(conn, method, path, headers, body) do
+      case HTTP.request(conn, method, path, headers, body) do
+        {:ok, conn, ref} ->
+          {:ok, conn, ref}
+
+        {:error, _conn, error} ->
+          {:error, error}
+      end
+    end
 
     defp stream_request(conn, ref, fun) do
       case next_chunk(fun) do
