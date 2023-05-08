@@ -3,7 +3,7 @@ defmodule Tesla.AdapterCase.StreamRequestBody do
     quote do
       alias Tesla.Env
 
-      describe "Stream" do
+      describe "Stream Request" do
         test "stream request body: Stream.map" do
           request = %Env{
             method: :post,
