@@ -143,7 +143,7 @@ if Code.ensure_loaded?(:telemetry) do
     end
 
     if @disable_legacy_event do
-      defp emit_legacy_event(duration, result) do
+      defp emit_legacy_event(_duration, _result) do
         :ok
       end
     else
