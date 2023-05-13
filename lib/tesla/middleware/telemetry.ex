@@ -80,10 +80,8 @@ if Code.ensure_loaded?(:telemetry) do
     ```
     """
 
-    @disable_legacy_event (if function_exported?(Application, :compile_env, 3),
-    do: Application.compile_env(:tesla, __MODULE__), else:
-    Application.get_env(:tesla, __MODULE__, []))[:disable_legacy_event] || false
-
+    @disable_legacy_event Application.compile_env(:tesla, Tesla.Middleware.Telemetry,
+      disable_legacy_event: false)[:disable_legacy_event]
 
     @behaviour Tesla.Middleware
 
