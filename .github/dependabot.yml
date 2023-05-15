@@ -9,3 +9,6 @@ updates:
     directory: '/'
     schedule:
       interval: monthly
+    ignore:
+      - dependency-name: 'ibrowse'
+        versions: ['4.4.1']
