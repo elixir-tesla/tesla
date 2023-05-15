@@ -47,9 +47,6 @@ defmodule Tesla.Middleware.Retry do
       (float between 0 and 1, defaults to 0.2)
   """
 
-  # Not necessary in Elixir 1.14+
-  import Bitwise
-
   @behaviour Tesla.Middleware
 
   @defaults [
