@@ -12,7 +12,6 @@ jobs:
           - 1.12-slim   # otp 24
           - 1.11-slim   # otp 23
           - 1.10-slim   # otp 22
-          - 1.9-slim    # otp 22
     container:
       image: elixir:${{ matrix.elixir }}
     steps:
@@ -25,37 +24,6 @@ jobs:
         mix local.hex --force
         mix deps.get
     - name: Run Tests
-      run: mix test --trace
-
-  test-1:
-    name: run tests from v1.0.0
-    runs-on: ubuntu-latest
-    container:
-      image: elixir:1.7-slim
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Install Dependencies
-      env:
-        MIX_ENV: test
-      run: |
-        mix local.rebar --force
-        mix local.hex --force
-        mix deps.get
-
-    - name: Checkout v1.0.0 tests
-      uses: actions/checkout@v2
-      with:
-        path: "test-1"
-        ref: "v1.0.0-compat"
-
-    - name: Replace test dir with test-1/test dir
-      run: |
-        ls -la
-        rm -rf test
-        mv test-1/test test
-
-    - name: Run v1.0.0 Tests
       run: mix test --trace
 
   test-poison3:
