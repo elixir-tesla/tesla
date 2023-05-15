@@ -4,7 +4,7 @@ defmodule TeslaTest do
 
   require Tesla
 
-  @url "http://localhost:#{Application.get_env(:httparrot, :http_port)}"
+  @url "http://localhost:#{Application.compile_env(:httparrot, :http_port)}"
 
   describe "Adapters" do
     defmodule ModuleAdapter do
