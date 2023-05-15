@@ -2,7 +2,7 @@ defmodule Tesla.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/teamon/tesla"
-  @version "1.6.1"
+  @version "1.7.0"
 
   def project do
     [
@@ -10,7 +10,7 @@ defmodule Tesla.Mixfile do
       version: @version,
       description: description(),
       package: package(),
-      elixir: "~> 1.7",
+      elixir: "~> 1.10",
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       lockfile: lockfile(System.get_env("LOCKFILE")),

@@ -182,7 +182,8 @@ defmodule Tesla.Middleware.Logger do
 
   alias Tesla.Middleware.Logger.Formatter
 
-  @config Application.get_env(:tesla, __MODULE__, [])
+  @config Application.compile_env(:tesla, __MODULE__, [])
+
   @format Formatter.compile(@config[:format])
 
   @type log_level :: :info | :warn | :error
