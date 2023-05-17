@@ -48,44 +48,45 @@ defmodule Tesla.Client do
   defp unruntime({module, :call, [opts]}) when is_atom(module), do: {module, opts}
   defp unruntime({:fn, fun}) when is_function(fun), do: fun
 
-  defimpl Inspect do
-    @filtered "[FILTERED]"
-
-    @sensitive_opts %{
-      Tesla.Middleware.BasicAuth => [:username, :password],
-      Tesla.Middleware.BearerAuth => [:token],
-      Tesla.Middleware.DigestAuth => [:username, :password]
-    }
-
-    def inspect(%Tesla.Client{} = client, opts) do
-      client
-      |> Map.update!(:pre, &filter_sensitive_opts/1)
-      |> Inspect.Any.inspect(opts)
-    end
-
-    defp filter_sensitive_opts(middlewares) do
-      Enum.map(middlewares, fn
-        {middleware, :call, [opts]} ->
-          sensitive_opts = Map.get(@sensitive_opts, middleware, [])
-          filtered_opts = Enum.reduce(sensitive_opts, opts, &maybe_redact(&2, &1))
-          {middleware, :call, [filtered_opts]}
-
-        middleware ->
-          middleware
-      end)
-    end
-
-    defp maybe_redact(opts, key) do
-      cond do
-        is_map(opts) and Map.has_key?(opts, key) ->
-          Map.put(opts, key, @filtered)
-
-        is_list(opts) and Keyword.has_key?(opts, key) ->
-          Keyword.put(opts, key, @filtered)
-
-        true ->
-          opts
-      end
-    end
-  end
+  # TODO: Remove once we are done with all the middlewares
+  #  defimpl Inspect do
+  #    @filtered "[FILTERED]"
+  #
+  #    @sensitive_opts %{
+  #      Tesla.Middleware.BasicAuth => [:username, :password],
+  #      Tesla.Middleware.BearerAuth => [:token],
+  #      Tesla.Middleware.DigestAuth => [:username, :password]
+  #    }
+  #
+  #    def inspect(%Tesla.Client{} = client, opts) do
+  #      client
+  #      |> Map.update!(:pre, &filter_sensitive_opts/1)
+  #      |> Inspect.Any.inspect(opts)
+  #    end
+  #
+  #    defp filter_sensitive_opts(middlewares) do
+  #      Enum.map(middlewares, fn
+  #        {middleware, :call, [opts]} ->
+  #          sensitive_opts = Map.get(@sensitive_opts, middleware, [])
+  #          filtered_opts = Enum.reduce(sensitive_opts, opts, &maybe_redact(&2, &1))
+  #          {middleware, :call, [filtered_opts]}
+  #
+  #        middleware ->
+  #          middleware
+  #      end)
+  #    end
+  #
+  #    defp maybe_redact(opts, key) do
+  #      cond do
+  #        is_map(opts) and Map.has_key?(opts, key) ->
+  #          Map.put(opts, key, @filtered)
+  #
+  #        is_list(opts) and Keyword.has_key?(opts, key) ->
+  #          Keyword.put(opts, key, @filtered)
+  #
+  #        true ->
+  #          opts
+  #      end
+  #    end
+  #  end
 end

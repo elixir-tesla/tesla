@@ -14,12 +14,14 @@ defmodule Tesla.Middleware.BasicAuthTest do
       Tesla.client([
         {
           Tesla.Middleware.BasicAuth,
-          Map.merge(
-            %{
-              username: username,
-              password: password
-            },
-            opts
+          Tesla.Middleware.BasicAuth.Options.new!(
+            Map.merge(
+              %{
+                username: username,
+                password: password
+              },
+              opts
+            )
           )
         }
       ])
@@ -39,6 +41,20 @@ defmodule Tesla.Middleware.BasicAuthTest do
         "/basic-auth" -> {:ok, env}
       end
     end
+  end
+
+  test "ensures that no secrets are leaked in logs" do
+    inspected =
+      Tesla.Middleware.BasicAuth.Options.new!(%{username: "admin", password: "secret"})
+      |> build_client()
+      |> inspect()
+
+    refute String.contains?(inspected, "admin")
+    refute String.contains?(inspected, "secret")
+  end
+
+  defp build_client(opts) do
+    Tesla.client([{Tesla.Middleware.BasicAuth, opts}])
   end
 
   test "sends request with proper authorization header" do
