@@ -77,7 +77,7 @@ defmodule Tesla.Builder do
       unquote(generate_http_verbs(opts))
 
       def extend(new_middlewares) do
-        Tesla.client(__middleware__() ++ new_middlewares, __adapter__())
+        Tesla.client(new_middlewares ++ __middleware__(), __adapter__())
       end
 
       import Tesla.Builder, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
