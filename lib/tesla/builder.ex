@@ -76,6 +76,10 @@ defmodule Tesla.Builder do
 
       unquote(generate_http_verbs(opts))
 
+      def extend(new_middlewares) do
+        Tesla.client(__middleware__() ++ new_middlewares, __adapter__())
+      end
+
       import Tesla.Builder, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
       @before_compile Tesla.Builder
     end
@@ -202,6 +206,7 @@ defmodule Tesla.Builder do
 
   defp runtime(list) when is_list(list), do: Enum.map(list, &runtime/1)
   defp runtime({module, opts}) when is_atom(module), do: {module, :call, [opts]}
+  defp runtime({module, :call, opts}) when is_atom(module), do: {module, :call, opts}
   defp runtime(fun) when is_function(fun), do: {:fn, fun}
   defp runtime(module) when is_atom(module), do: {module, :call, [@default_opts]}
 
