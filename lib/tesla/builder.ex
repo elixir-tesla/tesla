@@ -76,6 +76,34 @@ defmodule Tesla.Builder do
 
       unquote(generate_http_verbs(opts))
 
+      if unquote(docs) do
+        @doc """
+        Extend an exiting Tesla client with more middleware.
+
+        NOTE: new middleware will be pre-pended to the existing list
+
+        ## Example
+
+        ```elixir
+        # Define a client
+        defmodule SomeClient do
+          use Tesla
+
+          plug ...
+        end
+
+        # Extend it later on and use it like a non-macro client
+        [
+            {Tesla.Middleware.BearerAuth, token: 1}
+        ]
+        |> SomeClient.extend
+        |> Tesla.get!(...)
+        ```
+        """
+      else
+        @doc false
+      end
+
       def extend(new_middlewares) do
         Tesla.client(new_middlewares ++ __middleware__(), __adapter__())
       end
