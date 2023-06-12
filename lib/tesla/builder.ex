@@ -92,7 +92,7 @@ defmodule Tesla.Builder do
           plug ...
         end
 
-        # Extend it later on and use it like a non-macro client
+        # Extend it later on and use it like a dyanmic client
         [
             {Tesla.Middleware.BearerAuth, token: 1}
         ]
