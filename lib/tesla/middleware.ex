@@ -16,11 +16,11 @@ defmodule Tesla.Middleware do
       Tesla.client([{Tesla.Middleware.BaseUrl, "https://example.com"}])
       
   ## Ordering
-  
+
   The order in which middleware is defined matters. Note that the order when _sending_ the request
   matches the order the middleware was defined in, but the order when _receiving_ the response
   is reversed.
-  
+
   For example, `Tesla.Middleware.DecompressResponse` must come _after_ `Tesla.Middleware.JSON`,
   otherwise the response isn't decompressed before it reaches the JSON parser.
 
