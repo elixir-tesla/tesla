@@ -103,7 +103,7 @@ to use it in production environment as it does not validate SSL certificates
 ## Middleware
 
 Tesla is built around the concept of composable middlewares.
-This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#the-plug-router) works.
+This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#plugrouter) works.
 
 ### Basic
 
