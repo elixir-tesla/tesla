@@ -389,7 +389,7 @@ defmodule Tesla.Middleware.SomeMiddleware do
 
   ### Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
     use Tesla
 
