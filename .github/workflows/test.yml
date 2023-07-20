@@ -9,11 +9,11 @@ jobs:
     strategy:
       matrix:
         elixir:
+          - 1.15
           - 1.14
-          - 1.13
         otp:
           - 25.3
-          - 24.3
+          - 26.0
     steps:
     - uses: actions/checkout@v3
     - name: Set up Elixir
