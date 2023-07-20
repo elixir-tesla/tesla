@@ -10,5 +10,8 @@ defmodule Tesla.Middleware.BearerAuthTest do
 
     assert {:ok, env} = @middleware.call(%Env{}, [], token: "token")
     assert env.headers == [{"authorization", "Bearer token"}]
+
+    assert {:ok, env} = @middleware.call(%Env{}, [], token: fn -> "token" end)
+    assert env.headers == [{"authorization", "Bearer token"}]
   end
 end

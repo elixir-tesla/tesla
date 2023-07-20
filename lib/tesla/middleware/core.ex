@@ -71,9 +71,12 @@ defmodule Tesla.Middleware.Headers do
   @impl Tesla.Middleware
   def call(env, next, headers) do
     env
-    |> Tesla.put_headers(headers)
+    |> Tesla.put_headers(resolve(headers))
     |> Tesla.run(next)
   end
+
+  defp resolve(headers) when is_function(headers, 0), do: headers.()
+  defp resolve(headers), do: headers
 end
 
 defmodule Tesla.Middleware.Query do

@@ -12,4 +12,11 @@ defmodule Tesla.Middleware.HeadersTest do
 
     assert env.headers == [{"authorization", "secret"}, {"content-type", "text/plain"}]
   end
+
+  test "headers from a function argument" do
+    assert {:ok, env} =
+             @middleware.call(%Env{}, [], fn -> [{"content-type", "text/plain"}] end)
+
+    assert env.headers == [{"authorization", "secret"}, {"content-type", "text/plain"}]
+  end
 end

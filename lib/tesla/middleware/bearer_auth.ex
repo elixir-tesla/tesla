@@ -24,17 +24,20 @@ defmodule Tesla.Middleware.BearerAuth do
 
   ## Options
 
-  - `:token` - token (defaults to `""`)
+  - `:token` - the literal token or a zero-arity function that returns the token (defaults to `""`)
   """
 
   @behaviour Tesla.Middleware
 
   @impl Tesla.Middleware
   def call(env, next, opts \\ []) do
-    token = Keyword.get(opts, :token, "")
+    token = Keyword.get(opts, :token, "") |> resolve()
 
     env
     |> Tesla.put_headers([{"authorization", "Bearer #{token}"}])
     |> Tesla.run(next)
   end
+
+  defp resolve(value) when is_function(value, 0), do: value.()
+  defp resolve(value), do: value
 end
