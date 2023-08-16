@@ -34,6 +34,13 @@ defmodule Tesla.Middleware.Retry do
         {:ok, _} -> false
         {:error, _} -> true
       end
+      # or
+      plug Tesla.Middleware.Retry, should_retry: fn
+        {:ok, %{status: status}}, _env when status in [400, 500] -> true
+        {:ok, _reason}, _env -> false
+        {:error, _reason}, %Tesla.Env{method: :post} -> false
+        {:error, _reason}, _env -> true
+      end
   end
   ```
 
@@ -42,7 +49,8 @@ defmodule Tesla.Middleware.Retry do
   - `:delay` - The base delay in milliseconds (positive integer, defaults to 50)
   - `:max_retries` - maximum number of retries (non-negative integer, defaults to 5)
   - `:max_delay` - maximum delay in milliseconds (positive integer, defaults to 5000)
-  - `:should_retry` - function to determine if request should be retried
+  - `:should_retry` - function with arity of 1 or 2 to determine if request should be retried
+      arity of 1 passes the result, while arity of 2 passes env as second argument (defaults to a match on `{:error, _reason}`)
   - `:jitter_factor` - additive noise proportionality constant
       (float between 0 and 1, defaults to 0.2)
   """
@@ -65,7 +73,7 @@ defmodule Tesla.Middleware.Retry do
       delay: integer_opt!(opts, :delay, 1),
       max_retries: integer_opt!(opts, :max_retries, 0),
       max_delay: integer_opt!(opts, :max_delay, 1),
-      should_retry: Keyword.get(opts, :should_retry, &match?({:error, _}, &1)),
+      should_retry: should_retry_opt!(opts),
       jitter_factor: float_opt!(opts, :jitter_factor, 0, 1)
     }
 
@@ -84,13 +92,24 @@ defmodule Tesla.Middleware.Retry do
   defp retry(env, next, context) do
     res = Tesla.run(env, next)
 
-    if context.should_retry.(res) do
-      backoff(context.max_delay, context.delay, context.retries, context.jitter_factor)
-      context = update_in(context, [:retries], &(&1 + 1))
-      retry(env, next, context)
-    else
-      res
+    {:arity, should_retry_arity} = :erlang.fun_info(context.should_retry, :arity)
+
+    cond do
+      should_retry_arity == 1 and context.should_retry.(res) ->
+        do_retry(env, next, context)
+
+      should_retry_arity == 2 and context.should_retry.(res, env) ->
+        do_retry(env, next, context)
+
+      true ->
+        res
     end
+  end
+
+  defp do_retry(env, next, context) do
+    backoff(context.max_delay, context.delay, context.retries, context.jitter_factor)
+    context = update_in(context, [:retries], &(&1 + 1))
+    retry(env, next, context)
   end
 
   # Exponential backoff with jitter
@@ -124,6 +143,19 @@ defmodule Tesla.Middleware.Retry do
     end
   end
 
+  defp should_retry_opt!(opts) do
+    case Keyword.get(opts, :should_retry, &match?({:error, _}, &1)) do
+      should_retry_fun when is_function(should_retry_fun, 1) ->
+        should_retry_fun
+
+      should_retry_fun when is_function(should_retry_fun, 2) ->
+        should_retry_fun
+
+      value ->
+        invalid_should_retry_fun(value)
+    end
+  end
+
   defp invalid_integer(key, value, min) do
     raise(ArgumentError, "expected :#{key} to be an integer >= #{min}, got #{inspect(value)}")
   end
@@ -132,6 +164,13 @@ defmodule Tesla.Middleware.Retry do
     raise(
       ArgumentError,
       "expected :#{key} to be a float >= #{min} and <= #{max}, got #{inspect(value)}"
+    )
+  end
+
+  defp invalid_should_retry_fun(value) do
+    raise(
+      ArgumentError,
+      "expected :should_retry to be a function with arity of 1 or 2, got #{inspect(value)}"
     )
   end
 end

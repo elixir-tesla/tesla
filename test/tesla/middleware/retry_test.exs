@@ -39,9 +39,10 @@ defmodule Tesla.Middleware.RetryTest do
       delay: 10,
       max_retries: 10,
       should_retry: fn
-        {:ok, %{status: status}} when status in [400, 500] -> true
-        {:ok, _} -> false
-        {:error, _} -> true
+        {:ok, %{status: status}}, _env when status in [400, 500] -> true
+        {:ok, _reason}, _env -> false
+        {:error, _reason}, %Tesla.Env{method: :post} -> false
+        {:error, _reason}, _env -> true
       end
 
     adapter LaggyAdapter
@@ -72,6 +73,10 @@ defmodule Tesla.Middleware.RetryTest do
   test "use custom retry determination function" do
     assert {:ok, %Tesla.Env{url: "/retry_status", method: :get, status: 200}} =
              ClientWithShouldRetryFunction.get("/retry_status")
+  end
+
+  test "use custom retry determination function matching on method" do
+    assert {:error, :econnrefused} = ClientWithShouldRetryFunction.post("/maybe", "payload")
   end
 
   defmodule DefunctClient do
@@ -169,6 +174,32 @@ defmodule Tesla.Middleware.RetryTest do
                  "expected :jitter_factor to be a float >= 0 and <= 1, got 1.1",
                  fn ->
                    ClientWithJitterFactorGt1.get("/ok")
+                 end
+  end
+
+  test "ensures should_retry option is a function with arity of 1 or 2" do
+    defmodule ClientWithShouldRetryArity0 do
+      use Tesla
+      plug Tesla.Middleware.Retry, should_retry: fn -> true end
+      adapter LaggyAdapter
+    end
+
+    defmodule ClientWithShouldRetryArity3 do
+      use Tesla
+      plug Tesla.Middleware.Retry, should_retry: fn _res, _env, _other -> true end
+      adapter LaggyAdapter
+    end
+
+    assert_raise ArgumentError,
+                 ~r/expected :should_retry to be a function with arity of 1 or 2, got #Function<\d.\d+\/0/,
+                 fn ->
+                   ClientWithShouldRetryArity0.get("/ok")
+                 end
+
+    assert_raise ArgumentError,
+                 ~r/expected :should_retry to be a function with arity of 1 or 2, got #Function<\d.\d+\/3/,
+                 fn ->
+                   ClientWithShouldRetryArity3.get("/ok")
                  end
   end
 end
