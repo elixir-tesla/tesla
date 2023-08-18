@@ -36,10 +36,11 @@ defmodule Tesla.Middleware.Retry do
       end
       # or
       plug Tesla.Middleware.Retry, should_retry: fn
-        {:ok, %{status: status}}, _env when status in [400, 500] -> true
-        {:ok, _reason}, _env -> false
-        {:error, _reason}, %Tesla.Env{method: :post} -> false
-        {:error, _reason}, _env -> true
+        {:ok, %{status: status}}, _env, _context when status in [400, 500] -> true
+        {:ok, _reason}, _env, _context -> false
+        {:error, _reason}, %Tesla.Env{method: :post}, _context -> false
+        {:error, _reason}, %Tesla.Env{method: :put}, %{retries: 2} -> false
+        {:error, _reason}, _env, _context -> true
       end
   end
   ```
@@ -49,8 +50,9 @@ defmodule Tesla.Middleware.Retry do
   - `:delay` - The base delay in milliseconds (positive integer, defaults to 50)
   - `:max_retries` - maximum number of retries (non-negative integer, defaults to 5)
   - `:max_delay` - maximum delay in milliseconds (positive integer, defaults to 5000)
-  - `:should_retry` - function with arity of 1 or 2 to determine if request should be retried
-      arity of 1 passes the result, while arity of 2 passes env as second argument (defaults to a match on `{:error, _reason}`)
+  - `:should_retry` - function with an arity of 1 or 3 used to determine if the request should
+      be retried the first argument is the result, the second is the env and the third is
+      the context: options + `:retries` (defaults to a match on `{:error, _reason}`)
   - `:jitter_factor` - additive noise proportionality constant
       (float between 0 and 1, defaults to 0.2)
   """
@@ -98,7 +100,7 @@ defmodule Tesla.Middleware.Retry do
       should_retry_arity == 1 and context.should_retry.(res) ->
         do_retry(env, next, context)
 
-      should_retry_arity == 2 and context.should_retry.(res, env) ->
+      should_retry_arity == 3 and context.should_retry.(res, env, context) ->
         do_retry(env, next, context)
 
       true ->
@@ -148,7 +150,7 @@ defmodule Tesla.Middleware.Retry do
       should_retry_fun when is_function(should_retry_fun, 1) ->
         should_retry_fun
 
-      should_retry_fun when is_function(should_retry_fun, 2) ->
+      should_retry_fun when is_function(should_retry_fun, 3) ->
         should_retry_fun
 
       value ->
@@ -170,7 +172,7 @@ defmodule Tesla.Middleware.Retry do
   defp invalid_should_retry_fun(value) do
     raise(
       ArgumentError,
-      "expected :should_retry to be a function with arity of 1 or 2, got #{inspect(value)}"
+      "expected :should_retry to be a function with arity of 1 or 3, got #{inspect(value)}"
     )
   end
 end
