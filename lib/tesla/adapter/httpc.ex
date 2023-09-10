@@ -69,6 +69,12 @@ defmodule Tesla.Adapter.Httpc do
     :httpc.request(method, {url, headers}, http_opts, opts)
   end
 
+  # These methods aren't able to contain a content_type and body
+  defp request(method, url, headers, _content_type, _body, {http_opts, opts})
+       when method in [:get, :options, :head, :trace] do
+    :httpc.request(method, {url, headers}, http_opts, opts)
+  end
+
   defp request(method, url, headers, _content_type, %Multipart{} = mp, opts) do
     headers = headers ++ Multipart.headers(mp)
     headers = for {key, value} <- headers, do: {to_charlist(key), to_charlist(value)}

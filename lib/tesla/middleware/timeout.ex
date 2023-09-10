@@ -4,17 +4,30 @@ defmodule Tesla.Middleware.Timeout do
 
   ## Examples
 
-  ```
-  defmodule MyClient do
-    use Tesla
+      defmodule MyClient do
+        use Tesla
 
-    plug Tesla.Middleware.Timeout, timeout: 2_000
-  end
-  ```
+        plug Tesla.Middleware.Timeout, timeout: 2_000
+      end
+
+  If you are using OpenTelemetry in your project, you may be interested in
+  using `OpentelemetryProcessPropagator.Task` to have a better integration using
+  the `task_module` option.
+
+      defmodule MyClient do
+        use Tesla
+
+        plug Tesla.Middleware.Timeout,
+          timeout: 2_000,
+          task_module: OpentelemetryProcessPropagator.Task
+      end
 
   ## Options
 
   - `:timeout` - number of milliseconds a request is allowed to take (defaults to `1000`)
+  - `:task_module` - the `Task` module used to spawn tasks. Useful when you want
+    use alternatives such as `OpentelemetryProcessPropagator.Task` from OTEL
+    project.
   """
 
   @behaviour Tesla.Middleware
@@ -25,22 +38,23 @@ defmodule Tesla.Middleware.Timeout do
   def call(env, next, opts) do
     opts = opts || []
     timeout = Keyword.get(opts, :timeout, @default_timeout)
+    task_module = Keyword.get(opts, :task_module, Task)
 
-    task = safe_async(fn -> Tesla.run(env, next) end)
+    task = safe_async(task_module, fn -> Tesla.run(env, next) end)
 
     try do
       task
-      |> Task.await(timeout)
+      |> task_module.await(timeout)
       |> repass_error
     catch
       :exit, {:timeout, _} ->
-        Task.shutdown(task, 0)
+        task_module.shutdown(task, 0)
         {:error, :timeout}
     end
   end
 
-  defp safe_async(func) do
-    Task.async(fn ->
+  defp safe_async(task_module, func) do
+    task_module.async(fn ->
       try do
         {:ok, func.()}
       rescue

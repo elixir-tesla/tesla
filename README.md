@@ -1,18 +1,18 @@
 # Tesla
 
 [![Build Status](https://github.com/teamon/tesla/workflows/Test/badge.svg?branch=master)](https://github.com/teamon/tesla/actions)
-[![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](http://hex.pm/packages/tesla)
+[![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hexdocs.pm](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/tesla/)
 [![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dw/tesla.svg)](https://hex.pm/packages/tesla)
 [![codecov](https://codecov.io/gh/teamon/tesla/branch/master/graph/badge.svg)](https://codecov.io/gh/teamon/tesla)
-[![Inline docs](https://inch-ci.org/github/teamon/tesla.svg)](http://inch-ci.org/github/teamon/tesla)
+[![Inline docs](https://inch-ci.org/github/teamon/tesla.svg)](https://inch-ci.org/github/teamon/tesla)
 
 Tesla is an HTTP client loosely based on [Faraday](https://github.com/lostisland/faraday).
 It embraces the concept of middleware when processing the request/response cycle.
 
 > Note that this README refers to the `master` branch of Tesla, not the latest
-  released version on Hex. See [the documentation](http://hexdocs.pm/tesla) for
+  released version on Hex. See [the documentation](https://hexdocs.pm/tesla) for
   the documentation of the version you're using.
 
 For the list of changes, checkout the latest [release notes](https://github.com/teamon/tesla/releases).
@@ -103,7 +103,7 @@ to use it in production environment as it does not validate SSL certificates
 ## Middleware
 
 Tesla is built around the concept of composable middlewares.
-This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#the-plug-router) works.
+This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#plugrouter) works.
 
 ### Basic
 
@@ -139,7 +139,7 @@ This is very similar to how [Plug Router](https://github.com/elixir-plug/plug#th
 ## Runtime middleware
 
 All HTTP functions, such as `Tesla.get/3` and `Tesla.post/4`, can take a dynamic client as the first argument.
-This allow to use convenient syntax for modifying the behaviour in runtime.
+This allows to use convenient syntax for modifying the behaviour in runtime.
 
 Consider the following case: GitHub API can be accessed using OAuth token authorization.
 
@@ -186,7 +186,7 @@ client |> GitHub.get("/me")
 
 Tesla supports multiple HTTP adapter that do the actual HTTP request processing.
 
-- [`Tesla.Adapter.Httpc`](https://hexdocs.pm/tesla/Tesla.Adapter.Httpc.html) - the default, built-in erlang [httpc](http://erlang.org/doc/man/httpc.html) adapter
+- [`Tesla.Adapter.Httpc`](https://hexdocs.pm/tesla/Tesla.Adapter.Httpc.html) - the default, built-in erlang [httpc](https://erlang.org/doc/man/httpc.html) adapter
 - [`Tesla.Adapter.Hackney`](https://hexdocs.pm/tesla/Tesla.Adapter.Hackney.html) - [hackney](https://github.com/benoitc/hackney), "simple HTTP client in Erlang"
 - [`Tesla.Adapter.Ibrowse`](https://hexdocs.pm/tesla/Tesla.Adapter.Ibrowse.html) - [ibrowse](https://github.com/cmullaparthi/ibrowse), "Erlang HTTP client"
 - [`Tesla.Adapter.Gun`](https://hexdocs.pm/tesla/Tesla.Adapter.Gun.html) - [gun](https://github.com/ninenines/gun), "HTTP/1.1, HTTP/2 and Websocket client for Erlang/OTP"
@@ -243,7 +243,7 @@ Tesla.get(client, "/", opts: [adapter: [recv_timeout: 30_000]])
 
 ## Streaming
 
-If adapter supports it, you can pass a [Stream](http://elixir-lang.org/docs/stable/elixir/Stream.html) as body, e.g.:
+If adapter supports it, you can pass a [Stream](https://elixir-lang.org/docs/stable/elixir/Stream.html) as body, e.g.:
 
 ```elixir
 defmodule ElasticSearch do
@@ -279,7 +279,7 @@ mp =
   |> Multipart.add_file("test/tesla/multipart_test_file.sh", name: "foobar")
   |> Multipart.add_file_content("sample file content", "sample.txt")
 
-{:ok, response} = MyApiClient.post("http://httpbin.org/post", mp)
+{:ok, response} = MyApiClient.post("https://httpbin.org/post", mp)
 ```
 
 ## Testing
@@ -304,10 +304,10 @@ defmodule MyAppTest do
 
   setup do
     mock(fn
-      %{method: :get, url: "http://example.com/hello"} ->
+      %{method: :get, url: "https://example.com/hello"} ->
         %Tesla.Env{status: 200, body: "hello"}
 
-      %{method: :post, url: "http://example.com/world"} ->
+      %{method: :post, url: "https://example.com/world"} ->
         json(%{"my" => "data"})
     end)
 
@@ -315,7 +315,7 @@ defmodule MyAppTest do
   end
 
   test "list things" do
-    assert {:ok, %Tesla.Env{} = env} = MyApp.get("/hello")
+    assert {:ok, %Tesla.Env{} = env} = MyApi.get("https://example.com/hello")
     assert env.status == 200
     assert env.body == "hello"
   end
@@ -389,7 +389,7 @@ defmodule Tesla.Middleware.SomeMiddleware do
 
   ### Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
     use Tesla
 
@@ -414,7 +414,7 @@ This however won’t include any middleware.
 
 ```elixir
 # Example get request
-{:ok, response} = Tesla.get("http://httpbin.org/ip")
+{:ok, response} = Tesla.get("https://httpbin.org/ip")
 
 response.status
 # => 200
@@ -425,11 +425,11 @@ response.body
 response.headers
 # => [{"content-type", "application/json" ...}]
 
-{:ok, response} = Tesla.get("http://httpbin.org/get", query: [a: 1, b: "foo"])
+{:ok, response} = Tesla.get("https://httpbin.org/get", query: [a: 1, b: "foo"])
 
 # Example post request
 {:ok, response} =
-  Tesla.post("http://httpbin.org/post", "data", headers: [{"content-type", "application/json"}])
+  Tesla.post("https://httpbin.org/post", "data", headers: [{"content-type", "application/json"}])
 ```
 
 ## Cheatsheet
@@ -475,6 +475,11 @@ use Tesla, except: [:delete, :options]
 
 ```elixir
 use Tesla, docs: false
+```
+### Encode only JSON request (do not decode response)
+
+```elixir
+plug Tesla.Middleware.EncodeJson
 ```
 
 ### Decode only JSON response (do not encode request)

@@ -12,6 +12,9 @@ defmodule Tesla.Middleware.JSON do
   mix deps.compile tesla
   ```
 
+  If you only need to encode the request body or decode the response body,
+  you can use `Tesla.Middleware.EncodeJson` or `Tesla.Middleware.DecodeJson` directly instead.
+
   ## Examples
 
   ```
@@ -61,6 +64,7 @@ defmodule Tesla.Middleware.JSON do
 
   It is used by `Tesla.Middleware.EncodeJson`.
   """
+  @spec encode(Tesla.Env.t(), keyword()) :: Tesla.Env.result()
   def encode(env, opts) do
     with true <- encodable?(env),
          {:ok, body} <- encode_body(env.body, opts) do
@@ -98,6 +102,7 @@ defmodule Tesla.Middleware.JSON do
 
   It is used by `Tesla.Middleware.DecodeJson`.
   """
+  @spec decode(Tesla.Env.t(), keyword()) :: Tesla.Env.result()
   def decode(env, opts) do
     with true <- decodable?(env, opts),
          {:ok, body} <- decode_body(env.body, opts) do
@@ -151,7 +156,15 @@ defmodule Tesla.Middleware.JSON do
 end
 
 defmodule Tesla.Middleware.DecodeJson do
-  @moduledoc false
+  @moduledoc """
+  Decodes response body as JSON.
+
+  Only decodes the body if the `Content-Type` header suggests
+  that the body is JSON.
+  """
+  @moduledoc since: "1.8.0"
+
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
 
@@ -162,7 +175,12 @@ defmodule Tesla.Middleware.DecodeJson do
 end
 
 defmodule Tesla.Middleware.EncodeJson do
-  @moduledoc false
+  @moduledoc """
+  Encodes request body as JSON.
+  """
+  @moduledoc since: "1.8.0"
+
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
 

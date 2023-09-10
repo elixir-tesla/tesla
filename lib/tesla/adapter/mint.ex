@@ -23,8 +23,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
       use Tesla
       adapter Tesla.Adapter.Mint
     end
+
     # set global custom cacertfile
-    config :tesla, Tesla.Adapter.Mint, cacert: ["path_to_cacert"]
+    config :tesla, adapter: {Tesla.Adapter.Mint, cacert: ["path_to_cacert"]}
     ```
 
     ## Adapter specific options:
@@ -40,6 +41,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     - `:original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise adapter will use connection for another open host.
     - `:close_conn` - Close connection or not after receiving full response body. Is used for reusing mint connections. Defaults to `true`.
     - `:proxy` - Proxy settings. E.g.: `{:http, "localhost", 8888, []}`, `{:http, "127.0.0.1", 8888, []}`
+    - `:transport_opts` - Keyword list of HTTP or HTTPS options passed into `:gen_tcp` or `:ssl` respectively by mint. See [mint's docs on `transport_opts`](https://hexdocs.pm/mint/Mint.HTTP.html#connect/4-transport-options).
     """
 
     @behaviour Tesla.Adapter
@@ -174,8 +176,15 @@ if Code.ensure_loaded?(Mint.HTTP) do
       end
     end
 
-    defp make_request(conn, method, path, headers, body),
-      do: HTTP.request(conn, method, path, headers, body)
+    defp make_request(conn, method, path, headers, body) do
+      case HTTP.request(conn, method, path, headers, body) do
+        {:ok, conn, ref} ->
+          {:ok, conn, ref}
+
+        {:error, _conn, error} ->
+          {:error, error}
+      end
+    end
 
     defp stream_request(conn, ref, fun) do
       case next_chunk(fun) do

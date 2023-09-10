@@ -9,7 +9,7 @@ defmodule Tesla.Adapter.HackneyTest do
   use Tesla.AdapterCase.SSL,
     ssl_options: [
       verify: :verify_peer,
-      cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
+      cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
     ]
 
   alias Tesla.Env
@@ -34,6 +34,18 @@ defmodule Tesla.Adapter.HackneyTest do
     assert {:ok, %Env{} = response} = call(request, with_body: true, async: true)
     assert response.status == 200
     assert is_reference(response.body) == true
+  end
+
+  test "get with `:max_body` option" do
+    request = %Env{
+      method: :post,
+      url: "#{@http}/post",
+      body: String.duplicate("long response", 1000)
+    }
+
+    assert {:ok, %Env{} = response} = call(request, with_body: true, max_body: 100)
+    assert response.status == 200
+    assert byte_size(response.body) < 2000
   end
 
   test "request timeout error" do

@@ -25,6 +25,7 @@ defmodule Tesla.Middleware.Compression do
   def call(env, next, opts) do
     env
     |> compress(opts)
+    |> Tesla.put_headers([{"accept-encoding", "gzip, deflate"}])
     |> Tesla.run(next)
     |> decompress()
   end
@@ -98,6 +99,7 @@ defmodule Tesla.Middleware.DecompressResponse do
   @impl Tesla.Middleware
   def call(env, next, _opts) do
     env
+    |> Tesla.put_headers([{"accept-encoding", "gzip, deflate"}])
     |> Tesla.run(next)
     |> Tesla.Middleware.Compression.decompress()
   end

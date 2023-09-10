@@ -1,24 +1,33 @@
 name: Test
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
-  test:
+  Test:
     runs-on: ubuntu-latest
+    name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
     strategy:
       matrix:
         elixir:
-          - 1.12-slim   # otp 24
-          - 1.11-slim   # otp 23
-          - 1.10-slim   # otp 22
-          - 1.9-slim    # otp 22
-          - 1.8-otp-22
-          - 1.8-slim    # otp 21
-          - 1.7-slim    # otp 21
-    container:
-      image: elixir:${{ matrix.elixir }}
+          - 1.14
+          - 1.13
+        otp:
+          - 25.3
+          - 24.3
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: ${{ matrix.elixir }}
+        otp-version: ${{ matrix.otp }}
+        version-type: strict
+    - name: Restore dependencies cache
+      uses: actions/cache@v3
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
     - name: Install Dependencies
       env:
         MIX_ENV: test
@@ -29,67 +38,26 @@ jobs:
     - name: Run Tests
       run: mix test --trace
 
-  test-1:
-    name: run tests from v1.0.0
+  Linting:
     runs-on: ubuntu-latest
-    container:
-      image: elixir:1.7-slim
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Install Dependencies
-      env:
-        MIX_ENV: test
-      run: |
-        mix local.rebar --force
-        mix local.hex --force
-        mix deps.get
-
-    - name: Checkout v1.0.0 tests
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
       with:
-        path: "test-1"
-        ref: "v1.0.0-compat"
-
-    - name: Replace test dir with test-1/test dir
-      run: |
-        ls -la
-        rm -rf test
-        mv test-1/test test
-
-    - name: Run v1.0.0 Tests
-      run: mix test --trace
-
-  test-poison3:
-    runs-on: ubuntu-latest
-    container:
-      image: elixir:1.9-slim
-    steps:
-    - uses: actions/checkout@v2
-    - name: Install Dependencies
-      env:
-        MIX_ENV: test
-        LOCKFILE: poison3
-      run: |
-        mix local.rebar --force
-        mix local.hex --force
-        mix deps.get
-    - name: Run Tests for poison 3.x
-      env:
-        MIX_ENV: test
-        LOCKFILE: poison3
-      run: mix test --trace
-
-  format:
-    runs-on: ubuntu-latest
-    container:
-      image: elixir:1.9-slim
-    steps:
-    - uses: actions/checkout@v2
+        elixir-version: '1.13'
+        otp-version: '24.3'
+        version-type: strict
+    - name: Restore dependencies cache
+      uses: actions/cache@v3
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
     - name: Install Dependencies
       run: |
         mix local.rebar --force
         mix local.hex --force
         mix deps.get
     - name: Check Format
-      run: mix format --check-formatted --dry-run
+      run: mix format --check-formatted

@@ -38,7 +38,7 @@ if Code.ensure_loaded?(:telemetry) do
 
     * `[:tesla, :request, :exception]` - emitted when an exception has been raised.
       * Measurement: `%{duration: native_time}`
-      * Metadata: `%{kind: Exception.kind(), reason: term(), stacktrace: Exception.stacktrace()}`
+      * Metadata: `%{env: Tesla.Env.t(), kind: Exception.kind(), reason: term(), stacktrace: Exception.stacktrace()}`
 
     ## Legacy Telemetry Events
 
@@ -80,9 +80,11 @@ if Code.ensure_loaded?(:telemetry) do
     ```
     """
 
-    @disable_legacy_event Application.get_env(:tesla, Tesla.Middleware.Telemetry,
-                            disable_legacy_event: false
-                          )[:disable_legacy_event]
+    @disable_legacy_event Application.compile_env(
+                            :tesla,
+                            [Tesla.Middleware.Telemetry, :disable_legacy_event],
+                            false
+                          )
 
     @behaviour Tesla.Middleware
 
@@ -102,7 +104,7 @@ if Code.ensure_loaded?(:telemetry) do
 
           emit_exception(
             duration,
-            Map.merge(metadata, %{kind: kind, reason: reason, stacktrace: stacktrace})
+            Map.merge(metadata, %{env: env, kind: kind, reason: reason, stacktrace: stacktrace})
           )
 
           :erlang.raise(kind, reason, stacktrace)
@@ -142,16 +144,16 @@ if Code.ensure_loaded?(:telemetry) do
     end
 
     if @disable_legacy_event do
-      defp emit_legacy_event(duration, result) do
+      defp emit_legacy_event(_duration, _result) do
         :ok
       end
     else
       defp emit_legacy_event(duration, result) do
-        duration_µs = System.convert_time_unit(duration, :native, :microsecond)
+        duration = System.convert_time_unit(duration, :native, :microsecond)
 
         :telemetry.execute(
           [:tesla, :request],
-          %{request_time: duration_µs},
+          %{request_time: duration},
           %{result: result}
         )
       end
