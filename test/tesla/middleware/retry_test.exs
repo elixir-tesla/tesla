@@ -9,6 +9,7 @@ defmodule Tesla.Middleware.RetryTest do
         response =
           case env.url do
             "/ok" -> {:ok, env}
+            "/maybe" when retries == 2 -> {:error, :nxdomain}
             "/maybe" when retries < 5 -> {:error, :econnrefused}
             "/maybe" -> {:ok, env}
             "/nope" -> {:error, :econnrefused}
@@ -39,9 +40,20 @@ defmodule Tesla.Middleware.RetryTest do
       delay: 10,
       max_retries: 10,
       should_retry: fn
-        {:ok, %{status: status}} when status in [400, 500] -> true
-        {:ok, _} -> false
-        {:error, _} -> true
+        {:ok, %{status: status}}, _env, _context when status in [400, 500] ->
+          true
+
+        {:ok, _reason}, _env, _context ->
+          false
+
+        {:error, _reason}, %Tesla.Env{method: :post}, _context ->
+          false
+
+        {:error, _reason}, %Tesla.Env{method: :put}, %{retries: 2} ->
+          false
+
+        {:error, _reason}, _env, _context ->
+          true
       end
 
     adapter LaggyAdapter
@@ -72,6 +84,14 @@ defmodule Tesla.Middleware.RetryTest do
   test "use custom retry determination function" do
     assert {:ok, %Tesla.Env{url: "/retry_status", method: :get, status: 200}} =
              ClientWithShouldRetryFunction.get("/retry_status")
+  end
+
+  test "use custom retry determination function matching on env" do
+    assert {:error, :econnrefused} = ClientWithShouldRetryFunction.post("/maybe", "payload")
+  end
+
+  test "use custom retry determination function matching on context" do
+    assert {:error, :nxdomain} = ClientWithShouldRetryFunction.put("/maybe", "payload")
   end
 
   defmodule DefunctClient do
@@ -169,6 +189,32 @@ defmodule Tesla.Middleware.RetryTest do
                  "expected :jitter_factor to be a float >= 0 and <= 1, got 1.1",
                  fn ->
                    ClientWithJitterFactorGt1.get("/ok")
+                 end
+  end
+
+  test "ensures should_retry option is a function with arity of 1 or 3" do
+    defmodule ClientWithShouldRetryArity0 do
+      use Tesla
+      plug Tesla.Middleware.Retry, should_retry: fn -> true end
+      adapter LaggyAdapter
+    end
+
+    defmodule ClientWithShouldRetryArity2 do
+      use Tesla
+      plug Tesla.Middleware.Retry, should_retry: fn _res, _env -> true end
+      adapter LaggyAdapter
+    end
+
+    assert_raise ArgumentError,
+                 ~r/expected :should_retry to be a function with arity of 1 or 3, got #Function<\d.\d+\/0/,
+                 fn ->
+                   ClientWithShouldRetryArity0.get("/ok")
+                 end
+
+    assert_raise ArgumentError,
+                 ~r/expected :should_retry to be a function with arity of 1 or 3, got #Function<\d.\d+\/2/,
+                 fn ->
+                   ClientWithShouldRetryArity2.get("/ok")
                  end
   end
 end
