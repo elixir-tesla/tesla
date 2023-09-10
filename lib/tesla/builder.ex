@@ -84,7 +84,7 @@ defmodule Tesla.Builder do
   @doc """
   Attach middleware to your API client.
 
-  ```
+  ```elixir
   defmodule ExampleApi do
     use Tesla
 

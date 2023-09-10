@@ -60,7 +60,7 @@ defmodule Tesla.Middleware.Logger do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
     use Tesla
 
@@ -86,13 +86,13 @@ defmodule Tesla.Middleware.Logger do
 
   It can be changed globally with config:
 
-  ```
+  ```elixir
   config :tesla, Tesla.Middleware.Logger, format: "$method $url ====> $status / time=$time"
   ```
 
   Or you can customize this setting by providing your own `format` function:
 
-  ```
+  ```elixir
   defmodule MyClient do
     use Tesla
 
@@ -114,7 +114,7 @@ defmodule Tesla.Middleware.Logger do
 
   You can customize this setting by providing your own `log_level/1` function:
 
-  ```
+  ```elixir
   defmodule MyClient do
     use Tesla
 
