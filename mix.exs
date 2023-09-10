@@ -55,7 +55,6 @@ defmodule Tesla.Mixfile do
       {:mime, "~> 1.0 or ~> 2.0"},
 
       # http clients
-      # TODO: Upgrade ibrowse once https://github.com/cmullaparthi/ibrowse/issues/167 is resolved
       {:ibrowse, "4.4.2", optional: true},
       {:hackney, "~> 1.6", optional: true},
       {:gun, "~> 1.3", optional: true},
