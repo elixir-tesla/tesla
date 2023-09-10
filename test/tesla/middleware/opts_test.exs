@@ -12,6 +12,38 @@ defmodule Tesla.Middleware.OptsTest do
     adapter fn env -> env end
   end
 
+  defmodule BaseProxy do
+    defmacro __using__(_opts) do
+      quote do
+        plug Tesla.Middleware.Opts,
+          adapter: [
+            proxy: "https://proxy.example.com:8080",
+            proxy_auth: {"admin", "secret"}
+          ]
+      end
+    end
+  end
+
+  defmodule MergeAdapterOptsClient do
+    use Tesla
+    use BaseProxy
+
+    plug Tesla.Middleware.Opts, adapter: [ssl_options: [{:versions, [:tlsv1]}]]
+    adapter fn env -> env end
+  end
+
+  test "merge adapter opts" do
+    env = MergeAdapterOptsClient.get("/")
+
+    assert env.opts == [
+             adapter: [
+               proxy: "https://proxy.example.com:8080",
+               proxy_auth: {"admin", "secret"},
+               ssl_options: [versions: [:tlsv1]]
+             ]
+           ]
+  end
+
   test "apply middleware options" do
     env = Client.get("/")
 

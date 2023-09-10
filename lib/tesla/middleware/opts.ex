@@ -17,6 +17,16 @@ defmodule Tesla.Middleware.Opts do
 
   @impl Tesla.Middleware
   def call(env, next, opts) do
-    Tesla.run(%{env | opts: env.opts ++ opts}, next)
+    adapter =
+      env.opts
+      |> Keyword.get(:adapter, [])
+      |> Keyword.merge(opts[:adapter] || [])
+
+    opts =
+      env.opts
+      |> Keyword.merge(opts)
+      |> Keyword.put(:adapter, adapter)
+
+    Tesla.run(%{env | opts: opts}, next)
   end
 end
