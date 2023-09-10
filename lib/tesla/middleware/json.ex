@@ -164,6 +164,8 @@ defmodule Tesla.Middleware.DecodeJson do
   """
   @moduledoc since: "1.8.0"
 
+  @behaviour Tesla.Middleware
+
   @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
@@ -179,6 +181,8 @@ defmodule Tesla.Middleware.EncodeJson do
   Encodes request body as JSON.
   """
   @moduledoc since: "1.8.0"
+
+  @behaviour Tesla.Middleware
 
   @impl Tesla.Middleware
   def call(env, next, opts) do
