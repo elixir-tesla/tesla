@@ -155,6 +155,8 @@ if Code.ensure_loaded?(Mint.HTTP) do
           _ -> opts
         end
 
+      opts = Map.put_new(opts, :mode, :passive)
+
       with {:ok, conn} <-
              HTTP.connect(String.to_atom(uri.scheme), uri.host, uri.port, Enum.into(opts, [])) do
         # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.
