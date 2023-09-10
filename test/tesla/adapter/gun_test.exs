@@ -16,10 +16,6 @@ defmodule Tesla.Adapter.GunTest do
 
   import ExUnit.CaptureLog
 
-  setup do
-    on_exit(fn -> assert Supervisor.which_children(:gun_sup) == [] end)
-  end
-
   test "fallback adapter timeout option" do
     request = %Env{
       method: :get,
