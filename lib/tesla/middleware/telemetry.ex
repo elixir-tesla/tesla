@@ -25,6 +25,7 @@ if Code.ensure_loaded?(:telemetry) do
     ## Options
 
     - `:metadata` - additional metadata passed to telemetry events
+    - `:prefix` - prefix for telemetry events. Defaults to `:tesla`
 
     ## Telemetry Events
 
@@ -91,9 +92,10 @@ if Code.ensure_loaded?(:telemetry) do
     @impl Tesla.Middleware
     def call(env, next, opts) do
       metadata = opts[:metadata] || %{}
+      prefix = opts[:prefix] || :tesla
       start_time = System.monotonic_time()
 
-      emit_start(Map.merge(metadata, %{env: env}))
+      emit_start(prefix, Map.merge(metadata, %{env: env}))
 
       try do
         Tesla.run(env, next)
@@ -103,6 +105,7 @@ if Code.ensure_loaded?(:telemetry) do
           duration = System.monotonic_time() - start_time
 
           emit_exception(
+            prefix,
             duration,
             Map.merge(metadata, %{env: env, kind: kind, reason: reason, stacktrace: stacktrace})
           )
@@ -112,56 +115,56 @@ if Code.ensure_loaded?(:telemetry) do
         {:ok, env} = result ->
           duration = System.monotonic_time() - start_time
 
-          emit_stop(duration, Map.merge(metadata, %{env: env}))
-          emit_legacy_event(duration, result)
+          emit_stop(prefix, duration, Map.merge(metadata, %{env: env}))
+          emit_legacy_event(prefix, duration, result)
 
           result
 
         {:error, reason} = result ->
           duration = System.monotonic_time() - start_time
 
-          emit_stop(duration, Map.merge(metadata, %{env: env, error: reason}))
-          emit_legacy_event(duration, result)
+          emit_stop(prefix, duration, Map.merge(metadata, %{env: env, error: reason}))
+          emit_legacy_event(prefix, duration, result)
 
           result
       end
     end
 
-    defp emit_start(metadata) do
+    defp emit_start(prefix, metadata) do
       :telemetry.execute(
-        [:tesla, :request, :start],
+        [prefix, :request, :start],
         %{system_time: System.system_time()},
         metadata
       )
     end
 
-    defp emit_stop(duration, metadata) do
+    defp emit_stop(prefix, duration, metadata) do
       :telemetry.execute(
-        [:tesla, :request, :stop],
+        [prefix, :request, :stop],
         %{duration: duration},
         metadata
       )
     end
 
     if @disable_legacy_event do
-      defp emit_legacy_event(_duration, _result) do
+      defp emit_legacy_event(_prefix, _duration, _result) do
         :ok
       end
     else
-      defp emit_legacy_event(duration, result) do
+      defp emit_legacy_event(prefix, duration, result) do
         duration = System.convert_time_unit(duration, :native, :microsecond)
 
         :telemetry.execute(
-          [:tesla, :request],
+          [prefix, :request],
           %{request_time: duration},
           %{result: result}
         )
       end
     end
 
-    defp emit_exception(duration, metadata) do
+    defp emit_exception(prefix, duration, metadata) do
       :telemetry.execute(
-        [:tesla, :request, :exception],
+        [prefix, :request, :exception],
         %{duration: duration},
         metadata
       )
