@@ -191,9 +191,11 @@ defmodule Tesla.Adapter.GunTest do
       method: :get,
       url: "#{@http}/status/500"
     }
+
     port = Application.get_env(:httparrot, :http_port)
+
     assert {:error, :recv_response_timeout} ==
-             call(request, proxy: {:socks5, 'localhost', port}, timeout: 1_000)
+             call(request, proxy: {:socks5, ~c"localhost", port}, timeout: 1_000)
   end
 
   test "receive gun_up message when receive is false" do
