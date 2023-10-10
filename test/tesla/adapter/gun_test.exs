@@ -186,14 +186,14 @@ defmodule Tesla.Adapter.GunTest do
     assert response.status == 500
   end
 
-  test "error on socks proxy" do
+  test "error waiting for response on socks proxy" do
     request = %Env{
       method: :get,
       url: "#{@http}/status/500"
     }
-
-    assert {:error, "socks protocol is not supported"} ==
-             call(request, proxy: {:socks5, 'localhost', 1234})
+    port = Application.get_env(:httparrot, :http_port)
+    assert {:error, :recv_response_timeout} ==
+             call(request, proxy: {:socks5, 'localhost', port}, timeout: 1_000)
   end
 
   test "receive gun_up message when receive is false" do

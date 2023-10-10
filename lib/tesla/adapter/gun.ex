@@ -55,7 +55,6 @@ if Code.ensure_loaded?(:gun) do
         [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
 
     - `:proxy` - Proxy for requests.
-        **Socks proxy are supported only for gun master branch**.
         Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, `{:socks5, 'localhost', 1234}`.
 
       **NOTE:** By default GUN uses TLS as transport if the specified port is 443,
@@ -354,12 +353,6 @@ if Code.ensure_loaded?(:gun) do
       with {:ok, pid} <- :gun.open(proxy_host, proxy_port, gun_opts),
            {:ok, _} <- :gun.await_up(pid) do
         {:ok, pid}
-      else
-        {:error, {:options, {:protocols, [:socks]}}} ->
-          {:error, "socks protocol is not supported"}
-
-        error ->
-          error
       end
     end
 
@@ -435,7 +428,7 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp open_stream(pid, method, path, headers, body, req_opts, :stream) do
-      stream = :gun.request(pid, method, path, headers, "", req_opts)
+      stream = :gun.headers(pid, method, path, headers, req_opts)
       for data <- body, do: :ok = :gun.data(pid, stream, :nofin, data)
       :gun.data(pid, stream, :fin, "")
       stream
