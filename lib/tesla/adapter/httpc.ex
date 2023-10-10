@@ -18,7 +18,7 @@ defmodule Tesla.Adapter.Httpc do
   @impl Tesla.Adapter
   def call(env, opts) do
     opts = Tesla.Adapter.opts(@override_defaults, env, opts)
-    opts = Tesla.Adapter.opts(default_ssl_opt(), env, opts)
+#    opts = Tesla.Adapter.opts(default_ssl_opt(), env, opts)
 
     with {:ok, {status, headers, body}} <- request(env, opts) do
       {:ok, format_response(env, status, headers, body)}
@@ -32,6 +32,7 @@ defmodule Tesla.Adapter.Httpc do
   defp default_ssl_opt do
     # TODO: verify that requires OTP 25+
     # TODO: verify that does not require any Elixir version
+    # TODO: maybe use Castore for now? cacertfile: CAStore.file_path(),
     [
       verify: :verify_peer,
       cacerts: :public_key.cacerts_get(),
