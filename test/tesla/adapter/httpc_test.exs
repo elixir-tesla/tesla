@@ -68,9 +68,5 @@ defmodule Tesla.Adapter.HttpcTest do
     test "revoked.badssl.com" do
       assert {:error, :econnrefused} = Tesla.get(Tesla.client([], Tesla.Adapter.Httpc), "https://revoked.badssl.com")
     end
-#    TODO: figure out how to test this
-#    test "pinning-test.badssl.com" do
-#      assert {:error, :econnrefused} = Tesla.get(Tesla.client([], Tesla.Adapter.Httpc), "https://pinning-test.badssl.com")
-#    end
   end
 end
