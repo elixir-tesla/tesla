@@ -85,7 +85,7 @@ defmodule Tesla.Mixfile do
 
       # httparrot dependencies
       {:httparrot, "~> 1.3", only: :test},
-      {:cowlib, "~> 2.9", only: :test, override: true},
+      {:cowlib, "~> 2.9", only: [:dev, :test], override: true},
       {:ranch, "~> 2.1", only: :test, override: true}
     ]
   end

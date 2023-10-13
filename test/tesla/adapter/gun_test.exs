@@ -186,18 +186,6 @@ defmodule Tesla.Adapter.GunTest do
     assert response.status == 500
   end
 
-  test "error waiting for response on socks proxy" do
-    request = %Env{
-      method: :get,
-      url: "#{@http}/status/500"
-    }
-
-    port = Application.get_env(:httparrot, :http_port)
-
-    assert {:error, :recv_response_timeout} ==
-             call(request, proxy: {:socks5, ~c"localhost", port}, timeout: 1_000)
-  end
-
   test "receive gun_up message when receive is false" do
     request = %Env{
       method: :get,
@@ -232,6 +220,21 @@ defmodule Tesla.Adapter.GunTest do
       end)
 
     assert log =~ "Unknown CA"
+  end
+
+  # Gun 1.0 backwards compatibility tests
+  if not (Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0")) do
+    test "error on socks proxy" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/status/500"
+      }
+
+      port = Application.get_env(:httparrot, :http_port)
+
+      assert {:error, "socks protocol is not supported"} ==
+        call(request, proxy: {:socks5, 'localhost', 1234})
+    end
   end
 
   defp read_body(pid, stream, opts, acc \\ "") do
