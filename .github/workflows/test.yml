@@ -12,11 +12,11 @@ jobs:
           - 1.14
           - 1.13
         otp:
-          - 26.1
           - 25.3
+          - 24.3
         include:
           - elixir: 1.15
-            otp: 24.3
+            otp: 26.1
     steps:
     - uses: actions/checkout@v3
     - name: Set up Elixir
@@ -54,7 +54,7 @@ jobs:
           - 24.3
         include:
           - elixir: 1.15
-            otp: 24.3
+            otp: 26.1
     steps:
     - uses: actions/checkout@v3
     - name: Set up Elixir
