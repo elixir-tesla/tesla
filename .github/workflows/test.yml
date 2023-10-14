@@ -43,7 +43,7 @@ jobs:
 
   Test-gun1:
     runs-on: ubuntu-latest
-    name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}} - Gun1
     strategy:
       matrix:
         elixir:
