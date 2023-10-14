@@ -9,13 +9,14 @@ jobs:
     strategy:
       matrix:
         elixir:
-          - 1.15
           - 1.14
           - 1.13
         otp:
           - 26.1
           - 25.3
-          - 24.3
+        include:
+          - elixir: 1.15
+            otp: 24.3
     steps:
     - uses: actions/checkout@v3
     - name: Set up Elixir
@@ -46,13 +47,14 @@ jobs:
     strategy:
       matrix:
         elixir:
-          - 1.15
           - 1.14
           - 1.13
         otp:
-          - 26.1
           - 25.3
           - 24.3
+        include:
+          - elixir: 1.15
+            otp: 24.3
     steps:
     - uses: actions/checkout@v3
     - name: Set up Elixir
