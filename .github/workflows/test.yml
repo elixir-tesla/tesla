@@ -6,6 +6,7 @@ jobs:
   Test:
     runs-on: ubuntu-latest
     name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    concurrency: test
     strategy:
       matrix:
         elixir:
@@ -44,6 +45,7 @@ jobs:
   Test-gun1:
     runs-on: ubuntu-latest
     name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    concurrency: test
     strategy:
       matrix:
         elixir:
