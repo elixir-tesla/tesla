@@ -55,6 +55,7 @@ if Code.ensure_loaded?(:gun) do
         [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
 
     - `:proxy` - Proxy for requests.
+        **Socks proxy are supported from gun >= 2.0**.
         Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, `{:socks5, 'localhost', 1234}`.
 
       **NOTE:** By default GUN uses TLS as transport if the specified port is 443,

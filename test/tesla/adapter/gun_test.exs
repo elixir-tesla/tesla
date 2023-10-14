@@ -230,8 +230,6 @@ defmodule Tesla.Adapter.GunTest do
         url: "#{@http}/status/500"
       }
 
-      port = Application.get_env(:httparrot, :http_port)
-
       assert {:error, "socks protocol is not supported"} ==
                call(request, proxy: {:socks5, ~c"localhost", 1234})
     end
