@@ -61,7 +61,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: deps
-        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        key: ${{ runner.os }}-mix-${{ hashFiles('test/lockfiles/gun1.lock') }}
         restore-keys: ${{ runner.os }}-mix-
     - name: Install Dependencies
       env:
