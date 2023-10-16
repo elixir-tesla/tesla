@@ -55,7 +55,7 @@ if Code.ensure_loaded?(:gun) do
         [ssl_verify_fun.erl](https://github.com/deadtrickster/ssl_verify_fun.erl)
 
     - `:proxy` - Proxy for requests.
-        **Socks proxy are supported only for gun master branch**.
+        **Socks proxy are supported from gun >= 2.0**.
         Examples: `{'localhost', 1234}`, `{{127, 0, 0, 1}, 1234}`, `{:socks5, 'localhost', 1234}`.
 
       **NOTE:** By default GUN uses TLS as transport if the specified port is 443,
@@ -435,7 +435,7 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp open_stream(pid, method, path, headers, body, req_opts, :stream) do
-      stream = :gun.request(pid, method, path, headers, "", req_opts)
+      stream = perform_stream_request(pid, method, path, headers, req_opts)
       for data <- body, do: :ok = :gun.data(pid, stream, :nofin, data)
       :gun.data(pid, stream, :fin, "")
       stream
@@ -551,6 +551,17 @@ if Code.ensure_loaded?(:gun) do
 
         {:ok, ip} ->
           ip
+      end
+    end
+
+    # Backwards compatibility with gun < 2.0. See https://ninenines.eu/docs/en/gun/2.0/manual/gun.headers/
+    if Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0") do
+      defp perform_stream_request(pid, method, path, headers, req_opts) do
+        :gun.headers(pid, method, path, headers, req_opts)
+      end
+    else
+      defp perform_stream_request(pid, method, path, headers, req_opts) do
+        :gun.request(pid, method, path, headers, "", req_opts)
       end
     end
   end
