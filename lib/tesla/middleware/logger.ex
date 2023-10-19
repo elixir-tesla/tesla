@@ -109,7 +109,7 @@ defmodule Tesla.Middleware.Logger do
   By default, the following log levels will be used:
 
   - `:error` - for errors, 5xx and 4xx responses
-  - `:warn` - for 3xx responses
+  - `:warn` or `:warning` - for 3xx responses
   - `:info` - for 2xx responses
 
   You can customize this setting by providing your own `log_level/1` function:
@@ -186,7 +186,13 @@ defmodule Tesla.Middleware.Logger do
 
   @format Formatter.compile(@config[:format])
 
-  @type log_level :: :info | :warn | :error
+  @type log_level :: :info | :warn | :warning | :error
+
+  if Version.compare(System.version(), "1.11.0") == :lt do
+    @warning_level :warn
+  else
+    @warning_level :warning
+  end
 
   require Logger
 
@@ -221,8 +227,12 @@ defmodule Tesla.Middleware.Logger do
       fun when is_function(fun) ->
         case fun.(env) do
           :default -> default_log_level(env)
+          warning when warning in [:warn, :warning] -> @warning_level
           level -> level
         end
+
+      warning when warning in [:warn, :warning] ->
+        @warning_level
 
       atom when is_atom(atom) ->
         atom
@@ -233,7 +243,7 @@ defmodule Tesla.Middleware.Logger do
   def default_log_level(env) do
     cond do
       env.status >= 400 -> :error
-      env.status >= 300 -> :warn
+      env.status >= 300 -> @warning_level
       true -> :info
     end
   end
