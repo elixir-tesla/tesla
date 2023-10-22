@@ -197,7 +197,7 @@ defmodule Tesla.Adapter.GunTest do
     }
 
     assert {:error, "socks protocol is not supported"} ==
-             call(request, proxy: {:socks5, 'localhost', 1234})
+             call(request, proxy: {:socks5, ~c"localhost", 1234})
   end
 
   test "receive gun_up message when receive is false" do
