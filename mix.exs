@@ -20,7 +20,8 @@ defmodule Tesla.Mixfile do
         plt_add_apps: [:mix, :inets, :idna, :ssl_verify_fun, :ex_unit],
         plt_add_deps: :project
       ],
-      docs: docs()
+      docs: docs(),
+      preferred_cli_env: [coveralls: :test, "coveralls.html": :test]
     ]
   end
 
@@ -55,8 +56,7 @@ defmodule Tesla.Mixfile do
       {:mime, "~> 1.0 or ~> 2.0"},
 
       # http clients
-      # TODO: Upgrade ibrowse once https://github.com/cmullaparthi/ibrowse/issues/167 is resolved
-      {:ibrowse, "4.4.0", optional: true},
+      {:ibrowse, "4.4.2", optional: true},
       {:hackney, "~> 1.6", optional: true},
       {:gun, ">= 1.0.0", optional: true},
       {:finch, "~> 0.13", optional: true},

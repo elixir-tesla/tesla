@@ -69,6 +69,7 @@ defmodule Tesla.Middleware.CompressionTest do
 
   test "decompress response body (gzip)" do
     assert {:ok, env} = CompressionResponseClient.get("/response-gzip")
+    assert env.headers == [{"content-type", "text/plain"}]
     assert env.body == "decompressed gzip"
   end
 
@@ -80,6 +81,7 @@ defmodule Tesla.Middleware.CompressionTest do
   test "return unchanged response for unsupported content-encoding" do
     assert {:ok, env} = CompressionResponseClient.get("/response-identity")
     assert env.body == "unchanged"
+    assert env.headers == [{"content-type", "text/plain"}]
   end
 
   defmodule CompressRequestDecompressResponseClient do
@@ -114,7 +116,8 @@ defmodule Tesla.Middleware.CompressionTest do
       {status, headers, body} =
         case env.url do
           "/" ->
-            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], env.headers}
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}],
+             TestSupport.gzip_headers(env)}
         end
 
       {:ok, %{env | status: status, headers: headers, body: body}}
@@ -123,7 +126,7 @@ defmodule Tesla.Middleware.CompressionTest do
 
   test "Compression headers" do
     assert {:ok, env} = CompressionHeadersClient.get("/")
-    assert env.body == [{"accept-encoding", "gzip, deflate"}]
+    assert env.body == "accept-encoding: gzip, deflate, identity"
   end
 
   defmodule DecompressResponseHeadersClient do
@@ -135,7 +138,8 @@ defmodule Tesla.Middleware.CompressionTest do
       {status, headers, body} =
         case env.url do
           "/" ->
-            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], env.headers}
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}],
+             TestSupport.gzip_headers(env)}
         end
 
       {:ok, %{env | status: status, headers: headers, body: body}}
@@ -144,7 +148,7 @@ defmodule Tesla.Middleware.CompressionTest do
 
   test "Decompress response headers" do
     assert {:ok, env} = DecompressResponseHeadersClient.get("/")
-    assert env.body == [{"accept-encoding", "gzip, deflate"}]
+    assert env.body == "accept-encoding: gzip, deflate, identity"
   end
 
   defmodule CompressRequestHeadersClient do

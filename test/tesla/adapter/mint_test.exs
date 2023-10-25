@@ -80,14 +80,14 @@ defmodule Tesla.Adapter.MintTest do
     assert byte_size(response.body) == 16
   end
 
-  describe "mode: :passive" do
+  describe "mode: :active" do
     test "body_as: :plain" do
       request = %Env{
         method: :get,
         url: "#{@http}/stream-bytes/10"
       }
 
-      assert {:ok, %Env{} = response} = call(request, mode: :passive)
+      assert {:ok, %Env{} = response} = call(request, mode: :active)
       assert response.status == 200
       assert byte_size(response.body) == 16
     end
@@ -98,7 +98,7 @@ defmodule Tesla.Adapter.MintTest do
         url: "#{@http}/stream-bytes/10"
       }
 
-      assert {:ok, %Env{} = response} = call(request, body_as: :stream, mode: :passive)
+      assert {:ok, %Env{} = response} = call(request, body_as: :stream, mode: :active)
       assert response.status == 200
       assert Enum.join(response.body) |> byte_size() == 16
     end
@@ -109,7 +109,7 @@ defmodule Tesla.Adapter.MintTest do
         url: "#{@http}/stream-bytes/10"
       }
 
-      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, mode: :passive)
+      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, mode: :active)
       assert response.status == 200
       %{conn: conn, ref: ref, opts: opts, body: body} = response.body
 
