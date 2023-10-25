@@ -38,6 +38,44 @@ jobs:
     - name: Run Tests
       run: mix test --trace
 
+  Test-gun1:
+    runs-on: ubuntu-latest
+    name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}} - Gun1
+    strategy:
+      matrix:
+        elixir:
+          - 1.14
+          - 1.13
+        otp:
+          - 25.3
+          - 24.3
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: ${{ matrix.elixir }}
+        otp-version: ${{ matrix.otp }}
+        version-type: strict
+    - name: Restore dependencies cache
+      uses: actions/cache@v3
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles('test/lockfiles/gun1.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
+    - name: Install Dependencies
+      env:
+        MIX_ENV: test
+        LOCKFILE: gun1
+      run: |
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+    - name: Run Tests
+      env:
+        LOCKFILE: gun1
+      run: mix test test/tesla/adapter/gun_test.exs --trace
+
   Linting:
     runs-on: ubuntu-latest
     steps:

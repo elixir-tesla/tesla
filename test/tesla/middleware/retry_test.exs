@@ -3,6 +3,7 @@ defmodule Tesla.Middleware.RetryTest do
 
   defmodule LaggyAdapter do
     def start_link, do: Agent.start_link(fn -> 0 end, name: __MODULE__)
+    def reset(), do: Agent.update(__MODULE__, fn _ -> 0 end)
 
     def call(env, _opts) do
       Agent.get_and_update(__MODULE__, fn retries ->
@@ -59,8 +60,13 @@ defmodule Tesla.Middleware.RetryTest do
     adapter LaggyAdapter
   end
 
+  setup_all do
+    {:ok, _pid} = LaggyAdapter.start_link()
+    :ok
+  end
+
   setup do
-    {:ok, _} = LaggyAdapter.start_link()
+    LaggyAdapter.reset()
     :ok
   end
 
