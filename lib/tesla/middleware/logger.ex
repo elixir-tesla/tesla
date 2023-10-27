@@ -5,7 +5,7 @@ defmodule Tesla.Middleware.Logger.Formatter do
   # https://github.com/elixir-lang/elixir/blob/v1.6.4/lib/logger/lib/logger/formatter.ex
 
   @default_format "$method $url -> $status ($time ms)"
-  @keys ~w(method url status time query)
+  @keys ~w(method url status time query request_body response_body)
 
   @type format :: [atom | binary]
 
@@ -43,18 +43,21 @@ defmodule Tesla.Middleware.Logger.Formatter do
     Enum.map(format, &output(&1, request, response, time))
   end
 
-  defp output(:query, env, _, _) do
+  def output(:query, env, _, _) do
     encoding = Keyword.get(env.opts, :query_encoding, :www_form)
 
     Tesla.encode_query(env.query, encoding)
   end
 
-  defp output(:method, env, _, _), do: env.method |> to_string() |> String.upcase()
-  defp output(:url, env, _, _), do: env.url
-  defp output(:status, _, {:ok, env}, _), do: to_string(env.status)
-  defp output(:status, _, {:error, reason}, _), do: "error: " <> inspect(reason)
-  defp output(:time, _, _, time), do: :io_lib.format("~.3f", [time / 1000])
-  defp output(binary, _, _, _), do: binary
+  def output(:method, env, _, _), do: env.method |> to_string() |> String.upcase()
+  def output(:url, env, _, _), do: env.url
+  def output(:status, _, {:ok, env}, _), do: to_string(env.status)
+  def output(:status, _, {:error, reason}, _), do: "error: " <> inspect(reason)
+  def output(:time, _, _, time), do: to_string(:io_lib.format("~.3f", [time / 1000]))
+  def output(:request_body, env, _, _), do: env.body
+  def output(:response_body, _, {:ok, env}, _), do: env.body
+  def output(:response_body, _, {:error, _}, _), do: nil
+  def output(binary, _, _, _), do: binary
 end
 
 defmodule Tesla.Middleware.Logger do
@@ -82,6 +85,7 @@ defmodule Tesla.Middleware.Logger do
   - `:metadata` - metadata to pass to `Logger`
   - `:debug` - use `Logger.debug/2` to log request/response details
   - `:format` - custom string template or function for log message (see below)
+  - `:metadata` - configure logger metadata
 
   ## Custom log format
 
@@ -237,6 +241,27 @@ defmodule Tesla.Middleware.Logger do
   config :tesla, Tesla.Middleware.Logger,
     filter_headers: ["authorization"]
   ```
+
+  ### Configure Logger metadata
+
+  Set `metadata: true` to include metadata in the log output.
+
+  ```
+  plug Tesla.Middleware.Logger, metadata: true
+  ```
+
+  Pass a list of atoms to `metadata` to include only specific metadata.
+
+  ```
+  plug Tesla.Middleware.Logger, metadata: [:url, :status, :request_body]
+  ```
+
+  Use `:conceal` request option to conceal sensitive requests.
+
+  ```
+  Tesla.get(client, opts: [conceal: true]])
+  ```
+
   """
 
   @behaviour Tesla.Middleware
@@ -268,12 +293,17 @@ defmodule Tesla.Middleware.Logger do
     format =
       if optional_runtime_format, do: Formatter.compile(optional_runtime_format), else: @format
 
-    metadata = Keyword.get(config, :metadata, [])
     level = log_level(response, config)
-    Logger.log(level, fn -> Formatter.format(env, response, time, format) end, metadata)
+    metadata_opt = Keyword.get(config, :metadata, false)
+
+    Logger.log(
+      level,
+      fn -> Formatter.format(env, response, time, format) end,
+      metadata(env, response, time, metadata_opt)
+    )
 
     if Keyword.get(config, :debug, true) do
-      Logger.debug(fn -> debug(env, response, config) end, metadata)
+      Logger.debug(fn -> debug(env, response, config) end, metadata(env, response, time, metadata_opt))
     end
 
     response
@@ -342,6 +372,20 @@ defmodule Tesla.Middleware.Logger do
       true -> :info
     end
   end
+
+  @metadata_keys [:method, :url, :query, :status, :request_body, :response_body, :time]
+
+  defp metadata(req, res, time, keys) when is_list(keys) do
+    if req.opts[:conceal] do
+      []
+    else
+      [tesla: Enum.into(keys, %{}, fn key -> {key, Formatter.output(key, req, res, time)} end)]
+    end
+  end
+
+  defp metadata(req, res, time, true), do: metadata(req, res, time, @metadata_keys)
+
+  defp metadata(_req, _res, _time, false), do: []
 
   @debug_no_query "(no query)"
   @debug_no_headers "(no headers)"
