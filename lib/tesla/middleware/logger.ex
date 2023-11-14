@@ -43,7 +43,12 @@ defmodule Tesla.Middleware.Logger.Formatter do
     Enum.map(format, &output(&1, request, response, time))
   end
 
-  defp output(:query, env, _, _), do: env.query |> Tesla.encode_query()
+  defp output(:query, env, _, _) do
+    encoding = Keyword.get(env.opts, :query_encoding, :www_form)
+
+    Tesla.encode_query(env.query, encoding)
+  end
+
   defp output(:method, env, _, _), do: env.method |> to_string() |> String.upcase()
   defp output(:url, env, _, _), do: env.url
   defp output(:status, _, {:ok, env}, _), do: to_string(env.status)

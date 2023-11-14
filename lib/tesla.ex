@@ -302,6 +302,10 @@ defmodule Tesla do
 
   Useful when you need to create an URL with dynamic query params from a Keyword list
 
+  Allows to specify the `encoding` strategy to be one either `:www_form` or `:rfc3986`
+  Read more about options in [`URI.encode_query/2`](https://hexdocs.pm/elixir/1.14.3/URI.html#encode_query/2)
+  Defaults to `:www_form`, ignored when compiled with elixir version older than 1.12.
+
   ## Examples
 
       iex> Tesla.build_url("http://api.example.com", [user: 3, page: 2])
@@ -312,19 +316,36 @@ defmodule Tesla do
       iex> Tesla.build_url(url, [page: 2, status: true])
       "http://api.example.com?user=3&page=2&status=true"
 
-  """
-  @spec build_url(Tesla.Env.url(), Tesla.Env.query()) :: binary
-  def build_url(url, []), do: url
+      # default encoding `:www_form`
+      iex> Tesla.build_url("http://api.example.com", [user_name: "John Smith"])
+      "http://api.example.com?user_name=John+Smith"
 
-  def build_url(url, query) do
+      # specified encoding strategy :rfc3986
+      iex> Tesla.build_url("http://api.example.com", [user_name: "John Smith"], :rfc3986)
+      "http://api.example.com?user_name=John%20Smith"
+  """
+  @type encoding_strategy :: :rfc3986 | :www_form
+
+  @spec build_url(Tesla.Env.url(), Tesla.Env.query(), encoding_strategy) :: binary
+  def build_url(url, query, encoding \\ :www_form)
+
+  def build_url(url, [], _encoding), do: url
+
+  def build_url(url, query, encoding) do
     join = if String.contains?(url, "?"), do: "&", else: "?"
-    url <> join <> encode_query(query)
+    url <> join <> encode_query(query, encoding)
   end
 
-  def encode_query(query) do
+  def encode_query(query, encoding \\ :www_form) do
     query
     |> Enum.flat_map(&encode_pair/1)
-    |> URI.encode_query()
+    |> uri_encode_query(encoding)
+  end
+
+  if Version.match?(System.version(), "~> 1.12") do
+    defp uri_encode_query(enum, encoding), do: URI.encode_query(enum, encoding)
+  else
+    defp uri_encode_query(enum, _encoding), do: URI.encode_query(enum)
   end
 
   @doc false
