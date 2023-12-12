@@ -52,6 +52,10 @@ defmodule Tesla.Middleware.Retry do
       the context: options + `:retries` (defaults to a match on `{:error, _reason}`)
   - `:jitter_factor` - additive noise proportionality constant
       (float between 0 and 1, defaults to 0.2)
+  - `:use_retry_after_header` - whether to use the Retry-After header to determine the minimum
+      delay before the next retry.  If the delay from the header exceeds max_delay, no further
+      retries are attempted.  Invalid Retry-After headers are ignored.
+      (boolean, defaults to false)
   """
 
   @behaviour Tesla.Middleware
@@ -60,7 +64,8 @@ defmodule Tesla.Middleware.Retry do
     delay: 50,
     max_retries: 5,
     max_delay: 5_000,
-    jitter_factor: 0.2
+    jitter_factor: 0.2,
+    use_retry_after_header: false
   ]
 
   @impl Tesla.Middleware
@@ -73,7 +78,8 @@ defmodule Tesla.Middleware.Retry do
       max_retries: integer_opt!(opts, :max_retries, 0),
       max_delay: integer_opt!(opts, :max_delay, 1),
       should_retry: should_retry_opt!(opts),
-      jitter_factor: float_opt!(opts, :jitter_factor, 0, 1)
+      jitter_factor: float_opt!(opts, :jitter_factor, 0, 1),
+      use_retry_after_header: boolean_opt!(opts, :use_retry_after_header)
     }
 
     retry(env, next, context)
@@ -98,7 +104,12 @@ defmodule Tesla.Middleware.Retry do
 
     {:arity, should_retry_arity} = :erlang.fun_info(context.should_retry, :arity)
 
+    context = Map.put(context, :retry_after, retry_after(res, context))
+
     cond do
+      context.retry_after != nil and context.max_delay < context.retry_after ->
+        res
+
       should_retry_arity == 1 and context.should_retry.(res) ->
         do_retry(env, next, context)
 
@@ -110,14 +121,53 @@ defmodule Tesla.Middleware.Retry do
     end
   end
 
+  # Calculate the min ms to retry after if the header is specified and enabled
+  defp retry_after({_, %Tesla.Env{} = env}, %{use_retry_after_header: true}) do
+    case Tesla.get_header(env, "retry-after") do
+      nil -> nil
+      header -> retry_after_delay(header)
+    end
+  end
+
+  # otherwise, set the min to zero
+  defp retry_after(_res, _context) do
+    nil
+  end
+
+  # Attempt to interpret the retry-after header as integer number of seconds, then a DateTime
+  defp retry_after_delay(header) do
+    case Integer.parse(header) do
+      :error ->
+        case DateTimeParser.parse_datetime(header) do
+          {:ok, date_time} -> max(0, DateTime.diff(date_time, DateTime.utc_now(), :millisecond))
+          {:error, _} -> nil
+        end
+
+      {seconds, _} ->
+        seconds * 1000
+    end
+  end
+
   defp do_retry(env, next, context) do
-    backoff(context.max_delay, context.delay, context.retries, context.jitter_factor)
+    case context.retry_after do
+      nil ->
+        exponential_backoff(
+          context.max_delay,
+          context.delay,
+          context.retries,
+          context.jitter_factor
+        )
+
+      retry_after ->
+        retry_after_with_jitter(context.max_delay, retry_after, context.jitter_factor)
+    end
+
     context = update_in(context, [:retries], &(&1 + 1))
     retry(env, next, context)
   end
 
   # Exponential backoff with jitter
-  defp backoff(cap, base, attempt, jitter_factor) do
+  defp exponential_backoff(cap, base, attempt, jitter_factor) do
     factor = Bitwise.bsl(1, attempt)
     max_sleep = min(cap, base * factor)
 
@@ -140,6 +190,17 @@ defmodule Tesla.Middleware.Retry do
     %{env | opts: opts}
   end
 
+  # Provided delay from Retry-After plus jitter
+  @spec retry_after_with_jitter(any(), integer(), number()) :: :ok
+  def retry_after_with_jitter(cap, retry_after, jitter_factor) do
+    # Ensures that the added jitter never exceeds the max delay
+    max = min(cap, retry_after * (1 + jitter_factor))
+
+    jitter = trunc((max - retry_after) * :rand.uniform())
+
+    :timer.sleep(retry_after + jitter)
+  end
+
   defp integer_opt!(opts, key, min) do
     case Keyword.fetch(opts, key) do
       {:ok, value} when is_integer(value) and value >= min -> value
@@ -152,6 +213,14 @@ defmodule Tesla.Middleware.Retry do
     case Keyword.fetch(opts, key) do
       {:ok, value} when is_float(value) and value >= min and value <= max -> value
       {:ok, invalid} -> invalid_float(key, invalid, min, max)
+      :error -> @defaults[key]
+    end
+  end
+
+  defp boolean_opt!(opts, key) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} when is_boolean(value) -> value
+      {:ok, invalid} -> invalid_boolean(key, invalid)
       :error -> @defaults[key]
     end
   end
@@ -178,6 +247,10 @@ defmodule Tesla.Middleware.Retry do
       ArgumentError,
       "expected :#{key} to be a float >= #{min} and <= #{max}, got #{inspect(value)}"
     )
+  end
+
+  defp invalid_boolean(key, value) do
+    raise(ArgumentError, "expected :#{key} to be a boolean, got #{inspect(value)}")
   end
 
   defp invalid_should_retry_fun(value) do

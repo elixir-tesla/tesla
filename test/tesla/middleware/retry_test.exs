@@ -2,23 +2,74 @@ defmodule Tesla.Middleware.RetryTest do
   use ExUnit.Case, async: false
 
   defmodule LaggyAdapter do
-    def start_link, do: Agent.start_link(fn -> 0 end, name: __MODULE__)
-    def reset(), do: Agent.update(__MODULE__, fn _ -> 0 end)
+    def start_link,
+      do:
+        Agent.start_link(fn -> %{retries: 0, start_time: DateTime.utc_now()} end,
+          name: __MODULE__
+        )
+
+    def reset(),
+      do: Agent.update(__MODULE__, fn _ -> %{retries: 0, start_time: DateTime.utc_now()} end)
 
     def call(env, _opts) do
-      Agent.get_and_update(__MODULE__, fn retries ->
+      Agent.get_and_update(__MODULE__, fn %{retries: retries, start_time: start_time} = state ->
+        ms_elapsed = DateTime.diff(DateTime.utc_now(), start_time, :millisecond)
+
         response =
           case env.url do
-            "/ok" -> {:ok, env}
-            "/maybe" when retries == 2 -> {:error, :nxdomain}
-            "/maybe" when retries < 5 -> {:error, :econnrefused}
-            "/maybe" -> {:ok, env}
-            "/nope" -> {:error, :econnrefused}
-            "/retry_status" when retries < 5 -> {:ok, %{env | status: 500}}
-            "/retry_status" -> {:ok, %{env | status: 200}}
+            "/ok" ->
+              {:ok, env}
+
+            "/maybe" when retries == 2 ->
+              {:error, :nxdomain}
+
+            "/maybe" when retries < 5 ->
+              {:error, :econnrefused}
+
+            "/maybe" ->
+              {:ok, env}
+
+            "/nope" ->
+              {:error, :econnrefused}
+
+            "/retry_status" when retries < 5 ->
+              {:ok, %{env | status: 500}}
+
+            "/retry_status" ->
+              {:ok, %{env | status: 200}}
+
+            "/retry_after_seconds" when ms_elapsed < 1000 ->
+              {:ok, %{env | status: 429, headers: [{"retry-after", "2"} | env.headers]}}
+
+            "/retry_after_seconds" ->
+              {:ok, %{env | status: 200}}
+
+            "/retry_after_date" when ms_elapsed < 1000 ->
+              {:ok,
+               %{
+                 env
+                 | status: 429,
+                   headers: [
+                     {"retry-after",
+                      Calendar.strftime(
+                        DateTime.add(start_time, 2, :second),
+                        "%a, %d %b %Y %H:%M:%S GMT"
+                      )}
+                     | env.headers
+                   ]
+               }}
+
+            "/retry_after_date" ->
+              {:ok, %{env | status: 200}}
+
+            "/retry_after_invalid" when retries < 5 ->
+              {:ok, %{env | status: 429, headers: [{"retry-after", "foo"} | env.headers]}}
+
+            "/retry_after_invalid" ->
+              {:ok, %{env | status: 200}}
           end
 
-        {response, retries + 1}
+        {response, %{state | retries: retries + 1}}
       end)
     end
   end
@@ -55,6 +106,24 @@ defmodule Tesla.Middleware.RetryTest do
 
         {:error, _reason}, _env, _context ->
           true
+      end
+
+    adapter LaggyAdapter
+  end
+
+  defmodule ClientUsingRetryAfterHeader do
+    use Tesla
+
+    plug Tesla.Middleware.Retry,
+      delay: 10,
+      max_retries: 10,
+      use_retry_after_header: true,
+      should_retry: fn
+        {:ok, %{status: status}}, _env, _context when status in [429] ->
+          true
+
+        {:ok, _reason}, _env, _context ->
+          false
       end
 
     adapter LaggyAdapter
@@ -106,6 +175,89 @@ defmodule Tesla.Middleware.RetryTest do
 
   test "use custom retry determination function matching on context" do
     assert {:error, :nxdomain} = ClientWithShouldRetryFunction.put("/maybe", "payload")
+  end
+
+  test "use Retry-After header when it is a integer number of seconds" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_seconds", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_seconds")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 2
+  end
+
+  test "use Retry-After header when it is a HTTP Date string" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_date", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_date")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 2
+  end
+
+  test "ingore Retry-After header if it is not in an expected format" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_invalid", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_invalid")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
+  end
+
+  test "do not retry if Retry-After delay exceeds max delay" do
+    defmodule ClientUsingRetryAfterHeaderWithMaxDelay do
+      use Tesla
+
+      plug Tesla.Middleware.Retry,
+        delay: 10,
+        max_delay: 500,
+        max_retries: 10,
+        use_retry_after_header: true,
+        should_retry: fn
+          {:ok, %{status: status}}, _env, _context when status in [429] ->
+            true
+
+          {:ok, _reason}, _env, _context ->
+            false
+        end
+
+      adapter LaggyAdapter
+    end
+
+    assert {:ok, %Tesla.Env{url: "/retry_after_seconds", method: :get, status: 429}} =
+             ClientUsingRetryAfterHeaderWithMaxDelay.get("/retry_after_seconds")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 1
+  end
+
+  test "jitter doesn't allow delay to be shorter than specified by Retry-After heade or larger than max delay" do
+    defmodule ClientUsingRetryAfterHeaderWithHighJitter do
+      use Tesla
+
+      plug Tesla.Middleware.Retry,
+        delay: 10,
+        max_delay: 2001,
+        max_retries: 1,
+        jitter_factor: 0.9999,
+        use_retry_after_header: true,
+        should_retry: fn
+          {:ok, %{status: status}}, _env, _context when status in [429] ->
+            true
+
+          {:ok, _reason}, _env, _context ->
+            false
+        end
+
+      adapter LaggyAdapter
+    end
+
+    assert {:ok, %Tesla.Env{url: "/retry_after_seconds", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeaderWithHighJitter.get("/retry_after_seconds")
+
+    finish_time = :os.system_time(:millisecond)
+
+    # need to allow some time for the request handling; should be small relative to max_delay to minimize probability of false negatives
+    allowed_execution_ms = 100
+
+    %{retries: retries, start_time: start_time} = Agent.get(LaggyAdapter, fn state -> state end)
+
+    assert retries == 2
+
+    assert finish_time < DateTime.to_unix(start_time, :millisecond) + 2001 + allowed_execution_ms
   end
 
   defmodule DefunctClient do
@@ -229,6 +381,20 @@ defmodule Tesla.Middleware.RetryTest do
                  ~r/expected :should_retry to be a function with arity of 1 or 3, got #Function<\d.\d+\/2/,
                  fn ->
                    ClientWithShouldRetryArity2.get("/ok")
+                 end
+  end
+
+  test "ensures use_retry_after_header is a boolean" do
+    defmodule ClientWithStringUseRetryAfterHeader do
+      use Tesla
+      plug Tesla.Middleware.Retry, use_retry_after_header: 1
+      adapter LaggyAdapter
+    end
+
+    assert_raise ArgumentError,
+                 ~r/expected :use_retry_after_header to be a boolean, got 1/,
+                 fn ->
+                   ClientWithStringUseRetryAfterHeader.get("/ok")
                  end
   end
 end
