@@ -243,7 +243,7 @@ Tesla.get(client, "/", opts: [adapter: [recv_timeout: 30_000]])
 
 ## Streaming
 
-If adapter supports it, you can pass a [Stream](https://elixir-lang.org/docs/stable/elixir/Stream.html) as body, e.g.:
+If adapter supports it, you can pass a [Stream](https://hexdocs.pm/elixir/main/Stream.html) as body, e.g.:
 
 ```elixir
 defmodule ElasticSearch do
