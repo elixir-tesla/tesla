@@ -10,7 +10,7 @@ defmodule Tesla.Mixfile do
       version: @version,
       description: description(),
       package: package(),
-      elixir: "~> 1.16",
+      elixir: "~> 1.10",
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       lockfile: lockfile(System.get_env("LOCKFILE")),

@@ -103,7 +103,7 @@ defmodule Tesla.Multipart do
         false -> headers
       end
 
-    data = File.stream!(path, 2048)
+    data = stream_file!(path, 2048)
     add_file_content(mp, data, filename, opts ++ [headers: headers])
   end
 
@@ -193,5 +193,11 @@ defmodule Tesla.Multipart do
 
   defp assert_part_value!(val) do
     raise(ArgumentError, "#{inspect(val)} is not a supported multipart value.")
+  end
+
+  if Version.compare(System.version(), "1.16.0") in [:gt, :eq] do
+    defp stream_file!(path, bytes), do: File.stream!(path, bytes)
+  else
+    defp stream_file!(path, bytes), do: File.stream!(path, [], bytes)
   end
 end
