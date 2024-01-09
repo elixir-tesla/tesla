@@ -115,7 +115,7 @@ defmodule Tesla do
 
   defp prepare(module, %{pre: pre, post: post} = client, options) do
     env = struct(Env, options ++ [__module__: module, __client__: client])
-    stack = pre ++ module.__middleware__ ++ post ++ [effective_adapter(module, client)]
+    stack = pre ++ module.__middleware__() ++ post ++ [effective_adapter(module, client)]
     {env, stack}
   end
 
