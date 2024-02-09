@@ -8,12 +8,8 @@ jobs:
     name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
     strategy:
       matrix:
-        elixir:
-          - 1.14
-          - 1.13
-        otp:
-          - 25.3
-          - 24.3
+        elixir: ['1.14', '1.15', '1.16']
+        otp: ['24', '25', '26']
     steps:
     - uses: actions/checkout@v4
     - name: Set up Elixir
@@ -43,12 +39,8 @@ jobs:
     name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}} - Gun1
     strategy:
       matrix:
-        elixir:
-          - 1.14
-          - 1.13
-        otp:
-          - 25.3
-          - 24.3
+        elixir: ['1.14', '1.15', '1.16']
+        otp: ['24', '25', '26']
     steps:
     - uses: actions/checkout@v4
     - name: Set up Elixir
@@ -83,8 +75,8 @@ jobs:
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        elixir-version: '1.13'
-        otp-version: '24.3'
+        elixir-version: '1.16'
+        otp-version: '26'
         version-type: strict
     - name: Restore dependencies cache
       uses: actions/cache@v4
