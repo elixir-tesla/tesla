@@ -154,7 +154,7 @@ defmodule Tesla.Mock do
   Setup mocks for current test.
 
   This mock will only be available to the current process and processes spawned by
-  the current process.
+  the current process, directly or indirectly.
   """
   @spec mock((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: :ok
   def mock(fun) when is_function(fun) do
