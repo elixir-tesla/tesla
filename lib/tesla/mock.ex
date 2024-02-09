@@ -107,12 +107,32 @@ defmodule Tesla.Mock do
     defexception env: nil, ex: nil, stacktrace: []
 
     def message(%__MODULE__{ex: nil}) do
-      """
-      There is no mock set for process #{inspect(self())}.
-      Use Tesla.Mock.mock/1 to mock HTTP requests.
+      case ExUnit.fetch_test_supervisor() do
+        {:ok, _pid} ->
+          """
+          There is no mock set for process #{inspect(self())}.
+          Use Tesla.Mock.mock/1 to mock HTTP requests.
 
-      See https://github.com/teamon/tesla#testing
-      """
+          See https://github.com/teamon/tesla#testing
+          """
+
+       :error ->
+          """
+          \n
+          Either you have not configured a mock in your test, or the manner in which your test has
+          spawned/managed processes is not compatible with local mocking.
+
+          See https://github.com/teamon/tesla#testing to learn how to set up a mock in your test.
+
+          If you have configured a mock in your test and you are seeing this message, then you can
+          either change how your test's child processes are started/managed, or, if that is not a
+          good option, you can switch to using global mocking for this test.
+
+          Although we can't identify the exact reason that your test's processes are incompatible with
+          local mocking, your processes will be guaranteed compatible if they are running in a
+          supervision tree.
+          """
+      end
     end
 
     def message(%__MODULE__{env: env, ex: %FunctionClauseError{} = ex, stacktrace: stacktrace}) do
@@ -133,7 +153,8 @@ defmodule Tesla.Mock do
   @doc """
   Setup mocks for current test.
 
-  This mock will only be available to the current process.
+  This mock will only be available to the current process and processes spawned by
+  the current process.
   """
   @spec mock((Tesla.Env.t() -> Tesla.Env.t() | {integer, map, any})) :: :ok
   def mock(fun) when is_function(fun) do
@@ -226,7 +247,7 @@ defmodule Tesla.Mock do
   end
 
   defp pdict_set(fun), do: Process.put(__MODULE__, fun)
-  defp pdict_get, do: Process.get(__MODULE__)
+  defp pdict_get, do: ProcessTree.get(__MODULE__)
 
   defp agent_set(fun) do
     case Process.whereis(__MODULE__) do
