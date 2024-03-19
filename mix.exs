@@ -129,6 +129,7 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware.JSON,
           Tesla.Middleware.KeepRequest,
           Tesla.Middleware.Logger,
+          Tesla.Middleware.MessagePack,
           Tesla.Middleware.MethodOverride,
           Tesla.Middleware.Opts,
           Tesla.Middleware.PathParams,
