@@ -80,8 +80,8 @@ defmodule Tesla.Adapter.Httpc do
     headers = for {key, value} <- headers, do: {to_charlist(key), to_charlist(value)}
 
     {content_type, headers} =
-      case List.keytake(headers, 'content-type', 0) do
-        nil -> {'text/plain', headers}
+      case List.keytake(headers, ~c"content-type", 0) do
+        nil -> {~c"text/plain", headers}
         {{_, ct}, headers} -> {ct, headers}
       end
 

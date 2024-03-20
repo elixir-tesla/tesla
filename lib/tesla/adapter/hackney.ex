@@ -72,7 +72,7 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp request(method, url, headers, body, opts) do
-      handle(:hackney.request(method, url, headers, body || '', opts), opts)
+      handle(:hackney.request(method, url, headers, body || ~c"", opts), opts)
     end
 
     defp request_stream(method, url, headers, body, opts) do
