@@ -8,6 +8,8 @@ defmodule Tesla.Adapter.Httpc do
   consistency between adapters
   """
 
+  current_otp_version = List.to_integer(:erlang.system_info(:otp_release))
+
   @behaviour Tesla.Adapter
   import Tesla.Adapter.Shared, only: [stream_to_fun: 1, next_chunk: 1]
   alias Tesla.Multipart
@@ -18,10 +20,39 @@ defmodule Tesla.Adapter.Httpc do
   @impl Tesla.Adapter
   def call(env, opts) do
     opts = Tesla.Adapter.opts(@override_defaults, env, opts)
+    opts = add_default_ssl_opt(env, opts)
 
     with {:ok, {status, headers, body}} <- request(env, opts) do
       {:ok, format_response(env, status, headers, body)}
     end
+  end
+
+  # TODO: remove this once OTP 26+ is required
+  cond do
+    # TODO: remove this once OTP 25+ is required
+    current_otp_version <= 25 ->
+      def add_default_ssl_opt(env, _opts) do
+        default_ssl_opt = [
+          ssl: [
+            verify: :verify_peer,
+            cacert_file: CAStore.file_path(),
+            customize_hostname_check: [
+              match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+            ]
+          ]
+        ]
+        Tesla.Adapter.opts(default_ssl_opt, env, opts)
+      end
+      
+    # TODO: remove this once OTP 26+ is required
+    current_otp_version == 25 ->
+      def add_default_ssl_opt(env, _opts) do
+        default_ssl_opts = :httpc.ssl_verify_host_options(true)
+        Tesla.Adapter.opts(default_ssl_opt, env, opts)
+      end
+      
+    current_otp_version >= 26 ->
+      def add_default_ssl_opt(env, _opts), do: env
   end
 
   defp format_response(env, {_, status, _}, headers, body) do
