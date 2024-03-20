@@ -123,6 +123,7 @@ defmodule Tesla do
   def effective_adapter(module, client \\ %Tesla.Client{}) do
     with nil <- client.adapter,
          nil <- adapter_per_module_from_config(module),
+         nil <- adapter_per_otp_app_from_config(module),
          nil <- adapter_per_module(module),
          nil <- adapter_from_config() do
       adapter_default()
@@ -131,6 +132,14 @@ defmodule Tesla do
 
   defp adapter_per_module_from_config(module) do
     case Application.get_env(:tesla, module, [])[:adapter] do
+      nil -> nil
+      {adapter, opts} -> {adapter, :call, [opts]}
+      adapter -> {adapter, :call, [[]]}
+    end
+  end
+
+  defp adapter_per_otp_app_from_config(module) do
+    case Application.get_env(:tesla, module.__otp_app__, [])[:adapter] do
       nil -> nil
       {adapter, opts} -> {adapter, :call, [opts]}
       adapter -> {adapter, :call, [[]]}
