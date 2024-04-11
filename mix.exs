@@ -135,6 +135,7 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware.PathParams,
           Tesla.Middleware.Query,
           Tesla.Middleware.Retry,
+          Tesla.Middleware.SSE,
           Tesla.Middleware.Telemetry,
           Tesla.Middleware.Timeout
         ]

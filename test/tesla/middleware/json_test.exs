@@ -167,6 +167,32 @@ defmodule Tesla.Middleware.JsonTest do
     end
   end
 
+  describe "Streams" do
+    test "encode stream" do
+      adapter = fn env ->
+        assert IO.iodata_to_binary(Enum.to_list(env.body)) == ~s|{"id":1}\n{"id":2}\n{"id":3}\n|
+      end
+
+      stream = Stream.map(1..3, fn i -> %{id: i} end)
+      Tesla.Middleware.JSON.call(%Tesla.Env{body: stream}, [{:fn, adapter}], [])
+    end
+
+    test "decode stream" do
+      adapter = fn _env ->
+        stream = Stream.map(1..3, fn i -> ~s|{"id": #{i}}\n| end)
+
+        {:ok,
+         %Tesla.Env{
+           headers: [{"content-type", "application/json"}],
+           body: stream
+         }}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.JSON.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert Enum.to_list(env.body) == [%{"id" => 1}, %{"id" => 2}, %{"id" => 3}]
+    end
+  end
+
   describe "Multipart" do
     defmodule MultipartClient do
       use Tesla
