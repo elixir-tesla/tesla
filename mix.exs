@@ -2,7 +2,7 @@ defmodule Tesla.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/teamon/tesla"
-  @version "1.7.0"
+  @version "1.9.0"
 
   def project do
     [
@@ -58,7 +58,7 @@ defmodule Tesla.Mixfile do
       # http clients
       {:ibrowse, "4.4.2", optional: true},
       {:hackney, "~> 1.6", optional: true},
-      {:gun, "~> 1.3", optional: true},
+      {:gun, ">= 1.0.0", optional: true},
       {:finch, "~> 0.13", optional: true},
       {:castore, "~> 0.1 or ~> 1.0", optional: true},
       {:mint, "~> 1.0", optional: true},
@@ -85,7 +85,7 @@ defmodule Tesla.Mixfile do
 
       # httparrot dependencies
       {:httparrot, "~> 1.3", only: :test},
-      {:cowlib, "~> 2.9", only: :test, override: true},
+      {:cowlib, "~> 2.9", only: [:dev, :test], override: true},
       {:ranch, "~> 2.1", only: :test, override: true}
     ]
   end
@@ -129,11 +129,13 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware.JSON,
           Tesla.Middleware.KeepRequest,
           Tesla.Middleware.Logger,
+          Tesla.Middleware.MessagePack,
           Tesla.Middleware.MethodOverride,
           Tesla.Middleware.Opts,
           Tesla.Middleware.PathParams,
           Tesla.Middleware.Query,
           Tesla.Middleware.Retry,
+          Tesla.Middleware.SSE,
           Tesla.Middleware.Telemetry,
           Tesla.Middleware.Timeout
         ]
