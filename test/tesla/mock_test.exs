@@ -84,6 +84,17 @@ defmodule Tesla.MockTest do
       assert env.status == 201
       assert env.body == %{"id" => 42}
     end
+
+    test "mock a request inside a spawned process" do
+      task =
+        Task.async(fn ->
+          assert {:ok, %Tesla.Env{} = env} = Client.get("/json")
+          assert env.status == 200
+          assert env.body == %{"json" => 123}
+        end)
+
+      Task.await(task)
+    end
   end
 
   describe "without mock" do
