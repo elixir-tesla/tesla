@@ -113,12 +113,18 @@ defmodule Tesla.Middleware.JSON do
     end
   end
 
+  defp decode_body(body, opts) when is_struct(body, Stream) or is_function(body),
+    do: {:ok, decode_stream(body, opts)}
+
   defp decode_body(body, opts), do: process(body, :decode, opts)
 
   defp decodable?(env, opts), do: decodable_body?(env) && decodable_content_type?(env, opts)
 
   defp decodable_body?(env) do
-    (is_binary(env.body) && env.body != "") || (is_list(env.body) && env.body != [])
+    (is_binary(env.body) && env.body != "") ||
+      (is_list(env.body) && env.body != []) ||
+      is_function(env.body) ||
+      is_struct(env.body, Stream)
   end
 
   defp decodable_content_type?(env, opts) do
@@ -126,6 +132,15 @@ defmodule Tesla.Middleware.JSON do
       nil -> false
       content_type -> Enum.any?(content_types(opts), &String.starts_with?(content_type, &1))
     end
+  end
+
+  defp decode_stream(body, opts) do
+    Stream.map(body, fn chunk ->
+      case decode_body(chunk, opts) do
+        {:ok, item} -> item
+        _ -> chunk
+      end
+    end)
   end
 
   defp content_types(opts),

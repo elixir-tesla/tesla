@@ -2,7 +2,7 @@ defmodule Tesla.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/teamon/tesla"
-  @version "1.8.0"
+  @version "1.9.0"
 
   def project do
     [
@@ -129,11 +129,13 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware.JSON,
           Tesla.Middleware.KeepRequest,
           Tesla.Middleware.Logger,
+          Tesla.Middleware.MessagePack,
           Tesla.Middleware.MethodOverride,
           Tesla.Middleware.Opts,
           Tesla.Middleware.PathParams,
           Tesla.Middleware.Query,
           Tesla.Middleware.Retry,
+          Tesla.Middleware.SSE,
           Tesla.Middleware.Telemetry,
           Tesla.Middleware.Timeout
         ]
