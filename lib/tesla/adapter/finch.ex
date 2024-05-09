@@ -79,7 +79,7 @@ if Code.ensure_loaded?(Finch) do
 
     defp build(method, url, headers, %Multipart{} = mp) do
       headers = headers ++ Multipart.headers(mp)
-      body = Multipart.body(mp) |> Enum.to_list()
+      body = Multipart.body(mp)
 
       build(method, url, headers, body)
     end
