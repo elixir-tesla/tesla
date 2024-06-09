@@ -138,7 +138,7 @@ defmodule Tesla do
   end
 
   defp adapter_per_module(module) do
-    module.__adapter__
+    module.__adapter__()
   end
 
   defp adapter_from_config do
