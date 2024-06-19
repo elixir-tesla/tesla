@@ -35,8 +35,8 @@ jobs:
       id: cache
       with:
         path: deps
-        key: ${{matrix.otp}}-${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{matrix.otp}}-${{ runner.os }}-mix-
+        key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-
     - name: Install Dependencies
       if: steps.cache.outputs.cache-hit != 'true'
       env:
@@ -116,9 +116,9 @@ jobs:
           deps
           _build
           dialyzer
-        key: ${{matrix.otp}}-${{ runner.os }}-dialyzer-${{ hashFiles('**/mix.lock') }}
+        key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-dialyzer-${{ hashFiles('**/mix.lock') }}
         restore-keys: |
-          ${{matrix.otp}}-${{ runner.os }}-dialyzer-
+          ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-dialyzer-
     - name: Install Dependencies
       if: steps.cache.outputs.cache-hit != 'true'
       env:
@@ -134,9 +134,9 @@ jobs:
       id: plt_cache
       with:
         key: |
-          ${{matrix.otp}}-${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
+          ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
         restore-keys: |
-          ${{matrix.otp}}-${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
+          ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
         path: |
           priv/plts
     # Create PLTs if no cache was found
