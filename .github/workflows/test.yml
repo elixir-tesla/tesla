@@ -10,17 +10,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - otp: '25.3'
-            elixir: '1.15'
+          - otp: '25.3.2.12'
+            elixir: '1.15.8'
             experimental: false
-          - otp: '26.2'
-            elixir: '1.16'
+          - otp: '26.2.5'
+            elixir: '1.16.3'
             experimental: false
-          - otp: '26.2'
-            elixir: '1.17'
-            experimental: true
           - otp: '27.0'
-            elixir: '1.17'
+            elixir: '1.17.1'
             experimental: true
     steps:
     - uses: actions/checkout@v4
@@ -49,29 +46,13 @@ jobs:
   Test-gun1:
     runs-on: ubuntu-latest
     name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}} - Gun1
-    continue-on-error: ${{ matrix.experimental }}
-    strategy:
-      matrix:
-        include:
-          - otp: '25.3'
-            elixir: '1.15'
-            experimental: false
-          - otp: '26.2'
-            elixir: '1.16'
-            experimental: false
-          - otp: '26.2'
-            elixir: '1.17'
-            experimental: true
-          - otp: '27.0'
-            elixir: '1.17'
-            experimental: true
     steps:
     - uses: actions/checkout@v4
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        elixir-version: ${{ matrix.elixir }}
-        otp-version: ${{ matrix.otp }}
+        elixir-version: '1.15.8'
+        otp-version: '25.3.2.12'
         version-type: strict
     - name: Restore dependencies cache
       uses: actions/cache@v4
@@ -99,8 +80,8 @@ jobs:
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        elixir-version: '1.15'
-        otp-version: '25.3'
+        elixir-version: '1.15.8'
+        otp-version: '25.3.2.12'
         version-type: strict
     - name: Restore dependencies cache
       uses: actions/cache@v4
