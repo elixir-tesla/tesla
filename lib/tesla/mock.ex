@@ -233,6 +233,11 @@ defmodule Tesla.Mock do
       Enum.find(Process.get(:"$ancestors", []), self(), fn ancestor ->
         !is_nil(Process.get(ancestor, __MODULE__))
       end)
+      |> case do
+        nil -> raise "Unknown pid_holder in mock"
+        pid when is_pid(pid) -> pid
+        name when is_atom(name) -> Process.whereis(name)
+      end
 
     pid_holder |> Process.info() |> Keyword.get(:dictionary) |> Keyword.get(__MODULE__)
   end
