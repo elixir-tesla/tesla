@@ -10,6 +10,10 @@ defmodule Tesla.Middleware.JsonTest do
       adapter fn env ->
         {status, headers, body} =
           case env.url do
+            # GET https://testlajson.free.beeceptor.com/todos to see the response
+            "/uppercased-content-type" ->
+              {200, [{"content-type", "application/JSON"}], "{\"value\": 123}"}
+
             "/decode" ->
               {200, [{"content-type", "application/json"}], "{\"value\": 123}"}
 
@@ -46,6 +50,11 @@ defmodule Tesla.Middleware.JsonTest do
 
         {:ok, %{env | status: status, headers: headers, body: body}}
       end
+    end
+
+    test "decoding json with insensitive content type" do
+      assert {:ok, env} = Client.get("/uppercased-content-type")
+      assert env.body == %{"value" => 123}
     end
 
     test "decode JSON body" do
