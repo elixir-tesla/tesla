@@ -71,7 +71,6 @@ jobs:
         key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-gun-${{ hashFiles('test/lockfiles/gun1.lock') }}
         restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-gun-
     - name: Install Dependencies
-      if: steps.cache.outputs.cache-hit != 'true'
       env:
         MIX_ENV: test
         LOCKFILE: gun1
