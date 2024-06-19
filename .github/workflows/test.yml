@@ -68,8 +68,8 @@ jobs:
       id: cache
       with:
         path: deps
-        key: ${{ runner.os }}-mix-gun-${{ hashFiles('test/lockfiles/gun1.lock') }}
-        restore-keys: ${{ runner.os }}-mix-gun-
+        key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-gun-${{ hashFiles('test/lockfiles/gun1.lock') }}
+        restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-gun-
     - name: Install Dependencies
       if: steps.cache.outputs.cache-hit != 'true'
       env:
