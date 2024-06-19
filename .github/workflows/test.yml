@@ -6,17 +6,22 @@ jobs:
   Test:
     runs-on: ubuntu-latest
     name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
-        elixir:
-          - 1.16
-          - 1.15
-          - 1.14
-          - 1.13
-        otp:
-          - 26.2
-          - 25.3
-          - 24.3
+        include:
+          - otp: '25.3.2.12'
+            elixir: '1.15.8'
+            experimental: false
+            lint: false
+          - otp: '26.2.5'
+            elixir: '1.16.3'
+            experimental: true
+            lint: true
+          - otp: '27.0'
+            elixir: '1.17.1'
+            experimental: true
+            lint: false
     steps:
     - uses: actions/checkout@v4
     - name: Set up Elixir
@@ -40,28 +45,21 @@ jobs:
         mix deps.get
     - name: Run Tests
       run: mix test --trace
+    - if: ${{ matrix.lint }}
+      name: Check Format
+      run: mix format --check-formatted
 
+  # This tests with Gun 1, where as the standard Test job tests Gun 2
   Test-gun1:
     runs-on: ubuntu-latest
-    name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}} - Gun1
-    strategy:
-      matrix:
-        elixir:
-          - 1.16
-          - 1.15
-          - 1.14
-          - 1.13
-        otp:
-          - 26.2
-          - 25.3
-          - 24.3
+    name: Gun 1
     steps:
     - uses: actions/checkout@v4
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        elixir-version: ${{ matrix.elixir }}
-        otp-version: ${{ matrix.otp }}
+        elixir-version: '1.15.8'
+        otp-version: '25.3.2.12'
         version-type: strict
     - name: Restore dependencies cache
       uses: actions/cache@v4
@@ -81,27 +79,3 @@ jobs:
       env:
         LOCKFILE: gun1
       run: mix test test/tesla/adapter/gun_test.exs --trace
-
-  Linting:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Elixir
-      uses: erlef/setup-beam@v1
-      with:
-        elixir-version: '1.13'
-        otp-version: '24.3'
-        version-type: strict
-    - name: Restore dependencies cache
-      uses: actions/cache@v4
-      with:
-        path: deps
-        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-mix-
-    - name: Install Dependencies
-      run: |
-        mix local.rebar --force
-        mix local.hex --force
-        mix deps.get
-    - name: Check Format
-      run: mix format --check-formatted
