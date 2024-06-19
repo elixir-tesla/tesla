@@ -91,14 +91,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - otp: '25.3.2.12'
-            elixir: '1.15.8'
-            experimental: false
           - otp: '26.2.5'
             elixir: '1.16.3'
-            experimental: false
-          - otp: '27.0'
-            elixir: '1.17.1'
             experimental: false
     steps:
     - uses: actions/checkout@v4
