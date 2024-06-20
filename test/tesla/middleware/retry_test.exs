@@ -75,7 +75,15 @@ defmodule Tesla.Middleware.RetryTest do
   end
 
   test "finally pass on laggy request" do
-    assert {:ok, %Tesla.Env{url: "/maybe", method: :get}} = Client.get("/maybe")
+    assert {:ok, %Tesla.Env{url: "/maybe", method: :get}} = Client.get("/maybe") |> dbg()
+  end
+
+  test "pass retry_count opt" do
+    assert {:ok, env} = Client.get("/maybe")
+    assert env.opts[:retry_count] == 5
+
+    assert {:ok, env} = Client.get("/ok")
+    assert env.opts[:retry_count] == nil
   end
 
   test "raise if max_retries is exceeded" do
