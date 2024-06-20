@@ -86,13 +86,18 @@ defmodule Tesla.Middleware.Retry do
   defp retry(env, next, %{max_retries: 0}), do: Tesla.run(env, next)
 
   # If we're on our last retry then just run and don't handle the error
-  defp retry(env, next, %{max_retries: max, retries: max}) do
-    Tesla.run(env, next)
+  defp retry(env, next, %{max_retries: max, retries: max} = context) do
+    env
+    |> put_retry_count_opt(context)
+    |> Tesla.run(next)
   end
 
   # Otherwise we retry if we get a retriable error
   defp retry(env, next, context) do
-    res = Tesla.run(env, next)
+    res =
+      env
+      |> put_retry_count_opt(context)
+      |> Tesla.run(next)
 
     {:arity, should_retry_arity} = :erlang.fun_info(context.should_retry, :arity)
 
@@ -127,6 +132,15 @@ defmodule Tesla.Middleware.Retry do
     delay = trunc(max_sleep * jitter)
 
     :timer.sleep(delay)
+  end
+
+  defp put_retry_count_opt(env, %{retries: 0} = _context) do
+    env
+  end
+
+  defp put_retry_count_opt(env, context) do
+    opts = Keyword.put(env.opts, :retry_count, context.retries)
+    %{env | opts: opts}
   end
 
   defp integer_opt!(opts, key, min) do
