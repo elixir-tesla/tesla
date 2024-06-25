@@ -16,11 +16,11 @@ jobs:
             lint: false
           - elixir: '1.16.3'
             otp: '26.2.5'
-            experimental: true
+            experimental: false
             lint: true
           - elixir: '1.17.1'
             otp: '27.0'
-            experimental: true
+            experimental: false
             lint: false
     steps:
     - uses: actions/checkout@v4
