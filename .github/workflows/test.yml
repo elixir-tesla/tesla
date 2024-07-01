@@ -116,7 +116,7 @@ jobs:
     # Doesn't cache PLTs based on mix.lock hash, as Dialyzer can incrementally update even old ones
     # Cache key based on Elixir & Erlang version.
     - name: Restore PLT cache
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       id: plt_cache
       with:
         key: |
