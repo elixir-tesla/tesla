@@ -76,6 +76,38 @@ defmodule Tesla.Builder do
 
       unquote(generate_http_verbs(opts))
 
+      if unquote(docs) do
+        @doc """
+        Extend an exiting Tesla client with more middleware.
+
+        NOTE: new middleware will be pre-pended to the existing list
+
+        ## Example
+
+        ```elixir
+        # Define a client
+        defmodule SomeClient do
+          use Tesla
+
+          plug ...
+        end
+
+        # Extend it later on and use it like a dyanmic client
+        [
+            {Tesla.Middleware.BearerAuth, token: 1}
+        ]
+        |> SomeClient.extend
+        |> Tesla.get!(...)
+        ```
+        """
+      else
+        @doc false
+      end
+
+      def extend(new_middlewares) do
+        Tesla.client(new_middlewares ++ __middleware__(), __adapter__())
+      end
+
       import Tesla.Builder, only: [plug: 1, plug: 2, adapter: 1, adapter: 2]
       @before_compile Tesla.Builder
     end
@@ -202,6 +234,7 @@ defmodule Tesla.Builder do
 
   defp runtime(list) when is_list(list), do: Enum.map(list, &runtime/1)
   defp runtime({module, opts}) when is_atom(module), do: {module, :call, [opts]}
+  defp runtime({module, :call, opts}) when is_atom(module), do: {module, :call, opts}
   defp runtime(fun) when is_function(fun), do: {:fn, fun}
   defp runtime(module) when is_atom(module), do: {module, :call, [@default_opts]}
 
