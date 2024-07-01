@@ -289,4 +289,92 @@ defmodule Tesla.Middleware.LoggerTest do
       assert Formatter.format(nil, nil, nil, {CompileMod, :format}) == "message"
     end
   end
+
+  describe "Metadata" do
+    defmodule TestLoggerBackend do
+      def init(_mod), do: {:ok, []}
+
+      def handle_event({level, _pid, {_mod, _msg, _time, meta}}, state) do
+        send(meta[:pid], {:metadata, meta})
+        {:ok, state}
+      end
+
+      def handle_event(_, state), do: {:ok, state}
+    end
+
+    setup do
+      {:ok, _} = Logger.add_backend(TestLoggerBackend)
+      on_exit(fn -> Logger.remove_backend(TestLoggerBackend) end)
+
+      adapter = fn env ->
+        case env.url do
+          "/connection-error" -> {:error, :econnrefused}
+          "/server-error" -> {:ok, %{env | status: 500, body: "error"}}
+          "/client-error" -> {:ok, %{env | status: 404, body: "error"}}
+          "/redirect" -> {:ok, %{env | status: 301, body: "moved"}}
+          "/ok" -> {:ok, %{env | status: 200, body: "ok"}}
+        end
+      end
+
+      [adapter: adapter]
+    end
+
+    test "do not include metadata by default", %{adapter: adapter} do
+      middleware = [
+        Tesla.Middleware.Logger
+      ]
+
+      client = Tesla.client(middleware, adapter)
+      capture_log(fn -> Tesla.get(client, "/ok") end)
+      assert_received {:metadata, meta}
+      refute meta[:tesla]
+    end
+
+    test "include all metadata when set to true", %{adapter: adapter} do
+      middleware = [
+        {Tesla.Middleware.Logger, metadata: true}
+      ]
+
+      client = Tesla.client(middleware, adapter)
+      capture_log(fn -> Tesla.post(client, "/ok", "reqdata") end)
+      assert_received {:metadata, meta}
+
+      assert meta[:tesla] == %{
+               status: "200",
+               time: ~c"0.000",
+               url: "/ok",
+               query: "",
+               method: "POST",
+               request_body: "reqdata",
+               response_body: "ok"
+             }
+    end
+
+    test "include only selected metadata", %{adapter: adapter} do
+      middleware = [
+        {Tesla.Middleware.Logger, metadata: [:status, :method]}
+      ]
+
+      client = Tesla.client(middleware, adapter)
+      capture_log(fn -> Tesla.post(client, "/ok", "reqdata") end)
+      assert_received {:metadata, meta}
+
+      assert meta[:tesla] == %{
+               status: "200",
+               method: "POST"
+             }
+    end
+
+    test "do not include metadata for concealed reqeusts", %{adapter: adapter} do
+      middleware = [
+        {Tesla.Middleware.Logger, metadata: true}
+      ]
+
+      client = Tesla.client(middleware, adapter)
+      capture_log(fn -> Tesla.post(client, "/ok", "reqdata", opts: [conceal: true]) end)
+      assert_received {:metadata, meta}
+
+      refute meta[:tesla]
+    end
+  end
 end
