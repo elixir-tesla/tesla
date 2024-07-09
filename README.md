@@ -61,11 +61,8 @@ Add `:tesla` as dependency in `mix.exs`:
 ```elixir
 defp deps do
   [
-    {:tesla, "~> 1.9"},
-
-    # optional, but recommended adapter
-    {:hackney, "~> 1.20"},
-
+     # or latest version
+    {:tesla, "~> 1.11"},
     # optional, required by JSON middleware
     {:jason, "~> 1.4"}
   ]
