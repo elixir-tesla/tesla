@@ -211,9 +211,23 @@ defmodule Tesla.Middleware.LoggerTest do
 
   alias Tesla.Middleware.Logger.Formatter
 
+  defmodule CompileMod do
+    def format(_req, _resp, _time) do
+      "message"
+    end
+  end
+
   describe "Formatter: compile/1" do
     test "compile default format" do
       assert is_list(Formatter.compile(nil))
+    end
+
+    test "compile with funtion" do
+      assert Formatter.compile(&CompileMod.format/3) == (&CompileMod.format/3)
+    end
+
+    test "compile with {mod, fun}" do
+      assert Formatter.compile({CompileMod, :format}) == {CompileMod, :format}
     end
 
     test "comppile pattern" do
@@ -265,6 +279,14 @@ defmodule Tesla.Middleware.LoggerTest do
 
       assert IO.chardata_to_string(Formatter.format(req, res, 200_000, format)) ==
                "GET /get page=1&sort=desc&status%5B%5D=a&status%5B%5D=b&status%5B%5D=c&user%5Bname%5D=Jon&user%5Bage%5D=20 -> 201 | 200.000"
+    end
+
+    test "format with funtion" do
+      assert Formatter.format(nil, nil, nil, &CompileMod.format/3) == "message"
+    end
+
+    test "format with {mod, fun}" do
+      assert Formatter.format(nil, nil, nil, {CompileMod, :format}) == "message"
     end
   end
 end

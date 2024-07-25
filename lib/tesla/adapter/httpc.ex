@@ -55,18 +55,24 @@ defmodule Tesla.Adapter.Httpc do
         Enum.map(env.headers, fn {k, v} -> {to_charlist(k), to_charlist(v)} end),
         content_type,
         env.body,
-        Keyword.split(opts, @http_opts)
+        opts
       )
     )
   end
 
   # fix for # see https://github.com/teamon/tesla/issues/147
-  defp request(:delete, url, headers, content_type, nil, {http_opts, opts}) do
-    request(:delete, url, headers, content_type, "", {http_opts, opts})
+  defp request(:delete, url, headers, content_type, nil, opts) do
+    request(:delete, url, headers, content_type, "", opts)
   end
 
-  defp request(method, url, headers, _content_type, nil, {http_opts, opts}) do
-    :httpc.request(method, {url, headers}, http_opts, opts)
+  defp request(method, url, headers, _content_type, nil, opts) do
+    :httpc.request(method, {url, headers}, http_opts(opts), adapter_opts(opts), profile(opts))
+  end
+
+  # These methods aren't able to contain a content_type and body
+  defp request(method, url, headers, _content_type, _body, opts)
+       when method in [:get, :options, :head, :trace] do
+    :httpc.request(method, {url, headers}, http_opts(opts), adapter_opts(opts), profile(opts))
   end
 
   defp request(method, url, headers, _content_type, %Multipart{} = mp, opts) do
@@ -74,8 +80,8 @@ defmodule Tesla.Adapter.Httpc do
     headers = for {key, value} <- headers, do: {to_charlist(key), to_charlist(value)}
 
     {content_type, headers} =
-      case List.keytake(headers, 'content-type', 0) do
-        nil -> {'text/plain', headers}
+      case List.keytake(headers, ~c"content-type", 0) do
+        nil -> {~c"text/plain", headers}
         {{_, ct}, headers} -> {ct, headers}
       end
 
@@ -94,10 +100,22 @@ defmodule Tesla.Adapter.Httpc do
     request(method, url, headers, content_type, body, opts)
   end
 
-  defp request(method, url, headers, content_type, body, {http_opts, opts}) do
-    :httpc.request(method, {url, headers, content_type, body}, http_opts, opts)
+  defp request(method, url, headers, content_type, body, opts) do
+    :httpc.request(
+      method,
+      {url, headers, content_type, body},
+      http_opts(opts),
+      adapter_opts(opts),
+      profile(opts)
+    )
   end
 
   defp handle({:error, {:failed_connect, _}}), do: {:error, :econnrefused}
   defp handle(response), do: response
+
+  defp http_opts(opts), do: opts |> Keyword.take(@http_opts) |> Keyword.delete(:profile)
+
+  defp adapter_opts(opts), do: opts |> Keyword.drop(@http_opts) |> Keyword.delete(:profile)
+
+  defp profile(opts), do: opts[:profile] || :default
 end

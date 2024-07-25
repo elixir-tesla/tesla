@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: mix
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      prod:
+        dependency-type: production
+      dev:
+        dependency-type: development
+    ignore:
+      - dependency-name: "ibrowse"
+        versions: ["4.4.1"]

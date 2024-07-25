@@ -10,6 +10,10 @@ defmodule Tesla.Middleware.JsonTest do
       adapter fn env ->
         {status, headers, body} =
           case env.url do
+            # GET https://testlajson.free.beeceptor.com/todos to see the response
+            "/uppercased-content-type" ->
+              {200, [{"content-type", "application/JSON"}], "{\"value\": 123}"}
+
             "/decode" ->
               {200, [{"content-type", "application/json"}], "{\"value\": 123}"}
 
@@ -46,6 +50,11 @@ defmodule Tesla.Middleware.JsonTest do
 
         {:ok, %{env | status: status, headers: headers, body: body}}
       end
+    end
+
+    test "decoding json with insensitive content type" do
+      assert {:ok, env} = Client.get("/uppercased-content-type")
+      assert env.body == %{"value" => 123}
     end
 
     test "decode JSON body" do
@@ -164,6 +173,32 @@ defmodule Tesla.Middleware.JsonTest do
     test "EncodeJson / DecodeJson work without options" do
       assert {:ok, env} = EncodeDecodeJsonClient.post("/foo2baz", %{"foo" => "bar"})
       assert env.body == %{"baz" => "bar"}
+    end
+  end
+
+  describe "Streams" do
+    test "encode stream" do
+      adapter = fn env ->
+        assert IO.iodata_to_binary(Enum.to_list(env.body)) == ~s|{"id":1}\n{"id":2}\n{"id":3}\n|
+      end
+
+      stream = Stream.map(1..3, fn i -> %{id: i} end)
+      Tesla.Middleware.JSON.call(%Tesla.Env{body: stream}, [{:fn, adapter}], [])
+    end
+
+    test "decode stream" do
+      adapter = fn _env ->
+        stream = Stream.map(1..3, fn i -> ~s|{"id": #{i}}\n| end)
+
+        {:ok,
+         %Tesla.Env{
+           headers: [{"content-type", "application/json"}],
+           body: stream
+         }}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.JSON.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert Enum.to_list(env.body) == [%{"id" => 1}, %{"id" => 2}, %{"id" => 3}]
     end
   end
 

@@ -12,6 +12,9 @@ defmodule Tesla.Middleware.JSON do
   mix deps.compile tesla
   ```
 
+  If you only need to encode the request body or decode the response body,
+  you can use `Tesla.Middleware.EncodeJson` or `Tesla.Middleware.DecodeJson` directly instead.
+
   ## Examples
 
   ```
@@ -61,6 +64,7 @@ defmodule Tesla.Middleware.JSON do
 
   It is used by `Tesla.Middleware.EncodeJson`.
   """
+  @spec encode(Tesla.Env.t(), keyword()) :: Tesla.Env.result()
   def encode(env, opts) do
     with true <- encodable?(env),
          {:ok, body} <- encode_body(env.body, opts) do
@@ -98,6 +102,7 @@ defmodule Tesla.Middleware.JSON do
 
   It is used by `Tesla.Middleware.DecodeJson`.
   """
+  @spec decode(Tesla.Env.t(), keyword()) :: Tesla.Env.result()
   def decode(env, opts) do
     with true <- decodable?(env, opts),
          {:ok, body} <- decode_body(env.body, opts) do
@@ -108,19 +113,41 @@ defmodule Tesla.Middleware.JSON do
     end
   end
 
+  defp decode_body(body, opts) when is_struct(body, Stream) or is_function(body),
+    do: {:ok, decode_stream(body, opts)}
+
   defp decode_body(body, opts), do: process(body, :decode, opts)
 
   defp decodable?(env, opts), do: decodable_body?(env) && decodable_content_type?(env, opts)
 
   defp decodable_body?(env) do
-    (is_binary(env.body) && env.body != "") || (is_list(env.body) && env.body != [])
+    (is_binary(env.body) && env.body != "") ||
+      (is_list(env.body) && env.body != []) ||
+      is_function(env.body) ||
+      is_struct(env.body, Stream)
   end
 
   defp decodable_content_type?(env, opts) do
     case Tesla.get_header(env, "content-type") do
-      nil -> false
-      content_type -> Enum.any?(content_types(opts), &String.starts_with?(content_type, &1))
+      nil ->
+        false
+
+      content_type ->
+        content_type = String.downcase(content_type)
+
+        opts
+        |> content_types()
+        |> Enum.any?(&String.starts_with?(content_type, &1))
     end
+  end
+
+  defp decode_stream(body, opts) do
+    Stream.map(body, fn chunk ->
+      case decode_body(chunk, opts) do
+        {:ok, item} -> item
+        _ -> chunk
+      end
+    end)
   end
 
   defp content_types(opts),
@@ -151,7 +178,17 @@ defmodule Tesla.Middleware.JSON do
 end
 
 defmodule Tesla.Middleware.DecodeJson do
-  @moduledoc false
+  @moduledoc """
+  Decodes response body as JSON.
+
+  Only decodes the body if the `Content-Type` header suggests
+  that the body is JSON.
+  """
+  @moduledoc since: "1.8.0"
+
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
 
@@ -162,7 +199,14 @@ defmodule Tesla.Middleware.DecodeJson do
 end
 
 defmodule Tesla.Middleware.EncodeJson do
-  @moduledoc false
+  @moduledoc """
+  Encodes request body as JSON.
+  """
+  @moduledoc since: "1.8.0"
+
+  @behaviour Tesla.Middleware
+
+  @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
 

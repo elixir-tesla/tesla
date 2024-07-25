@@ -1,26 +1,44 @@
 name: Test
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
-  test:
+  Test:
     runs-on: ubuntu-latest
+    name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
-        elixir:
-          - 1.13-slim   # otp 24
-          - 1.12-slim   # otp 24
-          - 1.11-slim   # otp 23
-          - 1.10-slim   # otp 22
-          - 1.9-slim    # otp 22
-          - 1.8-otp-22
-          - 1.8-slim    # otp 21
-          - 1.7-slim    # otp 21
-    container:
-      image: elixir:${{ matrix.elixir }}
+        include:
+          - elixir: '1.15.8'
+            otp: '25.3.2.12'
+            experimental: false
+            lint: false
+          - elixir: '1.16.3'
+            otp: '26.2.5'
+            experimental: false
+            lint: true
+          - elixir: '1.17.1'
+            otp: '27.0'
+            experimental: false
+            lint: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: ${{ matrix.elixir }}
+        otp-version: ${{ matrix.otp }}
+        version-type: strict
+    - name: Restore dependencies cache
+      uses: actions/cache@v4
+      id: cache
+      with:
+        path: deps
+        key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-
     - name: Install Dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
       env:
         MIX_ENV: test
       run: |
@@ -29,68 +47,87 @@ jobs:
         mix deps.get
     - name: Run Tests
       run: mix test --trace
+    - if: ${{ matrix.lint }}
+      name: Check Format
+      run: mix format --check-formatted
 
-  test-1:
-    name: run tests from v1.0.0
+  # This tests with Gun 1, where as the standard Test job tests Gun 2
+  Test-gun1:
     runs-on: ubuntu-latest
-    container:
-      image: elixir:1.7-slim
+    name: Gun 1
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Install Dependencies
-      env:
-        MIX_ENV: test
-      run: |
-        mix local.rebar --force
-        mix local.hex --force
-        mix deps.get
-
-    - name: Checkout v1.0.0 tests
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
       with:
-        path: "test-1"
-        ref: "v1.0.0-compat"
-
-    - name: Replace test dir with test-1/test dir
-      run: |
-        ls -la
-        rm -rf test
-        mv test-1/test test
-
-    - name: Run v1.0.0 Tests
-      run: mix test --trace
-
-  test-poison3:
-    runs-on: ubuntu-latest
-    container:
-      image: elixir:1.9-slim
-    steps:
-    - uses: actions/checkout@v2
+        elixir-version: '1.15.8'
+        otp-version: '25.3.2.12'
+        version-type: strict
+    - name: Restore dependencies cache
+      uses: actions/cache@v4
+      id: cache
+      with:
+        path: deps
+        key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-gun-${{ hashFiles('test/lockfiles/gun1.lock') }}
+        restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-gun-
     - name: Install Dependencies
       env:
         MIX_ENV: test
-        LOCKFILE: poison3
+        LOCKFILE: gun1
       run: |
         mix local.rebar --force
         mix local.hex --force
         mix deps.get
-    - name: Run Tests for poison 3.x
+    - name: Run Tests
+      env:
+        LOCKFILE: gun1
+      run: mix test test/tesla/adapter/gun_test.exs --trace
+
+  dialyzer:
+    runs-on: ubuntu-latest
+    name: Dialyzer
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.16.3'
+        otp-version: '26.2.5'
+        version-type: strict
+    - name: Restore dependencies cache
+      uses: actions/cache@v4
+      id: cache
+      with:
+        path: |
+          deps
+          _build
+          dialyzer
+        key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-dialyzer-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-dialyzer-
+    - name: Install Dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
       env:
         MIX_ENV: test
-        LOCKFILE: poison3
-      run: mix test --trace
-
-  format:
-    runs-on: ubuntu-latest
-    container:
-      image: elixir:1.9-slim
-    steps:
-    - uses: actions/checkout@v2
-    - name: Install Dependencies
       run: |
         mix local.rebar --force
         mix local.hex --force
         mix deps.get
-    - name: Check Format
-      run: mix format --check-formatted --dry-run
+    # Doesn't cache PLTs based on mix.lock hash, as Dialyzer can incrementally update even old ones
+    # Cache key based on Elixir & Erlang version.
+    - name: Restore PLT cache
+      uses: actions/cache@v4
+      id: plt_cache
+      with:
+        key: |
+          ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
+        restore-keys: |
+          ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
+        path: |
+          priv/plts
+    # Create PLTs if no cache was found
+    - name: Create PLTs
+      if: steps.plt_cache.outputs.cache-hit != 'true'
+      run: mix dialyzer --plt
+    - name: Run dialyzer
+      run: mix dialyzer --format github

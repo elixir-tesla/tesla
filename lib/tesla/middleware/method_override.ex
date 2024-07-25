@@ -44,7 +44,7 @@ defmodule Tesla.Middleware.MethodOverride do
     if opts[:override] do
       env.method in opts[:override]
     else
-      not (env.method in [:get, :post])
+      env.method not in [:get, :post]
     end
   end
 end

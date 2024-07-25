@@ -9,16 +9,12 @@ defmodule Tesla.Adapter.GunTest do
   use Tesla.AdapterCase.SSL,
     certificates_verification: true,
     transport_opts: [
-      cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
+      cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
     ]
 
   alias Tesla.Adapter.Gun
 
   import ExUnit.CaptureLog
-
-  setup do
-    on_exit(fn -> assert Supervisor.which_children(:gun_sup) == [] end)
-  end
 
   test "fallback adapter timeout option" do
     request = %Env{
@@ -190,16 +186,6 @@ defmodule Tesla.Adapter.GunTest do
     assert response.status == 500
   end
 
-  test "error on socks proxy" do
-    request = %Env{
-      method: :get,
-      url: "#{@http}/status/500"
-    }
-
-    assert {:error, "socks protocol is not supported"} ==
-             call(request, proxy: {:socks5, 'localhost', 1234})
-  end
-
   test "receive gun_up message when receive is false" do
     request = %Env{
       method: :get,
@@ -234,6 +220,19 @@ defmodule Tesla.Adapter.GunTest do
       end)
 
     assert log =~ "Unknown CA"
+  end
+
+  # Gun 1.0 backwards compatibility tests
+  if not (Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0")) do
+    test "error on socks proxy" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/status/500"
+      }
+
+      assert {:error, "socks protocol is not supported"} ==
+               call(request, proxy: {:socks5, ~c"localhost", 1234})
+    end
   end
 
   defp read_body(pid, stream, opts, acc \\ "") do

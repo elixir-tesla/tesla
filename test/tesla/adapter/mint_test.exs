@@ -7,9 +7,11 @@ defmodule Tesla.Adapter.MintTest do
   use Tesla.AdapterCase.StreamRequestBody
 
   use Tesla.AdapterCase.SSL,
-    transport_opts: [cacertfile: "./deps/httparrot/priv/ssl/server-ca.crt"]
+    transport_opts: [
+      cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
+    ]
 
-  test "Delay request" do
+  test "timeout request" do
     request = %Env{
       method: :head,
       url: "#{@http}/delay/1"
@@ -78,14 +80,14 @@ defmodule Tesla.Adapter.MintTest do
     assert byte_size(response.body) == 16
   end
 
-  describe "mode: :passive" do
+  describe "mode: :active" do
     test "body_as: :plain" do
       request = %Env{
         method: :get,
         url: "#{@http}/stream-bytes/10"
       }
 
-      assert {:ok, %Env{} = response} = call(request, mode: :passive)
+      assert {:ok, %Env{} = response} = call(request, mode: :active)
       assert response.status == 200
       assert byte_size(response.body) == 16
     end
@@ -96,7 +98,7 @@ defmodule Tesla.Adapter.MintTest do
         url: "#{@http}/stream-bytes/10"
       }
 
-      assert {:ok, %Env{} = response} = call(request, body_as: :stream, mode: :passive)
+      assert {:ok, %Env{} = response} = call(request, body_as: :stream, mode: :active)
       assert response.status == 200
       assert Enum.join(response.body) |> byte_size() == 16
     end
@@ -107,7 +109,7 @@ defmodule Tesla.Adapter.MintTest do
         url: "#{@http}/stream-bytes/10"
       }
 
-      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, mode: :passive)
+      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, mode: :active)
       assert response.status == 200
       %{conn: conn, ref: ref, opts: opts, body: body} = response.body
 
@@ -175,6 +177,26 @@ defmodule Tesla.Adapter.MintTest do
 
       assert {:ok, conn} = Tesla.Adapter.Mint.close(conn)
       assert conn.state == :closed
+    end
+
+    test "body_as :plain - returns error tuple matching the specification when connection is closed",
+         %{conn: conn, original: original} do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/stream-bytes/10"
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request, conn: conn, original: original, close_conn: false)
+
+      assert response.status == 200
+      assert byte_size(response.body) == 16
+
+      {:ok, conn} = Tesla.Adapter.Mint.close(conn)
+      assert conn.state == :closed
+
+      assert {:error, %Mint.HTTPError{reason: :closed, module: Mint.HTTP1}} =
+               call(request, conn: conn, original: original, close_conn: false)
     end
 
     test "body_as :stream", %{conn: conn, original: original} do

@@ -2,7 +2,7 @@ defmodule Tesla.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/teamon/tesla"
-  @version "1.4.4"
+  @version "1.11.2"
 
   def project do
     [
@@ -10,7 +10,7 @@ defmodule Tesla.Mixfile do
       version: @version,
       description: description(),
       package: package(),
-      elixir: "~> 1.7",
+      elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       lockfile: lockfile(System.get_env("LOCKFILE")),
@@ -18,9 +18,10 @@ defmodule Tesla.Mixfile do
       dialyzer: [
         plt_core_path: "_build/#{Mix.env()}",
         plt_add_apps: [:mix, :inets, :idna, :ssl_verify_fun, :ex_unit],
-        plt_add_deps: :project
+        plt_add_deps: :apps_direct
       ],
-      docs: docs()
+      docs: docs(),
+      preferred_cli_env: [coveralls: :test, "coveralls.html": :test]
     ]
   end
 
@@ -55,11 +56,11 @@ defmodule Tesla.Mixfile do
       {:mime, "~> 1.0 or ~> 2.0"},
 
       # http clients
-      {:ibrowse, "4.4.0", optional: true},
+      {:ibrowse, "4.4.2", optional: true},
       {:hackney, "~> 1.6", optional: true},
-      {:gun, "~> 1.3", optional: true},
-      {:finch, "~> 0.3", optional: true},
-      {:castore, "~> 0.1", optional: true},
+      {:gun, ">= 1.0.0", optional: true},
+      {:finch, "~> 0.13", optional: true},
+      {:castore, "~> 0.1 or ~> 1.0", optional: true},
       {:mint, "~> 1.0", optional: true},
 
       # json parsers
@@ -67,21 +68,25 @@ defmodule Tesla.Mixfile do
       {:poison, ">= 1.0.0", optional: true},
       {:exjsx, ">= 3.0.0", optional: true},
 
+      # messagepack parsers
+      {:msgpax, "~> 2.3", optional: true},
+
       # other
       {:fuse, "~> 2.4", optional: true},
       {:telemetry, "~> 0.4 or ~> 1.0", optional: true},
 
-      # testing & docs
-      {:excoveralls, "~> 0.8", only: :test},
-      {:httparrot, "~> 1.3", only: :test},
-      {:ex_doc, "~> 0.21", only: :dev, runtime: false},
-      {:mix_test_watch, "~> 1.0", only: :dev},
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:inch_ex, "~> 2.0", only: :docs},
+      # devtools
+      {:opentelemetry_process_propagator, ">= 0.0.0", only: [:test, :dev]},
+      {:excoveralls, ">= 0.0.0", only: :test, runtime: false},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:mix_test_watch, ">= 0.0.0", only: :dev},
+      {:dialyxir, ">= 0.0.0", only: [:dev, :test], runtime: false},
+      {:inch_ex, ">= 0.0.0", only: :docs},
 
-      # override httparrot dependencies
-      {:cowlib, "~> 2.9", only: :test, override: true},
-      {:ranch, "~> 1.8", only: :test, override: true}
+      # httparrot dependencies
+      {:httparrot, "~> 1.4", only: :test},
+      {:cowlib, "~> 2.9", only: [:dev, :test], override: true},
+      {:ranch, "~> 2.1", only: :test, override: true}
     ]
   end
 
@@ -124,11 +129,13 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware.JSON,
           Tesla.Middleware.KeepRequest,
           Tesla.Middleware.Logger,
+          Tesla.Middleware.MessagePack,
           Tesla.Middleware.MethodOverride,
           Tesla.Middleware.Opts,
           Tesla.Middleware.PathParams,
           Tesla.Middleware.Query,
           Tesla.Middleware.Retry,
+          Tesla.Middleware.SSE,
           Tesla.Middleware.Telemetry,
           Tesla.Middleware.Timeout
         ]
