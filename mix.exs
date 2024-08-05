@@ -17,7 +17,7 @@ defmodule Tesla.Mixfile do
       test_coverage: [tool: ExCoveralls],
       dialyzer: [
         plt_core_path: "_build/#{Mix.env()}",
-        plt_add_apps: [:public_key, :mix, :inets, :idna, :ssl_verify_fun, :ex_unit],
+        plt_add_apps: [:mix, :inets, :idna, :ssl_verify_fun, :ex_unit],
         plt_add_deps: :apps_direct
       ],
       docs: docs(),
