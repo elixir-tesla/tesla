@@ -45,4 +45,36 @@ defmodule Tesla.Adapter.HttpcTest do
 
     assert data["headers"]["content-type"] == "text/plain"
   end
+
+  describe "badssl" do
+    @describetag :integration
+
+    test "expired.badssl.com" do
+      assert {:error, :econnrefused} =
+               Tesla.get(Tesla.client([], Tesla.Adapter.Httpc), "https://expired.badssl.com")
+    end
+
+    test "wrong.host.badssl.com" do
+      assert {:error, :econnrefused} =
+               Tesla.get(Tesla.client([], Tesla.Adapter.Httpc), "https://wrong.host.badssl.com")
+    end
+
+    test "self-signed.badssl.com" do
+      assert {:error, :econnrefused} =
+               Tesla.get(Tesla.client([], Tesla.Adapter.Httpc), "https://self-signed.badssl.com")
+    end
+
+    test "untrusted-root.badssl.com" do
+      assert {:error, :econnrefused} =
+               Tesla.get(
+                 Tesla.client([], Tesla.Adapter.Httpc),
+                 "https://untrusted-root.badssl.com"
+               )
+    end
+
+    test "revoked.badssl.com" do
+      assert {:error, :econnrefused} =
+               Tesla.get(Tesla.client([], Tesla.Adapter.Httpc), "https://revoked.badssl.com")
+    end
+  end
 end
