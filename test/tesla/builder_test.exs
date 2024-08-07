@@ -195,4 +195,27 @@ defmodule Tesla.BuilderTest do
       end
     end
   end
+
+
+  describe "extend" do
+    defmodule TestClientModule do
+      use Tesla.Builder
+      adapter TheAdapter, hello: "world"
+      plug CompileTimeMiddleware
+    end
+
+    test "works correctly" do
+      %{pre: middleware} =
+        TestClientModule.extend([
+          RuntimeMiddlewareWithoutOptions,
+          {RuntimeMiddleware, with: "options"}
+        ])
+
+      assert middleware == [
+        {RuntimeMiddlewareWithoutOptions, :call, [[]]},
+        {RuntimeMiddleware, :call, [[with: "options"]]},
+        {CompileTimeMiddleware, :call, [[]]}
+      ]
+    end
+  end
 end
