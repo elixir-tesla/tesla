@@ -111,7 +111,7 @@ defmodule Tesla.Mixfile do
         ],
         Middlewares: [
           Tesla.Middleware.BaseUrl,
-          Tesla.Middleware.BasicAuth,
+          ~r/Tesla.Middleware.BasicAuth/,
           Tesla.Middleware.BearerAuth,
           Tesla.Middleware.Compression,
           Tesla.Middleware.CompressRequest,
