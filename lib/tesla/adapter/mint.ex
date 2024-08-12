@@ -337,6 +337,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     defp reduce_responses(responses, ref, acc) do
       Enum.reduce(responses, acc, fn
+        {:error, ^ref, _error}, acc ->
+          acc
+
         {:push_promise, ^ref, _promised_request_ref, _headers}, acc ->
           acc
 
