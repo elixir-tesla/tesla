@@ -1,8 +1,8 @@
 defmodule Tesla.Mixfile do
   use Mix.Project
 
-  @source_url "https://github.com/teamon/tesla"
-  @version "1.11.2"
+  @source_url "https://github.com/elixir-tesla/tesla"
+  @version "1.12.1"
 
   def project do
     [
@@ -40,7 +40,7 @@ defmodule Tesla.Mixfile do
     [
       maintainers: ["Tymon Tobolski"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/teamon/tesla"}
+      links: %{"GitHub" => "https://github.com/elixir-tesla/tesla"}
     ]
   end
 
