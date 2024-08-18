@@ -110,7 +110,7 @@ defmodule Tesla.Multipart do
   @doc """
   Add a file part with value.
 
-  Same of `add_file/3` but the file content is read from `data` input argument.
+  Same as `add_file/3` but the file content is read from `data` input argument.
 
   ## Options
 

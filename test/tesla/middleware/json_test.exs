@@ -112,7 +112,7 @@ defmodule Tesla.Middleware.JsonTest do
       assert {:error, {Tesla.Middleware.JSON, :decode, _}} = Client.get("/invalid-json-format")
     end
 
-    test "raise error when decoding non-utf8 json" do
+    test "return error when decoding non-utf8 json" do
       assert {:error, {Tesla.Middleware.JSON, :decode, _}} = Client.get("/invalid-json-encoding")
     end
   end

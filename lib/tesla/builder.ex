@@ -33,7 +33,7 @@ defmodule Tesla.Builder do
         - `:method` - the request method, one of [`:head`, `:get`, `:delete`, `:trace`, `:options`, `:post`, `:put`, `:patch`]
         - `:url` - either full url e.g. "http://example.com/some/path" or just "/some/path" if using `Tesla.Middleware.BaseUrl`
         - `:query` - a keyword list of query params, e.g. `[page: 1, per_page: 100]`
-        - `:headers` - a keyworld list of headers, e.g. `[{"content-type", "text/plain"}]`
+        - `:headers` - a keyword list of headers, e.g. `[{"content-type", "text/plain"}]`
         - `:body` - depends on used middleware:
             - by default it can be a binary
             - if using e.g. JSON encoding middleware it can be a nested map

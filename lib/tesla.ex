@@ -171,7 +171,7 @@ defmodule Tesla do
   @doc """
   Adds given key/value pair to `:opts` field in `Tesla.Env`.
 
-  Useful when there's need to store additional middleware data in `Tesla.Env`
+  Useful when there's a need to store additional middleware data in `Tesla.Env`
 
   ## Examples
 

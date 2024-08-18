@@ -1,6 +1,6 @@
 defmodule Tesla.Middleware.KeepRequest do
   @moduledoc """
-  Store request url, body and headers into `:opts`.
+  Store request URL, body, and headers into `:opts`.
 
   ## Examples
 
@@ -12,7 +12,7 @@ defmodule Tesla.Middleware.KeepRequest do
     plug Tesla.Middleware.PathParams
   end
 
-  {:ok, env} = MyClient.post("/users/:user_id", "request-data", opts: [path_params: [user_id: "1234]])
+  {:ok, env} = MyClient.post("/users/:user_id", "request-data", opts: [path_params: [user_id: "1234"]])
 
   env.body
   # => "response-data"

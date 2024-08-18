@@ -3,7 +3,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
   Send request body as `application/x-www-form-urlencoded`.
 
   Performs encoding of `body` from a `Map` such as `%{"foo" => "bar"}` into
-  url encoded data.
+  URL-encoded data.
 
   Performs decoding of the response into a map when urlencoded and content-type
   is `application/x-www-form-urlencoded`, so `"foo=bar"` becomes

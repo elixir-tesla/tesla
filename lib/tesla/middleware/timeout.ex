@@ -26,7 +26,7 @@ defmodule Tesla.Middleware.Timeout do
 
   - `:timeout` - number of milliseconds a request is allowed to take (defaults to `1000`)
   - `:task_module` - the `Task` module used to spawn tasks. Useful when you want
-    use alternatives such as `OpentelemetryProcessPropagator.Task` from OTEL
+    to use alternatives such as `OpentelemetryProcessPropagator.Task` from the OTEL
     project.
   """
 
