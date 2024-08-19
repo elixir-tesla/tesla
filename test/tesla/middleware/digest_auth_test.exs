@@ -73,7 +73,7 @@ defmodule Tesla.Middleware.DigestAuthTest do
     assert auth_header =~ "response=\"6629fae49393a05397450978507c4ef1\""
   end
 
-  test "has default values for username and cn" do
+  test "has default values for username and nc" do
     assert {:ok, response} = DigestClientWithDefaults.client() |> DigestClient.get("/")
     auth_header = Tesla.get_header(response, "authorization")
 

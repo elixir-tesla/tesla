@@ -315,6 +315,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
         {:error, _conn, error, _res} ->
           if opts[:close_conn], do: {:ok, _conn} = close(conn)
+          # TODO: (breaking change) fix typo in error message, "Encounter" => "Encountered"
           {:error, "Encounter Mint error #{inspect(error)}"}
 
         :unknown ->
