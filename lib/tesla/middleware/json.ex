@@ -71,6 +71,7 @@ defmodule Tesla.Middleware.JSON do
       {:ok,
        env
        |> Tesla.put_body(body)
+       |> Tesla.delete_header("content-type")
        |> Tesla.put_headers([{"content-type", encode_content_type(opts)}])}
     else
       false -> {:ok, env}

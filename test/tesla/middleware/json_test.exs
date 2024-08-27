@@ -117,6 +117,43 @@ defmodule Tesla.Middleware.JsonTest do
     end
   end
 
+  describe "Idempotent content type" do
+    defmodule ContentTypeJSON do
+      @behaviour Tesla.Middleware
+
+      @impl Tesla.Middleware
+      def call(env, next, _headers) do
+        env
+        |> Tesla.put_headers([{"content-type", "application/json"}])
+        |> Tesla.run(next)
+      end
+    end
+
+    defmodule IdempotentContentTypeClient do
+      use Tesla
+
+      plug ContentTypeJSON
+      plug Tesla.Middleware.JSON
+
+      adapter fn env ->
+        {status, headers, body} =
+          case {env.url, env.headers} do
+            {"/encode", [{"content-type", "application/json"}]} ->
+              {200, [{"content-type", "application/json"}], "{\"value\": 123}"}
+            {"/encode", _} ->
+              {400, [], "Invalid content type"}
+          end
+
+        {:ok, %{env | status: status, headers: headers, body: body}}
+      end
+    end
+
+    test "does not repeat the Content-Type if it has been already added by another middleware" do
+      assert {:ok, env} = IdempotentContentTypeClient.post("/encode", %{"foo" => "bar"})
+      assert env.headers == [{"content-type", "application/json"}]
+    end
+  end
+
   describe "Custom content type" do
     defmodule CustomContentTypeClient do
       use Tesla
