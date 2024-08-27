@@ -278,7 +278,7 @@ if Code.ensure_loaded?(:gun) do
     defp maybe_add_transport(%URI{scheme: "https"}, opts), do: Map.put(opts, :transport, :tls)
     defp maybe_add_transport(_, opts), do: opts
 
-    # Support for gun master branch where transport_opts, were splitted to tls_opts and tcp_opts
+    # Support for gun master branch where transport_opts, were split to tls_opts and tcp_opts
     # https://github.com/ninenines/gun/blob/491ddf58c0e14824a741852fdc522b390b306ae2/doc/src/manual/gun.asciidoc#changelog
     # TODO: remove after update to gun 2.0
     defp fetch_tls_opts(%{tls_opts: tls_opts}) when is_list(tls_opts), do: tls_opts
