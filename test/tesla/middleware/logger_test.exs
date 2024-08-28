@@ -222,7 +222,7 @@ defmodule Tesla.Middleware.LoggerTest do
       assert is_list(Formatter.compile(nil))
     end
 
-    test "compile with funtion" do
+    test "compile with function" do
       assert Formatter.compile(&CompileMod.format/3) == (&CompileMod.format/3)
     end
 
@@ -281,7 +281,7 @@ defmodule Tesla.Middleware.LoggerTest do
                "GET /get page=1&sort=desc&status%5B%5D=a&status%5B%5D=b&status%5B%5D=c&user%5Bname%5D=Jon&user%5Bage%5D=20 -> 201 | 200.000"
     end
 
-    test "format with funtion" do
+    test "format with function" do
       assert Formatter.format(nil, nil, nil, &CompileMod.format/3) == "message"
     end
 
