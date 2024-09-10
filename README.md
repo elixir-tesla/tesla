@@ -267,7 +267,7 @@ to JSON stream format).
 
 If adapter supports it, you can pass a `response: :stream` option to return
 response body as a
-[Stream](https://elixir-lang.org/docs/stable/elixir/Stream.html)
+[Stream](https://hexdocs.pm/elixir/main/Stream.html)
 
 ```elixir
 defmodule OpenAI do
