@@ -17,6 +17,10 @@ defmodule TeslaTest do
       use Tesla
     end
 
+    defmodule EmptyClientInEmptyApp do
+      use Tesla, otp_app: :empty_app
+    end
+
     defmodule ModuleAdapterClient do
       use Tesla
 
@@ -44,6 +48,7 @@ defmodule TeslaTest do
 
     setup do
       # clean config
+      Application.delete_env(:tesla, :empty_app)
       Application.delete_env(:tesla, EmptyClient)
       Application.delete_env(:tesla, ModuleAdapterClient)
       :ok
@@ -53,9 +58,14 @@ defmodule TeslaTest do
       assert Tesla.effective_adapter(EmptyClient) == {Tesla.Adapter.Httpc, :call, [[]]}
     end
 
-    test "use adapter override from config" do
+    test "use adapter override from config for module" do
       Application.put_env(:tesla, EmptyClient, adapter: Tesla.Mock)
       assert Tesla.effective_adapter(EmptyClient) == {Tesla.Mock, :call, [[]]}
+    end
+
+    test "use adapter override from config for otp_app" do
+      Application.put_env(:tesla, :empty_app, adapter: Tesla.Mock)
+      assert Tesla.effective_adapter(EmptyClientInEmptyApp) == {Tesla.Mock, :call, [[]]}
     end
 
     test "prefer config over module setting" do

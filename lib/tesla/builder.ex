@@ -4,11 +4,15 @@ defmodule Tesla.Builder do
 
   defmacro __using__(opts \\ []) do
     opts = Macro.prewalk(opts, &Macro.expand(&1, __CALLER__))
+    otp_app = Keyword.get(opts, :otp_app, nil)
     docs = Keyword.get(opts, :docs, true)
 
     quote do
+      Module.register_attribute(__MODULE__, :__otp_app__, [])
       Module.register_attribute(__MODULE__, :__middleware__, accumulate: true)
       Module.register_attribute(__MODULE__, :__adapter__, [])
+
+      @__otp_app__ unquote(otp_app)
 
       if unquote(docs) do
         @typedoc "Options that may be passed to a request function. See `request/2` for detailed descriptions."
@@ -153,6 +157,8 @@ defmodule Tesla.Builder do
   end
 
   defmacro __before_compile__(env) do
+    otp_app = Module.get_attribute(env.module, :__otp_app__)
+
     adapter =
       env.module
       |> Module.get_attribute(:__adapter__)
@@ -165,6 +171,7 @@ defmodule Tesla.Builder do
       |> compile()
 
     quote location: :keep do
+      def __otp_app__, do: unquote(otp_app)
       def __middleware__, do: unquote(middleware)
       def __adapter__, do: unquote(adapter)
     end
