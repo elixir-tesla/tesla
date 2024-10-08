@@ -75,7 +75,7 @@ defmodule Tesla.Middleware.RetryTest do
   end
 
   test "finally pass on laggy request" do
-    assert {:ok, %Tesla.Env{url: "/maybe", method: :get}} = Client.get("/maybe") |> dbg()
+    assert {:ok, %Tesla.Env{url: "/maybe", method: :get}} = Client.get("/maybe")
   end
 
   test "pass retry_count opt" do
