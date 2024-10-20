@@ -21,8 +21,6 @@ defmodule Tesla.Multipart do
   """
 
   defmodule Part do
-    @moduledoc false
-
     defstruct body: nil,
               dispositions: [],
               headers: []

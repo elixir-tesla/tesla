@@ -1,21 +1,17 @@
 import Config
 
-config :tesla, adapter: Tesla.Adapter.Httpc
+config :logger, :console,
+  level: :debug,
+  format: "$date $time [$level] $metadata$message\n"
 
-if config_env() == :test do
-  config :logger, :console,
-    level: :debug,
-    format: "$date $time [$level] $metadata$message\n"
+config :httparrot,
+  http_port: 5080,
+  https_port: 5443,
+  ssl: true,
+  unix_socket: false
 
-  config :httparrot,
-    http_port: 5080,
-    https_port: 5443,
-    ssl: true,
-    unix_socket: false
+config :sasl,
+  errlog_type: :error,
+  sasl_error_logger: false
 
-  config :sasl,
-    errlog_type: :error,
-    sasl_error_logger: false
-
-  config :tesla, MockClient, adapter: Tesla.Mock
-end
+config :tesla, MockClient, adapter: Tesla.Mock

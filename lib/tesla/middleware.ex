@@ -7,11 +7,8 @@ defmodule Tesla.Middleware do
 
   ## Middleware options
 
-  Options can be passed to middleware in second param of `Tesla.Builder.plug/2` macro:
-
-      plug Tesla.Middleware.BaseUrl, "https://example.com"
-
-  or inside tuple in case of dynamic middleware (`Tesla.client/1`):
+  Options can be passed to middleware inside tuple in case of dynamic middleware
+  (`Tesla.client/1`):
 
       Tesla.client([{Tesla.Middleware.BaseUrl, "https://example.com"}])
 

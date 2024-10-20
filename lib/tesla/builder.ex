@@ -1,4 +1,6 @@
 defmodule Tesla.Builder do
+  @moduledoc false
+
   @http_verbs ~w(head get delete trace options post put patch)a
   @body ~w(post put patch)a
 
@@ -84,19 +86,18 @@ defmodule Tesla.Builder do
   @doc """
   Attach middleware to your API client.
 
-  ```elixir
-  defmodule ExampleApi do
-    use Tesla
+      defmodule ExampleApi do
+        use Tesla
 
-    # plug middleware module with options
-    plug Tesla.Middleware.BaseUrl, "http://api.example.com"
+        # plug middleware module with options
+        plug Tesla.Middleware.BaseUrl, "http://api.example.com"
 
-    # or without options
-    plug Tesla.Middleware.JSON
+        # or without options
+        plug Tesla.Middleware.JSON
 
-    # or a custom middleware
-    plug MyProject.CustomMiddleware
-  end
+        # or a custom middleware
+        plug MyProject.CustomMiddleware
+      end
   """
 
   defmacro plug(middleware, opts) do
@@ -120,19 +121,18 @@ defmodule Tesla.Builder do
   @doc """
   Choose adapter for your API client.
 
-  ```
-  defmodule ExampleApi do
-    use Tesla
+      defmodule ExampleApi do
+        use Tesla
 
-    # set adapter as module
-    adapter Tesla.Adapter.Hackney
+        # set adapter as module
+        adapter Tesla.Adapter.Hackney
 
-    # set adapter as anonymous function
-    adapter fn env ->
-      ...
-      env
-    end
-  end
+        # set adapter as anonymous function
+        adapter fn env ->
+          ...
+          env
+        end
+      end
   """
   defmacro adapter(name, opts) do
     quote do
