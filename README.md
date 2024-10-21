@@ -6,7 +6,6 @@
 [![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hex.pm](https://img.shields.io/hexpm/dw/tesla.svg)](https://hex.pm/packages/tesla)
 [![codecov](https://codecov.io/gh/elixir-tesla/tesla/branch/master/graph/badge.svg)](https://codecov.io/gh/elixir-tesla/tesla)
-[![Inline docs](https://inch-ci.org/github/elixir-tesla/tesla.svg)](https://inch-ci.org/github/elixir-tesla/tesla)
 
 `Tesla` is an HTTP client that leverages middleware to streamline HTTP requests
 and responses over a common interface for various adapters.
