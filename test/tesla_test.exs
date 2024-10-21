@@ -49,7 +49,7 @@ defmodule TeslaTest do
       :ok
     end
 
-    test "defauilt adapter" do
+    test "default adapter" do
       assert Tesla.effective_adapter(EmptyClient) == {Tesla.Adapter.Httpc, :call, [[]]}
     end
 
@@ -61,6 +61,11 @@ defmodule TeslaTest do
     test "prefer config over module setting" do
       Application.put_env(:tesla, ModuleAdapterClient, adapter: Tesla.Mock)
       assert Tesla.effective_adapter(ModuleAdapterClient) == {Tesla.Mock, :call, [[]]}
+    end
+
+    test "ensure adapter is set" do
+      assert {:ok, response} = ModuleAdapterClient.request(url: "test")
+      assert response.__client__.adapter
     end
 
     test "execute module adapter" do
