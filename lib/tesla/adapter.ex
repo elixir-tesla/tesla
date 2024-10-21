@@ -63,14 +63,17 @@ defmodule Tesla.Adapter do
 
   ## Arguments
 
-  - `defaults` (optional) - useful to override lower level http client default configuration
-  - `env` - `Tesla.Env` struct
-  - `opts` - options provided to `Tesla.Builder.adapter/2` macro
+  - `defaults` (optional) - useful to override lower level http client default
+    configuration.
+  - `env` - `t:Tesla.Env.t()`
+  - `opts` - options provided to the adapter from `Tesla.client/2`.
 
   ## Precedence rules
 
-  - config from `opts` overrides config from `defaults` when same key is encountered
-  - config from `env` overrides config from both `defaults` and `opts` when same key is encountered
+  - config from `opts` overrides config from `defaults` when same key is
+    encountered.
+  - config from `env` overrides config from both `defaults` and `opts` when same
+    key is encountered.
   """
   @spec opts(Keyword.t(), Tesla.Env.t(), Keyword.t()) :: Keyword.t()
   def opts(defaults \\ [], env, opts) do

@@ -139,7 +139,6 @@ if Code.ensure_loaded?(Msgpax) do
   end
 
   defmodule Tesla.Middleware.DecodeMessagePack do
-    @moduledoc false
     def call(env, next, opts) do
       opts = opts || []
 
@@ -150,7 +149,6 @@ if Code.ensure_loaded?(Msgpax) do
   end
 
   defmodule Tesla.Middleware.EncodeMessagePack do
-    @moduledoc false
     def call(env, next, opts) do
       opts = opts || []
 

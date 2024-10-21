@@ -1,11 +1,4 @@
 defmodule Tesla do
-  use Tesla.Builder
-
-  alias Tesla.Env
-
-  require Tesla.Adapter.Httpc
-  @default_adapter Tesla.Adapter.Httpc
-
   @moduledoc """
   A HTTP toolkit for building API clients using middlewares.
 
@@ -70,26 +63,24 @@ defmodule Tesla do
         end
       end
 
-  call to `ExampleApi.fetch_data/0` will fail, because request will be missing base URL.
+  call to `ExampleApi.fetch_data/0` will fail, because request will be missing
+  base URL.
 
   ## Default adapter
 
-  By default `Tesla` is using `Tesla.Adapter.Httpc`, because `:httpc` is included in Erlang/OTP and
-  does not require installation of any additional dependency. It can be changed globally with config:
+  By default `Tesla` is using `Tesla.Adapter.Httpc`, because `:httpc` is
+  included in Erlang/OTP and does not require installation of any additional
+  dependency. It can be changed globally with config:
 
       config :tesla, :adapter, Tesla.Adapter.Hackney
-
-  or by `Tesla.Builder.adapter/2` macro for given API client module:
-
-      defmodule ExampleApi do
-        use Tesla
-
-        adapter Tesla.Adapter.Hackney
-
-        ...
-      end
-
   """
+
+  use Tesla.Builder
+
+  alias Tesla.Env
+
+  require Tesla.Adapter.Httpc
+  @default_adapter Tesla.Adapter.Httpc
 
   defmacro __using__(opts \\ []) do
     quote do
@@ -157,7 +148,9 @@ defmodule Tesla do
     apply(@default_adapter, :call, [env, opts])
   end
 
-  # empty stack case is useful for reusing/testing middlewares (just pass [] as next)
+  @spec run(Env.t(), Env.stack()) :: Env.result()
+  # NOTE: keep this empty stack case is useful for reusing/testing middlewares
+  # (just pass [] as next)
   def run(env, []), do: {:ok, env}
 
   # last item in stack is adapter - skip passing rest of stack

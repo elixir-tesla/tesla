@@ -25,9 +25,6 @@ defmodule Tesla.Mixfile do
     ]
   end
 
-  # Configuration for the OTP application
-  #
-  # Type `mix help compile.app` for more information
   def application do
     [extra_applications: [:logger, :ssl, :inets]]
   end
@@ -44,7 +41,6 @@ defmodule Tesla.Mixfile do
     ]
   end
 
-  # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
@@ -82,6 +78,7 @@ defmodule Tesla.Mixfile do
       {:mix_test_watch, ">= 0.0.0", only: :dev},
       {:dialyxir, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:inch_ex, ">= 0.0.0", only: :docs},
+      {:mox, ">= 0.0.0", only: :test},
 
       # httparrot dependencies
       {:httparrot, "~> 1.4", only: :test},
@@ -95,50 +92,27 @@ defmodule Tesla.Mixfile do
       main: "readme",
       source_url: @source_url,
       source_ref: "v#{@version}",
-      extras: ["README.md", "LICENSE"],
+      skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
+      extra_section: "GUIDES",
+      extras:
+        [
+          "README.md",
+          "LICENSE"
+          # TODO: add CHANGELOG.md
+          # "CHANGELOG.md"
+        ] ++ Path.wildcard("guides/**/*.{cheatmd,md}"),
+      groups_for_extras: [
+        Explanations: ~r"/explanations/",
+        Cheatsheets: ~r"/cheatsheets/",
+        "How-To's": ~r"/howtos/"
+      ],
       groups_for_modules: [
         Behaviours: [
           Tesla.Adapter,
           Tesla.Middleware
         ],
-        Adapters: [
-          Tesla.Adapter.Finch,
-          Tesla.Adapter.Gun,
-          Tesla.Adapter.Hackney,
-          Tesla.Adapter.Httpc,
-          Tesla.Adapter.Ibrowse,
-          Tesla.Adapter.Mint
-        ],
-        Middlewares: [
-          Tesla.Middleware.BaseUrl,
-          Tesla.Middleware.BasicAuth,
-          Tesla.Middleware.BearerAuth,
-          Tesla.Middleware.Compression,
-          Tesla.Middleware.CompressRequest,
-          Tesla.Middleware.DecodeFormUrlencoded,
-          Tesla.Middleware.DecodeJson,
-          Tesla.Middleware.DecodeRels,
-          Tesla.Middleware.DecompressResponse,
-          Tesla.Middleware.DigestAuth,
-          Tesla.Middleware.EncodeFormUrlencoded,
-          Tesla.Middleware.EncodeJson,
-          Tesla.Middleware.FollowRedirects,
-          Tesla.Middleware.FormUrlencoded,
-          Tesla.Middleware.Fuse,
-          Tesla.Middleware.Headers,
-          Tesla.Middleware.JSON,
-          Tesla.Middleware.KeepRequest,
-          Tesla.Middleware.Logger,
-          Tesla.Middleware.MessagePack,
-          Tesla.Middleware.MethodOverride,
-          Tesla.Middleware.Opts,
-          Tesla.Middleware.PathParams,
-          Tesla.Middleware.Query,
-          Tesla.Middleware.Retry,
-          Tesla.Middleware.SSE,
-          Tesla.Middleware.Telemetry,
-          Tesla.Middleware.Timeout
-        ]
+        Adapters: [~r/Tesla.Adapter./],
+        Middlewares: [~r/Tesla.Middleware./]
       ],
       nest_modules_by_prefix: [
         Tesla.Adapter,
