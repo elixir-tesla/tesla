@@ -186,8 +186,8 @@ defmodule Tesla.Mock do
       import Tesla.Mock
 
       mock fn
-        %{url: "/ok"} -> text(%{"some" => "data"})
-        %{url: "/404"} -> text(%{"some" => "data"}, status: 404)
+        %{url: "/ok"} -> text("200 ok")
+        %{url: "/404"} -> text("404 not found", status: 404)
       end
   """
   @spec text(body :: term, opts :: response_opts) :: Tesla.Env.t()
