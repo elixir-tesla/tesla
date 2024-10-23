@@ -1,0 +1,18 @@
+---
+name: PR
+
+on:
+  pull_request:
+    types:
+      - edited
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  title:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.3
+      - uses: webiny/action-conventional-commits@v1.3.0
