@@ -346,7 +346,7 @@ defmodule Tesla do
   @spec build_url(Tesla.Env.t()) :: String.t()
   def build_url(%Tesla.Env{} = env) do
     query_encoding = Keyword.get(env.opts, :query_encoding, :www_form)
-    Tesla.build_url(url, query, encoding)
+    Tesla.build_url(env.url, env.query, encoding)
   end
 
   def encode_query(query, encoding \\ :www_form) do
