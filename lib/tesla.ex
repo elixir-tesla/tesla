@@ -333,13 +333,7 @@ defmodule Tesla do
   def encode_query(query, encoding \\ :www_form) do
     query
     |> Enum.flat_map(&encode_pair/1)
-    |> uri_encode_query(encoding)
-  end
-
-  if Version.match?(System.version(), "~> 1.12") do
-    defp uri_encode_query(enum, encoding), do: URI.encode_query(enum, encoding)
-  else
-    defp uri_encode_query(enum, _encoding), do: URI.encode_query(enum)
+    |> URI.encode_query(encoding)
   end
 
   @doc false
