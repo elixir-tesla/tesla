@@ -47,12 +47,11 @@ defmodule Tesla.Adapter.Httpc do
 
   defp request(env, opts) do
     content_type = to_charlist(Tesla.get_header(env, "content-type") || "")
-    query_encoding = Keyword.get(env.opts, :query_encoding, :www_form)
 
     handle(
       request(
         env.method,
-        Tesla.build_url(env.url, env.query, query_encoding) |> to_charlist(),
+        Tesla.build_url(env.url) |> to_charlist(),
         Enum.map(env.headers, fn {k, v} -> {to_charlist(k), to_charlist(v)} end),
         content_type,
         env.body,

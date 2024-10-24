@@ -49,11 +49,9 @@ if Code.ensure_loaded?(:hackney) do
     defp format_body(data) when is_binary(data) or is_reference(data), do: data
 
     defp request(env, opts) do
-      query_encoding = Keyword.get(env.opts, :query_encoding, :www_form)
-
       request(
         env.method,
-        Tesla.build_url(env.url, env.query, query_encoding),
+        Tesla.build_url(env),
         env.headers,
         env.body,
         Tesla.Adapter.opts(env, opts)

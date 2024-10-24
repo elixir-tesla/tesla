@@ -58,11 +58,10 @@ if Code.ensure_loaded?(Finch) do
 
     @impl Tesla.Adapter
     def call(%Tesla.Env{} = env, opts) do
-      query_encoding = Keyword.get(env.opts, :query_encoding, :www_form)
       opts = Tesla.Adapter.opts(@defaults, env, opts)
 
       name = Keyword.fetch!(opts, :name)
-      url = Tesla.build_url(env.url, env.query, query_encoding)
+      url = Tesla.build_url(env)
       req_opts = Keyword.take(opts, [:pool_timeout, :receive_timeout])
       req = build(env.method, url, env.headers, env.body)
 

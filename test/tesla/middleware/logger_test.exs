@@ -67,15 +67,13 @@ defmodule Tesla.Middleware.LoggerTest do
       assert log =~ "test=foo+bar"
     end
 
-    if Version.match?(System.version(), "~> 1.12") do
-      test "encodes with specified strategy" do
-        log =
-          capture_log(fn ->
-            Client.get("/ok", query: %{"test" => "foo bar"}, opts: [query_encoding: :rfc3986])
-          end)
+    test "encodes with specified strategy" do
+      log =
+        capture_log(fn ->
+          Client.get("/ok", query: %{"test" => "foo bar"}, opts: [query_encoding: :rfc3986])
+        end)
 
-        assert log =~ "test=foo%20bar"
-      end
+      assert log =~ "test=foo%20bar"
     end
   end
 

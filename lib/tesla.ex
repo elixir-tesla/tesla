@@ -281,7 +281,7 @@ defmodule Tesla do
   MyApi.get_something(client, 42)
   ```
   """
-  if Version.match?(System.version(), "~> 1.7"), do: @doc(since: "1.2.0")
+  @doc since: "1.2.0"
   @spec client([Tesla.Client.middleware()], Tesla.Client.adapter()) :: Tesla.Client.t()
   def client(middleware, adapter \\ nil), do: Tesla.Builder.client(middleware, [], adapter)
 
@@ -302,21 +302,21 @@ defmodule Tesla do
 
   ## Examples
 
-      iex> Tesla.build_url("http://api.example.com", [user: 3, page: 2])
-      "http://api.example.com?user=3&page=2"
+      iex> Tesla.build_url("https://api.example.com", [user: 3, page: 2])
+      "https://api.example.com?user=3&page=2"
 
       # URL that already contains query params
-      iex> url = "http://api.example.com?user=3"
+      iex> url = "https://api.example.com?user=3"
       iex> Tesla.build_url(url, [page: 2, status: true])
-      "http://api.example.com?user=3&page=2&status=true"
+      "https://api.example.com?user=3&page=2&status=true"
 
       # default encoding `:www_form`
-      iex> Tesla.build_url("http://api.example.com", [user_name: "John Smith"])
-      "http://api.example.com?user_name=John+Smith"
+      iex> Tesla.build_url("https://api.example.com", [user_name: "John Smith"])
+      "https://api.example.com?user_name=John+Smith"
 
       # specified encoding strategy :rfc3986
-      iex> Tesla.build_url("http://api.example.com", [user_name: "John Smith"], :rfc3986)
-      "http://api.example.com?user_name=John%20Smith"
+      iex> Tesla.build_url("https://api.example.com", [user_name: "John Smith"], :rfc3986)
+      "https://api.example.com?user_name=John%20Smith"
   """
   @type encoding_strategy :: :rfc3986 | :www_form
 
@@ -328,6 +328,18 @@ defmodule Tesla do
   def build_url(url, query, encoding) do
     join = if String.contains?(url, "?"), do: "&", else: "?"
     url <> join <> encode_query(query, encoding)
+  end
+
+  @doc """
+  Builds a URL from the given `t:Tesla.Env.t/0` struct.
+
+  Combines the `url` and `query` fields, and allows specifying the `encoding`
+  strategy before calling `build_url/3`.
+  """
+  @spec build_url(Tesla.Env.t()) :: String.t()
+  def build_url(%Tesla.Env{} = env) do
+    query_encoding = Keyword.get(env.opts, :query_encoding, :www_form)
+    Tesla.build_url(url, query, encoding)
   end
 
   def encode_query(query, encoding \\ :www_form) do
