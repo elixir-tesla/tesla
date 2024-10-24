@@ -61,7 +61,7 @@ if Code.ensure_loaded?(:ibrowse) do
 
       handle(
         request(
-          Tesla.build_url(env.url) |> to_charlist(),
+          Tesla.build_url(env) |> to_charlist(),
           env.headers,
           env.method,
           body,

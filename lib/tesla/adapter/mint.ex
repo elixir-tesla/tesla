@@ -93,7 +93,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp request(env, opts) do
       request(
         format_method(env.method),
-        Tesla.build_url(env.url),
+        Tesla.build_url(env),
         env.headers,
         env.body,
         Enum.into(opts, %{})
