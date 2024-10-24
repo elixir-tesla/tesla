@@ -291,35 +291,42 @@ defmodule Tesla do
   @deprecated "Use client/1 or client/2 instead"
   def build_adapter(fun), do: Tesla.Builder.client([], [], fun)
 
+  @type encoding_strategy :: :rfc3986 | :www_form
+
   @doc """
-  Builds URL with the given query params.
+  Builds URL with the given URL and query params.
 
-  Useful when you need to create an URL with dynamic query params from a Keyword list
+  Useful when you need to create a URL with dynamic query params from a Keyword
+  list
 
-  Allows to specify the `encoding` strategy to be one either `:www_form` or `:rfc3986`
-  Read more about options in [`URI.encode_query/2`](https://hexdocs.pm/elixir/1.14.3/URI.html#encode_query/2)
-  Defaults to `:www_form`, ignored when compiled with elixir version older than 1.12.
+  Allows to specify the `encoding` strategy to be one either `:www_form` or
+  `:rfc3986`. Read more about encoding at `URI.encode_query/2`.
+
+  - `url` - the base URL to which the query params will be appended.
+  - `query` - a list of key-value pairs to be encoded as query params.
+  - `encoding` - the encoding strategy to use. Defaults to `:www_form`
 
   ## Examples
 
       iex> Tesla.build_url("https://api.example.com", [user: 3, page: 2])
       "https://api.example.com?user=3&page=2"
 
-      # URL that already contains query params
+  URL that already contains query params:
+
       iex> url = "https://api.example.com?user=3"
       iex> Tesla.build_url(url, [page: 2, status: true])
       "https://api.example.com?user=3&page=2&status=true"
 
-      # default encoding `:www_form`
+  Default encoding `:www_form`:
+
       iex> Tesla.build_url("https://api.example.com", [user_name: "John Smith"])
       "https://api.example.com?user_name=John+Smith"
 
-      # specified encoding strategy :rfc3986
+  Specified encoding strategy `:rfc3986`:
+
       iex> Tesla.build_url("https://api.example.com", [user_name: "John Smith"], :rfc3986)
       "https://api.example.com?user_name=John%20Smith"
   """
-  @type encoding_strategy :: :rfc3986 | :www_form
-
   @spec build_url(Tesla.Env.url(), Tesla.Env.query(), encoding_strategy) :: binary
   def build_url(url, query, encoding \\ :www_form)
 
