@@ -48,15 +48,20 @@ defmodule Tesla.Adapter do
 
   """
 
+  @typedoc """
+  Unstructured data passed to the adapter using `opts[:adapter]`.
+  """
+  @type options :: any()
+
   @doc """
   Invoked when a request runs.
 
   ## Arguments
 
-  - `env` - `Tesla.Env` struct that stores request/response data
-  - `options` - middleware options provided by user
+  - `env` - `t:Tesla.Env.t/0` struct that stores request/response data.
+  - `options` - middleware options provided by user.
   """
-  @callback call(env :: Tesla.Env.t(), options :: any) :: Tesla.Env.result()
+  @callback call(env :: Tesla.Env.t(), options :: options()) :: Tesla.Env.result()
 
   @doc """
   Helper function that merges all adapter options.
@@ -70,10 +75,15 @@ defmodule Tesla.Adapter do
 
   ## Precedence rules
 
-  - config from `opts` overrides config from `defaults` when same key is
-    encountered.
-  - config from `env` overrides config from both `defaults` and `opts` when same
-    key is encountered.
+  The options are merged in the following order of precedence (highest to lowest):
+
+  1. Options from `env.opts[:adapter]` (highest precedence).
+  2. Options provided to the adapter from `Tesla.client/2`.
+  3. Default options (lowest precedence).
+
+  This means that options specified in `env.opts[:adapter]` will override any
+  conflicting options from the other sources, allowing for fine-grained control
+  on a per-request basis.
   """
   @spec opts(Keyword.t(), Tesla.Env.t(), Keyword.t()) :: Keyword.t()
   def opts(defaults \\ [], env, opts) do
