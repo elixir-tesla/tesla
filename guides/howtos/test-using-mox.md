@@ -1,4 +1,4 @@
-# Test Using Mox with Tesla
+# Test Using Mox
 
 To mock HTTP requests in your tests using Mox with the Tesla HTTP client,
 follow these steps:
@@ -43,16 +43,19 @@ defmodule MyApp.FeatureTest do
   setup context, do: Mox.verify_on_exit!(context)
 
   test "example test" do
+    #--------- Given - Stubs and Preconditions
     # Expect a single HTTP request to be made and return a JSON response
     Tesla.Test.expect_tesla_call(
       times: 1,
       returns: Tesla.Test.json(%Tesla.Env{status: 200}, %{id: 1})
     )
 
+    #--------- When - Run the code under test
     # Make the HTTP request using Tesla
     # Mimic a use case where we create a user
     assert :ok = create_user!(%{username: "johndoe"})
 
+    #--------- Then - Assert postconditions
     # Verify that the HTTP request was made and matches the expected parameters
     Tesla.Test.assert_received_tesla_call(env, [])
     Tesla.Test.assert_tesla_env(env, %Tesla.Env{
@@ -75,11 +78,6 @@ defmodule MyApp.FeatureTest do
   end
 end
 ```
-
-Important Notes:
-
-- Verify Expectations: Include `setup :verify_on_exit!` to automatically verify
-  that all `Mox` expectations are met after each test.
 
 ## 4. Run Your Tests
 
