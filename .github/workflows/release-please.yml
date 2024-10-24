@@ -1,0 +1,21 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  Please:
+    runs-on: ubuntu-latest
+
+    steps:
+      - id: release
+        name: Release
+        uses: google-github-actions/release-please-action@v4
+        with:
+          command: manifest
+          config-file: .github/release-please-config.json
+          manifest-file: .github/release-please-manifest.json
+          release-type: elixir
+          token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
