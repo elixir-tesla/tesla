@@ -174,11 +174,36 @@ defmodule Tesla.Test do
       end
   """
   defmacro assert_received_tesla_call(expected_env, expected_opts \\ [], opts \\ []) do
-    adapter = fetch_adapter!(opts)
+    opts = Keyword.put(opts, :timeout, 0)
 
     quote do
-      assert_received {Tesla.Test,
-                       {unquote(adapter), :call, [unquote(expected_env), unquote(expected_opts)]}}
+      unquote(__MODULE__).assert_receive_tesla_call(
+        unquote(expected_env),
+        unquote(expected_opts),
+        unquote(opts)
+      )
+    end
+  end
+
+  @doc """
+  Asserts that the current process received or is going to receive a `TeslaMox` message.
+  It uses `assert_receive/1` under the hood.
+
+  ## Parameters
+
+  This function accepts the same parameters as `assert_received_tesla_call/3`, with an additional `timeout` option:
+
+  - `opts` - Extra configuration options.
+    - `:timeout` - Optional. The receive timeout in milliseconds. Defaults to the value used in `assert_receive/1`.
+  """
+  defmacro assert_receive_tesla_call(expected_env, expected_opts \\ [], opts \\ []) do
+    adapter = fetch_adapter!(opts)
+    timeout = fetch_timeout(opts)
+
+    quote do
+      assert_receive {Tesla.Test,
+                      {unquote(adapter), :call, [unquote(expected_env), unquote(expected_opts)]}},
+                     unquote(timeout)
     end
   end
 
@@ -270,5 +295,11 @@ defmodule Tesla.Test do
       adapter ->
         adapter
     end
+  end
+
+  defp fetch_timeout(opts) do
+    Keyword.get_lazy(opts, :timeout, fn ->
+      Application.fetch_env!(:ex_unit, :assert_receive_timeout)
+    end)
   end
 end
