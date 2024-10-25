@@ -61,7 +61,8 @@ defmodule Tesla.Middleware.Logger do
   @moduledoc ~S"""
   Log requests using Elixir's Logger.
 
-  With the default settings it logs request method, URL, response status, and time taken in milliseconds.
+  With the default settings it logs request method, URL, response status, and
+  time taken in milliseconds.
 
   ## Examples
 
@@ -77,7 +78,7 @@ defmodule Tesla.Middleware.Logger do
 
   - `:log_level` - custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
-  - `:debug` - show detailed request/response logging
+  - `:debug` - use `Logger.debug/2` to log request/response details
   - `:format` - custom string template or function for log message (see below)
 
   ## Custom log format
@@ -140,12 +141,18 @@ defmodule Tesla.Middleware.Logger do
 
   ## Logger Debug output
 
-  When the Elixir Logger log level is set to `:debug`
-  Tesla Logger will show full request & response.
+  `Tesla` will use `Logger.debug/2` to log request & response details using
+  the `:debug` option. It will require to set the `Logger` log level to `:debug`
+  in your configuration, example:
 
-  If you want to disable detailed request/response logging
-  but keep the `:debug` log level (i.e. in development)
-  you can set `debug: false` in your config:
+  ```elixir
+  # config/dev.exs
+  config :logger, level: :debug
+  ```
+
+  If you want to disable detailed request/response logging but keep the
+  `:debug` log level (i.e. in development) you can set `debug: false` in your
+  config:
 
   ```elixir
   # config/dev.local.exs
