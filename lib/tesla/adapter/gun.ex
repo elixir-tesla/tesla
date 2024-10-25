@@ -179,7 +179,7 @@ if Code.ensure_loaded?(:gun) do
     defp request(env, opts) do
       request(
         Tesla.Adapter.Shared.format_method(env.method),
-        Tesla.build_url(env.url, env.query),
+        Tesla.build_url(env),
         format_headers(env.headers),
         env.body || "",
         Tesla.Adapter.opts(

@@ -253,7 +253,7 @@ defmodule Tesla do
   MyApi.get_something(client, 42)
   ```
   """
-  if Version.match?(System.version(), "~> 1.7"), do: @doc(since: "1.2.0")
+  @doc since: "1.2.0"
   @spec client([Tesla.Client.middleware()], Tesla.Client.adapter()) :: Tesla.Client.t()
   def client(middleware, adapter \\ nil), do: Tesla.Builder.client(middleware, [], adapter)
 
@@ -263,34 +263,68 @@ defmodule Tesla do
   @deprecated "Use client/1 or client/2 instead"
   def build_adapter(fun), do: Tesla.Builder.client([], [], fun)
 
-  @doc """
-  Builds URL with the given query params.
+  @type encoding_strategy :: :rfc3986 | :www_form
 
-  Useful when you need to create an URL with dynamic query params from a Keyword list
+  @doc """
+  Builds URL with the given URL and query params.
+
+  Useful when you need to create a URL with dynamic query params from a Keyword
+  list
+
+  Allows to specify the `encoding` strategy to be one either `:www_form` or
+  `:rfc3986`. Read more about encoding at `URI.encode_query/2`.
+
+  - `url` - the base URL to which the query params will be appended.
+  - `query` - a list of key-value pairs to be encoded as query params.
+  - `encoding` - the encoding strategy to use. Defaults to `:www_form`
 
   ## Examples
 
-      iex> Tesla.build_url("http://api.example.com", [user: 3, page: 2])
-      "http://api.example.com?user=3&page=2"
+      iex> Tesla.build_url("https://api.example.com", [user: 3, page: 2])
+      "https://api.example.com?user=3&page=2"
 
-      # URL that already contains query params
-      iex> url = "http://api.example.com?user=3"
+  URL that already contains query params:
+
+      iex> url = "https://api.example.com?user=3"
       iex> Tesla.build_url(url, [page: 2, status: true])
-      "http://api.example.com?user=3&page=2&status=true"
+      "https://api.example.com?user=3&page=2&status=true"
 
+  Default encoding `:www_form`:
+
+      iex> Tesla.build_url("https://api.example.com", [user_name: "John Smith"])
+      "https://api.example.com?user_name=John+Smith"
+
+  Specified encoding strategy `:rfc3986`:
+
+      iex> Tesla.build_url("https://api.example.com", [user_name: "John Smith"], :rfc3986)
+      "https://api.example.com?user_name=John%20Smith"
   """
-  @spec build_url(Tesla.Env.url(), Tesla.Env.query()) :: binary
-  def build_url(url, []), do: url
+  @spec build_url(Tesla.Env.url(), Tesla.Env.query(), encoding_strategy) :: binary
+  def build_url(url, query, encoding \\ :www_form)
 
-  def build_url(url, query) do
+  def build_url(url, [], _encoding), do: url
+
+  def build_url(url, query, encoding) do
     join = if String.contains?(url, "?"), do: "&", else: "?"
-    url <> join <> encode_query(query)
+    url <> join <> encode_query(query, encoding)
   end
 
-  def encode_query(query) do
+  @doc """
+  Builds a URL from the given `t:Tesla.Env.t/0` struct.
+
+  Combines the `url` and `query` fields, and allows specifying the `encoding`
+  strategy before calling `build_url/3`.
+  """
+  @spec build_url(Tesla.Env.t()) :: String.t()
+  def build_url(%Tesla.Env{} = env) do
+    query_encoding = Keyword.get(env.opts, :query_encoding, :www_form)
+    Tesla.build_url(env.url, env.query, query_encoding)
+  end
+
+  def encode_query(query, encoding \\ :www_form) do
     query
     |> Enum.flat_map(&encode_pair/1)
-    |> URI.encode_query()
+    |> URI.encode_query(encoding)
   end
 
   @doc false

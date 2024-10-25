@@ -4,7 +4,7 @@ defmodule Tesla.Middleware.LoggerTest do
   defmodule Client do
     use Tesla
 
-    plug Tesla.Middleware.Logger
+    plug Tesla.Middleware.Logger, format: "$query $url -> $status"
 
     adapter fn env ->
       env = Tesla.put_header(env, "content-type", "text/plain")
@@ -60,6 +60,20 @@ defmodule Tesla.Middleware.LoggerTest do
     test "ok" do
       log = capture_log(fn -> Client.get("/ok") end)
       assert log =~ "/ok -> 200"
+    end
+
+    test "default encoding strategy www_form" do
+      log = capture_log(fn -> Client.get("/ok", query: [test: "foo bar"]) end)
+      assert log =~ "test=foo+bar"
+    end
+
+    test "encodes with specified strategy" do
+      log =
+        capture_log(fn ->
+          Client.get("/ok", query: %{"test" => "foo bar"}, opts: [query_encoding: :rfc3986])
+        end)
+
+      assert log =~ "test=foo%20bar"
     end
   end
 

@@ -78,6 +78,33 @@ defmodule Tesla.AdapterCase.Basic do
           assert args["user[age]"] == "20"
         end
 
+        test "encoding query params with www_form by default" do
+          request = %Env{
+            method: :get,
+            url: "#{@http}/get",
+            query: [user_name: "John Smith"]
+          }
+
+          assert {:ok, %Env{} = response} = call(request)
+          assert {:ok, %Env{} = response} = Tesla.Middleware.JSON.decode(response, [])
+
+          assert response.body["url"] == "#{@http}/get?user_name=John+Smith"
+        end
+
+        test "encoding query params with rfc3986 optionally" do
+          request = %Env{
+            method: :get,
+            url: "#{@http}/get",
+            query: [user_name: "John Smith"],
+            opts: [query_encoding: :rfc3986]
+          }
+
+          assert {:ok, %Env{} = response} = call(request)
+          assert {:ok, %Env{} = response} = Tesla.Middleware.JSON.decode(response, [])
+
+          assert response.body["url"] == "#{@http}/get?user_name=John%20Smith"
+        end
+
         test "autoredirects disabled by default" do
           request = %Env{
             method: :get,
