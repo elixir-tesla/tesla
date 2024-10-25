@@ -8,7 +8,7 @@ if Code.ensure_loaded?(Msgpax) do
     Remember to add `{:msgpax, ">= 2.3.0"}` to dependencies.
     Also, you need to recompile Tesla after adding `:msgpax` dependency:
 
-    ```
+    ```shell
     mix deps.clean tesla
     mix deps.compile tesla
     ```
@@ -19,11 +19,15 @@ if Code.ensure_loaded?(Msgpax) do
     defmodule MyClient do
       use Tesla
 
-      plug Tesla.Middleware.MessagePack
-      # or
-      plug Tesla.Middleware.MessagePack, engine_opts: [binary: true]
-      # or
-      plug Tesla.Middleware.MessagePack, decode: &Custom.decode/1, encode: &Custom.encode/1
+      def client do
+        Tesla.client([
+          Tesla.Middleware.MessagePack,
+          # or
+          Tesla.Middleware.MessagePack, engine_opts: [binary: true],
+          # or
+          Tesla.Middleware.MessagePack, decode: &Custom.decode/1, encode: &Custom.encode/1
+        ])
+      end
     end
     ```
 

@@ -4,14 +4,16 @@ defmodule Tesla.Middleware.DecodeRels do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.DecodeRels
+    def client do
+      Tesla.client([Tesla.Middleware.DecodeRels])
+    end
   end
 
-  env = MyClient.get("/...")
+  client = MyClient.client()
+
+  env = Tesla.get(client, "/...")
 
   env.opts[:rels]
   # => %{"Next" => "http://...", "Prev" => "..."}

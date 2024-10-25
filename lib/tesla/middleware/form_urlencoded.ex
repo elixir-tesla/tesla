@@ -11,11 +11,11 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule Myclient do
-    use Tesla
-
-    plug Tesla.Middleware.FormUrlencoded
+    def client do
+      Tesla.client([Tesla.Middleware.FormUrlencoded])
+    end
   end
 
   Myclient.post("/url", %{key: :value})
@@ -33,13 +33,15 @@ defmodule Tesla.Middleware.FormUrlencoded do
   Support for this specific case is obtained by configuring the middleware to
   encode (and decode) with `Plug.Conn.Query`
 
-  ```
+  ```elixir
   defmodule Myclient do
-    use Tesla
-
-    plug Tesla.Middleware.FormUrlencoded,
-      encode: &Plug.Conn.Query.encode/1,
-      decode: &Plug.Conn.Query.decode/1
+    def client do
+      Tesla.client([
+        Tesla.Middleware.FormUrlencoded,
+        encode: &Plug.Conn.Query.encode/1,
+        decode: &Plug.Conn.Query.decode/1
+      ])
+    end
   end
 
   Myclient.post("/url", %{key: %{nested: "value"}})

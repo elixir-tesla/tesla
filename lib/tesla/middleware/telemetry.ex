@@ -5,11 +5,11 @@ if Code.ensure_loaded?(:telemetry) do
 
     ## Examples
 
-    ```
+    ```elixir
     defmodule MyClient do
-      use Tesla
-
-      plug Tesla.Middleware.Telemetry
+      def client do
+        Tesla.client([Tesla.Middleware.Telemetry])
+      end
     end
 
     :telemetry.attach(
@@ -56,14 +56,16 @@ if Code.ensure_loaded?(:telemetry) do
 
     ```elixir
     defmodule MyClient do
-      use Tesla
-
-      # The KeepRequest middleware sets the template URL as a Tesla.Env.opts entry
-      # Said entry must be used because on happy-path scenarios,
-      # the Telemetry middleware will receive the Tesla.Env.url resolved by PathParams.
-      plug Tesla.Middleware.KeepRequest
-      plug Tesla.Middleware.PathParams
-      plug Tesla.Middleware.Telemetry
+      def client do
+        Tesla.client([
+          # The KeepRequest middleware sets the template URL as a Tesla.Env.opts entry
+          # Said entry must be used because on happy-path scenarios,
+          # the Telemetry middleware will receive the Tesla.Env.url resolved by PathParams.
+          Tesla.Middleware.KeepRequest,
+          Tesla.Middleware.PathParams,
+          Tesla.Middleware.Telemetry
+        ])
+      end
     end
 
     :telemetry.attach(

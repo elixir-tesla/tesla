@@ -7,17 +7,26 @@ defmodule Tesla.Middleware.BaseUrl do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.BaseUrl, "https://example.com/foo"
+    def client do
+      Tesla.client([Tesla.Middleware.BaseUrl, "https://example.com/foo"])
+    end
   end
 
-  MyClient.get("/path") # equals to GET https://example.com/foo/path
-  MyClient.get("path") # equals to GET https://example.com/foo/path
-  MyClient.get("") # equals to GET https://example.com/foo
-  MyClient.get("http://example.com/bar") # equals to GET http://example.com/bar
+  client = MyClient.client()
+
+  Tesla.get(client, "/path")
+  # equals to GET https://example.com/foo/path
+
+  Tesla.get(client, "path")
+  # equals to GET https://example.com/foo/path
+
+  Tesla.get(client, "")
+  # equals to GET https://example.com/foo
+
+  Tesla.get(client, "http://example.com/bar")
+  # equals to GET http://example.com/bar
   ```
   """
 

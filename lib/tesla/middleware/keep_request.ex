@@ -6,13 +6,16 @@ defmodule Tesla.Middleware.KeepRequest do
 
   ```
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.KeepRequest
-    plug Tesla.Middleware.PathParams
+    def client do
+      Tesla.client([
+        Tesla.Middleware.KeepRequest,
+        Tesla.Middleware.PathParams
+      ])
+    end
   end
 
-  {:ok, env} = MyClient.post("/users/:user_id", "request-data", opts: [path_params: [user_id: "1234"]])
+  client = MyClient.client()
+  {:ok, env} = Tesla.post(client, "/users/:user_id", "request-data", opts: [path_params: [user_id: "1234"]])
 
   env.body
   # => "response-data"

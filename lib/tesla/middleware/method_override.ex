@@ -7,11 +7,11 @@ defmodule Tesla.Middleware.MethodOverride do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.MethodOverride
+    def client do
+      Tesla.client([Tesla.Middleware.MethodOverride])
+    end
   end
   ```
 

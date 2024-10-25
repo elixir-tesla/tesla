@@ -29,20 +29,22 @@ defmodule Tesla.Middleware.PathParams do
 
   ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.BaseUrl, "https://api.example.com"
-    plug Tesla.Middleware.Logger # or some monitoring middleware
-    plug Tesla.Middleware.PathParams
-
-    def user(id) do
-      params = [id: id]
-      get("/users/{id}", opts: [path_params: params])
+    def client do
+      Tesla.client([
+        Tesla.Middleware.BaseUrl, "https://api.example.com",
+        Tesla.Middleware.Logger,
+        Tesla.Middleware.PathParams
+      ])
     end
 
-    def posts(id, post_id) do
+    def user(client, id) do
+      params = [id: id]
+      Tesla.get(client, "/users/{id}", opts: [path_params: params])
+    end
+
+    def posts(client, id, post_id) do
       params = [id: id, post_id: post_id]
-      get("/users/:id/posts/:post_id", opts: [path_params: params])
+      Tesla.get(client, "/users/:id/posts/:post_id", opts: [path_params: params])
     end
   end
   ```

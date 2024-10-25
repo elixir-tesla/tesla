@@ -4,23 +4,32 @@ defmodule Tesla.Middleware.Timeout do
 
   ## Examples
 
-      defmodule MyClient do
-        use Tesla
-
-        plug Tesla.Middleware.Timeout, timeout: 2_000
-      end
+  ```elixir
+  defmodule MyClient do
+    def client do
+      Tesla.client([
+        Tesla.Middleware.Timeout,
+        timeout: 2_000
+      ])
+    end
+  end
+  ```
 
   If you are using OpenTelemetry in your project, you may be interested in
   using `OpentelemetryProcessPropagator.Task` to have a better integration using
   the `task_module` option.
 
-      defmodule MyClient do
-        use Tesla
-
-        plug Tesla.Middleware.Timeout,
-          timeout: 2_000,
-          task_module: OpentelemetryProcessPropagator.Task
-      end
+  ```elixir
+  defmodule MyClient do
+    def client do
+      Tesla.client([
+        Tesla.Middleware.Timeout,
+        timeout: 2_000,
+        task_module: OpentelemetryProcessPropagator.Task
+      ])
+    end
+  end
+  ```
 
   ## Options
 

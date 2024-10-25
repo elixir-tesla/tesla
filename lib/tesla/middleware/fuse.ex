@@ -13,19 +13,21 @@ if Code.ensure_loaded?(:fuse) do
 
     ## Examples
 
-    ```
+    ```elixir
     defmodule MyClient do
-      use Tesla
-
-      plug Tesla.Middleware.Fuse,
-        opts: {{:standard, 2, 10_000}, {:reset, 60_000}},
-        keep_original_error: true,
-        should_melt: fn
-          {:ok, %{status: status}} when status in [428, 500, 504] -> true
-          {:ok, _} -> false
-          {:error, _} -> true
-        end,
-        mode: :sync
+      def client do
+        Tesla.client([
+          Tesla.Middleware.Fuse,
+          opts: {{:standard, 2, 10_000}, {:reset, 60_000}},
+          keep_original_error: true,
+          should_melt: fn
+            {:ok, %{status: status}} when status in [428, 500, 504] -> true
+            {:ok, _} -> false
+            {:error, _} -> true
+          end,
+          mode: :sync
+        ])
+      end
     end
     ```
 
@@ -46,7 +48,7 @@ if Code.ensure_loaded?(:fuse) do
 
     You can disable its logger output using:
 
-    ```
+    ```elixir
     config :sasl, sasl_error_logger: :false
     ```
 
