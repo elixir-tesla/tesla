@@ -6,22 +6,22 @@ if Code.ensure_loaded?(:ibrowse) do
     Remember to add `{:ibrowse, "~> 4.2"}` to dependencies (and `:ibrowse` to applications in `mix.exs`)
     Also, you need to recompile tesla after adding `:ibrowse` dependency:
 
-    ```
+    ```elixir
     mix deps.clean tesla
     mix deps.compile tesla
     ```
 
     ## Examples
 
-    ```
+    ```elixir
     # set globally in config/config.exs
     config :tesla, :adapter, Tesla.Adapter.Ibrowse
 
     # set per module
     defmodule MyClient do
-      use Tesla
-
-      adapter Tesla.Adapter.Ibrowse
+      def client do
+        Tesla.client([], Tesla.Adapter.Ibrowse)
+      end
     end
     ```
     """
