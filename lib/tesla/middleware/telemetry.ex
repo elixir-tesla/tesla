@@ -54,7 +54,7 @@ if Code.ensure_loaded?(:telemetry) do
     Telemetry events. For such cases, a combination of the `Tesla.Middleware.PathParams`,
     `Tesla.Middleware.Telemetry` and `Tesla.Middleware.KeepRequest` may be used.
 
-    ```
+    ```elixir
     defmodule MyClient do
       use Tesla
 
@@ -62,8 +62,8 @@ if Code.ensure_loaded?(:telemetry) do
       # Said entry must be used because on happy-path scenarios,
       # the Telemetry middleware will receive the Tesla.Env.url resolved by PathParams.
       plug Tesla.Middleware.KeepRequest
-      plug Tesla.Middleware.Telemetry
       plug Tesla.Middleware.PathParams
+      plug Tesla.Middleware.Telemetry
     end
 
     :telemetry.attach(
@@ -78,6 +78,14 @@ if Code.ensure_loaded?(:telemetry) do
       nil
     )
     ```
+
+    > #### Order Matters {: .warning}
+    > Place the `Tesla.Middleware.Telemetry` middleware as close as possible to
+    > the end of the middleware stack to ensure that you are measuring the
+    > actual request itself and do not lose any information about the
+    > `t:Tesla.Env.t/0` due to some transformation that happens in the
+    > middleware stack before reaching the `Tesla.Middleware.Telemetry`
+    > middleware.
     """
 
     @disable_legacy_event Application.compile_env(
