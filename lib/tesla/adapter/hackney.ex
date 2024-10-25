@@ -6,22 +6,22 @@ if Code.ensure_loaded?(:hackney) do
     Remember to add `{:hackney, "~> 1.13"}` to dependencies (and `:hackney` to applications in `mix.exs`)
     Also, you need to recompile tesla after adding `:hackney` dependency:
 
-    ```
+    ```shell
     mix deps.clean tesla
     mix deps.compile tesla
     ```
 
     ## Examples
 
-    ```
+    ```elixir
     # set globally in config/config.exs
     config :tesla, :adapter, Tesla.Adapter.Hackney
 
     # set per module
     defmodule MyClient do
-      use Tesla
-
-      adapter Tesla.Adapter.Hackney
+      def client do
+        Tesla.client([], Tesla.Adapter.Hackney)
+      end
     end
     ```
 

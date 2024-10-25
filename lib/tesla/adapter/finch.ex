@@ -6,7 +6,7 @@ if Code.ensure_loaded?(Finch) do
     Remember to add `{:finch, "~> 0.14.0"}` to dependencies. Also, you need to
     recompile tesla after adding the `:finch` dependency:
 
-    ```
+    ```shell
     mix deps.clean tesla
     mix compile
     ```
@@ -24,15 +24,15 @@ if Code.ensure_loaded?(Finch) do
 
     You must provide the same name to this adapter:
 
-    ```
+    ```elixir
     # set globally in config/config.exs
     config :tesla, :adapter, {Tesla.Adapter.Finch, name: MyFinch}
 
     # set per module
     defmodule MyClient do
-      use Tesla
-
-      adapter Tesla.Adapter.Finch, name: MyFinch
+      def client do
+        Tesla.client([], {Tesla.Adapter.Finch, name: MyFinch})
+      end
     end
     ```
 

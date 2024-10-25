@@ -8,21 +8,22 @@ if Code.ensure_loaded?(:gun) do
     In version 1.3 gun sends `host` header with port. Fixed in master branch.
     Also, you need to recompile tesla after adding `:gun` dependency:
 
-    ```
+    ```shell
     mix deps.clean tesla
     mix deps.compile tesla
     ```
 
     ## Examples
 
-    ```
+    ```elixir
     # set globally in config/config.exs
     config :tesla, :adapter, Tesla.Adapter.Gun
 
     # set per module
     defmodule MyClient do
-      use Tesla
-      adapter Tesla.Adapter.Gun
+      def client do
+        Tesla.client([], Tesla.Adapter.Gun)
+      end
     end
     ```
 

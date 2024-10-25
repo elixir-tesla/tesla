@@ -8,20 +8,21 @@ if Code.ensure_loaded?(Mint.HTTP) do
     Remember to add `{:mint, "~> 1.0"}` and `{:castore, "~> 0.1"}` to dependencies.
     Also, you need to recompile tesla after adding `:mint` dependency:
 
-    ```
+    ```shell
     mix deps.clean tesla
     mix deps.compile tesla
     ```
 
     ## Examples
 
-    ```
+    ```elixir
     # set globally in config/config.exs
     config :tesla, :adapter, Tesla.Adapter.Mint
     # set per module
     defmodule MyClient do
-      use Tesla
-      adapter Tesla.Adapter.Mint
+      def client do
+        Tesla.client([], Tesla.Adapter.Mint)
+      end
     end
 
     # set global custom cacertfile
