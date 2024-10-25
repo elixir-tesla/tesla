@@ -14,11 +14,16 @@ defmodule Tesla.Middleware.FormUrlencoded do
   ```elixir
   defmodule Myclient do
     def client do
-      Tesla.client([Tesla.Middleware.FormUrlencoded])
+      Tesla.client([
+        {Tesla.Middleware.FormUrlencoded,
+          encode: &Plug.Conn.Query.encode/1,
+          decode: &Plug.Conn.Query.decode/1}
+      ])
     end
   end
 
-  Myclient.post("/url", %{key: :value})
+  client = Myclient.client()
+  Myclient.post(client, "/url", %{key: :value})
   ```
 
   ## Options
@@ -37,14 +42,15 @@ defmodule Tesla.Middleware.FormUrlencoded do
   defmodule Myclient do
     def client do
       Tesla.client([
-        Tesla.Middleware.FormUrlencoded,
-        encode: &Plug.Conn.Query.encode/1,
-        decode: &Plug.Conn.Query.decode/1
+        {Tesla.Middleware.FormUrlencoded,
+          encode: &Plug.Conn.Query.encode/1,
+          decode: &Plug.Conn.Query.decode/1}
       ])
     end
   end
 
-  Myclient.post("/url", %{key: %{nested: "value"}})
+  client = Myclient.client()
+  Myclient.post(client, "/url", %{key: %{nested: "value"}})
   ```
   """
 

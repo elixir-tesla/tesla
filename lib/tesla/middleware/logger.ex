@@ -94,9 +94,11 @@ defmodule Tesla.Middleware.Logger do
 
   ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.Logger, format: &my_format/3
+    def client do
+      Tesla.client([
+        {Tesla.Middleware.Logger, format: &my_format/3}
+      ])
+    end
 
     def my_format(request, response, time) do
       "request=#{inspect(request)} response=#{inspect(response)} time=#{time}\n"
@@ -117,7 +119,9 @@ defmodule Tesla.Middleware.Logger do
   ```elixir
   defmodule MyClient do
     def client do
-      Tesla.client([Tesla.Middleware.Logger, log_level: &my_log_level/1])
+      Tesla.client([
+        {Tesla.Middleware.Logger, log_level: &my_log_level/1}
+      ])
     end
 
     def my_log_level(env) do

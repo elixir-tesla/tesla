@@ -9,7 +9,9 @@ defmodule Tesla.Middleware.Compression do
   ```elixir
   defmodule MyClient do
     def client do
-      Tesla.client([Tesla.Middleware.Compression, format: "gzip"])
+      Tesla.client([
+        {Tesla.Middleware.Compression, format: "gzip"}
+      ])
     end
   end
   ```

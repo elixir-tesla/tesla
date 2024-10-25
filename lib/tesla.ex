@@ -4,67 +4,39 @@ defmodule Tesla do
 
   ## Building API client
 
-  `use Tesla` macro will generate basic HTTP functions (e.g. `get/3`, `post/4`, etc.) inside your module.
-
-  It supports following options:
-
-  - `:only` - builder will generate only functions included in the given list
-  - `:except` - builder will not generate the functions that are listed in the options
-  - `:docs` - when set to false builder will not add documentation to generated functions
+  Use `Tesla.client/2` to build a client with the given middleware and adapter.
 
   ### Examples
 
-      defmodule ExampleApi do
-        use Tesla, only: [:get], docs: false
+  ```elixir
+  defmodule ExampleApi do
+    def client do
+      Tesla.client([
+        Tesla.Middleware.BaseUrl, "http://api.example.com",
+        Tesla.Middleware.JSON
+      ])
+    end
 
-        plug Tesla.Middleware.BaseUrl, "http://api.example.com"
-        plug Tesla.Middleware.JSON
+    def fetch_data(client) do
+      Tesla.get(client, "/data")
+    end
+  end
+  ```
 
-        def fetch_data do
-          get("/data")
-        end
-      end
+  Now you can use `ExampleApi.client/0` to make requests to the API.
 
-  In example above `ExampleApi.fetch_data/0` is equivalent of `ExampleApi.get("/data")`.
-
-      defmodule ExampleApi do
-        use Tesla, except: [:post, :delete]
-
-        plug Tesla.Middleware.BaseUrl, "http://api.example.com"
-        plug Tesla.Middleware.JSON
-
-        def fetch_data do
-          get("/data")
-        end
-      end
-
-  In example above `except: [:post, :delete]` will make sure that post functions will not be generated for this module.
+  ```elixir
+  client = ExampleApi.client()
+  ExampleApi.fetch_data(client)
+  ```
 
   ## Direct usage
 
   It is also possible to do request directly with `Tesla` module.
 
-      Tesla.get("https://example.com")
-
-  ### Common pitfalls
-
-  Direct usage won't include any middlewares.
-
-  In following example:
-
-      defmodule ExampleApi do
-        use Tesla, only: [:get], docs: false
-
-        plug Tesla.Middleware.BaseUrl, "http://api.example.com"
-        plug Tesla.Middleware.JSON
-
-        def fetch_data do
-          Tesla.get("/data")
-        end
-      end
-
-  call to `ExampleApi.fetch_data/0` will fail, because request will be missing
-  base URL.
+  ```elixir
+  Tesla.get("https://example.com")
+  ```
 
   ## Default adapter
 
@@ -72,7 +44,9 @@ defmodule Tesla do
   included in Erlang/OTP and does not require installation of any additional
   dependency. It can be changed globally with config:
 
-      config :tesla, :adapter, Tesla.Adapter.Hackney
+  ```elixir
+  config :tesla, :adapter, Tesla.Adapter.Mint
+  ```
   """
 
   use Tesla.Builder
@@ -247,8 +221,6 @@ defmodule Tesla do
 
   # complete module example
   defmodule MyApi do
-    # note there is no need for `use Tesla`
-
     @middleware [
       {Tesla.Middleware.BaseUrl, "https://example.com"},
       Tesla.Middleware.JSON,

@@ -37,7 +37,6 @@ defmodule Tesla.Middleware.Retry do
             {:error, _reason}, _env, _context -> true
           end
         }
-        # or
       ])
     end
   end

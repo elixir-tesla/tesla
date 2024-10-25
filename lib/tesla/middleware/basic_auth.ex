@@ -9,9 +9,10 @@ defmodule Tesla.Middleware.BasicAuth do
   ```elixir
   defmodule MyClient do
     def client(username, password, opts \\ %{}) do
-      Tesla.client [
-        {Tesla.Middleware.BasicAuth, Map.merge(%{username: username, password: password}, opts)}
-      ]
+      Tesla.client([
+        {Tesla.Middleware.BasicAuth,
+          Map.merge(%{username: username, password: password}, opts)}
+      ])
     end
   end
   ```
