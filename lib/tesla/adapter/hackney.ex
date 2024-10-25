@@ -51,7 +51,7 @@ if Code.ensure_loaded?(:hackney) do
     defp request(env, opts) do
       request(
         env.method,
-        Tesla.build_url(env.url, env.query),
+        Tesla.build_url(env),
         env.headers,
         env.body,
         Tesla.Adapter.opts(env, opts)
