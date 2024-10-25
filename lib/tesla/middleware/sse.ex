@@ -6,9 +6,12 @@ defmodule Tesla.Middleware.SSE do
 
   ## Examples
 
-  ```
-  plug Tesla.Middleware.SSE, only: :data
-
+  ```elixir
+  defmodule MyClient do
+    def client do
+      Tesla.client([Tesla.Middleware.SSE, only: :data])
+    end
+  end
   ```
 
   ## Options

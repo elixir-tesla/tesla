@@ -4,11 +4,11 @@ defmodule Tesla.Middleware.Query do
 
   ## Examples
 
-  ```
-  defmodule Myclient do
-    use Tesla
-
-    plug Tesla.Middleware.Query, [token: "some-token"]
+  ```elixir
+  defmodule MyClient do
+    def client do
+      Tesla.client([Tesla.Middleware.Query, [token: "some-token"]])
+    end
   end
   ```
   """

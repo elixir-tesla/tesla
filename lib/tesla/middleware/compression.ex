@@ -6,11 +6,11 @@ defmodule Tesla.Middleware.Compression do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.Compression, format: "gzip"
+    def client do
+      Tesla.client([Tesla.Middleware.Compression, format: "gzip"])
+    end
   end
   ```
 

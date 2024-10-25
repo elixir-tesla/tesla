@@ -62,9 +62,9 @@ defmodule Tesla.Middleware.Logger do
 
   ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.Logger
+    def client do
+      Tesla.client([Tesla.Middleware.Logger])
+    end
   end
   ```
 
@@ -80,7 +80,7 @@ defmodule Tesla.Middleware.Logger do
   The default log format is `"$method $url -> $status ($time ms)"`
   which shows in logs like:
 
-  ```
+  ```elixir
   2018-03-25 18:32:40.397 [info]  GET https://bitebot.io -> 200 (88.074 ms)
   ```
 
@@ -116,9 +116,9 @@ defmodule Tesla.Middleware.Logger do
 
   ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.Logger, log_level: &my_log_level/1
+    def client do
+      Tesla.client([Tesla.Middleware.Logger, log_level: &my_log_level/1])
+    end
 
     def my_log_level(env) do
       case env.status do
@@ -138,7 +138,7 @@ defmodule Tesla.Middleware.Logger do
   but keep the `:debug` log level (i.e. in development)
   you can set `debug: false` in your config:
 
-  ```
+  ```elixir
   # config/dev.local.exs
   config :tesla, Tesla.Middleware.Logger, debug: false
   ```
@@ -146,7 +146,7 @@ defmodule Tesla.Middleware.Logger do
   Note that the logging configuration is evaluated at compile time,
   so Tesla must be recompiled for the configuration to take effect:
 
-  ```
+  ```shell
   mix deps.clean --build tesla
   mix deps.compile tesla
   ```
@@ -171,7 +171,7 @@ defmodule Tesla.Middleware.Logger do
   debug logs, add them to the `:filter_headers` option.
   `:filter_headers` expects a list of header names as strings.
 
-  ```
+  ```elixir
   # config/dev.local.exs
   config :tesla, Tesla.Middleware.Logger,
     filter_headers: ["authorization"]

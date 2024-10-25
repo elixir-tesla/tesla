@@ -21,27 +21,25 @@ defmodule Tesla.Middleware.Retry do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.Retry,
-      delay: 500,
-      max_retries: 10,
-      max_delay: 4_000,
-      should_retry: fn
-        {:ok, %{status: status}} when status in [400, 500] -> true
-        {:ok, _} -> false
-        {:error, _} -> true
-      end
-      # or
-      plug Tesla.Middleware.Retry, should_retry: fn
-        {:ok, %{status: status}}, _env, _context when status in [400, 500] -> true
-        {:ok, _reason}, _env, _context -> false
-        {:error, _reason}, %Tesla.Env{method: :post}, _context -> false
-        {:error, _reason}, %Tesla.Env{method: :put}, %{retries: 2} -> false
-        {:error, _reason}, _env, _context -> true
-      end
+    def client do
+      Tesla.client([
+        {Tesla.Middleware.Retry,
+          delay: 500,
+          max_retries: 10,
+          max_delay: 4_000,
+          should_retry: fn
+            {:ok, %{status: status}}, _env, _context when status in [400, 500] -> true
+            {:ok, _reason}, _env, _context -> false
+            {:error, _reason}, %Tesla.Env{method: :post}, _context -> false
+            {:error, _reason}, %Tesla.Env{method: :put}, %{retries: 2} -> false
+            {:error, _reason}, _env, _context -> true
+          end
+        }
+        # or
+      ])
+    end
   end
   ```
 

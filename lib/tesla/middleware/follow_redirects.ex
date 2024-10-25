@@ -4,11 +4,12 @@ defmodule Tesla.Middleware.FollowRedirects do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
-    use Tesla
-
-    plug Tesla.Middleware.FollowRedirects, max_redirects: 3 # defaults to 5
+    def client do
+    # defaults to 5
+      Tesla.client([Tesla.Middleware.FollowRedirects, max_redirects: 3])
+    end
   end
   ```
 

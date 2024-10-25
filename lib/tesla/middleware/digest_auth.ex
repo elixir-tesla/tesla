@@ -11,8 +11,6 @@ defmodule Tesla.Middleware.DigestAuth do
 
   ```
   defmodule MyClient do
-    use Tesla
-
     def client(username, password, opts \\ %{}) do
       Tesla.client([
         {Tesla.Middleware.DigestAuth, Map.merge(%{username: username, password: password}, opts)}
@@ -22,6 +20,7 @@ defmodule Tesla.Middleware.DigestAuth do
   ```
 
   ## Options
+
   - `:username` - username (defaults to `""`)
   - `:password` - password (defaults to `""`)
   - `:cnonce_fn` - custom function generating client nonce (defaults to `&Tesla.Middleware.DigestAuth.cnonce/0`)

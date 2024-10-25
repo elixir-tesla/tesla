@@ -6,15 +6,9 @@ defmodule Tesla.Middleware.BasicAuth do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule MyClient do
-    use Tesla
-
-    # static configuration
-    plug Tesla.Middleware.BasicAuth, username: "user", password: "pass"
-
-    # dynamic user & pass
-    def new(username, password, opts \\\\ %{}) do
+    def client(username, password, opts \\ %{}) do
       Tesla.client [
         {Tesla.Middleware.BasicAuth, Map.merge(%{username: username, password: password}, opts)}
       ]

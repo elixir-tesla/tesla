@@ -4,11 +4,11 @@ defmodule Tesla.Middleware.Headers do
 
   ## Examples
 
-  ```
+  ```elixir
   defmodule Myclient do
-    use Tesla
-
-    plug Tesla.Middleware.Headers, [{"user-agent", "Tesla"}]
+    def client do
+      Tesla.client([Tesla.Middleware.Headers, [{"user-agent", "Tesla"}]])
+    end
   end
   ```
   """
