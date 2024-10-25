@@ -37,17 +37,18 @@ define expectations and verify them:
 defmodule MyApp.FeatureTest do
   use ExUnit.Case, async: true
 
-  require Tesla.Test
+  import Mox
+  import Tesla.Test
 
-  setup context, do: Mox.set_mox_from_context(context)
-  setup context, do: Mox.verify_on_exit!(context)
+  setup :set_mox_from_context
+  setup :verify_on_exit!
 
   test "example test" do
     #--------- Given - Stubs and Preconditions
     # Expect a single HTTP request to be made and return a JSON response
-    Tesla.Test.expect_tesla_call(
+    expect_tesla_call(
       times: 1,
-      returns: Tesla.Test.json(%Tesla.Env{status: 200}, %{id: 1})
+      returns: json(%Tesla.Env{status: 200}, %{id: 1})
     )
 
     #--------- When - Run the code under test
@@ -57,8 +58,14 @@ defmodule MyApp.FeatureTest do
 
     #--------- Then - Assert postconditions
     # Verify that the HTTP request was made and matches the expected parameters
-    Tesla.Test.assert_received_tesla_call(env, [])
-    Tesla.Test.assert_tesla_env(env, %Tesla.Env{
+    assert_received_tesla_call(env, [])
+    assert env.status == 200
+    assert env.method == :post
+    assert env.url == "https://acme.com/users"
+    # ...
+
+    # Or you can verify the entire `t:Tesla.Env.t/0` using something like this:
+    assert_tesla_env(env, %Tesla.Env{
       method: :post,
       url: "https://acme.com/users",
       body: %{username: "johndoe"},
@@ -67,7 +74,7 @@ defmodule MyApp.FeatureTest do
 
     # Verify that the mailbox is empty, indicating no additional requests were
     # made and all messages have been processed
-    Tesla.Test.assert_tesla_empty_mailbox()
+    assert_tesla_empty_mailbox()
   end
 
   defp create_user!(body) do
