@@ -7,7 +7,9 @@ defmodule Tesla.Middleware.Headers do
   ```elixir
   defmodule Myclient do
     def client do
-      Tesla.client([Tesla.Middleware.Headers, [{"user-agent", "Tesla"}]])
+      Tesla.client([
+        {Tesla.Middleware.Headers, [{"user-agent", "Tesla"}]}
+      ])
     end
   end
   ```

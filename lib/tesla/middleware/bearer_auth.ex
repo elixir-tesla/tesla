@@ -9,9 +9,9 @@ defmodule Tesla.Middleware.BearerAuth do
   ```
   defmodule MyClient do
     def new(token) do
-      Tesla.client [
+      Tesla.client([
         {Tesla.Middleware.BearerAuth, token: token}
-      ]
+      ])
     end
   end
   ```

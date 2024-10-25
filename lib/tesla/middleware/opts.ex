@@ -7,7 +7,9 @@ defmodule Tesla.Middleware.Opts do
   ```elixir
   defmodule MyClient do
     def client do
-      Tesla.client([Tesla.Middleware.Opts, [some: "option"]])
+      Tesla.client([
+        {Tesla.Middleware.Opts, [some: "option"]}
+      ])
     end
   end
   ```

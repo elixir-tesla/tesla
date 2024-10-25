@@ -24,11 +24,11 @@ defmodule Tesla.Middleware.JSON do
         # use jason engine
         Tesla.Middleware.JSON,
         # or
-        Tesla.Middleware.JSON, engine: JSX, engine_opts: [strict: [:comments]],
+        {Tesla.Middleware.JSON, engine: JSX, engine_opts: [strict: [:comments]]},
         # or
-        Tesla.Middleware.JSON, engine: Poison, engine_opts: [keys: :atoms],
+        {Tesla.Middleware.JSON, engine: Poison, engine_opts: [keys: :atoms]},
         # or
-        Tesla.Middleware.JSON, decode: &JSX.decode/1, encode: &JSX.encode/1
+        {Tesla.Middleware.JSON, decode: &JSX.decode/1, encode: &JSX.encode/1}
       ])
     end
   end

@@ -31,7 +31,7 @@ defmodule Tesla.Middleware.PathParams do
   defmodule MyClient do
     def client do
       Tesla.client([
-        Tesla.Middleware.BaseUrl, "https://api.example.com",
+        {Tesla.Middleware.BaseUrl, "https://api.example.com"},
         Tesla.Middleware.Logger,
         Tesla.Middleware.PathParams
       ])

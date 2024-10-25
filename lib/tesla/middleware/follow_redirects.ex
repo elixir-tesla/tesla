@@ -8,7 +8,9 @@ defmodule Tesla.Middleware.FollowRedirects do
   defmodule MyClient do
     def client do
     # defaults to 5
-      Tesla.client([Tesla.Middleware.FollowRedirects, max_redirects: 3])
+      Tesla.client([
+        {Tesla.Middleware.FollowRedirects, max_redirects: 3}
+      ])
     end
   end
   ```

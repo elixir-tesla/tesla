@@ -17,15 +17,15 @@ if Code.ensure_loaded?(:fuse) do
     defmodule MyClient do
       def client do
         Tesla.client([
-          Tesla.Middleware.Fuse,
-          opts: {{:standard, 2, 10_000}, {:reset, 60_000}},
-          keep_original_error: true,
-          should_melt: fn
-            {:ok, %{status: status}} when status in [428, 500, 504] -> true
-            {:ok, _} -> false
-            {:error, _} -> true
-          end,
-          mode: :sync
+          {Tesla.Middleware.Fuse,
+            opts: {{:standard, 2, 10_000}, {:reset, 60_000}},
+            keep_original_error: true,
+            should_melt: fn
+              {:ok, %{status: status}} when status in [428, 500, 504] -> true
+              {:ok, _} -> false
+              {:error, _} -> true
+            end,
+            mode: :sync}
         ])
       end
     end

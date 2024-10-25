@@ -10,7 +10,9 @@ defmodule Tesla.Middleware.BaseUrl do
   ```elixir
   defmodule MyClient do
     def client do
-      Tesla.client([Tesla.Middleware.BaseUrl, "https://example.com/foo"])
+      Tesla.client([
+        {Tesla.Middleware.BaseUrl, "https://example.com/foo"}
+      ])
     end
   end
 

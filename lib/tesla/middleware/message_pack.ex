@@ -15,17 +15,15 @@ if Code.ensure_loaded?(Msgpax) do
 
     ## Examples
 
-    ```
+    ```elixir
     defmodule MyClient do
-      use Tesla
-
       def client do
         Tesla.client([
           Tesla.Middleware.MessagePack,
           # or
-          Tesla.Middleware.MessagePack, engine_opts: [binary: true],
+          {Tesla.Middleware.MessagePack, engine_opts: [binary: true]},
           # or
-          Tesla.Middleware.MessagePack, decode: &Custom.decode/1, encode: &Custom.encode/1
+          {Tesla.Middleware.MessagePack, decode: &Custom.decode/1, encode: &Custom.encode/1}
         ])
       end
     end

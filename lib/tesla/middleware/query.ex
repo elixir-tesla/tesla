@@ -7,7 +7,9 @@ defmodule Tesla.Middleware.Query do
   ```elixir
   defmodule MyClient do
     def client do
-      Tesla.client([Tesla.Middleware.Query, [token: "some-token"]])
+      Tesla.client([
+        {Tesla.Middleware.Query, [token: "some-token"]}
+      ])
     end
   end
   ```
