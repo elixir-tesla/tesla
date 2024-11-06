@@ -69,8 +69,8 @@ defmodule Tesla.Test do
   @spec html(%Tesla.Env{}, binary) :: %Tesla.Env{}
   def html(%Tesla.Env{} = env, body) when is_binary(body) do
     env
-    |> Tesla.put_body(body)
-    |> Tesla.put_headers([{"content-type", "text/html; charset=utf-8"}])
+    |> put_body(body)
+    |> put_headers([{"content-type", "text/html; charset=utf-8"}])
   end
 
   @doc """
@@ -91,8 +91,8 @@ defmodule Tesla.Test do
     body = encode!(body, "application/json")
 
     env
-    |> Tesla.put_body(body)
-    |> Tesla.put_headers([{"content-type", "application/json; charset=utf-8"}])
+    |> put_body(body)
+    |> put_headers([{"content-type", "application/json; charset=utf-8"}])
   end
 
   @doc """
@@ -108,8 +108,8 @@ defmodule Tesla.Test do
   @spec text(%Tesla.Env{}, binary) :: %Tesla.Env{}
   def text(%Tesla.Env{} = env, body) when is_binary(body) do
     env
-    |> Tesla.put_body(body)
-    |> Tesla.put_headers([{"content-type", "text/plain; charset=utf-8"}])
+    |> put_body(body)
+    |> put_headers([{"content-type", "text/plain; charset=utf-8"}])
   end
 
   @doc """
@@ -270,5 +270,17 @@ defmodule Tesla.Test do
       adapter ->
         adapter
     end
+  end
+
+  defp put_body(%Tesla.Env{} = env, body) do
+    %{env | body: body}
+  end
+
+  defp put_headers(%Tesla.Env{headers: nil} = env, headers) when is_list(headers) do
+    %{env | headers: headers}
+  end
+
+  defp put_headers(%Tesla.Env{} = env, headers) when is_list(headers) do
+    %{env | headers: env.headers ++ headers}
   end
 end
