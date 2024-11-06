@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  Please:
+    runs-on: ubuntu-latest
+
+    steps:
+      - id: release
+        name: Release
+        uses: google-github-actions/release-please-action@v4.1.3
+        with:
+          command: manifest
+          config-file: .github/release-please-config.json
+          manifest-file: .github/release-please-manifest.json
+          release-type: elixir
+          token: ${{ secrets.GH_PAT_RELEASE_PLEASE_ACTION }}
