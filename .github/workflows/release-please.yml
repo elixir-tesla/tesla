@@ -16,10 +16,10 @@ jobs:
     steps:
       - id: release
         name: Release
-        uses: google-github-actions/release-please-action@v4.1.3
+        uses: googleapis/release-please-action@v4.1.3
         with:
-          command: manifest
           config-file: .github/release-please-config.json
           manifest-file: .github/release-please-manifest.json
           release-type: elixir
+          target-branch: master
           token: ${{ secrets.GH_PAT_RELEASE_PLEASE_ACTION }}
