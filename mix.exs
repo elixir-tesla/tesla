@@ -94,6 +94,7 @@ defmodule Tesla.Mixfile do
       source_ref: "v#{@version}",
       skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
       extra_section: "GUIDES",
+      logo: "guides/elixir-tesla-logo.png",
       extras:
         [
           "README.md",
