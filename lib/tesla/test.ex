@@ -66,7 +66,7 @@ defmodule Tesla.Test do
         ...
       }
   """
-  @spec html(Tesla.Env.t(), binary) :: Tesla.Env.t()
+  @spec html(%Tesla.Env{}, binary) :: %Tesla.Env{}
   def html(%Tesla.Env{} = env, body) when is_binary(body) do
     env
     |> Tesla.put_body(body)
@@ -86,7 +86,7 @@ defmodule Tesla.Test do
   If the body is binary, it will be returned as is and it will not try to encode
   it to JSON.
   """
-  @spec json(Tesla.Env.t(), term) :: Tesla.Env.t()
+  @spec json(%Tesla.Env{}, term) :: %Tesla.Env{}
   def json(%Tesla.Env{} = env, body) do
     body = encode!(body, "application/json")
 
@@ -105,7 +105,7 @@ defmodule Tesla.Test do
         ...
       }
   """
-  @spec text(Tesla.Env.t(), binary) :: Tesla.Env.t()
+  @spec text(%Tesla.Env{}, binary) :: %Tesla.Env{}
   def text(%Tesla.Env{} = env, body) when is_binary(body) do
     env
     |> Tesla.put_body(body)
