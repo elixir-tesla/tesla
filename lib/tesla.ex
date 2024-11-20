@@ -12,7 +12,7 @@ defmodule Tesla do
   defmodule ExampleApi do
     def client do
       Tesla.client([
-        Tesla.Middleware.BaseUrl, "http://api.example.com",
+        {Tesla.Middleware.BaseUrl, "http://api.example.com"},
         Tesla.Middleware.JSON
       ])
     end
