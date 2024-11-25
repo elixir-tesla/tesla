@@ -124,8 +124,14 @@ defmodule Tesla.Middleware.Retry do
   # Calculate the min ms to retry after if the header is specified and enabled
   defp retry_after({_, %Tesla.Env{} = env}, %{use_retry_after_header: true}) do
     case Tesla.get_header(env, "retry-after") do
-      nil -> nil
-      header -> retry_after_delay(header)
+      nil ->
+        nil
+
+      header ->
+        case retry_delay_in_ms(header) do
+          {:ok, delay_ms} -> delay_ms
+          {:error, _} -> nil
+        end
     end
   end
 
@@ -134,19 +140,76 @@ defmodule Tesla.Middleware.Retry do
     nil
   end
 
-  # Attempt to interpret the retry-after header as integer number of seconds, then a DateTime
-  defp retry_after_delay(header) do
-    case Integer.parse(header) do
-      :error ->
-        case DateTimeParser.parse_datetime(header) do
-          {:ok, date_time} -> max(0, DateTime.diff(date_time, DateTime.utc_now(), :millisecond))
-          {:error, _} -> nil
-        end
+  # Adapted from https://github.com/wojtekmach/req/blob/2a802826b1f3e65bb13a5a1da037ce2d8734e619/lib/req/response.ex#L265
+  # Copyright 2021 Wojtek Mach
+  # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+  # http://www.apache.org/licenses/LICENSE-2.0
+  # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+  # START
 
-      {seconds, _} ->
-        seconds * 1000
+  # changed to return :ok and :error tuples
+  defp retry_delay_in_ms(delay_value) do
+    case Integer.parse(delay_value) do
+      {seconds, ""} ->
+        {:ok, :timer.seconds(seconds)}
+
+      :error ->
+        case parse_http_datetime(delay_value) do
+          {:ok, date_time} ->
+            {:ok,
+             date_time
+             |> DateTime.diff(DateTime.utc_now(), :millisecond)
+             |> max(0)}
+
+          {:error, _} = error ->
+            error
+        end
     end
   end
+
+  @month_numbers %{
+    "Jan" => "01",
+    "Feb" => "02",
+    "Mar" => "03",
+    "Apr" => "04",
+    "May" => "05",
+    "Jun" => "06",
+    "Jul" => "07",
+    "Aug" => "08",
+    "Sep" => "09",
+    "Oct" => "10",
+    "Nov" => "11",
+    "Dec" => "12"
+  }
+
+  # changed to return :ok and :error tuples rather than raise if the date cannot be parwsed
+  defp parse_http_datetime(datetime) do
+    case String.split(datetime, " ") do
+      [_day_of_week, day, month, year, time, "GMT"] ->
+        case @month_numbers[month] do
+          nil ->
+            {:error, "cannot parse \"retry-after\" header value #{inspect(datetime)} as datetime, reason: invalid month"}
+
+          month_number ->
+            date = year <> "-" <> month_number <> "-" <> day
+
+            case DateTime.from_iso8601(date <> " " <> time <> "Z") do
+              {:ok, valid_datetime, 0} ->
+                {:ok, valid_datetime}
+
+              {:error, reason} ->
+                {:error,
+                 "cannot parse \"retry-after\" header value #{inspect(datetime)} as datetime, reason: #{reason}"}
+            end
+        end
+
+      _ ->
+        {:error,
+         "cannot parse \"retry-after\" header value #{inspect(datetime)} as datetime, reason: header is not in HTTP-date or integer format"}
+    end
+  end
+
+  # END
 
   defp do_retry(env, next, context) do
     case context.retry_after do

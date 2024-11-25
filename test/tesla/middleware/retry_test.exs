@@ -62,10 +62,82 @@ defmodule Tesla.Middleware.RetryTest do
             "/retry_after_date" ->
               {:ok, %{env | status: 200}}
 
-            "/retry_after_invalid" when retries < 5 ->
+            "/retry_after_invalid_format" when retries < 5 ->
               {:ok, %{env | status: 429, headers: [{"retry-after", "foo"} | env.headers]}}
 
-            "/retry_after_invalid" ->
+            "/retry_after_invalid_format" ->
+              {:ok, %{env | status: 200}}
+
+            "/retry_after_invalid_month" when retries < 5 ->
+              {:ok,
+               %{
+                 env
+                 | status: 429,
+                   headers: [
+                     {"retry-after",
+                      Calendar.strftime(
+                        DateTime.add(start_time, 2, :second),
+                        "%a, %d Foo %Y %H:%M:%S GMT"
+                      )}
+                     | env.headers
+                   ]
+               }}
+
+            "/retry_after_invalid_month" ->
+              {:ok, %{env | status: 200}}
+
+            "/retry_after_invalid_day" when retries < 5 ->
+              {:ok,
+               %{
+                 env
+                 | status: 429,
+                   headers: [
+                     {"retry-after",
+                      Calendar.strftime(
+                        DateTime.add(start_time, 2, :second),
+                        "%a, Foo %b %Y %H:%M:%S GMT"
+                      )}
+                     | env.headers
+                   ]
+               }}
+
+            "/retry_after_invalid_day" ->
+              {:ok, %{env | status: 200}}
+
+            "/retry_after_invalid_year" when retries < 5 ->
+              {:ok,
+               %{
+                 env
+                 | status: 429,
+                   headers: [
+                     {"retry-after",
+                      Calendar.strftime(
+                        DateTime.add(start_time, 2, :second),
+                        "%a, %d %b Foo %H:%M:%S GMT"
+                      )}
+                     | env.headers
+                   ]
+               }}
+
+            "/retry_after_invalid_year" ->
+              {:ok, %{env | status: 200}}
+
+            "/retry_after_invalid_time" when retries < 5 ->
+              {:ok,
+               %{
+                 env
+                 | status: 429,
+                   headers: [
+                     {"retry-after",
+                      Calendar.strftime(
+                        DateTime.add(start_time, 2, :second),
+                        "%a, %d %b %Y Foo:Bar:%S GMT"
+                      )}
+                     | env.headers
+                   ]
+               }}
+
+            "/retry_after_invalid_time" ->
               {:ok, %{env | status: 200}}
           end
 
@@ -191,9 +263,37 @@ defmodule Tesla.Middleware.RetryTest do
     assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 2
   end
 
-  test "ingore Retry-After header if it is not in an expected format" do
-    assert {:ok, %Tesla.Env{url: "/retry_after_invalid", method: :get, status: 200}} =
-             ClientUsingRetryAfterHeader.get("/retry_after_invalid")
+  test "ignore Retry-After header if it is not in an expected format" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_invalid_format", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_invalid_format")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
+  end
+
+  test "ignore Retry-After header if it has an invalid month" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_invalid_month", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_invalid_month")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
+  end
+
+  test "ignore Retry-After header if it has an invalid day" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_invalid_day", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_invalid_day")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
+  end
+
+  test "ignore Retry-After header if it has an invalid year" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_invalid_year", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_invalid_year")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
+  end
+
+  test "ignore Retry-After header if it has an invalid time" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_invalid_time", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_invalid_time")
 
     assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
   end

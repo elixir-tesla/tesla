@@ -50,7 +50,6 @@ defmodule Tesla.Mixfile do
   defp deps do
     [
       {:mime, "~> 1.0 or ~> 2.0"},
-      {:date_time_parser, "~> 1.2.0"},
 
       # http clients
       {:ibrowse, "4.4.2", optional: true},
