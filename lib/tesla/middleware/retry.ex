@@ -85,17 +85,14 @@ defmodule Tesla.Middleware.Retry do
     retry(env, next, context)
   end
 
-  # If we have max retries set to 0 don't retry
   defp retry(env, next, %{max_retries: 0}), do: Tesla.run(env, next)
 
-  # If we're on our last retry then just run and don't handle the error
   defp retry(env, next, %{max_retries: max, retries: max} = context) do
     env
     |> put_retry_count_opt(context)
     |> Tesla.run(next)
   end
 
-  # Otherwise we retry if we get a retriable error
   defp retry(env, next, context) do
     res =
       env
@@ -121,7 +118,6 @@ defmodule Tesla.Middleware.Retry do
     end
   end
 
-  # Calculate the min ms to retry after if the header is specified and enabled
   defp retry_after({_, %Tesla.Env{} = env}, %{use_retry_after_header: true}) do
     case Tesla.get_header(env, "retry-after") do
       nil ->
@@ -135,19 +131,11 @@ defmodule Tesla.Middleware.Retry do
     end
   end
 
-  # otherwise, set the min to zero
   defp retry_after(_res, _context) do
     nil
   end
 
-  # Adapted from https://github.com/wojtekmach/req/blob/2a802826b1f3e65bb13a5a1da037ce2d8734e619/lib/req/response.ex#L265
-  # Copyright 2021 Wojtek Mach
-  # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
-  # http://www.apache.org/licenses/LICENSE-2.0
-  # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
-  # START
-
-  # changed to return :ok and :error tuples
+  # Credits to @wojtekmach
   defp retry_delay_in_ms(delay_value) do
     case Integer.parse(delay_value) do
       {seconds, ""} ->
@@ -182,13 +170,13 @@ defmodule Tesla.Middleware.Retry do
     "Dec" => "12"
   }
 
-  # changed to return :ok and :error tuples rather than raise if the date cannot be parwsed
   defp parse_http_datetime(datetime) do
     case String.split(datetime, " ") do
       [_day_of_week, day, month, year, time, "GMT"] ->
         case @month_numbers[month] do
           nil ->
-            {:error, "cannot parse \"retry-after\" header value #{inspect(datetime)} as datetime, reason: invalid month"}
+            {:error,
+             "cannot parse \"retry-after\" header value #{inspect(datetime)} as datetime, reason: invalid month"}
 
           month_number ->
             date = year <> "-" <> month_number <> "-" <> day
@@ -208,8 +196,6 @@ defmodule Tesla.Middleware.Retry do
          "cannot parse \"retry-after\" header value #{inspect(datetime)} as datetime, reason: header is not in HTTP-date or integer format"}
     end
   end
-
-  # END
 
   defp do_retry(env, next, context) do
     case context.retry_after do
@@ -253,7 +239,6 @@ defmodule Tesla.Middleware.Retry do
     %{env | opts: opts}
   end
 
-  # Provided delay from Retry-After plus jitter
   @spec retry_after_with_jitter(any(), integer(), number()) :: :ok
   def retry_after_with_jitter(cap, retry_after, jitter_factor) do
     # Ensures that the added jitter never exceeds the max delay
