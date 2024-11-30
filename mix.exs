@@ -92,7 +92,10 @@ defmodule Tesla.Mixfile do
       main: "readme",
       source_url: @source_url,
       source_ref: "v#{@version}",
-      skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
+      skip_undefined_reference_warnings_on: [
+        "CHANGELOG.md",
+        "guides/howtos/migrations/v1-macro-migration.md"
+      ],
       extra_section: "GUIDES",
       logo: "guides/elixir-tesla-logo.png",
       extras:
