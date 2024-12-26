@@ -14,7 +14,6 @@ defmodule Tesla.Test do
   - `expected_env` - The expected `t:Tesla.Env.t/0` struct to compare against.
   - `opts` - Additional options for fine-tuning the assertion (optional).
     - `:exclude_headers` - A list of header keys to exclude from the assertion.
-      By default, the "traceparent" header is always excluded.
 
   For the `body`, the function attempts to parse JSON and URL-encoded content
   when appropriate.
