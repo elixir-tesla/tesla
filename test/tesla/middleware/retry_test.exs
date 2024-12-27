@@ -324,7 +324,7 @@ defmodule Tesla.Middleware.RetryTest do
     assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 1
   end
 
-  test "jitter doesn't allow delay to be shorter than specified by Retry-After heade or larger than max delay" do
+  test "jitter doesn't allow delay to be shorter than specified by Retry-After header or larger than max delay" do
     defmodule ClientUsingRetryAfterHeaderWithHighJitter do
       use Tesla
 
