@@ -37,7 +37,10 @@ defmodule Tesla.Mixfile do
     [
       maintainers: ["Tymon Tobolski"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/elixir-tesla/tesla"}
+      links: %{
+        "GitHub" => @source_url,
+        "Changelog" => "#{@source_url}/blob/master/CHANGELOG.md"
+      }
     ]
   end
 
@@ -101,9 +104,9 @@ defmodule Tesla.Mixfile do
       extras:
         [
           "README.md",
-          "LICENSE"
+          LICENSE: [title: "License"]
           # TODO: add CHANGELOG.md
-          # "CHANGELOG.md"
+          # "CHANGELOG.md": [title: "Changelog"]
         ] ++ Path.wildcard("guides/**/*.{cheatmd,md}"),
       groups_for_extras: [
         Explanations: ~r"/explanations/",
