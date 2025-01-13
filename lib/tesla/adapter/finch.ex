@@ -70,8 +70,8 @@ if Code.ensure_loaded?(Finch) do
           {:ok, %Finch.Response{status: status, headers: headers, body: body}} ->
             {:ok, %Tesla.Env{env | status: status, headers: headers, body: body}}
 
-        {:error, %Mint.TransportError{reason: reason}} ->
-          {:error, reason}
+          {:error, %Mint.TransportError{reason: reason}} ->
+            {:error, reason}
 
           {:error, reason} ->
             {:error, reason}
