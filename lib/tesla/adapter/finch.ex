@@ -65,15 +65,20 @@ if Code.ensure_loaded?(Finch) do
       req_opts = Keyword.take(opts, [:pool_timeout, :receive_timeout])
       req = build(env.method, url, env.headers, env.body)
 
-      case request(req, name, req_opts, opts) do
-        {:ok, %Finch.Response{status: status, headers: headers, body: body}} ->
-          {:ok, %Tesla.Env{env | status: status, headers: headers, body: body}}
+      try do
+        case request(req, name, req_opts, opts) do
+          {:ok, %Finch.Response{status: status, headers: headers, body: body}} ->
+            {:ok, %Tesla.Env{env | status: status, headers: headers, body: body}}
 
         {:error, %Mint.TransportError{reason: reason}} ->
           {:error, reason}
 
-        {:error, reason} ->
-          {:error, reason}
+          {:error, reason} ->
+            {:error, reason}
+        end
+      rescue
+        e in RuntimeError ->
+          {:error, {:runtime_error, e}}
       end
     end
 
