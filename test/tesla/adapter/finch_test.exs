@@ -10,15 +10,14 @@ defmodule Tesla.Adapter.FinchTest do
   use Tesla.AdapterCase.StreamResponseBody
   use Tesla.AdapterCase.SSL
 
-  setup context do
+  setup do
     opts = [
       name: @finch_name,
       pools: %{
         @https => [
           conn_opts: [
             transport_opts: [cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"]
-          ],
-          size: Map.get(context, :pool_size, 50)
+          ]
         ]
       }
     ]
@@ -45,7 +44,6 @@ defmodule Tesla.Adapter.FinchTest do
     assert {:error, :timeout} = call(request, receive_timeout: 100, response: :stream)
   end
 
-  @tag pool_size: 1
   test "Unavailable connection" do
     :sys.suspend(@finch_name)
 
