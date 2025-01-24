@@ -85,15 +85,31 @@ defmodule Tesla.MockTest do
       assert env.body == %{"id" => 42}
     end
 
-    test "mock a request inside a spawned process" do
-      task =
+    test "mock a request inside a child process" do
+      child_task =
         Task.async(fn ->
           assert {:ok, %Tesla.Env{} = env} = Client.get("/json")
           assert env.status == 200
           assert env.body == %{"json" => 123}
         end)
 
-      Task.await(task)
+      Task.await(child_task)
+    end
+
+    test "mock a request inside a grandchild process" do
+      grandchild_task =
+        Task.async(fn ->
+          child_task =
+            Task.async(fn ->
+              assert {:ok, %Tesla.Env{} = env} = Client.get("/json")
+              assert env.status == 200
+              assert env.body == %{"json" => 123}
+            end)
+
+          Task.await(child_task)
+        end)
+
+      Task.await(grandchild_task)
     end
   end
 
