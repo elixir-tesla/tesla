@@ -172,7 +172,14 @@ defmodule Tesla.Middleware.JSON do
     if fun = opts[op] do
       fun.(data)
     else
-      engine = Keyword.get(opts, :engine, @default_engine)
+      engine =
+        case Keyword.fetch(opts, :engine) do
+          # Special case for JSON, which doesn't have encode/2 nor return {:ok, json}
+          {:ok, JSON} -> Tesla.Middleware.JSON.JSONAdapter
+          {:ok, engine} -> engine
+          :error -> @default_engine
+        end
+
       opts = Keyword.get(opts, :engine_opts, [])
 
       apply(engine, op, [data, opts])

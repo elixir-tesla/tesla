@@ -299,4 +299,52 @@ defmodule Tesla.Middleware.JsonTest do
       assert env.body == %{"value" => 123}
     end
   end
+
+  if Code.ensure_loaded?(JSON) do
+    describe "Engine: JSON" do
+      defmodule JSONClient do
+        use Tesla
+
+        plug Tesla.Middleware.JSON, engine: JSON
+
+        adapter fn env ->
+          assert env.body == ~S({"hello":"world"})
+
+          {:ok,
+           %{
+             env
+             | status: 200,
+               headers: [{"content-type", "application/json"}],
+               body: ~s|{"value": 123}|
+           }}
+        end
+      end
+
+      test "encodes/decodes as expected" do
+        assert {:ok, env} = JSONClient.post("/json", %{hello: "world"})
+        assert env.body == %{"value" => 123}
+      end
+
+      defmodule Decoder do
+        use Tesla
+
+        plug Tesla.Middleware.DecodeJson, engine: JSON
+
+        adapter fn env ->
+          {:ok,
+           %{
+             env
+             | status: 200,
+               headers: [{"content-type", "application/json"}],
+               body: ~s|{"value": 123}|
+           }}
+        end
+      end
+
+      test "decodes as expected" do
+        assert {:ok, env} = Decoder.get("/json")
+        assert env.body == %{"value" => 123}
+      end
+    end
+  end
 end
