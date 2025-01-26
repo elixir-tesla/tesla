@@ -12,6 +12,15 @@ defmodule Tesla.Middleware.JSON do
   mix deps.compile tesla
   ```
 
+  > #### Using built-in `JSON` from Elixir 1.18 {: .info}
+  >
+  > This middleware supports the built-in `JSON` module introduced in ELixir 1.18, but for historical
+  > reasons is it not the default. To use it, set it as the `:engine`:
+  >
+  >     {Tesla.Middleware.JSON, engine: JSON}
+  >
+  > For more advanced usage using custom encoders/decodes, provide the `:encode` and `:decode` anonymous functions instead.
+
   If you only need to encode the request body or decode the response body,
   you can use `Tesla.Middleware.EncodeJson` or `Tesla.Middleware.DecodeJson` directly instead.
 
@@ -23,6 +32,8 @@ defmodule Tesla.Middleware.JSON do
       Tesla.client([
         # use jason engine
         Tesla.Middleware.JSON,
+        # or
+        {Tesla.Middleware.JSON, engine: JSON}
         # or
         {Tesla.Middleware.JSON, engine: JSX, engine_opts: [strict: [:comments]]},
         # or
@@ -39,7 +50,7 @@ defmodule Tesla.Middleware.JSON do
   - `:decode` - decoding function
   - `:encode` - encoding function
   - `:encode_content_type` - content-type to be used in request header
-  - `:engine` - encode/decode engine, e.g `Jason`, `Poison` or `JSX`  (defaults to Jason)
+  - `:engine` - encode/decode engine, e.g `JSON`, `Jason`, `Poison` or `JSX`  (defaults to Jason)
   - `:engine_opts` - optional engine options
   - `:decode_content_types` - list of additional decodable content-types
   """
