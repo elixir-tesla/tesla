@@ -229,23 +229,12 @@ defmodule Tesla.Mock do
 
   # Gets the mock fun for the current process or its ancestors
   defp pdict_get do
-    pid_holder =
-      Enum.find(Process.get(:"$ancestors", []), self(), fn ancestor ->
-        is_holder? =
-          ancestor
-          |> Process.info()
-          |> Keyword.get(:dictionary)
-          |> Keyword.get(__MODULE__)
+    potential_mock_holder_pids = [self() | Enum.reverse(Process.get(:"$callers", []))]
 
-        !is_nil(is_holder?)
-      end)
-      |> case do
-        nil -> raise "Unknown pid_holder in mock"
-        pid when is_pid(pid) -> pid
-        name when is_atom(name) -> Process.whereis(name)
-      end
-
-    pid_holder |> Process.info() |> Keyword.get(:dictionary) |> Keyword.get(__MODULE__)
+    Enum.find_value(potential_mock_holder_pids, nil, fn pid ->
+      {:dictionary, process_dictionary} = Process.info(pid, :dictionary)
+      Keyword.get(process_dictionary, __MODULE__)
+    end)
   end
 
   defp agent_set(fun) do
