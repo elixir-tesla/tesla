@@ -113,6 +113,41 @@ defmodule Tesla.MockTest do
     end
   end
 
+  describe "supervised task" do
+    test "allows mocking in the caller process" do
+      # in real apps, task supervisor will be part of the supervision tree
+      # and it won't be an ancestor of the test process
+      # to simulate that, we will set the mock in a task
+      #
+      # test_process
+      # |-mocking_task will set the mock and create the supervised task
+      # `-task supervisor
+      #   `- supervised_task
+      # this way, mocking_task is not an $ancestor of the supervised_task
+      # but it is $caller
+      {:ok, supervisor_pid} = start_supervised(Task.Supervisor, restart: :temporary)
+
+      mocking_task =
+        Task.async(fn ->
+          mock(fn
+            %{url: "/callers-test"} ->
+              {:ok, %Tesla.Env{status: 200, body: "callers work"}}
+          end)
+
+          supervised_task =
+            Task.Supervisor.async(supervisor_pid, fn ->
+              assert {:ok, %Tesla.Env{} = env} = Client.get("/callers-test")
+              assert env.status == 200
+              assert env.body == "callers work"
+            end)
+
+          Task.await(supervised_task)
+        end)
+
+      Task.await(mocking_task)
+    end
+  end
+
   describe "without mock" do
     test "raise on unmocked request" do
       assert_raise Tesla.Mock.Error, fn ->
