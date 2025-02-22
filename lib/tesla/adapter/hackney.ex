@@ -95,6 +95,7 @@ if Code.ensure_loaded?(:hackney) do
       end)
     end
 
+    defp handle({:connect_error, {:error, reason}}, _opts), do: {:error, reason}
     defp handle({:error, _} = error, _opts), do: error
     defp handle({:ok, status, headers}, _opts), do: {:ok, status, headers, []}
 
