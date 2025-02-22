@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/elixir-tesla/tesla/compare/v1.14.0...v1.14.1) (2025-02-22)
+
+
+### Bug Fixes
+
+* add basic Hackney 1.22 support: {:connect_error, _} ([#754](https://github.com/elixir-tesla/tesla/issues/754)) ([127db9f](https://github.com/elixir-tesla/tesla/commit/127db9f0f4632cf290ce76d61bd1407367676266)), closes [#753](https://github.com/elixir-tesla/tesla/issues/753)
+
 ## [1.14.0](https://github.com/elixir-tesla/tesla/compare/v1.13.2...v1.14.0) (2025-02-03)
 
 
