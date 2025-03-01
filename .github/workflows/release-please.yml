@@ -16,7 +16,7 @@ jobs:
     steps:
       - id: release
         name: Release
-        uses: googleapis/release-please-action@v4.1.3
+        uses: googleapis/release-please-action@v4.1.4
         with:
           config-file: .github/release-please-config.json
           manifest-file: .github/release-please-manifest.json
