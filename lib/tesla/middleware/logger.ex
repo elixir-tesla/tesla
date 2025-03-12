@@ -29,32 +29,42 @@ defmodule Tesla.Middleware.Logger.Formatter do
           Tesla.Env.t(),
           Tesla.Env.result(),
           integer,
-          format | function | {module, atom}
+          format | function | {module, atom},
+          keyword
         ) :: IO.chardata()
-  def format(request, response, time, fun) when is_function(fun) do
+  def format(request, response, time, fun, _opts) when is_function(fun) do
     apply(fun, [request, response, time])
   end
 
-  def format(request, response, time, {mod, fun}) do
+  def format(request, response, time, {mod, fun}, _opts) do
     apply(mod, fun, [request, response, time])
   end
 
-  def format(request, response, time, format) do
-    Enum.map(format, &output(&1, request, response, time))
+  def format(request, response, time, format, opts) do
+    Enum.map(format, &output(&1, request, response, time, opts))
   end
 
-  defp output(:query, env, _, _) do
+  defp output(:query, env, _response, _time, _opts) do
     encoding = Keyword.get(env.opts, :query_encoding, :www_form)
 
     Tesla.encode_query(env.query, encoding)
   end
 
-  defp output(:method, env, _, _), do: env.method |> to_string() |> String.upcase()
-  defp output(:url, env, _, _), do: env.url
-  defp output(:status, _, {:ok, env}, _), do: to_string(env.status)
-  defp output(:status, _, {:error, reason}, _), do: "error: " <> inspect(reason)
-  defp output(:time, _, _, time), do: :io_lib.format("~.3f", [time / 1000])
-  defp output(binary, _, _, _), do: binary
+  defp output(:method, env, _resp, _time, _opts), do: env.method |> to_string() |> String.upcase()
+  defp output(:url, env, _resp, _time, opts) do
+    req_url = env.opts[:req_url]
+    url_display = opts[:url_display] || :raw
+
+    case {url_display, req_url} do
+      {:raw, _} -> env.url
+      {:template, nil} -> env.url
+      {:template, req_url} -> req_url
+    end
+  end
+  defp output(:status, _req, {:ok, env}, _time, _opts), do: to_string(env.status)
+  defp output(:status, _req, {:error, reason}, _time, _opts), do: "error: " <> inspect(reason)
+  defp output(:time, _req, _resp, time, _opts), do: :io_lib.format("~.3f", [time / 1000])
+  defp output(binary, _req, _resp, _time, _opts), do: binary
 end
 
 defmodule Tesla.Middleware.Logger do
@@ -80,6 +90,9 @@ defmodule Tesla.Middleware.Logger do
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
   - `:debug` - use `Logger.debug/2` to log request/response details
   - `:format` - custom string template or function for log message (see below)
+  - `:url_display` - how to display the URL in the log message
+    - `:raw` - use the raw URL (default)
+    - `:template` - use the template URL (requires `Tesla.Middleware.KeepRequest` and `Tesla.Middleware.PathParams` middleware)
 
   ## Custom log format
 
@@ -224,7 +237,7 @@ defmodule Tesla.Middleware.Logger do
       if optional_runtime_format, do: Formatter.compile(optional_runtime_format), else: @format
 
     level = log_level(response, config)
-    Logger.log(level, fn -> Formatter.format(env, response, time, format) end)
+    Logger.log(level, fn -> Formatter.format(env, response, time, format, opts) end)
 
     if Keyword.get(config, :debug, true) do
       Logger.debug(fn -> debug(env, response, config) end)
