@@ -58,16 +58,15 @@ defmodule Tesla.Middleware.PathParams do
     Tesla.run(%{env | url: url}, next)
   end
 
-  @rx ~r/:([a-zA-Z][a-zA-Z0-9_]*)|[{]([a-zA-Z][-a-zA-Z0-9_]*)[}]/
-
   defp build_url(url, nil), do: url
 
   defp build_url(url, params) when is_struct(params), do: build_url(url, Map.from_struct(params))
 
   defp build_url(url, params) when is_map(params) or is_list(params) do
+    rx = ~r/:([a-zA-Z][a-zA-Z0-9_]*)|[{]([a-zA-Z][-a-zA-Z0-9_]*)[}]/
     safe_params = Map.new(params, fn {name, value} -> {to_string(name), value} end)
 
-    Regex.replace(@rx, url, fn
+    Regex.replace(rx, url, fn
       # OpenAPI matches
       match, "", name -> replace_param(safe_params, name, match)
       # Phoenix matches
