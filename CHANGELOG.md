@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.2](https://github.com/elixir-tesla/tesla/compare/v1.14.1...v1.14.2) (2025-04-08)
+
+
+### Bug Fixes
+
+* move regexes out of module attributes to fix compatibility with OTP 28 ([#763](https://github.com/elixir-tesla/tesla/issues/763)) ([1196bc6](https://github.com/elixir-tesla/tesla/commit/1196bc600e30d0d9e38d72fcc6ccf1863054bb33))
+
 ## [1.14.1](https://github.com/elixir-tesla/tesla/compare/v1.14.0...v1.14.1) (2025-02-22)
 
 
