@@ -112,6 +112,7 @@ if Code.ensure_loaded?(Finch) do
         {:status, status}, _acc -> status
         {:headers, headers}, status -> send(owner, {ref, {:status, status, headers}})
         {:data, data}, _acc -> send(owner, {ref, {:data, data}})
+        {:trailers, trailers}, _acc -> trailers
       end
 
       task =
