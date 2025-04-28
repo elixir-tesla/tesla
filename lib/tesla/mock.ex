@@ -238,18 +238,24 @@ defmodule Tesla.Mock do
   end
 
   defp agent_set(fun) do
-    case Process.whereis(__MODULE__) do
-      nil ->
-        ExUnit.Callbacks.start_supervised!(
-          %{
-            id: __MODULE__,
-            start: {Agent, :start_link, [fn -> fun end, [{:name, __MODULE__}]]}
-          },
-          []
-        )
+    mock_start_result =
+      ExUnit.Callbacks.start_supervised(
+        %{
+          id: __MODULE__,
+          start: {Agent, :start_link, [fn -> fun end, [{:name, __MODULE__}]]}
+        },
+        []
+      )
 
-      pid ->
+    case mock_start_result do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, {:already_started, pid}} ->
         Agent.update(pid, fn _ -> fun end)
+
+      other ->
+        raise other
     end
   end
 
