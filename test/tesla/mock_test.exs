@@ -148,6 +148,31 @@ defmodule Tesla.MockTest do
     end
   end
 
+  describe "agent" do
+    defmodule MyAgent do
+      use Agent
+
+      def start_link(_arg) do
+        Agent.start_link(fn -> Client.get!("/ancestors-test") end, name: __MODULE__)
+      end
+    end
+
+    # TODO: the standard way is to just look in $callers.
+    # However, we were using $ancestors before and users were depending on that behaviour
+    # https://github.com/elixir-tesla/tesla/issues/765
+    # To make sure we don't break existing flows,
+    # we will check mocks *both* in $callers and $ancestors
+    # We might want to remove checking in $ancestors in a major release
+    test "allows mocking in the ancestor" do
+      mock(fn
+        %{url: "/ancestors-test"} ->
+          {:ok, %Tesla.Env{status: 200, body: "ancestors work"}}
+      end)
+
+      {:ok, _pid} = MyAgent.start_link([])
+    end
+  end
+
   describe "without mock" do
     test "raise on unmocked request" do
       assert_raise Tesla.Mock.Error, fn ->

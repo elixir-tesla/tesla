@@ -229,7 +229,15 @@ defmodule Tesla.Mock do
 
   # Gets the mock fun for the current process or its ancestors
   defp pdict_get do
-    potential_mock_holder_pids = [self() | Enum.reverse(Process.get(:"$callers", []))]
+    callers = Process.get(:"$callers", [])
+    # TODO: the standard way is to just look in $callers.
+    # However, we were using $ancestors before and users were depending on that behaviour
+    # https://github.com/elixir-tesla/tesla/issues/765
+    # To make sure we don't break existing flows,
+    # we will check mocks *both* in $callers and $ancestors
+    # We might want to remove checking in $ancestors in a major release
+    ancestors = Process.get(:"$ancestors", [])
+    potential_mock_holder_pids = [self() | Enum.reverse(callers) ++ Enum.reverse(ancestors)]
 
     Enum.find_value(potential_mock_holder_pids, nil, fn pid ->
       {:dictionary, process_dictionary} = Process.info(pid, :dictionary)
