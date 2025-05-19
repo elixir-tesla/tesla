@@ -15,3 +15,5 @@ config :sasl,
   sasl_error_logger: false
 
 config :tesla, MockClient, adapter: Tesla.Mock
+
+config :tesla, disable_deprecated_builder_warning: true
