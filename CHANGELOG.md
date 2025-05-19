@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.14.2](https://github.com/elixir-tesla/tesla/compare/v1.14.1...v1.14.2) (2025-05-02)
+
+
+### Bug Fixes
+
+* bring back searching for mocks in ancestors ([#771](https://github.com/elixir-tesla/tesla/issues/771)) ([601e7b6](https://github.com/elixir-tesla/tesla/commit/601e7b69714acf63a6800945f66fa79a21d7d823))
+* fix race condition in Tesla.Mock.agent_set ([8cf7745](https://github.com/elixir-tesla/tesla/commit/8cf7745179088ea96f5b4c7f2f05b2b7046b5677))
+* handle HTTP response trailers when use Finch + stream ([#767](https://github.com/elixir-tesla/tesla/issues/767)) ([727cb0f](https://github.com/elixir-tesla/tesla/commit/727cb0f18369e7d307df5c051b2060c07477586a))
+* move regexes out of module attributes to fix compatibility with OTP 28 ([#763](https://github.com/elixir-tesla/tesla/issues/763)) ([1196bc6](https://github.com/elixir-tesla/tesla/commit/1196bc600e30d0d9e38d72fcc6ccf1863054bb33))
+
 ## [1.14.1](https://github.com/elixir-tesla/tesla/compare/v1.14.0...v1.14.1) (2025-02-22)
 
 
