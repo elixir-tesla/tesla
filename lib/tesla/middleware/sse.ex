@@ -46,7 +46,11 @@ defmodule Tesla.Middleware.SSE do
     |> Stream.chunk_while(
       "",
       fn elem, acc ->
-        {lines, [rest]} = (acc <> elem) |> String.split("\n\n") |> Enum.split(-1)
+        {lines, [rest]} =
+          (acc <> elem)
+          |> String.split(double_linebreak_regex())
+          |> Enum.split(-1)
+
         {:cont, lines, rest}
       end,
       fn
@@ -61,14 +65,16 @@ defmodule Tesla.Middleware.SSE do
 
   defp decode_body(binary, opts) when is_binary(binary) do
     binary
-    |> String.split("\n\n")
+    |> String.split(double_linebreak_regex())
     |> Enum.map(&decode_message/1)
     |> Enum.flat_map(&only(&1, opts[:only]))
   end
 
+  defp double_linebreak_regex(), do: ~r/((\r\n)|((?<!\r)\n)|(\r(?!\n))){2}/
+
   defp decode_message(message) do
     message
-    |> String.split("\n")
+    |> String.split(["\r\n", "\n", "\r"])
     |> Enum.map(&decode_body/1)
     |> Enum.reduce(%{}, fn
       :empty, acc -> acc

@@ -120,5 +120,29 @@ defmodule Tesla.Middleware.SSETest do
 
       assert Enum.to_list(env.body) == [%{data: "data1"}, %{data: "data2"}, %{data: "data3"}]
     end
+
+    test "handle stream data with varying line terminators" do
+      adapter = fn _env ->
+        chunks = [
+          ~s|data: data1\n|,
+          ~s|\ndata: data2\r|,
+          ~s|\r\ndata: data3\r\revent: event4\r|,
+          ~s|\ndata: data4\n\n|
+        ]
+
+        stream = Stream.map(chunks, & &1)
+
+        {:ok, %{@env | body: stream}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+
+      assert Enum.to_list(env.body) == [
+               %{data: "data1"},
+               %{data: "data2"},
+               %{data: "data3"},
+               %{event: "event4", data: "data4"}
+             ]
+    end
   end
 end
