@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.14.3](https://github.com/elixir-tesla/tesla/compare/v1.14.2...v1.14.3) (2025-05-30)
+
+
+### Bug Fixes
+
+* Handle carriage return \r line terminators in SSE ([1efe6e3](https://github.com/elixir-tesla/tesla/commit/1efe6e3fb426950697f4fcd7cda2bf9197ea4477))
+* handle carriage return \r line terminators in SSE ([#772](https://github.com/elixir-tesla/tesla/issues/772)) ([1efe6e3](https://github.com/elixir-tesla/tesla/commit/1efe6e3fb426950697f4fcd7cda2bf9197ea4477))
+
 ## [1.14.2](https://github.com/elixir-tesla/tesla/compare/v1.14.1...v1.14.2) (2025-05-02)
 
 
