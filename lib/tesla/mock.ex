@@ -237,7 +237,14 @@ defmodule Tesla.Mock do
     # we will check mocks *both* in $callers and $ancestors
     # We might want to remove checking in $ancestors in a major release
     ancestors = Process.get(:"$ancestors", [])
-    potential_mock_holder_pids = [self() | Enum.reverse(callers) ++ Enum.reverse(ancestors)]
+
+    potential_mock_holder_pids =
+      [self() | Enum.reverse(callers) ++ Enum.reverse(ancestors)]
+      |> Enum.map(fn
+        pid when is_pid(pid) -> pid
+        atom when is_atom(atom) -> Process.whereis(atom)
+      end)
+      |> Enum.filter(&is_pid/1)
 
     Enum.find_value(potential_mock_holder_pids, nil, fn pid ->
       {:dictionary, process_dictionary} = Process.info(pid, :dictionary)
