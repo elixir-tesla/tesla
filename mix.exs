@@ -2,7 +2,7 @@ defmodule Tesla.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/elixir-tesla/tesla"
-  @version "1.14.2"
+  @version "1.15.2"
 
   def project do
     [
@@ -56,7 +56,7 @@ defmodule Tesla.Mixfile do
 
       # http clients
       {:ibrowse, "4.4.2", optional: true},
-      {:hackney, "~> 1.21", optional: true},
+      {:hackney, "~> 1.24", optional: true},
       {:gun, ">= 1.0.0", optional: true},
       {:finch, "~> 0.13", optional: true},
       {:castore, "~> 0.1 or ~> 1.0", optional: true},
