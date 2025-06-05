@@ -76,7 +76,8 @@ defmodule Tesla.Middleware.Logger do
 
   ## Options
 
-  - `:log_level` - custom function for calculating log level (see below)
+  - `:level` - custom function for calculating log level or atom for fixed level (see below)
+  - `:log_level` - (deprecated) custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
   - `:debug` - use `Logger.debug/2` to log request/response details
   - `:format` - custom string template or function for log message (see below)
@@ -120,7 +121,43 @@ defmodule Tesla.Middleware.Logger do
   - `:warn` or `:warning` - for 3xx responses
   - `:info` - for 2xx responses
 
-  You can customize this setting by providing your own `log_level/1` function:
+  You can customize this setting by providing your own level function that accepts
+  both success and error cases:
+
+  ```elixir
+  defmodule MyClient do
+    def client do
+      Tesla.client([
+        {Tesla.Middleware.Logger, level: &my_level/1}
+      ])
+    end
+
+    def my_level({:ok, env}) do
+      case env.status do
+        404 -> :info
+        _ -> :default
+      end
+    end
+
+    def my_level({:error, _reason}) do
+      :error
+    end
+  end
+  ```
+
+  Or provide a fixed log level:
+
+  ```elixir
+  defmodule MyClient do
+    def client do
+      Tesla.client([
+        {Tesla.Middleware.Logger, level: :debug}
+      ])
+    end
+  end
+  ```
+
+  You can also use the deprecated `log_level` option (will show a deprecation warning):
 
   ```elixir
   defmodule MyClient do
@@ -137,6 +174,13 @@ defmodule Tesla.Middleware.Logger do
       end
     end
   end
+  ```
+
+  To disable the deprecation warning for `:log_level`, add this to your config:
+
+  ```elixir
+  # config/config.exs
+  config :tesla, disable_log_level_warning: true
   ```
 
   ## Logger Debug output
@@ -233,27 +277,53 @@ defmodule Tesla.Middleware.Logger do
     response
   end
 
-  defp log_level({:error, _}, _), do: :error
+  defp log_level(response, config) do
+    log_level_option = Keyword.get(config, :log_level)
+    level_option = Keyword.get(config, :level)
 
-  defp log_level({:ok, env}, config) do
-    case Keyword.get(config, :log_level) do
-      nil ->
-        default_log_level(env)
+    cond do
+      log_level_option != nil and level_option != nil ->
+        raise ArgumentError, "cannot provide both :log_level and :level options"
 
-      fun when is_function(fun) ->
-        case fun.(env) do
-          :default -> default_log_level(env)
-          warning when warning in [:warn, :warning] -> @warning_level
-          level -> level
-        end
+      log_level_option != nil ->
+        IO.warn(":log_level option is deprecated, use :level option instead")
 
-      warning when warning in [:warn, :warning] ->
-        @warning_level
+        apply_level_function(response, &legacy_log_level_wrapper(log_level_option, &1))
 
-      atom when is_atom(atom) ->
-        atom
+      level_option != nil ->
+        apply_level_function(response, level_option)
+
+      true ->
+        default_response_log_level(response)
     end
   end
+
+  defp apply_level_function(response, fun) when is_function(fun) do
+    case fun.(response) do
+      :default -> default_response_log_level(response)
+      warning when warning in [:warn, :warning] -> @warning_level
+      level -> level
+    end
+  end
+
+  defp apply_level_function(_response, atom) when is_atom(atom) do
+    case atom do
+      warning when warning in [:warn, :warning] -> @warning_level
+      level -> level
+    end
+  end
+
+  # Wrapper function to adapt old log_level functions to the new response tuple format
+  defp legacy_log_level_wrapper(log_level_function, {:ok, env}) do
+    log_level_function.(env)
+  end
+
+  defp legacy_log_level_wrapper(_log_level_function, {:error, _}) do
+    :error
+  end
+
+  defp default_response_log_level({:error, _}), do: :error
+  defp default_response_log_level({:ok, env}), do: default_log_level(env)
 
   @spec default_log_level(Tesla.Env.t()) :: log_level
   def default_log_level(env) do

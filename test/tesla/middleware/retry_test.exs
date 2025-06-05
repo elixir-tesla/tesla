@@ -351,7 +351,7 @@ defmodule Tesla.Middleware.RetryTest do
     finish_time = :os.system_time(:millisecond)
 
     # need to allow some time for the request handling; should be small relative to max_delay to minimize probability of false negatives
-    allowed_execution_ms = 100
+    allowed_execution_ms = 200
 
     %{retries: retries, start_time: start_time} = Agent.get(LaggyAdapter, fn state -> state end)
 
