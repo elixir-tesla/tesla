@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.14.3](https://github.com/elixir-tesla/tesla/compare/v1.14.2...v1.14.3) (2025-06-02)
+
+
+### Bug Fixes
+
+* Handle carriage return \r line terminators in SSE ([1efe6e3](https://github.com/elixir-tesla/tesla/commit/1efe6e3fb426950697f4fcd7cda2bf9197ea4477))
+* handle carriage return \r line terminators in SSE ([#772](https://github.com/elixir-tesla/tesla/issues/772)) ([1efe6e3](https://github.com/elixir-tesla/tesla/commit/1efe6e3fb426950697f4fcd7cda2bf9197ea4477))
+* Handle named ancestors in Tesla.Mock ([#774](https://github.com/elixir-tesla/tesla/issues/774)) ([6cf380e](https://github.com/elixir-tesla/tesla/commit/6cf380e56ce04308a96d94c814e211aef063cf76))
+
 ## [1.14.2](https://github.com/elixir-tesla/tesla/compare/v1.14.1...v1.14.2) (2025-05-02)
 
 
