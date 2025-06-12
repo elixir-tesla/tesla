@@ -223,6 +223,122 @@ defmodule Tesla.Middleware.LoggerTest do
     end
   end
 
+  describe "with level" do
+    defmodule ClientWithLevel do
+      use Tesla
+
+      plug Tesla.Middleware.Logger, level: &level/1
+
+      defp level({:ok, env}) do
+        cond do
+          env.status == 404 -> :info
+          env.status >= 500 -> :error
+          true -> :debug
+        end
+      end
+
+      defp level({:error, _reason}) do
+        :warn
+      end
+
+      adapter fn env ->
+        case env.url do
+          "/connection-error" ->
+            {:error, :econnrefused}
+
+          "/server-error" ->
+            {:ok, %{env | status: 500, body: "server error"}}
+
+          "/not-found" ->
+            {:ok, %{env | status: 404, body: "not found"}}
+
+          "/ok" ->
+            {:ok, %{env | status: 200, body: "ok"}}
+        end
+      end
+    end
+
+    test "connection error logs at warn level" do
+      log = capture_log(fn -> ClientWithLevel.get("/connection-error") end)
+      assert log =~ "[warning] GET /connection-error -> error: :econnrefused"
+    end
+
+    test "server error logs at error level" do
+      log = capture_log(fn -> ClientWithLevel.get("/server-error") end)
+      assert log =~ "[error] GET /server-error -> 500"
+    end
+
+    test "not found logs at info level" do
+      log = capture_log(fn -> ClientWithLevel.get("/not-found") end)
+      assert log =~ "[info] GET /not-found -> 404"
+    end
+
+    test "ok logs at debug level" do
+      Logger.configure(level: :debug)
+      log = capture_log(fn -> ClientWithLevel.get("/ok") end)
+      assert log =~ "[debug] GET /ok -> 200"
+    end
+  end
+
+  describe "with level as atom" do
+    defmodule ClientWithFixedLevel do
+      use Tesla
+
+      plug Tesla.Middleware.Logger, level: :warn
+
+      adapter fn env ->
+        case env.url do
+          "/any-request" ->
+            {:ok, %{env | status: 200, body: "ok"}}
+        end
+      end
+    end
+
+    test "always logs at the specified level" do
+      log = capture_log(fn -> ClientWithFixedLevel.get("/any-request") end)
+      assert log =~ "[warning] GET /any-request -> 200"
+    end
+  end
+
+  describe "conflicting level options" do
+    test "raises error when both :level and :log_level are provided" do
+      assert_raise ArgumentError, "cannot provide both :log_level and :level options", fn ->
+        client =
+          Tesla.client(
+            [
+              {Tesla.Middleware.Logger,
+               level: :info, log_level: &Tesla.Middleware.Logger.default_log_level/1}
+            ],
+            fn env ->
+              {:ok, %{env | status: 200, body: "ok"}}
+            end
+          )
+
+        Tesla.get(client, "/test")
+      end
+    end
+  end
+
+  describe "deprecation warning configuration" do
+    test "log_level deprecation warning shows by default" do
+      # Capture both log and warnings
+      output =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          client =
+            Tesla.client(
+              [
+                {Tesla.Middleware.Logger, log_level: fn _env -> :info end}
+              ],
+              fn env -> {:ok, %{env | status: 200}} end
+            )
+
+          Tesla.get(client, "/test")
+        end)
+
+      assert output =~ ":log_level option is deprecated"
+    end
+  end
+
   alias Tesla.Middleware.Logger.Formatter
 
   defmodule CompileMod do
