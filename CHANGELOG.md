@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/elixir-tesla/tesla/compare/v1.14.3...v1.15.0) (2025-06-12)
+
+
+### Features
+
+* add logging options to use `:level` instead of deprecated `:log_level` ([#779](https://github.com/elixir-tesla/tesla/issues/779)) ([ffc3609](https://github.com/elixir-tesla/tesla/commit/ffc36097409175f2e9b15abaffde29e8c3b52fe7))
+
 ## [1.14.3](https://github.com/elixir-tesla/tesla/compare/v1.14.2...v1.14.3) (2025-06-02)
 
 
