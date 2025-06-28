@@ -8,8 +8,7 @@ defmodule Tesla.Middleware.Timeout do
   defmodule MyClient do
     def client do
       Tesla.client([
-        Tesla.Middleware.Timeout,
-        timeout: 2_000
+        {Tesla.Middleware.Timeout, timeout: 2_000}
       ])
     end
   end
@@ -23,9 +22,10 @@ defmodule Tesla.Middleware.Timeout do
   defmodule MyClient do
     def client do
       Tesla.client([
-        Tesla.Middleware.Timeout,
-        timeout: 2_000,
-        task_module: OpentelemetryProcessPropagator.Task
+        {Tesla.Middleware.Timeout, [
+          timeout: 2_000,
+          task_module: OpentelemetryProcessPropagator.Task
+        }
       ])
     end
   end
