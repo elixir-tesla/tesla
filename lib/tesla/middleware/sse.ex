@@ -55,7 +55,7 @@ defmodule Tesla.Middleware.SSE do
       end,
       fn
         "" -> {:cont, ""}
-        acc -> {:cont, acc, ""}
+        acc -> {:cont, [acc], ""}
       end
     )
     |> Stream.flat_map(& &1)
