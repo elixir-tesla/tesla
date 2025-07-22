@@ -101,7 +101,9 @@ defmodule Tesla.Middleware.SSETest do
 
       assert env.body == ["data1", "data2\ndata3", "data4"]
     end
+  end
 
+  describe "streaming response" do
     test "handle stream data" do
       adapter = fn _env ->
         chunks = [
@@ -143,6 +145,24 @@ defmodule Tesla.Middleware.SSETest do
                %{data: "data3"},
                %{event: "event4", data: "data4"}
              ]
+    end
+
+    test "handle unterminated final message" do
+      adapter = fn _env ->
+        chunks = [
+          ~s|data: data1\n\n|,
+          ~s|data: data2\n\n|,
+          ~s|data: data3|
+        ]
+
+        stream = Stream.map(chunks, & &1)
+
+        {:ok, %{@env | body: stream}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+
+      assert Enum.to_list(env.body) == [%{data: "data1"}, %{data: "data2"}, %{data: "data3"}]
     end
   end
 end
