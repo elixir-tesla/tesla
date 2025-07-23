@@ -314,8 +314,13 @@ defmodule Tesla.Middleware.Logger do
   end
 
   # Wrapper function to adapt old log_level functions to the new response tuple format
-  defp legacy_log_level_wrapper(log_level_function, {:ok, env}) do
+  defp legacy_log_level_wrapper(log_level_function, {:ok, env})
+       when is_function(log_level_function) do
     log_level_function.(env)
+  end
+
+  defp legacy_log_level_wrapper(log_level_atom, {:ok, _env}) when is_atom(log_level_atom) do
+    log_level_atom
   end
 
   defp legacy_log_level_wrapper(_log_level_function, {:error, _}) do
