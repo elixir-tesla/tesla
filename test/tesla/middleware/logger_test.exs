@@ -337,6 +337,62 @@ defmodule Tesla.Middleware.LoggerTest do
 
       assert output =~ ":log_level option is deprecated"
     end
+
+    test "log_level with atom value still works (backward compatibility)" do
+      Logger.configure(level: :debug)
+
+      warning_output =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          client =
+            Tesla.client(
+              [
+                {Tesla.Middleware.Logger, log_level: :debug}
+              ],
+              fn env -> {:ok, %{env | status: 200}} end
+            )
+
+          log_output = capture_log(fn -> Tesla.get(client, "/test") end)
+          assert log_output =~ "[debug] GET /test -> 200"
+        end)
+
+      assert warning_output =~ ":log_level option is deprecated"
+    end
+
+    test "log_level with atom value for warning levels" do
+      warning_output =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          client =
+            Tesla.client(
+              [
+                {Tesla.Middleware.Logger, log_level: :warn}
+              ],
+              fn env -> {:ok, %{env | status: 200}} end
+            )
+
+          log = capture_log(fn -> Tesla.get(client, "/test") end)
+          assert log =~ "[warning] GET /test -> 200"
+        end)
+
+      assert warning_output =~ ":log_level option is deprecated"
+    end
+
+    test "log_level with atom value handles error responses" do
+      warning_output =
+        ExUnit.CaptureIO.capture_io(:stderr, fn ->
+          client =
+            Tesla.client(
+              [
+                {Tesla.Middleware.Logger, log_level: :info}
+              ],
+              fn _env -> {:error, :connection_failed} end
+            )
+
+          log = capture_log(fn -> Tesla.get(client, "/test") end)
+          assert log =~ "[error] GET /test -> error: :connection_failed"
+        end)
+
+      assert warning_output =~ ":log_level option is deprecated"
+    end
   end
 
   alias Tesla.Middleware.Logger.Formatter
