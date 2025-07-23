@@ -286,7 +286,9 @@ defmodule Tesla.Middleware.Logger do
         raise ArgumentError, "cannot provide both :log_level and :level options"
 
       log_level_option != nil ->
-        IO.warn(":log_level option is deprecated, use :level option instead")
+        if not Application.get_env(:tesla, :disable_log_level_warning, false) do
+          IO.warn(":log_level option is deprecated, use :level option instead")
+        end
 
         apply_level_function(response, &legacy_log_level_wrapper(log_level_option, &1))
 
