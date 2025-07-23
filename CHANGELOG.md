@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/elixir-tesla/tesla/compare/v1.15.0...v1.15.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* legacy log level handling to support atom values for backward compatibility ([5029174](https://github.com/elixir-tesla/tesla/commit/5029174d646a6f1d63088a8a947b4b44fb30b55f))
+
 ## [1.15.0](https://github.com/elixir-tesla/tesla/compare/v1.14.3...v1.15.0) (2025-07-22)
 
 
