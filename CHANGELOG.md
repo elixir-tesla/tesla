@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.15.2](https://github.com/elixir-tesla/tesla/compare/v1.15.1...v1.15.2) (2025-07-23)
+
+
+### Bug Fixes
+
+* suppress deprecation warning for :log_level option ([#794](https://github.com/elixir-tesla/tesla/issues/794)) ([478c16e](https://github.com/elixir-tesla/tesla/commit/478c16e79c7bad32bd70ffe51f52ad9dae071af6))
+* suppress deprecation warning for :log_level option based on configuration ([478c16e](https://github.com/elixir-tesla/tesla/commit/478c16e79c7bad32bd70ffe51f52ad9dae071af6))
+
 ## [1.15.1](https://github.com/elixir-tesla/tesla/compare/v1.15.0...v1.15.1) (2025-07-23)
 
 
