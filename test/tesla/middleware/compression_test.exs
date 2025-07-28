@@ -61,6 +61,9 @@ defmodule Tesla.Middleware.CompressionTest do
 
           "/response-identity" ->
             {200, [{"content-type", "text/plain"}, {"content-encoding", "identity"}], "unchanged"}
+
+          "/response-empty" ->
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], ""}
         end
 
       {:ok, %{env | status: status, headers: headers, body: body}}
@@ -81,6 +84,12 @@ defmodule Tesla.Middleware.CompressionTest do
   test "return unchanged response for unsupported content-encoding" do
     assert {:ok, env} = CompressionResponseClient.get("/response-identity")
     assert env.body == "unchanged"
+    assert env.headers == [{"content-type", "text/plain"}]
+  end
+
+  test "return unchanged response for empty body (gzip)" do
+    assert {:ok, env} = CompressionResponseClient.get("/response-empty")
+    assert env.body == ""
     assert env.headers == [{"content-type", "text/plain"}]
   end
 
