@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.3](https://github.com/elixir-tesla/tesla/compare/v1.15.2...v1.15.3) (2025-07-30)
+
+
+### Bug Fixes
+
+* Avoid crash then gzip-decompressing empty body ([#796](https://github.com/elixir-tesla/tesla/issues/796)) ([5bc9b82](https://github.com/elixir-tesla/tesla/commit/5bc9b82823b3238257619ea3d67f0985a3707d2b))
+
 ## [1.15.2](https://github.com/elixir-tesla/tesla/compare/v1.15.1...v1.15.2) (2025-07-23)
 
 
