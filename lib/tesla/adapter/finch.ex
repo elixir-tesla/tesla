@@ -39,6 +39,12 @@ if Code.ensure_loaded?(Finch) do
     ## Adapter specific options
 
       * `:name` - The `:name` provided to Finch (**required**).
+      * `:response` - Expected response type. Defines the Finch request type
+        to use. Supported values:
+        + `:stream` - Streams the response using `Finch.stream/5` for the
+          request.
+        + `nil` or not specified - Responds without streaming using
+          `Finch.request/3`.
 
     ## [Finch options](https://hexdocs.pm/finch/Finch.html#request/3)
 
