@@ -33,7 +33,7 @@ defmodule Tesla.Multipart do
   end
 
   @type part_stream :: Enum.t()
-  @type part_value :: iodata | part_stream
+  @type part_value :: iodata | part_stream | function()
 
   defstruct parts: [],
             boundary: nil,
@@ -181,12 +181,13 @@ defmodule Tesla.Multipart do
 
   @spec assert_part_value!(any) :: :ok | no_return
   defp assert_part_value!(%maybe_stream{})
-       when maybe_stream in [IO.Stream, File.Stream, Stream],
+       when maybe_stream in [IO.Stream, File.Stream, Stream, Range],
        do: :ok
 
   defp assert_part_value!(value)
        when is_list(value)
-       when is_binary(value),
+       when is_binary(value)
+       when is_function(value),
        do: :ok
 
   defp assert_part_value!(val) do
