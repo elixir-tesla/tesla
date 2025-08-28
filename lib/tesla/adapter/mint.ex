@@ -359,6 +359,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
         {:done, ^ref}, acc ->
           Map.put(acc, :done, true)
+
+        {:push_promise, ^ref, _promised_ref, _headers}, acc ->
+          acc
       end)
     end
   end
