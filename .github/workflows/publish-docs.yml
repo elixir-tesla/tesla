@@ -15,7 +15,7 @@ jobs:
       - name: Verify Branch
         if: github.ref != 'refs/heads/master'
         run: exit 1
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
         with:
