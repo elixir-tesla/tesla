@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.0](https://github.com/elixir-tesla/tesla/compare/v1.15.3...v1.16.0) (2025-09-01)
+
+
+### Features
+
+* support function streams in multipart handling ([#801](https://github.com/elixir-tesla/tesla/issues/801)) ([dd8b206](https://github.com/elixir-tesla/tesla/commit/dd8b206df618ec54082294d924eb15b0a8aafcb7)), closes [#648](https://github.com/elixir-tesla/tesla/issues/648)
+
 ## [1.15.3](https://github.com/elixir-tesla/tesla/compare/v1.15.2...v1.15.3) (2025-07-30)
 
 
