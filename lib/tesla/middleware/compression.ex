@@ -69,7 +69,7 @@ defmodule Tesla.Middleware.Compression do
 
   def decompress(env) do
     codecs = compression_algorithms(Tesla.get_header(env, "content-encoding"))
-    {decompressed_body, unknown_codecs} = decompress_body(codecs, env.body, [])
+    {decompressed_body, unknown_codecs} = decompress_body(codecs, env.body)
 
     env
     |> put_decompressed_body(decompressed_body)
@@ -84,28 +84,28 @@ defmodule Tesla.Middleware.Compression do
     Tesla.put_header(env, "content-encoding", Enum.join(unknown_codecs, ", "))
   end
 
-  defp decompress_body(_codecs, "" = body, acc) do
-    {body, acc}
+  defp decompress_body(_codecs, "" = body) do
+    {body, []}
   end
 
-  defp decompress_body([gzip | rest], body, acc) when gzip in ["gzip", "x-gzip"] do
-    decompress_body(rest, :zlib.gunzip(body), acc)
+  defp decompress_body([gzip | rest], body) when gzip in ["gzip", "x-gzip"] do
+    decompress_body(rest, :zlib.gunzip(body))
   end
 
-  defp decompress_body(["deflate" | rest], body, acc) do
-    decompress_body(rest, :zlib.unzip(body), acc)
+  defp decompress_body(["deflate" | rest], body) do
+    decompress_body(rest, :zlib.unzip(body))
   end
 
-  defp decompress_body(["identity" | rest], body, acc) do
-    decompress_body(rest, body, acc)
+  defp decompress_body(["identity" | rest], body) do
+    decompress_body(rest, body)
   end
 
-  defp decompress_body([codec | rest], body, acc) do
-    decompress_body(rest, body, [codec | acc])
+  defp decompress_body([codec | rest], body) do
+    {body, Enum.reverse([codec | rest])}
   end
 
-  defp decompress_body([], body, acc) do
-    {body, acc}
+  defp decompress_body([], body) do
+    {body, []}
   end
 
   defp compression_algorithms(nil) do

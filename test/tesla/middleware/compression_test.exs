@@ -59,6 +59,10 @@ defmodule Tesla.Middleware.CompressionTest do
             {200, [{"content-type", "text/plain"}, {"content-encoding", "deflate"}],
              :zlib.zip("decompressed deflate")}
 
+          "/multiple-encodings" ->
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip, zstd, gzip"}],
+             :zlib.gzip("decompressed gzip")}
+
           "/response-identity" ->
             {200, [{"content-type", "text/plain"}, {"content-encoding", "identity"}], "unchanged"}
 
@@ -79,6 +83,12 @@ defmodule Tesla.Middleware.CompressionTest do
   test "decompress response body (deflate)" do
     assert {:ok, env} = CompressionResponseClient.get("/response-deflate")
     assert env.body == "decompressed deflate"
+  end
+
+  test "stops decompressing on first unsupported content-encoding" do
+    assert {:ok, env} = CompressionResponseClient.get("/multiple-encodings")
+    assert env.body == "decompressed gzip"
+    assert env.headers == [{"content-type", "text/plain"}, {"content-encoding", "gzip, zstd"}]
   end
 
   test "return unchanged response for unsupported content-encoding" do
