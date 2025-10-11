@@ -67,9 +67,14 @@ defmodule Tesla.Middleware.Compression do
   def decompress({:ok, env}), do: {:ok, decompress(env)}
   def decompress({:error, reason}), do: {:error, reason}
 
+  # HEAD requests may be used to obtain information on the transfer size and properties
+  # and their empty bodies are not actually valid for the possibly indicated encodings
+  # thus we want to preserve them unchanged.
+  def decompress(%Tesla.Env{method: :head} = env), do: env
+
   def decompress(env) do
     codecs = compression_algorithms(Tesla.get_header(env, "content-encoding"))
-    {decompressed_body, unknown_codecs} = decompress_body(codecs, env.body, [])
+    {decompressed_body, unknown_codecs} = decompress_body(codecs, env.body)
 
     env
     |> put_decompressed_body(decompressed_body)
@@ -84,28 +89,24 @@ defmodule Tesla.Middleware.Compression do
     Tesla.put_header(env, "content-encoding", Enum.join(unknown_codecs, ", "))
   end
 
-  defp decompress_body(_codecs, "" = body, acc) do
-    {body, acc}
+  defp decompress_body([gzip | rest], body) when gzip in ["gzip", "x-gzip"] do
+    decompress_body(rest, :zlib.gunzip(body))
   end
 
-  defp decompress_body([gzip | rest], body, acc) when gzip in ["gzip", "x-gzip"] do
-    decompress_body(rest, :zlib.gunzip(body), acc)
+  defp decompress_body(["deflate" | rest], body) do
+    decompress_body(rest, :zlib.unzip(body))
   end
 
-  defp decompress_body(["deflate" | rest], body, acc) do
-    decompress_body(rest, :zlib.unzip(body), acc)
+  defp decompress_body(["identity" | rest], body) do
+    decompress_body(rest, body)
   end
 
-  defp decompress_body(["identity" | rest], body, acc) do
-    decompress_body(rest, body, acc)
+  defp decompress_body([codec | rest], body) do
+    {body, Enum.reverse([codec | rest])}
   end
 
-  defp decompress_body([codec | rest], body, acc) do
-    decompress_body(rest, body, [codec | acc])
-  end
-
-  defp decompress_body([], body, acc) do
-    {body, acc}
+  defp decompress_body([], body) do
+    {body, []}
   end
 
   defp compression_algorithms(nil) do
@@ -123,7 +124,27 @@ defmodule Tesla.Middleware.Compression do
   defp put_decompressed_body(env, body) do
     env
     |> Tesla.put_body(body)
-    |> Tesla.delete_header("content-length")
+    |> update_content_length(body)
+  end
+
+  # The value of the content-length header wil be inaccurate after decompression.
+  # But setting it is mandatory or strongly encouraged in HTTP/1.0 and HTTP/1.1.
+  # Except, when transfer-encoding is used defining content-length is invalid.
+  # Thus we can neither just drop it nor indiscriminately add it, but will update it if it already exist.
+  # Furthermore, content-length is technically allowed to be specified mutliple times if all values match,
+  # to ensure consistency we must therefore make sure to drop any duplicate definitions while updating.
+  defp update_content_length(env, body) when is_binary(body) do
+    if Tesla.get_header(env, "content-length") != nil do
+      env
+      |> Tesla.delete_header("content-length")
+      |> Tesla.put_header("content-length", "#{byte_size(body)}")
+    else
+      env
+    end
+  end
+
+  defp update_content_length(env, _) do
+    env
   end
 end
 

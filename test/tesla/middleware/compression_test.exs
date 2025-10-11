@@ -59,11 +59,33 @@ defmodule Tesla.Middleware.CompressionTest do
             {200, [{"content-type", "text/plain"}, {"content-encoding", "deflate"}],
              :zlib.zip("decompressed deflate")}
 
+          "/multiple-encodings" ->
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip, zstd, gzip"}],
+             :zlib.gzip("decompressed gzip")}
+
           "/response-identity" ->
             {200, [{"content-type", "text/plain"}, {"content-encoding", "identity"}], "unchanged"}
 
           "/response-empty" ->
             {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], ""}
+
+          "/response-with-content-length" ->
+            body = :zlib.gzip("decompressed gzip")
+
+            {200,
+             [
+               {"content-type", "text/plain"},
+               {"content-encoding", "gzip"},
+               {"content-length", "#{byte_size(body)}"}
+             ], body}
+
+          "/response-empty-with-content-length" ->
+            {200,
+             [
+               {"content-type", "text/plain"},
+               {"content-encoding", "gzip"},
+               {"content-length", "4194304"}
+             ], ""}
         end
 
       {:ok, %{env | status: status, headers: headers, body: body}}
@@ -81,16 +103,44 @@ defmodule Tesla.Middleware.CompressionTest do
     assert env.body == "decompressed deflate"
   end
 
+  test "stops decompressing on first unsupported content-encoding" do
+    assert {:ok, env} = CompressionResponseClient.get("/multiple-encodings")
+    assert env.body == "decompressed gzip"
+    assert env.headers == [{"content-type", "text/plain"}, {"content-encoding", "gzip, zstd"}]
+  end
+
   test "return unchanged response for unsupported content-encoding" do
     assert {:ok, env} = CompressionResponseClient.get("/response-identity")
     assert env.body == "unchanged"
     assert env.headers == [{"content-type", "text/plain"}]
   end
 
-  test "return unchanged response for empty body (gzip)" do
-    assert {:ok, env} = CompressionResponseClient.get("/response-empty")
+  test "raises on invalid empty-body response (gzip)" do
+    assert_raise(ErlangError, "Erlang error: :data_error", fn ->
+      CompressionResponseClient.get("/response-empty")
+    end)
+  end
+
+  test "updates existing content-length header" do
+    expected_body = "decompressed gzip"
+    assert {:ok, env} = CompressionResponseClient.get("/response-with-content-length")
+    assert env.body == expected_body
+
+    assert env.headers == [
+             {"content-type", "text/plain"},
+             {"content-length", "#{byte_size(expected_body)}"}
+           ]
+  end
+
+  test "preserves compression headers for HEAD requests" do
+    assert {:ok, env} = CompressionResponseClient.head("/response-empty-with-content-length")
     assert env.body == ""
-    assert env.headers == [{"content-type", "text/plain"}]
+
+    assert env.headers == [
+             {"content-type", "text/plain"},
+             {"content-encoding", "gzip"},
+             {"content-length", "4194304"}
+           ]
   end
 
   defmodule CompressRequestDecompressResponseClient do
