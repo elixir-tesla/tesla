@@ -67,6 +67,11 @@ defmodule Tesla.Middleware.Compression do
   def decompress({:ok, env}), do: {:ok, decompress(env)}
   def decompress({:error, reason}), do: {:error, reason}
 
+  # HEAD requests may be used to obtain information on the transfer size and properties
+  # and their empty bodies are not actually valid for the possibly indicated encodings
+  # thus we want to preserve them unchanged.
+  def decompress(%Tesla.Env{method: :head} = env), do: env
+
   def decompress(env) do
     codecs = compression_algorithms(Tesla.get_header(env, "content-encoding"))
     {decompressed_body, unknown_codecs} = decompress_body(codecs, env.body)
@@ -82,10 +87,6 @@ defmodule Tesla.Middleware.Compression do
 
   defp put_or_delete_content_encoding(env, unknown_codecs) do
     Tesla.put_header(env, "content-encoding", Enum.join(unknown_codecs, ", "))
-  end
-
-  defp decompress_body(_codecs, "" = body) do
-    {body, []}
   end
 
   defp decompress_body([gzip | rest], body) when gzip in ["gzip", "x-gzip"] do

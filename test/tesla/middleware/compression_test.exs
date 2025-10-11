@@ -68,6 +68,14 @@ defmodule Tesla.Middleware.CompressionTest do
 
           "/response-empty" ->
             {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], ""}
+
+          "/response-empty-with-content-length" ->
+            {200,
+             [
+               {"content-type", "text/plain"},
+               {"content-encoding", "gzip"},
+               {"content-length", "4194304"}
+             ], ""}
         end
 
       {:ok, %{env | status: status, headers: headers, body: body}}
@@ -97,10 +105,21 @@ defmodule Tesla.Middleware.CompressionTest do
     assert env.headers == [{"content-type", "text/plain"}]
   end
 
-  test "return unchanged response for empty body (gzip)" do
-    assert {:ok, env} = CompressionResponseClient.get("/response-empty")
+  test "raises on invalid empty-body response (gzip)" do
+    assert_raise(ErlangError, "Erlang error: :data_error", fn ->
+      CompressionResponseClient.get("/response-empty")
+    end)
+  end
+
+  test "preserves compression headers for HEAD requests" do
+    assert {:ok, env} = CompressionResponseClient.head("/response-empty-with-content-length")
     assert env.body == ""
-    assert env.headers == [{"content-type", "text/plain"}]
+
+    assert env.headers == [
+             {"content-type", "text/plain"},
+             {"content-encoding", "gzip"},
+             {"content-length", "4194304"}
+           ]
   end
 
   defmodule CompressRequestDecompressResponseClient do
