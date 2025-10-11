@@ -69,6 +69,16 @@ defmodule Tesla.Middleware.CompressionTest do
           "/response-empty" ->
             {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip"}], ""}
 
+          "/response-with-content-length" ->
+            body = :zlib.gzip("decompressed gzip")
+
+            {200,
+             [
+               {"content-type", "text/plain"},
+               {"content-encoding", "gzip"},
+               {"content-length", "#{byte_size(body)}"}
+             ], body}
+
           "/response-empty-with-content-length" ->
             {200,
              [
@@ -109,6 +119,17 @@ defmodule Tesla.Middleware.CompressionTest do
     assert_raise(ErlangError, "Erlang error: :data_error", fn ->
       CompressionResponseClient.get("/response-empty")
     end)
+  end
+
+  test "updates existing content-length header" do
+    expected_body = "decompressed gzip"
+    assert {:ok, env} = CompressionResponseClient.get("/response-with-content-length")
+    assert env.body == expected_body
+
+    assert env.headers == [
+             {"content-type", "text/plain"},
+             {"content-length", "#{byte_size(expected_body)}"}
+           ]
   end
 
   test "preserves compression headers for HEAD requests" do

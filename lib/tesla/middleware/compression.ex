@@ -124,7 +124,27 @@ defmodule Tesla.Middleware.Compression do
   defp put_decompressed_body(env, body) do
     env
     |> Tesla.put_body(body)
-    |> Tesla.delete_header("content-length")
+    |> update_content_length(body)
+  end
+
+  # The value of the content-length header wil be inaccurate after decompression.
+  # But setting it is mandatory or strongly encouraged in HTTP/1.0 and HTTP/1.1.
+  # Except, when transfer-encoding is used defining content-length is invalid.
+  # Thus we can neither just drop it nor indiscriminately add it, but will update it if it already exist.
+  # Furthermore, content-length is technically allowed to be specified mutliple times if all values match,
+  # to ensure consistency we must therefore make sure to drop any duplicate definitions while updating.
+  defp update_content_length(env, body) when is_binary(body) do
+    if Tesla.get_header(env, "content-length") != nil do
+      env
+      |> Tesla.delete_header("content-length")
+      |> Tesla.put_header("content-length", "#{byte_size(body)}")
+    else
+      env
+    end
+  end
+
+  defp update_content_length(env, _) do
+    env
   end
 end
 
