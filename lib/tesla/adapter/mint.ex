@@ -314,6 +314,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
           if opts[:close_conn], do: {:ok, _conn} = close(conn)
           {:error, error}
 
+        {:error, _conn, %Mint.TransportError{reason: :timeout}, _res} ->
+          {:error, :timeout}
+
         {:error, _conn, error, _res} ->
           if opts[:close_conn], do: {:ok, _conn} = close(conn)
           # TODO: (breaking change) fix typo in error message, "Encounter" => "Encountered"
