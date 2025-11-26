@@ -123,10 +123,9 @@ if Code.ensure_loaded?(Finch) do
 
       task =
         Task.async(fn ->
-          case Finch.stream(req, name, nil, fun, opts) do
-            {:ok, _acc} -> send(owner, {ref, :eof})
-            {:error, error} -> send(owner, {ref, {:error, error}})
-          end
+          req
+          |> Finch.stream(name, nil, fun, opts)
+          |> handle_stream_response(ref, owner)
         end)
 
       receive do
@@ -151,6 +150,20 @@ if Code.ensure_loaded?(Finch) do
       after
         opts[:receive_timeout] ->
           {:error, :timeout}
+      end
+    end
+
+    defp handle_stream_response({:ok, _acc}, ref, owner) do
+      send(owner, {ref, :eof})
+    end
+
+    if Application.spec(:finch, :vsn) >= ~c"0.20.0" do
+      defp handle_stream_response({:error, error, _acc}, ref, owner) do
+        send(owner, {ref, {:error, error}})
+      end
+    else
+      defp handle_stream_response({:error, error}, ref, owner) do
+        send(owner, {ref, {:error, error}})
       end
     end
   end
