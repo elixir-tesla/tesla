@@ -157,7 +157,8 @@ if Code.ensure_loaded?(Finch) do
       send(owner, {ref, :eof})
     end
 
-    if Application.spec(:finch, :vsn) >= ~c"0.20.0" do
+    @finch_version :finch |> Application.spec(:vsn) |> to_string()
+    if Version.match?(@finch_version, ">= 0.20.0") do
       defp handle_stream_response({:error, error, _acc}, ref, owner) do
         send(owner, {ref, {:error, error}})
       end
