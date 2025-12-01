@@ -23,7 +23,7 @@ jobs:
             experimental: false
             lint: false
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Gun 1
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Dialyzer
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
