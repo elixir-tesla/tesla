@@ -119,6 +119,9 @@ if Code.ensure_loaded?(Finch) do
         {:headers, headers}, status -> send(owner, {ref, {:status, status, headers}})
         {:data, data}, _acc -> send(owner, {ref, {:data, data}})
         {:trailers, trailers}, _acc -> trailers
+        # Handle errors passed to callback (e.g., proxy errors like {:proxy, {:unexpected_status, 403}})
+        {:error, error}, _acc -> send(owner, {ref, {:error, error}})
+        {:error, error, _}, _acc -> send(owner, {ref, {:error, error}})
       end
 
       task =
@@ -139,6 +142,10 @@ if Code.ensure_loaded?(Finch) do
                 {^ref, :eof} ->
                   Task.await(task)
                   nil
+
+                {^ref, {:error, _error}} ->
+                  Task.shutdown(task, :brutal_kill)
+                  nil
               after
                 opts[:receive_timeout] ->
                   Task.shutdown(task, :brutal_kill)
@@ -147,8 +154,13 @@ if Code.ensure_loaded?(Finch) do
             end)
 
           {:ok, %Finch.Response{status: status, headers: headers, body: body}}
+
+        {^ref, {:error, error}} ->
+          Task.shutdown(task, :brutal_kill)
+          {:error, error}
       after
         opts[:receive_timeout] ->
+          Task.shutdown(task, :brutal_kill)
           {:error, :timeout}
       end
     end

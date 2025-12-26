@@ -43,4 +43,24 @@ defmodule Tesla.Adapter.FinchTest do
 
     assert {:error, :timeout} = call(request, receive_timeout: 100, response: :stream)
   end
+
+  test "Stream request handles errors without raising CaseClauseError" do
+    # This test verifies that streaming errors (like proxy 403) are properly
+    # handled in the callback and receive blocks instead of raising CaseClauseError.
+    # Before the fix, an error during streaming would cause:
+    #   (CaseClauseError) no case clause matching: {:error, error, nil}
+
+    assert {:error, _} =
+             Tesla.Adapter.Finch.call(
+               %Tesla.Env{
+                 method: :get,
+                 url: "http://nonexistent.invalid",
+                 body: nil,
+                 headers: []
+               },
+               name: @finch_name,
+               response: :stream,
+               receive_timeout: 1000
+             )
+  end
 end
