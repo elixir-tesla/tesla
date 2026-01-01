@@ -16,7 +16,7 @@ jobs:
         elixir-version: '1.15'
         otp-version: '25.3'
     - name: Restore dependencies cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: deps
         key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
