@@ -93,8 +93,6 @@ if Code.ensure_loaded?(:hackney) do
 
     defp send_stream(ref, body) do
       Enum.reduce_while(body, :ok, fn data, _ ->
-        IO.inspect(data)
-
         case :hackney.send_body(ref, data) do
           :ok -> {:cont, :ok}
           error -> {:halt, error}
