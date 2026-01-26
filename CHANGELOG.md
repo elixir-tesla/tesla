@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.16.0](https://github.com/elixir-tesla/tesla/compare/v1.15.3...v1.16.0) (2026-01-01)
+
+
+### Features
+
+* add strict policy option for enforcing base URL ([#817](https://github.com/elixir-tesla/tesla/issues/817)) ([e476093](https://github.com/elixir-tesla/tesla/commit/e4760935caaca6f50b6e36a03ed3a5608eddb43f))
+* support function streams in multipart handling ([#801](https://github.com/elixir-tesla/tesla/issues/801)) ([dd8b206](https://github.com/elixir-tesla/tesla/commit/dd8b206df618ec54082294d924eb15b0a8aafcb7)), closes [#648](https://github.com/elixir-tesla/tesla/issues/648)
+
+
+### Bug Fixes
+
+* DecompressResponse middleware for multiple encodings and keep updated content-length header ([#809](https://github.com/elixir-tesla/tesla/issues/809)) ([288699e](https://github.com/elixir-tesla/tesla/commit/288699e8f597e41ff07d8f620c21afb03ca69dd0))
+* Handle breaking change in Finch.stream API ([#813](https://github.com/elixir-tesla/tesla/issues/813)) ([ce5ea80](https://github.com/elixir-tesla/tesla/commit/ce5ea80e8a244c7e15c9c4beb2a51ad55f332fe0))
+* Handle errors in streaming responses ([#819](https://github.com/elixir-tesla/tesla/issues/819)) ([e7806bf](https://github.com/elixir-tesla/tesla/commit/e7806bf8252e4f05b3e2e64aab587ea20b03a9a9))
+* Use Version module to check finch version ([#814](https://github.com/elixir-tesla/tesla/issues/814)) ([56f9568](https://github.com/elixir-tesla/tesla/commit/56f956818aa667c480171559c2897a8827256f28))
+
 ## [1.15.3](https://github.com/elixir-tesla/tesla/compare/v1.15.2...v1.15.3) (2025-07-30)
 
 
