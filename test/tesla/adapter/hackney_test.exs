@@ -40,7 +40,9 @@ defmodule Tesla.Adapter.HackneyTest do
     request = %Env{
       method: :post,
       url: "#{@http}/post",
-      body: String.duplicate("long response", 1000)
+      body: String.duplicate("long response", 1000),
+      # TODO: check in hackney if no default headers is intentional
+      headers: [{"content-type", "application/octet-stream"}]
     }
 
     assert {:ok, %Env{} = response} = call(request, with_body: true, max_body: 100)
