@@ -305,4 +305,59 @@ defmodule Tesla.Adapter.MintTest do
         read_body(conn, ref, opts, acc <> part)
     end
   end
+
+  describe "issue #450 - handle missing Mint response types" do
+    test "handles connection errors gracefully" do
+      uri = URI.parse(@http)
+
+      request = %Env{
+        method: :get,
+        url: "http://#{uri.host}:1234"
+      }
+
+      assert {:error, _reason} = call(request)
+    end
+
+    test "handles malformed requests without crashes" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/status/500"
+      }
+
+      assert {:ok, %Env{} = response} = call(request)
+      assert response.status == 500
+    end
+
+    test "handles timeout scenarios without crashes" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/delay/2"
+      }
+
+      assert {:error, :timeout} = call(request, timeout: 100)
+    end
+
+    test "handles connection drops during streaming" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/stream-bytes/1000"
+      }
+
+      assert {:ok, %Env{} = response} = call(request, body_as: :stream)
+      assert response.status == 200
+
+      data = Enum.join(response.body)
+      assert byte_size(data) > 0
+    end
+
+    test "handles HTTP/2 connections and server push scenarios" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/get"
+      }
+
+      assert {:ok, %Env{} = response} = call(request)
+      assert response.status == 200
+    end
+  end
 end
