@@ -153,7 +153,7 @@ defmodule Tesla.Adapter.MintTest do
   describe "reusing connection" do
     setup do
       uri = URI.parse(@http)
-      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port)
+      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port, mode: :passive)
       {:ok, conn: conn, original: "#{uri.host}:#{uri.port}"}
     end
 
