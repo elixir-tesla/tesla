@@ -79,6 +79,7 @@ defmodule Tesla.Middleware.Logger do
   - `:level` - custom function for calculating log level or atom for fixed level (see below)
   - `:log_level` - (deprecated) custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
+  - `:metadata` - metadata to pass to `Logger`
   - `:debug` - use `Logger.debug/2` to log request/response details
   - `:format` - custom string template or function for log message (see below)
 
@@ -267,11 +268,12 @@ defmodule Tesla.Middleware.Logger do
     format =
       if optional_runtime_format, do: Formatter.compile(optional_runtime_format), else: @format
 
+    metadata = Keyword.get(config, :metadata, [])
     level = log_level(response, config)
-    Logger.log(level, fn -> Formatter.format(env, response, time, format) end)
+    Logger.log(level, fn -> Formatter.format(env, response, time, format) end, metadata)
 
     if Keyword.get(config, :debug, true) do
-      Logger.debug(fn -> debug(env, response, config) end)
+      Logger.debug(fn -> debug(env, response, config) end, metadata)
     end
 
     response

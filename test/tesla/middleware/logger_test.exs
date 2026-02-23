@@ -223,6 +223,20 @@ defmodule Tesla.Middleware.LoggerTest do
     end
   end
 
+  describe "with metadata" do
+    setup do
+      middleware = [{Tesla.Middleware.Logger, metadata: [request_id: "abc123"]}]
+      adapter = fn env -> {:ok, %{env | status: 200, body: "ok"}} end
+      client = Tesla.client(middleware, adapter)
+      %{client: client}
+    end
+
+    test "metadata is passed to the main log call", %{client: client} do
+      log = capture_log([metadata: [:request_id]], fn -> Tesla.get(client, "/ok") end)
+      assert log =~ "[info] request_id=abc123"
+    end
+  end
+
   describe "with level" do
     defmodule ClientWithLevel do
       use Tesla
