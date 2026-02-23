@@ -29,8 +29,16 @@ if Code.ensure_loaded?(:hackney) do
 
     - `:max_body` - Max response body size in bytes. Actual response may be bigger because hackney stops after the last chunk that surpasses `:max_body`.
     """
+    @hackney_version Application.spec(:hackney, :vsn)
+                     |> to_string()
+                     |> Version.parse!()
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
+
+    # hackney 1.x uses references while hackney 2.x uses pids
+    # https://github.com/benoitc/hackney/blob/master/guides/MIGRATION.md#connection-handle
+    # further usage in code is the same
+    defguard is_hackney_connection_handle(handle) when is_reference(handle) or is_pid(handle)
 
     @impl Tesla.Adapter
     def call(env, opts) do
@@ -46,7 +54,7 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
-    defp format_body(data) when is_binary(data) or is_reference(data), do: data
+    defp format_body(data) when is_binary(data) or is_hackney_connection_handle(data), do: data
 
     defp request(env, opts) do
       request(
@@ -99,13 +107,19 @@ if Code.ensure_loaded?(:hackney) do
     defp handle({:error, _} = error, _opts), do: error
     defp handle({:ok, status, headers}, _opts), do: {:ok, status, headers, []}
 
-    defp handle({:ok, ref}, _opts) when is_reference(ref) do
-      handle_async_response({ref, %{status: nil, headers: nil}})
+    defp handle({:ok, handle}, _opts) when is_hackney_connection_handle(handle) do
+      handle_async_response({handle, %{status: nil, headers: nil}})
     end
 
-    defp handle({:ok, status, headers, ref}, opts) when is_reference(ref) do
-      with {:ok, body} <- :hackney.body(ref, Keyword.get(opts, :max_body, :infinity)) do
-        {:ok, status, headers, body}
+    if Version.match?(@hackney_version, "~> 1.0") do
+      # this is only for hackney 1.x, hackney 3.x returns body in get request {:ok, status, headers, body}
+      # we can't live it in 3.x because `:hackney.body is not there anymore and it would cause compilation warnings
+      # hence, we remove the clause at compile time
+      defp handle({:ok, status, headers, handle}, opts)
+           when is_hackney_connection_handle(handle) do
+        with {:ok, body} <- :hackney.body(handle, Keyword.get(opts, :max_body, :infinity)) do
+          {:ok, status, headers, body}
+        end
       end
     end
 
