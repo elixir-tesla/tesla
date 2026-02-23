@@ -2,7 +2,7 @@ defmodule Tesla.Mixfile do
   use Mix.Project
 
   @source_url "https://github.com/elixir-tesla/tesla"
-  @version "1.16.0"
+  @version "1.17.0"
 
   def project do
     [

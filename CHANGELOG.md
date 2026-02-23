@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.0](https://github.com/elixir-tesla/tesla/compare/v1.16.0...v1.17.0) (2026-02-23)
+
+
+### Features
+
+* Add :metadata option to Logger middleware ([#829](https://github.com/elixir-tesla/tesla/issues/829)) ([38e209a](https://github.com/elixir-tesla/tesla/commit/38e209a5a370160a723eb7a69665befdf9978b1a))
+
 ## [1.16.0](https://github.com/elixir-tesla/tesla/compare/v1.15.3...v1.16.0) (2026-01-01)
 
 
