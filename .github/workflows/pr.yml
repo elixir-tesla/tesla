@@ -16,3 +16,27 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: webiny/action-conventional-commits@v1.3.1
+
+  semantic-pr-title:
+    name: Semantic PR Title
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      statuses: write
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            did not match the configured pattern. Please ensure that the subject
+            does not start with an uppercase character.
+          wip: true
+          validateSingleCommit: false
