@@ -155,7 +155,7 @@ defmodule Tesla.Mock do
 
   ## HELPERS
 
-  @type response_opt :: :headers | :status
+  @type response_opt :: :method | :query | :url | :headers | :status | :opts
   @type response_opts :: [{response_opt, any}]
 
   @doc """
