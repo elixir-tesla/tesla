@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.17.0](https://github.com/elixir-tesla/tesla/compare/v1.16.0...v1.17.0) (2026-03-06)
+
+
+### Features
+
+* Add :metadata option to Logger middleware ([#829](https://github.com/elixir-tesla/tesla/issues/829)) ([38e209a](https://github.com/elixir-tesla/tesla/commit/38e209a5a370160a723eb7a69665befdf9978b1a))
+
+
+### Bug Fixes
+
+* dialyzer spec for mock opts ([#831](https://github.com/elixir-tesla/tesla/issues/831)) ([440ec4e](https://github.com/elixir-tesla/tesla/commit/440ec4e442db3541b10f63a3da6235a5239fdab8))
+* include caller module name in `use Tesla` deprecation warning ([#832](https://github.com/elixir-tesla/tesla/issues/832)) ([b8fb158](https://github.com/elixir-tesla/tesla/commit/b8fb158f1ef5e2bebad7fd3b207738b1f4a3b9f6))
+
 ## [1.16.0](https://github.com/elixir-tesla/tesla/compare/v1.15.3...v1.16.0) (2026-01-01)
 
 
