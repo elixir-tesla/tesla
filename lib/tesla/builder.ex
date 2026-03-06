@@ -5,9 +5,12 @@ defmodule Tesla.Builder do
   @body ~w(post put patch)a
 
   defmacro __using__(opts \\ []) do
+    caller_module = __CALLER__.module
+
     if not Application.get_env(:tesla, :disable_deprecated_builder_warning, false) do
       IO.warn("""
-      `use Tesla.Builder` and `use Tesla` are soft-deprecated. It will be removed in future major version in favor of
+      `use Tesla.Builder` and `use Tesla` in #{inspect(caller_module)} are soft-deprecated. \
+      It will be removed in future major version in favor of
       Runtime Configuration instead. Please share your feedback at https://github.com/elixir-tesla/tesla/discussions/732
 
       If you can turn off this warning, add the following to your config.exs:
