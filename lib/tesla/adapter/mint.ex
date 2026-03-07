@@ -51,7 +51,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     alias Tesla.Multipart
     alias Mint.HTTP
 
-    @default timeout: 2_000, body_as: :plain, close_conn: true, mode: :active
+    @default timeout: 2_000, body_as: :plain, close_conn: true, mode: :passive
 
     @tags [:tcp_error, :ssl_error, :tcp_closed, :ssl_closed, :tcp, :ssl]
 
@@ -155,8 +155,6 @@ if Code.ensure_loaded?(Mint.HTTP) do
         else
           _ -> opts
         end
-
-      opts = Map.put_new(opts, :mode, :passive)
 
       with {:ok, conn} <-
              HTTP.connect(String.to_atom(uri.scheme), uri.host, uri.port, Enum.into(opts, [])) do
@@ -313,6 +311,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
         {:error, error} ->
           if opts[:close_conn], do: {:ok, _conn} = close(conn)
           {:error, error}
+
+        {:error, _conn, %Mint.TransportError{reason: :timeout}, _res} ->
+          {:error, :timeout}
 
         {:error, _conn, error, _res} ->
           if opts[:close_conn], do: {:ok, _conn} = close(conn)
