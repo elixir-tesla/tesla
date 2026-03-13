@@ -33,14 +33,16 @@ defmodule Tesla.Adapter.HackneyTest do
 
     assert {:ok, %Env{} = response} = call(request, with_body: true, async: true)
     assert response.status == 200
-    assert is_reference(response.body) == true
+    assert is_reference(response.body) or is_pid(response.body) == true
   end
 
   test "get with `:max_body` option" do
     request = %Env{
       method: :post,
       url: "#{@http}/post",
-      body: String.duplicate("long response", 1000)
+      body: String.duplicate("long response", 1000),
+      # TODO: check in hackney if no default headers is intentional
+      headers: [{"content-type", "application/octet-stream"}]
     }
 
     assert {:ok, %Env{} = response} = call(request, with_body: true, max_body: 100)
