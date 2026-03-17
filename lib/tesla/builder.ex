@@ -7,7 +7,8 @@ defmodule Tesla.Builder do
   defmacro __using__(opts \\ []) do
     caller_module = __CALLER__.module
 
-    if not Application.get_env(:tesla, :disable_deprecated_builder_warning, false) do
+    if caller_module != Tesla and
+         not Application.get_env(:tesla, :disable_deprecated_builder_warning, false) do
       IO.warn("""
       `use Tesla.Builder` and `use Tesla` in #{inspect(caller_module)} are soft-deprecated. \
       It will be removed in future major version in favor of
