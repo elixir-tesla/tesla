@@ -29,14 +29,61 @@ if Code.ensure_loaded?(:hackney) do
 
     - `:max_body` - Max response body size in bytes. Actual response may be bigger because hackney stops after the last chunk that surpasses `:max_body`.
     """
+    @hackney_version Application.spec(:hackney, :vsn)
+                     |> to_string()
+                     |> Version.parse!()
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
 
+    # hackney 1.x uses references while hackney 2.x uses pids
+    # https://github.com/benoitc/hackney/blob/master/guides/MIGRATION.md#connection-handle
+    # further usage in code is the same
+    defguard is_hackney_connection_handle(handle) when is_reference(handle) or is_pid(handle)
+
     @impl Tesla.Adapter
     def call(env, opts) do
+      opts = process_options(opts)
+
       with {:ok, status, headers, body} <- request(env, opts) do
         {:ok, %{env | status: status, headers: format_headers(headers), body: format_body(body)}}
       end
+    end
+
+    # Hackney 3.X sets cacerts from certifi by default, which causes cacertfile to be ignored
+    # Convert cacertfile to cacerts to fix SSL with custom CA certificates
+    if Version.match?(@hackney_version, "~> 3.0") do
+      defp process_options(opts) do
+        process_ssl_options(opts)
+      end
+
+      defp process_ssl_options(opts) do
+        case Keyword.get(opts, :ssl_options) do
+          nil ->
+            opts
+
+          ssl_opts ->
+            case Keyword.get(ssl_opts, :cacertfile) do
+              nil ->
+                opts
+
+              cacertfile ->
+                # Read and parse CA cert file
+                {:ok, pem_data} = File.read(cacertfile)
+                pem_entries = :public_key.pem_decode(pem_data)
+                cacerts = Enum.map(pem_entries, fn {_type, der, _} -> der end)
+
+                # Replace cacertfile with cacerts
+                ssl_opts =
+                  ssl_opts
+                  |> Keyword.delete(:cacertfile)
+                  |> Keyword.put(:cacerts, cacerts)
+
+                Keyword.put(opts, :ssl_options, ssl_opts)
+            end
+        end
+      end
+    else
+      defp process_options(opts), do: opts
     end
 
     defp format_headers(headers) do
@@ -46,7 +93,7 @@ if Code.ensure_loaded?(:hackney) do
     end
 
     defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
-    defp format_body(data) when is_binary(data) or is_reference(data), do: data
+    defp format_body(data) when is_binary(data) or is_hackney_connection_handle(data), do: data
 
     defp request(env, opts) do
       request(
@@ -78,8 +125,12 @@ if Code.ensure_loaded?(:hackney) do
     defp request_stream(method, url, headers, body, opts) do
       with {:ok, ref} <- :hackney.request(method, url, headers, :stream, opts) do
         case send_stream(ref, body) do
-          :ok -> handle(:hackney.start_response(ref), opts)
-          error -> handle(error, opts)
+          :ok ->
+            :hackney.finish_send_body(ref)
+            handle(:hackney.start_response(ref), opts)
+
+          error ->
+            handle(error, opts)
         end
       else
         e -> handle(e, opts)
@@ -99,13 +150,30 @@ if Code.ensure_loaded?(:hackney) do
     defp handle({:error, _} = error, _opts), do: error
     defp handle({:ok, status, headers}, _opts), do: {:ok, status, headers, []}
 
-    defp handle({:ok, ref}, _opts) when is_reference(ref) do
-      handle_async_response({ref, %{status: nil, headers: nil}})
+    defp handle({:ok, handle}, _opts) when is_hackney_connection_handle(handle) do
+      handle_async_response({handle, %{status: nil, headers: nil}})
     end
 
-    defp handle({:ok, status, headers, ref}, opts) when is_reference(ref) do
-      with {:ok, body} <- :hackney.body(ref, Keyword.get(opts, :max_body, :infinity)) do
-        {:ok, status, headers, body}
+    if Version.match?(@hackney_version, "~> 1.0") do
+      # Hackney 1.x: uses :hackney.body/2 with max_body parameter
+      defp handle({:ok, status, headers, handle}, opts)
+           when is_hackney_connection_handle(handle) do
+        with {:ok, body} <- :hackney.body(handle, Keyword.get(opts, :max_body, :infinity)) do
+          {:ok, status, headers, body}
+        end
+      end
+    end
+
+    if Version.match?(@hackney_version, "~> 3.0") do
+      # Hackney 3.x: for streaming requests, :hackney.start_response returns handle as PID
+      # Must use :hackney_conn.body/2 to read body with timeout
+      defp handle({:ok, status, headers, handle}, opts)
+           when is_hackney_connection_handle(handle) do
+        timeout = Keyword.get(opts, :recv_timeout, :infinity)
+
+        with {:ok, body} <- :hackney_conn.body(handle, timeout) do
+          {:ok, status, headers, body}
+        end
       end
     end
 
