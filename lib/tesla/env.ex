@@ -40,6 +40,7 @@ defmodule Tesla.Env do
   @type result :: {:ok, t()} | {:error, any}
 
   @type assigns :: %{optional(atom) => any}
+  @type private :: %{optional(atom) => any}
 
   @type t :: %__MODULE__{
           method: method,
@@ -50,7 +51,7 @@ defmodule Tesla.Env do
           status: status,
           opts: opts,
           assigns: assigns,
-          private: assigns,
+          private: private,
           __module__: atom(),
           __client__: client()
         }
