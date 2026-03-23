@@ -227,13 +227,13 @@ defmodule Tesla do
   ## Examples
 
       iex> env = %Tesla.Env{assigns: %{counter: 1}}
-      iex> env = Tesla.update_assign(env, :counter, &(&1 + 1))
+      iex> env = Tesla.update_assign!(env, :counter, &(&1 + 1))
       iex> env.assigns
       %{counter: 2}
 
   """
-  @spec update_assign(Tesla.Env.t(), atom, (any -> any)) :: Tesla.Env.t()
-  def update_assign(%Tesla.Env{} = env, key, fun) when is_atom(key) and is_function(fun, 1) do
+  @spec update_assign!(Tesla.Env.t(), atom, (any -> any)) :: Tesla.Env.t()
+  def update_assign!(%Tesla.Env{} = env, key, fun) when is_atom(key) and is_function(fun, 1) do
     %{env | assigns: Map.update!(env.assigns, key, fun)}
   end
 
@@ -245,7 +245,7 @@ defmodule Tesla do
   `default` is inserted as the value of `key`. The `default` value will not be passed
   through the update function.
 
-  See also `update_assign/3`.
+  See also `update_assign!/3`.
 
   ## Examples
 
