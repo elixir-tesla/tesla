@@ -20,9 +20,12 @@ defmodule Tesla.Mixfile do
         plt_add_apps: [:mix, :inets, :idna, :ssl_verify_fun, :ex_unit],
         plt_add_deps: :apps_direct
       ],
-      docs: docs(),
-      preferred_cli_env: [coveralls: :test, "coveralls.html": :test]
+      docs: docs()
     ]
+  end
+
+  def cli do
+    [preferred_envs: [coveralls: :test, "coveralls.html": :test]]
   end
 
   def application do
