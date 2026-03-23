@@ -16,6 +16,12 @@ defmodule Tesla.Env do
     Note: request body is overridden by response body when adapter is called.
   - `:status` - response status. Example: `200`
   - `:opts` - list of options. Example: `[adapter: [recv_timeout: 30_000]]`
+  - `:assigns` - a place for user data as a map. It can be used to carry application-specific
+    metadata through the middleware pipeline.
+
+  - `:private` - a map reserved for libraries and middleware to use. The keys must be atoms.
+    Prefix the keys with the name of your project to avoid any future conflicts. The `tesla_`
+    prefix is reserved for Tesla.
   """
 
   @type client :: Tesla.Client.t()
@@ -33,6 +39,8 @@ defmodule Tesla.Env do
   @type stack :: [runtime]
   @type result :: {:ok, t()} | {:error, any}
 
+  @type assigns :: %{optional(atom) => any}
+
   @type t :: %__MODULE__{
           method: method,
           query: query,
@@ -41,8 +49,10 @@ defmodule Tesla.Env do
           body: body,
           status: status,
           opts: opts,
-          __module__: atom,
-          __client__: client
+          assigns: assigns,
+          private: assigns,
+          __module__: atom(),
+          __client__: client()
         }
 
   defstruct method: nil,
@@ -52,6 +62,8 @@ defmodule Tesla.Env do
             body: nil,
             status: nil,
             opts: [],
+            assigns: %{},
+            private: %{},
             __module__: nil,
             __client__: nil
 end

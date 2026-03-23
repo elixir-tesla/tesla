@@ -47,6 +47,17 @@ defmodule Tesla do
   ```elixir
   config :tesla, :adapter, Tesla.Adapter.Mint
   ```
+
+  ## Assigns and Private
+
+  `Tesla.Env` has two map fields for storing additional data: `:assigns` and `:private`.
+
+  `:assigns` is a place for user data. It can be used to carry application-specific metadata
+  through the middleware pipeline.
+
+  `:private` is a map reserved for libraries and middleware to use. The keys must be atoms.
+  Prefix the keys with the name of your project to avoid any future conflicts. The `tesla_`
+  prefix is reserved for Tesla.
   """
 
   use Tesla.Builder
@@ -150,6 +161,106 @@ defmodule Tesla do
   @spec put_opt(Tesla.Env.t(), atom, any) :: Tesla.Env.t()
   def put_opt(env, key, value) do
     Map.update!(env, :opts, &Keyword.put(&1, key, value))
+  end
+
+  # -- Assigns --
+
+  @doc """
+  Assigns multiple values to `Tesla.Env`.
+
+  ## Examples
+
+      iex> env = %Tesla.Env{}
+      iex> env = Tesla.put_assigns(env, user_id: 123, role: :admin)
+      iex> env.assigns
+      %{user_id: 123, role: :admin}
+
+      iex> env = %Tesla.Env{assigns: %{user_id: 123}}
+      iex> env = Tesla.put_assigns(env, role: :admin)
+      iex> env.assigns
+      %{user_id: 123, role: :admin}
+
+  """
+  @spec put_assigns(Tesla.Env.t(), Enumerable.t()) :: Tesla.Env.t()
+  def put_assigns(%Tesla.Env{} = env, assigns) do
+    %{env | assigns: Enum.into(assigns, env.assigns)}
+  end
+
+  @doc """
+  Assigns key/value to `Tesla.Env`.
+
+  ## Examples
+
+      iex> env = %Tesla.Env{}
+      iex> env = Tesla.put_assign(env, :user_id, 123)
+      iex> env.assigns
+      %{user_id: 123}
+
+  """
+  @spec put_assign(Tesla.Env.t(), atom, any) :: Tesla.Env.t()
+  def put_assign(%Tesla.Env{} = env, key, value) when is_atom(key) do
+    put_in(env.assigns[key], value)
+  end
+
+  @doc """
+  Assigns key/value to `Tesla.Env` unless the key is already set.
+
+  ## Examples
+
+      iex> env = %Tesla.Env{}
+      iex> env = Tesla.put_assign_new(env, :user_id, 123)
+      iex> env = Tesla.put_assign_new(env, :user_id, 456)
+      iex> env.assigns
+      %{user_id: 123}
+
+  """
+  @spec put_assign_new(Tesla.Env.t(), atom, any) :: Tesla.Env.t()
+  def put_assign_new(%Tesla.Env{} = env, key, value) when is_atom(key) do
+    %{env | assigns: Map.put_new(env.assigns, key, value)}
+  end
+
+  @doc """
+  Updates assign `key` in `Tesla.Env` with the given function.
+
+  Raises if the `key` is not set.
+
+  See also `update_assign/4`.
+
+  ## Examples
+
+      iex> env = %Tesla.Env{assigns: %{counter: 1}}
+      iex> env = Tesla.update_assign(env, :counter, &(&1 + 1))
+      iex> env.assigns
+      %{counter: 2}
+
+  """
+  @spec update_assign(Tesla.Env.t(), atom, (any -> any)) :: Tesla.Env.t()
+  def update_assign(%Tesla.Env{} = env, key, fun) when is_atom(key) and is_function(fun, 1) do
+    %{env | assigns: Map.update!(env.assigns, key, fun)}
+  end
+
+  @doc """
+  Updates assign `key` in `Tesla.Env` with the given function or `default`.
+
+  If `key` is present in assigns then the existing value is passed to `fun` and its
+  result is used as the updated value of `key`. If `key` is not present in assigns,
+  `default` is inserted as the value of `key`. The `default` value will not be passed
+  through the update function.
+
+  See also `update_assign/3`.
+
+  ## Examples
+
+      iex> env = %Tesla.Env{assigns: %{counter: 10}}
+      iex> env = Tesla.update_assign(env, :counter, 1, &(&1 + 1))
+      iex> env = Tesla.update_assign(env, :other, 1, &(&1 + 1))
+      iex> env.assigns
+      %{counter: 11, other: 1}
+
+  """
+  @spec update_assign(Tesla.Env.t(), atom, any, (any -> any)) :: Tesla.Env.t()
+  def update_assign(%Tesla.Env{} = env, key, default, fun) when is_atom(key) and is_function(fun, 1) do
+    %{env | assigns: Map.update(env.assigns, key, default, fun)}
   end
 
   @doc """
