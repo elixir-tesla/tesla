@@ -164,24 +164,24 @@ defmodule Tesla do
   end
 
   @doc """
-  Assigns multiple values to `Tesla.Env`.
+  Merges the given assigns into `Tesla.Env`.
 
   ## Examples
 
       iex> env = %Tesla.Env{}
-      iex> env = Tesla.put_assigns(env, user_id: 123, role: :admin)
+      iex> env = Tesla.put_assigns(env, %{user_id: 123, role: :admin})
       iex> env.assigns
       %{user_id: 123, role: :admin}
 
       iex> env = %Tesla.Env{assigns: %{user_id: 123}}
-      iex> env = Tesla.put_assigns(env, role: :admin)
+      iex> env = Tesla.put_assigns(env, %{role: :admin})
       iex> env.assigns
       %{user_id: 123, role: :admin}
 
   """
-  @spec put_assigns(Tesla.Env.t(), Enumerable.t()) :: Tesla.Env.t()
-  def put_assigns(%Tesla.Env{} = env, assigns) do
-    %{env | assigns: Enum.into(assigns, env.assigns)}
+  @spec put_assigns(Tesla.Env.t(), Tesla.Env.assigns()) :: Tesla.Env.t()
+  def put_assigns(%Tesla.Env{} = env, assigns) when is_map(assigns) do
+    %{env | assigns: Map.merge(env.assigns, assigns)}
   end
 
   @doc """
