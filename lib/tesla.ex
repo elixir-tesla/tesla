@@ -257,7 +257,8 @@ defmodule Tesla do
 
   """
   @spec update_assign(Tesla.Env.t(), atom, any, (any -> any)) :: Tesla.Env.t()
-  def update_assign(%Tesla.Env{} = env, key, default, fun) when is_atom(key) and is_function(fun, 1) do
+  def update_assign(%Tesla.Env{} = env, key, default, fun)
+      when is_atom(key) and is_function(fun, 1) do
     %{env | assigns: Map.update(env.assigns, key, default, fun)}
   end
 
