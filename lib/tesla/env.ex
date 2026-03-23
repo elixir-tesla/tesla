@@ -52,8 +52,8 @@ defmodule Tesla.Env do
           opts: opts,
           assigns: assigns,
           private: private,
-          __module__: atom(),
-          __client__: client()
+          __module__: atom() | nil,
+          __client__: client() | nil
         }
 
   defstruct method: nil,
