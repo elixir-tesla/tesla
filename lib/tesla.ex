@@ -163,8 +163,6 @@ defmodule Tesla do
     Map.update!(env, :opts, &Keyword.put(&1, key, value))
   end
 
-  # -- Assigns --
-
   @doc """
   Assigns multiple values to `Tesla.Env`.
 
