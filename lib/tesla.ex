@@ -197,7 +197,7 @@ defmodule Tesla do
   """
   @spec put_assign(Tesla.Env.t(), atom, any) :: Tesla.Env.t()
   def put_assign(%Tesla.Env{} = env, key, value) when is_atom(key) do
-    put_in(env.assigns[key], value)
+    %{env | assigns: Map.put(env.assigns, key, value)}
   end
 
   @doc """
