@@ -259,12 +259,10 @@ defmodule Tesla.Middleware.LoggerTest do
       :ok
     end
 
-    @otel_opts [metadata_mode: :otel]
-
     test "includes http and url attributes on success" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, [metadata: [request_id: "r1"]] ++ @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, [request_id: "r1"]}}],
           fn env -> {:ok, %{env | status: 201, body: "ok"}} end
         )
 
@@ -285,13 +283,10 @@ defmodule Tesla.Middleware.LoggerTest do
       refute log =~ "http.request.method_original="
     end
 
-    test "user metadata overrides generated otel metadata" do
+    test "user overrides win over generated otel attributes" do
       client =
         Tesla.client(
-          [
-            {Tesla.Middleware.Logger,
-             [metadata: [{:"http.request.method", "OVERRIDE"}]] ++ @otel_opts}
-          ],
+          [{Tesla.Middleware.Logger, metadata: {:otel, [{:"http.request.method", "OVERRIDE"}]}}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -304,7 +299,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "relative URL skips server and scheme attributes" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -319,7 +314,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "connection error includes error.type" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn _env -> {:error, :econnrefused} end
         )
 
@@ -333,7 +328,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "HTTP 4xx/5xx sets error.type to status code string" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn env -> {:ok, %{env | status: 404, body: "not found"}} end
         )
 
@@ -346,7 +341,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "HTTP 2xx does not set error.type" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -359,7 +354,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "unknown method produces _OTHER and method_original" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -373,7 +368,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "url.full includes query parameters" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -388,7 +383,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "url.full redacts userinfo credentials" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -403,7 +398,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "resend count is included from retry opts" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -418,7 +413,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "resend count is omitted when not retrying" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -430,7 +425,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "exception struct error uses module name" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn _env -> {:error, %RuntimeError{message: "boom"}} end
         )
 
@@ -442,7 +437,7 @@ defmodule Tesla.Middleware.LoggerTest do
     test "default port is inferred from scheme" do
       client =
         Tesla.client(
-          [{Tesla.Middleware.Logger, @otel_opts}],
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -454,7 +449,7 @@ defmodule Tesla.Middleware.LoggerTest do
       assert log =~ "server.port=80"
     end
 
-    test "default metadata_mode is :legacy" do
+    test "default metadata is keyword list passthrough" do
       client =
         Tesla.client(
           [Tesla.Middleware.Logger],
@@ -466,12 +461,10 @@ defmodule Tesla.Middleware.LoggerTest do
       refute log =~ "http.request.method="
     end
 
-    test "metadata_mode: :legacy keeps only user metadata" do
+    test "keyword list metadata is passed through without otel attributes" do
       client =
         Tesla.client(
-          [
-            {Tesla.Middleware.Logger, metadata: [request_id: "x"], metadata_mode: :legacy}
-          ],
+          [{Tesla.Middleware.Logger, metadata: [request_id: "x"]}],
           fn env -> {:ok, %{env | status: 200}} end
         )
 
@@ -479,18 +472,6 @@ defmodule Tesla.Middleware.LoggerTest do
 
       assert log =~ "request_id=x"
       refute log =~ "http.request.method="
-    end
-
-    test "invalid metadata_mode raises" do
-      client =
-        Tesla.client(
-          [{Tesla.Middleware.Logger, metadata_mode: :typo}],
-          fn env -> {:ok, %{env | status: 200}} end
-        )
-
-      assert_raise ArgumentError, ~r/metadata_mode/, fn ->
-        Tesla.get(client, "/ok")
-      end
     end
   end
 

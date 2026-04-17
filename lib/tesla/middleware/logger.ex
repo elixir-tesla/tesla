@@ -79,29 +79,29 @@ defmodule Tesla.Middleware.Logger do
   - `:level` - custom function for calculating log level or atom for fixed level (see below)
   - `:log_level` - (deprecated) custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
-  - `:metadata` - metadata to pass to `Logger` (merged after the mode-specific base attributes; your
-    keys override on duplicate keys)
-  - `:metadata_mode` - `:legacy` (default) passes only middleware `:metadata`; `:otel` emits OpenTelemetry semantic-convention metadata, then merges middleware `:metadata` afterward (your keys override duplicates). `:otel` requires the `:opentelemetry_semantic_conventions` dependency and falls back to `:legacy` with an error log if it is unavailable.
+  - `:metadata` - metadata to pass to `Logger`. Accepts a keyword list for arbitrary key-value
+    pairs, or `{:otel, overrides}` to emit OpenTelemetry semantic-convention attributes with
+    optional keyword overrides (your keys win on duplicates).
   - `:debug` - use `Logger.debug/2` to log request/response details
   - `:format` - custom string template or function for log message (see below)
 
-  ## Semantic log attributes (`:metadata_mode` `:otel`)
+  ## Semantic log attributes (`:metadata` `{:otel, overrides}`)
 
   > #### Optional dependency {: .info}
   >
-  > The `:otel` metadata mode requires the `:opentelemetry_semantic_conventions`
-  > package (`~> 1.27`). Add it to your `mix.exs` deps to enable. Without it,
-  > Tesla logs an error and falls back to `:legacy` metadata.
+  > The `{:otel, overrides}` form requires the `:opentelemetry_semantic_conventions`
+  > package. Add it to your `mix.exs` deps to enable. Without it,
+  > Tesla raises an error when the OTel form is used.
 
-  `:otel` emits a subset of the official OpenTelemetry semantic-convention attributes for HTTP
-  client requests, depending on what request/response data is available at log time. See the
-  official [HTTP semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/http-spans/)
+  `{:otel, overrides}` emits a subset of the official OpenTelemetry semantic-convention attributes
+  for HTTP client requests, depending on what request/response data is available at log time. See
+  the official [HTTP semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/http-spans/)
   and [URL semantic conventions](https://opentelemetry.io/docs/specs/semconv/url/url/) for the
   attribute definitions and semantics.
 
   Tesla-specific notes:
 
-  - middleware `:metadata` is merged afterward and overrides generated keys
+  - `overrides` keyword list is merged last and wins on duplicate keys
   - `url.full` redacts URL `userinfo` per the URL semantic conventions
   - `http.client.request.duration` is emitted as log metadata in **milliseconds**; treat it as
     log-only rather than an OTLP metric value
@@ -305,45 +305,26 @@ defmodule Tesla.Middleware.Logger do
   end
 
   defp build_metadata(env, response, time, config) do
-    user_metadata = Keyword.get(config, :metadata, [])
+    case Keyword.get(config, :metadata, []) do
+      {:otel, overrides} ->
+        otel_metadata(env, response, time, overrides)
 
-    case metadata_mode(config) do
-      :otel ->
-        env
-        |> Tesla.OpenTelemetry.SemConv.build_logger_metadata(response, time)
-        |> Map.merge(Map.new(user_metadata))
-
-      :legacy ->
+      user_metadata when is_list(user_metadata) ->
         user_metadata
     end
   end
 
-  defp metadata_mode(config) do
-    case Keyword.fetch(config, :metadata_mode) do
-      {:ok, :legacy} ->
-        :legacy
-
-      {:ok, :otel} ->
-        resolve_otel_mode()
-
-      {:ok, other} ->
-        raise ArgumentError,
-              "expected :metadata_mode to be :legacy or :otel, got: #{inspect(other)}"
-
-      :error ->
-        :legacy
-    end
-  end
-
   if @semconv_available do
-    defp resolve_otel_mode, do: :otel
+    defp otel_metadata(env, response, time, overrides) do
+      env
+      |> Tesla.OpenTelemetry.SemConv.build_logger_metadata(response, time)
+      |> Map.merge(Map.new(overrides))
+    end
   else
-    defp resolve_otel_mode do
-      Logger.error(
-        "metadata_mode :otel requires :opentelemetry_semantic_conventions to be available; falling back to :legacy"
-      )
-
-      :legacy
+    defp otel_metadata(_env, _response, _time, _overrides) do
+      raise ArgumentError,
+        "metadata: {:otel, overrides} requires the :opentelemetry_semantic_conventions dependency. " <>
+          "Add it to your mix.exs deps."
     end
   end
 
