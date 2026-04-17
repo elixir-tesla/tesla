@@ -79,9 +79,32 @@ defmodule Tesla.Middleware.Logger do
   - `:level` - custom function for calculating log level or atom for fixed level (see below)
   - `:log_level` - (deprecated) custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
-  - `:metadata` - metadata to pass to `Logger`
+  - `:metadata` - metadata to pass to `Logger` (merged after the mode-specific base attributes; your
+    keys override on duplicate keys)
+  - `:metadata_mode` - `:legacy` (default) passes only middleware `:metadata`; `:otel` emits OpenTelemetry semantic-convention metadata, then merges middleware `:metadata` afterward (your keys override duplicates). `:otel` requires the `:opentelemetry_semantic_conventions` dependency and falls back to `:legacy` with an error log if it is unavailable.
   - `:debug` - use `Logger.debug/2` to log request/response details
   - `:format` - custom string template or function for log message (see below)
+
+  ## Semantic log attributes (`:metadata_mode` `:otel`)
+
+  > #### Optional dependency {: .info}
+  >
+  > The `:otel` metadata mode requires the `:opentelemetry_semantic_conventions`
+  > package (`~> 1.27`). Add it to your `mix.exs` deps to enable. Without it,
+  > Tesla logs an error and falls back to `:legacy` metadata.
+
+  `:otel` emits a subset of the official OpenTelemetry semantic-convention attributes for HTTP
+  client requests, depending on what request/response data is available at log time. See the
+  official [HTTP semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/http-spans/)
+  and [URL semantic conventions](https://opentelemetry.io/docs/specs/semconv/url/url/) for the
+  attribute definitions and semantics.
+
+  Tesla-specific notes:
+
+  - middleware `:metadata` is merged afterward and overrides generated keys
+  - `url.full` redacts URL `userinfo` per the URL semantic conventions
+  - `http.client.request.duration` is emitted as log metadata in **milliseconds**; treat it as
+    log-only rather than an OTLP metric value
 
   ## Custom log format
 
@@ -243,6 +266,8 @@ defmodule Tesla.Middleware.Logger do
 
   alias Tesla.Middleware.Logger.Formatter
 
+  @semconv_available Code.ensure_loaded?(OpenTelemetry.SemConv.HTTPAttributes)
+
   @config Application.compile_env(:tesla, __MODULE__, [])
 
   @format Formatter.compile(@config[:format])
@@ -268,7 +293,7 @@ defmodule Tesla.Middleware.Logger do
     format =
       if optional_runtime_format, do: Formatter.compile(optional_runtime_format), else: @format
 
-    metadata = Keyword.get(config, :metadata, [])
+    metadata = build_metadata(env, response, time, config)
     level = log_level(response, config)
     Logger.log(level, fn -> Formatter.format(env, response, time, format) end, metadata)
 
@@ -277,6 +302,49 @@ defmodule Tesla.Middleware.Logger do
     end
 
     response
+  end
+
+  defp build_metadata(env, response, time, config) do
+    user_metadata = Keyword.get(config, :metadata, [])
+
+    case metadata_mode(config) do
+      :otel ->
+        env
+        |> Tesla.OpenTelemetry.SemConv.build_logger_metadata(response, time)
+        |> Map.merge(Map.new(user_metadata))
+
+      :legacy ->
+        user_metadata
+    end
+  end
+
+  defp metadata_mode(config) do
+    case Keyword.fetch(config, :metadata_mode) do
+      {:ok, :legacy} ->
+        :legacy
+
+      {:ok, :otel} ->
+        resolve_otel_mode()
+
+      {:ok, other} ->
+        raise ArgumentError,
+              "expected :metadata_mode to be :legacy or :otel, got: #{inspect(other)}"
+
+      :error ->
+        :legacy
+    end
+  end
+
+  if @semconv_available do
+    defp resolve_otel_mode, do: :otel
+  else
+    defp resolve_otel_mode do
+      Logger.error(
+        "metadata_mode :otel requires :opentelemetry_semantic_conventions to be available; falling back to :legacy"
+      )
+
+      :legacy
+    end
   end
 
   defp log_level(response, config) do

@@ -74,6 +74,8 @@ defmodule Tesla.Mixfile do
       {:fuse, "~> 2.4", optional: true},
       {:telemetry, "~> 0.4 or ~> 1.0", optional: true},
       {:mox, "~> 1.0", optional: true},
+      {:opentelemetry_semantic_conventions, "~> 1.27", optional: true},
+      {:opentelemetry_api, "~> 1.5", override: true, only: [:dev, :test]},
 
       # devtools
       {:opentelemetry_process_propagator, ">= 0.0.0", only: [:test, :dev]},
