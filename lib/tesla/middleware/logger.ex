@@ -321,10 +321,13 @@ defmodule Tesla.Middleware.Logger do
       |> Map.merge(Map.new(overrides))
     end
   else
-    defp otel_metadata(_env, _response, _time, _overrides) do
-      raise ArgumentError,
-        "metadata: {:otel, overrides} requires the :opentelemetry_semantic_conventions dependency. " <>
-          "Add it to your mix.exs deps."
+    defp otel_metadata(_env, _response, _time, overrides) do
+      Logger.warning(
+        "Tesla.Middleware.Logger: metadata: {:otel, overrides} requires the " <>
+          ":opentelemetry_semantic_conventions dependency. OTel attributes will not be emitted."
+      )
+
+      overrides
     end
   end
 
