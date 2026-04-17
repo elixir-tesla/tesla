@@ -323,7 +323,7 @@ defmodule Tesla.Middleware.Logger do
   else
     defp otel_metadata(_env, _response, _time, overrides) do
       Logger.warning(
-        "Tesla.Middleware.Logger: metadata: {:otel, overrides} requires the " <>
+        "#{__MODULE__}: metadata: {:otel, overrides} requires the " <>
           ":opentelemetry_semantic_conventions dependency. OTel attributes will not be emitted."
       )
 
