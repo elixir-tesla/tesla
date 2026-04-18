@@ -119,6 +119,44 @@ defmodule Tesla.Adapter.MintTest do
     end
   end
 
+  describe "mode: :passive" do
+    test "body_as: :plain" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/stream-bytes/10"
+      }
+
+      assert {:ok, %Env{} = response} = call(request, mode: :passive)
+      assert response.status == 200
+      assert byte_size(response.body) == 16
+    end
+
+    test "body_as: :stream" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/stream-bytes/10"
+      }
+
+      assert {:ok, %Env{} = response} = call(request, body_as: :stream, mode: :passive)
+      assert response.status == 200
+      assert Enum.join(response.body) |> byte_size() == 16
+    end
+
+    test "body_as: :chunks" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/stream-bytes/10"
+      }
+
+      assert {:ok, %Env{} = response} = call(request, body_as: :chunks, mode: :passive)
+      assert response.status == 200
+      %{conn: conn, ref: ref, opts: opts, body: body} = response.body
+
+      {:ok, _conn, received_body} = read_body(conn, ref, opts, body)
+      assert byte_size(received_body) == 16
+    end
+  end
+
   describe "500 error" do
     test "body_as :plain" do
       request = %Env{
@@ -151,147 +189,61 @@ defmodule Tesla.Adapter.MintTest do
     end
   end
 
-  describe "reusing connection" do
+  describe "reusing active connection" do
     setup do
       uri = URI.parse(@http)
-      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port)
+      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port, mode: :active)
       {:ok, conn: conn, original: "#{uri.host}:#{uri.port}"}
     end
 
     test "body_as :plain", %{conn: conn, original: original} do
-      request = %Env{
-        method: :get,
-        url: "#{@http}/stream-bytes/10"
-      }
-
-      assert {:ok, %Env{} = response} =
-               call(request, conn: conn, original: original, close_conn: false)
-
-      assert response.status == 200
-      assert byte_size(response.body) == 16
-
-      assert {:ok, %Env{} = response} =
-               call(request, conn: conn, original: original, close_conn: false)
-
-      assert response.status == 200
-      assert byte_size(response.body) == 16
-
-      assert {:ok, conn} = Tesla.Adapter.Mint.close(conn)
-      assert conn.state == :closed
+      assert_reused_plain(conn, original, [])
     end
 
     test "body_as :plain - returns error tuple matching the specification when connection is closed",
          %{conn: conn, original: original} do
-      request = %Env{
-        method: :get,
-        url: "#{@http}/stream-bytes/10"
-      }
-
-      assert {:ok, %Env{} = response} =
-               call(request, conn: conn, original: original, close_conn: false)
-
-      assert response.status == 200
-      assert byte_size(response.body) == 16
-
-      {:ok, conn} = Tesla.Adapter.Mint.close(conn)
-      assert conn.state == :closed
-
-      assert {:error, error} =
-               call(request, conn: conn, original: original, close_conn: false)
-
-      assert match?(%Mint.HTTPError{reason: :closed, module: Mint.HTTP1}, error) or
-               match?(%Mint.TransportError{reason: :einval}, error)
+      assert_reused_closed_conn_error(conn, original, [])
     end
 
     test "body_as :stream", %{conn: conn, original: original} do
-      request = %Env{
-        method: :get,
-        url: "#{@http}/stream-bytes/10"
-      }
-
-      assert {:ok, %Env{} = response} =
-               call(request,
-                 conn: conn,
-                 original: original,
-                 close_conn: false,
-                 body_as: :stream
-               )
-
-      assert response.status == 200
-      assert is_function(response.body)
-      assert Enum.join(response.body) |> byte_size() == 16
-
-      assert {:ok, %Env{} = response} =
-               call(request,
-                 conn: conn,
-                 original: original,
-                 close_conn: false,
-                 body_as: :stream
-               )
-
-      assert response.status == 200
-      assert is_function(response.body)
-      assert Enum.join(response.body) |> byte_size() == 16
-
-      assert {:ok, conn} = Tesla.Adapter.Mint.close(conn)
-      assert conn.state == :closed
+      assert_reused_stream(conn, original, [])
     end
 
     test "body_as :chunks", %{conn: conn, original: original} do
-      request = %Env{
-        method: :get,
-        url: "#{@http}/stream-bytes/10"
-      }
-
-      assert {:ok, %Env{} = response} =
-               call(request,
-                 conn: conn,
-                 original: original,
-                 close_conn: false,
-                 body_as: :chunks
-               )
-
-      assert response.status == 200
-      assert %{conn: received_conn, ref: ref, opts: opts, body: body} = response.body
-      {:ok, conn, received_body} = read_body(received_conn, ref, opts, body)
-      assert byte_size(received_body) == 16
-      assert conn.socket == received_conn.socket
-
-      assert {:ok, %Env{} = response} =
-               call(request,
-                 conn: conn,
-                 original: original,
-                 close_conn: false,
-                 body_as: :chunks
-               )
-
-      assert response.status == 200
-      assert %{conn: received_conn, ref: ref, opts: opts, body: body} = response.body
-      {:ok, conn, received_body} = read_body(received_conn, ref, opts, body)
-      assert byte_size(received_body) == 16
-      assert conn.socket == received_conn.socket
-
-      {:ok, conn} = Tesla.Adapter.Mint.close(received_conn)
-      assert conn.state == :closed
+      assert_reused_chunks(conn, original, [])
     end
 
     test "don't reuse connection if original does not match", %{conn: conn} do
-      request = %Env{
-        method: :get,
-        url: "#{@http}/stream-bytes/10"
-      }
+      assert_nonmatching_original_opens_new_conn(conn, [])
+    end
+  end
 
-      assert {:ok, %Env{} = response} =
-               call(request, body_as: :chunks, conn: conn, original: "example.com:80")
+  describe "reusing passive connection" do
+    setup do
+      uri = URI.parse(@http)
+      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port, mode: :passive)
+      {:ok, conn: conn, original: "#{uri.host}:#{uri.port}"}
+    end
 
-      assert response.status == 200
-      %{conn: received_conn, ref: ref, opts: opts, body: body} = response.body
+    test "body_as :plain", %{conn: conn, original: original} do
+      assert_reused_plain(conn, original, mode: :passive)
+    end
 
-      {:ok, received_conn, received_body} = read_body(received_conn, ref, opts, body)
-      assert byte_size(received_body) == 16
-      refute conn.socket == received_conn.socket
-      refute opts[:conn]
-      assert opts[:old_conn].socket == conn.socket
+    test "body_as :plain - returns error tuple matching the specification when connection is closed",
+         %{conn: conn, original: original} do
+      assert_reused_closed_conn_error(conn, original, mode: :passive)
+    end
+
+    test "body_as :stream", %{conn: conn, original: original} do
+      assert_reused_stream(conn, original, mode: :passive)
+    end
+
+    test "body_as :chunks", %{conn: conn, original: original} do
+      assert_reused_chunks(conn, original, mode: :passive)
+    end
+
+    test "don't reuse connection if original does not match", %{conn: conn} do
+      assert_nonmatching_original_opens_new_conn(conn, mode: :passive)
     end
   end
 
@@ -308,5 +260,114 @@ defmodule Tesla.Adapter.MintTest do
       {:nofin, conn, part} ->
         read_body(conn, ref, opts, acc <> part)
     end
+  end
+
+  defp assert_reused_plain(conn, original, call_opts) do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, reused_conn_opts(conn, original, call_opts))
+    assert response.status == 200
+    assert byte_size(response.body) == 16
+
+    assert {:ok, %Env{} = response} = call(request, reused_conn_opts(conn, original, call_opts))
+    assert response.status == 200
+    assert byte_size(response.body) == 16
+
+    assert {:ok, conn} = Tesla.Adapter.Mint.close(conn)
+    assert conn.state == :closed
+  end
+
+  defp assert_reused_closed_conn_error(conn, original, call_opts) do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, reused_conn_opts(conn, original, call_opts))
+    assert response.status == 200
+    assert byte_size(response.body) == 16
+
+    {:ok, conn} = Tesla.Adapter.Mint.close(conn)
+    assert conn.state == :closed
+
+    assert {:error, error} = call(request, reused_conn_opts(conn, original, call_opts))
+
+    assert match?(%Mint.HTTPError{reason: :closed, module: Mint.HTTP1}, error) or
+             match?(%Mint.TransportError{reason: :einval}, error)
+  end
+
+  defp assert_reused_stream(conn, original, call_opts) do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    call_opts = Keyword.put(call_opts, :body_as, :stream)
+
+    assert {:ok, %Env{} = response} = call(request, reused_conn_opts(conn, original, call_opts))
+    assert response.status == 200
+    assert is_function(response.body)
+    assert Enum.join(response.body) |> byte_size() == 16
+
+    assert {:ok, %Env{} = response} = call(request, reused_conn_opts(conn, original, call_opts))
+    assert response.status == 200
+    assert is_function(response.body)
+    assert Enum.join(response.body) |> byte_size() == 16
+
+    assert {:ok, conn} = Tesla.Adapter.Mint.close(conn)
+    assert conn.state == :closed
+  end
+
+  defp assert_reused_chunks(conn, original, call_opts) do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    call_opts = Keyword.put(call_opts, :body_as, :chunks)
+
+    assert {:ok, %Env{} = response} = call(request, reused_conn_opts(conn, original, call_opts))
+    assert response.status == 200
+    assert %{conn: received_conn, ref: ref, opts: opts, body: body} = response.body
+    {:ok, conn, received_body} = read_body(received_conn, ref, opts, body)
+    assert byte_size(received_body) == 16
+    assert conn.socket == received_conn.socket
+
+    assert {:ok, %Env{} = response} = call(request, reused_conn_opts(conn, original, call_opts))
+    assert response.status == 200
+    assert %{conn: received_conn, ref: ref, opts: opts, body: body} = response.body
+    {:ok, conn, received_body} = read_body(received_conn, ref, opts, body)
+    assert byte_size(received_body) == 16
+    assert conn.socket == received_conn.socket
+
+    {:ok, conn} = Tesla.Adapter.Mint.close(conn)
+    assert conn.state == :closed
+  end
+
+  defp assert_nonmatching_original_opens_new_conn(conn, call_opts) do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    call_opts =
+      Keyword.merge([body_as: :chunks, conn: conn, original: "example.com:80"], call_opts)
+
+    assert {:ok, %Env{} = response} = call(request, call_opts)
+    assert response.status == 200
+    %{conn: received_conn, ref: ref, opts: opts, body: body} = response.body
+
+    {:ok, received_conn, received_body} = read_body(received_conn, ref, opts, body)
+    assert byte_size(received_body) == 16
+    refute conn.socket == received_conn.socket
+    refute opts[:conn]
+    assert opts[:old_conn].socket == conn.socket
+  end
+
+  defp reused_conn_opts(conn, original, opts) do
+    Keyword.merge([conn: conn, original: original, close_conn: false], opts)
   end
 end
