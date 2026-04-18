@@ -254,6 +254,27 @@ defmodule Tesla.Adapter.MintTest do
   end
 
   describe "issue #394 - handle HTTP/2 request flow control" do
+    test "preserves automatic content-length for non-empty HTTP/2 request bodies" do
+      body = "hello"
+
+      request = %Env{
+        method: :post,
+        url: "#{@https}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: body
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: httparrot_cacertfile()]
+               )
+
+      assert response.status == 200
+      assert posted_data(response.body) == body
+      assert posted_headers(response.body)["content-length"] == Integer.to_string(byte_size(body))
+    end
+
     test "handles request bodies larger than the flow control window" do
       body = String.duplicate("a", @large_http2_request_size)
 
@@ -276,6 +297,27 @@ defmodule Tesla.Adapter.MintTest do
 
     test "handles streamed request bodies larger than the flow control window" do
       body = large_streamed_http2_body()
+      expected = String.duplicate("a", @large_http2_request_size)
+
+      request = %Env{
+        method: :post,
+        url: "#{@https}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: body
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: httparrot_cacertfile()]
+               )
+
+      assert response.status == 200
+      assert posted_data(response.body) == expected
+    end
+
+    test "handles large iodata request bodies without flattening them up front" do
+      body = large_iodata_http2_body()
       expected = String.duplicate("a", @large_http2_request_size)
 
       request = %Env{
@@ -574,10 +616,30 @@ defmodule Tesla.Adapter.MintTest do
     Stream.map(chunks, & &1)
   end
 
+  defp large_iodata_http2_body do
+    chunks =
+      List.duplicate(String.duplicate("a", 8_192), div(@large_http2_request_size, 8_192))
+
+    case rem(@large_http2_request_size, 8_192) do
+      0 -> [chunks]
+      remainder -> [chunks, [String.duplicate("a", remainder)]]
+    end
+  end
+
   defp posted_data(body) do
     body
-    |> Jason.decode!()
+    |> posted_response()
     |> Map.fetch!("data")
+  end
+
+  defp posted_headers(body) do
+    body
+    |> posted_response()
+    |> Map.fetch!("headers")
+  end
+
+  defp posted_response(body) do
+    Jason.decode!(body)
   end
 
   defp httparrot_cacertfile do
