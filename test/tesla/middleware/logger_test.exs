@@ -459,6 +459,43 @@ defmodule Tesla.Middleware.LoggerTest do
       assert log =~ "http.response.status_code=200"
     end
 
+    test "url.template is emitted when KeepRequest precedes PathParams" do
+      client =
+        Tesla.client(
+          [
+            Tesla.Middleware.KeepRequest,
+            Tesla.Middleware.PathParams,
+            {Tesla.Middleware.Logger, metadata: :otel}
+          ],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log =
+        capture_log([metadata: [:"url.template"]], fn ->
+          Tesla.get(client, "/users/:id", opts: [path_params: [id: "123"]])
+        end)
+
+      assert log =~ "url.template=/users/:id"
+    end
+
+    test "url.template is omitted without KeepRequest" do
+      client =
+        Tesla.client(
+          [
+            Tesla.Middleware.PathParams,
+            {Tesla.Middleware.Logger, metadata: :otel}
+          ],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log =
+        capture_log([metadata: [:"url.template"]], fn ->
+          Tesla.get(client, "/users/:id", opts: [path_params: [id: "123"]])
+        end)
+
+      refute log =~ "url.template="
+    end
+
     test "default metadata is keyword list passthrough" do
       client =
         Tesla.client(

@@ -4,6 +4,7 @@ if Code.ensure_loaded?(OpenTelemetry.SemConv.HTTPAttributes) do
 
     alias OpenTelemetry.SemConv.ErrorAttributes
     alias OpenTelemetry.SemConv.HTTPAttributes
+    alias OpenTelemetry.SemConv.Incubating.URLAttributes, as: IncubatingURLAttributes
     alias OpenTelemetry.SemConv.Metrics.HTTPMetrics
     alias OpenTelemetry.SemConv.ServerAttributes
     alias OpenTelemetry.SemConv.URLAttributes
@@ -19,6 +20,7 @@ if Code.ensure_loaded?(OpenTelemetry.SemConv.HTTPAttributes) do
         HTTPMetrics.http_client_request_duration() => duration_ms
       }
       |> maybe_put_url(env)
+      |> maybe_put_url_template(env)
       |> maybe_put_resend_count(env)
       |> maybe_put_http_result(result)
     end
@@ -49,6 +51,15 @@ if Code.ensure_loaded?(OpenTelemetry.SemConv.HTTPAttributes) do
       end
     end
 
+    defp maybe_put_url_template(attrs, %Tesla.Env{opts: opts}) do
+      with req_url when is_binary(req_url) <- opts[:req_url],
+           path when is_binary(path) <- URI.parse(req_url).path do
+        Map.put(attrs, IncubatingURLAttributes.url_template(), path)
+      else
+        _ -> attrs
+      end
+    end
+
     defp maybe_put_resend_count(attrs, %Tesla.Env{opts: opts}) do
       case Keyword.get(opts, :retry_count) do
         count when is_integer(count) and count > 0 ->
@@ -58,8 +69,6 @@ if Code.ensure_loaded?(OpenTelemetry.SemConv.HTTPAttributes) do
           attrs
       end
     end
-
-    defp maybe_put_resend_count(attrs, _), do: attrs
 
     defp maybe_put_http_result(attrs, {:ok, %Tesla.Env{status: status}})
          when is_integer(status) do
