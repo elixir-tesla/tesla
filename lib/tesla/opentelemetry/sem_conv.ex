@@ -101,25 +101,6 @@ if Code.ensure_loaded?(OpenTelemetry.SemConv.HTTPAttributes) do
       {@method_other, method |> Atom.to_string() |> String.upcase()}
     end
 
-    defp map_method(method) when is_binary(method) do
-      upcased = String.upcase(method)
-
-      case upcased do
-        "CONNECT" -> {"CONNECT", nil}
-        "DELETE" -> {"DELETE", nil}
-        "GET" -> {"GET", nil}
-        "HEAD" -> {"HEAD", nil}
-        "OPTIONS" -> {"OPTIONS", nil}
-        "PATCH" -> {"PATCH", nil}
-        "POST" -> {"POST", nil}
-        "PUT" -> {"PUT", nil}
-        "TRACE" -> {"TRACE", nil}
-        _ -> {@method_other, upcased}
-      end
-    end
-
-    defp map_method(method), do: {@method_other, inspect(method)}
-
     defp build_url_full(url, query) do
       url
       |> Tesla.build_url(query)
