@@ -10,6 +10,8 @@ defmodule Tesla.Adapter.MintTest do
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
 
+  @large_http2_request_size 70_000
+
   use Tesla.AdapterCase.SSL,
     transport_opts: [
       cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
@@ -248,6 +250,49 @@ defmodule Tesla.Adapter.MintTest do
 
     test "don't reuse connection if original does not match", %{conn: conn} do
       assert_nonmatching_original_opens_new_conn(conn, mode: :passive)
+    end
+  end
+
+  describe "issue #394 - handle HTTP/2 request flow control" do
+    test "handles request bodies larger than the flow control window" do
+      body = String.duplicate("a", @large_http2_request_size)
+
+      request = %Env{
+        method: :post,
+        url: "#{@https}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: body
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: httparrot_cacertfile()]
+               )
+
+      assert response.status == 200
+      assert posted_data(response.body) == body
+    end
+
+    test "handles streamed request bodies larger than the flow control window" do
+      body = large_streamed_http2_body()
+      expected = String.duplicate("a", @large_http2_request_size)
+
+      request = %Env{
+        method: :post,
+        url: "#{@https}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: body
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: httparrot_cacertfile()]
+               )
+
+      assert response.status == 200
+      assert posted_data(response.body) == expected
     end
   end
 
@@ -514,6 +559,29 @@ defmodule Tesla.Adapter.MintTest do
         assert error.module == Mint.HTTP2
       end)
     end
+  end
+
+  defp large_streamed_http2_body do
+    chunks =
+      List.duplicate(String.duplicate("a", 8_192), div(@large_http2_request_size, 8_192))
+
+    chunks =
+      case rem(@large_http2_request_size, 8_192) do
+        0 -> chunks
+        remainder -> chunks ++ [String.duplicate("a", remainder)]
+      end
+
+    Stream.map(chunks, & &1)
+  end
+
+  defp posted_data(body) do
+    body
+    |> Jason.decode!()
+    |> Map.fetch!("data")
+  end
+
+  defp httparrot_cacertfile do
+    Path.join([to_string(:code.priv_dir(:httparrot)), "ssl/server-ca.crt"])
   end
 
   describe "issue #450 - handle missing Mint response types" do
