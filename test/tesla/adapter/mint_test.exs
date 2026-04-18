@@ -370,4 +370,103 @@ defmodule Tesla.Adapter.MintTest do
   defp reused_conn_opts(conn, original, opts) do
     Keyword.merge([conn: conn, original: original, close_conn: false], opts)
   end
+
+  describe "issue #450 - handle missing Mint response types" do
+    setup do
+      listener_ref = :"mint-push-promise-#{System.unique_integer([:positive])}"
+      dispatch = push_promise_dispatch()
+      priv_dir = :code.priv_dir(:httparrot)
+
+      {:ok, _pid} =
+        :cowboy.start_tls(
+          listener_ref,
+          [
+            port: 0,
+            certfile: priv_dir ++ ~c"/ssl/server.crt",
+            keyfile: priv_dir ++ ~c"/ssl/server.key"
+          ],
+          %{env: %{dispatch: dispatch}}
+        )
+
+      on_exit(fn -> :cowboy.stop_listener(listener_ref) end)
+
+      {_, port} = :ranch.get_addr(listener_ref)
+
+      {:ok,
+       push_url: "https://localhost:#{port}",
+       push_cacertfile: Path.join([to_string(priv_dir), "ssl/server-ca.crt"])}
+    end
+
+    test "handles connection errors gracefully" do
+      uri = URI.parse(@http)
+
+      request = %Env{
+        method: :get,
+        url: "http://#{uri.host}:1234"
+      }
+
+      assert {:error, _reason} = call(request)
+    end
+
+    test "handles malformed requests without crashes" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/status/500"
+      }
+
+      assert {:ok, %Env{} = response} = call(request)
+      assert response.status == 500
+    end
+
+    test "handles timeout scenarios without crashes" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/delay/2"
+      }
+
+      assert {:error, :timeout} = call(request, timeout: 100)
+    end
+
+    test "handles connection drops during streaming" do
+      request = %Env{
+        method: :get,
+        url: "#{@http}/stream-bytes/1000"
+      }
+
+      assert {:ok, %Env{} = response} = call(request, body_as: :stream)
+      assert response.status == 200
+
+      data = Enum.join(response.body)
+      assert byte_size(data) > 0
+    end
+
+    test "handles push_promise responses from a real HTTP/2 server", %{
+      push_url: push_url,
+      push_cacertfile: push_cacertfile
+    } do
+      request = %Env{
+        method: :get,
+        url: "#{push_url}/index.html"
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: push_cacertfile]
+               )
+
+      assert response.status == 200
+      assert response.body == "original response"
+    end
+  end
+
+  defp push_promise_dispatch do
+    :cowboy_router.compile([
+      {:_,
+       [
+         {"/index.html", Tesla.TestSupport.MintPushPromiseIndexHandler, []},
+         {"/style.css", Tesla.TestSupport.MintPushPromiseStyleHandler, []}
+       ]}
+    ])
+  end
 end
