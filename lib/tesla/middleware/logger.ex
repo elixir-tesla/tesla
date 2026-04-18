@@ -104,9 +104,7 @@ defmodule Tesla.Middleware.Logger do
   Tesla-specific notes:
 
   - `overrides` keyword list is merged last and wins on duplicate keys
-  - `url.full` redacts URL `userinfo` per the URL semantic conventions
-  - `http.client.request.duration` is emitted as log metadata in **milliseconds**; treat it as
-    log-only rather than an OTLP metric value
+  - `url.template` requires `Tesla.Middleware.KeepRequest` placed before `Tesla.Middleware.PathParams`
 
   ## Custom log format
 
