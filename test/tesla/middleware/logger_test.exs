@@ -242,7 +242,6 @@ defmodule Tesla.Middleware.LoggerTest do
       metadata: [
         :request_id,
         :"http.request.method",
-        :"http.request.method_original",
         :"http.request.resend_count",
         :"http.response.status_code",
         :"http.client.request.duration",
@@ -280,7 +279,6 @@ defmodule Tesla.Middleware.LoggerTest do
       assert log =~ "server.port=443"
       assert log =~ "http.client.request.duration="
       refute log =~ "error.type="
-      refute log =~ "http.request.method_original="
     end
 
     test "user overrides win over generated otel attributes" do
@@ -351,7 +349,7 @@ defmodule Tesla.Middleware.LoggerTest do
       refute log =~ "error.type="
     end
 
-    test "unknown method produces _OTHER and method_original" do
+    test "unknown method is uppercased" do
       client =
         Tesla.client(
           [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
@@ -361,8 +359,7 @@ defmodule Tesla.Middleware.LoggerTest do
       log =
         capture_log(@capture_opts, fn -> Tesla.request(client, url: "/x", method: :propfind) end)
 
-      assert log =~ "http.request.method=_OTHER"
-      assert log =~ "http.request.method_original=PROPFIND"
+      assert log =~ "http.request.method=PROPFIND"
     end
 
     test "url.full includes query parameters" do

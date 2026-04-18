@@ -8,29 +8,20 @@ if Code.ensure_loaded?(OpenTelemetry.SemConv.HTTPAttributes) do
     alias OpenTelemetry.SemConv.ServerAttributes
     alias OpenTelemetry.SemConv.URLAttributes
 
-    @method_other "_OTHER"
-
     @doc false
     @spec build_logger_metadata(Tesla.Env.t(), Tesla.Env.result(), non_neg_integer()) :: map()
     def build_logger_metadata(env, result, time_us)
         when is_integer(time_us) and time_us >= 0 do
-      {mapped_method, original} = map_method(env.method)
       duration_ms = Float.round(time_us / 1000.0, 3)
 
       %{
-        HTTPAttributes.http_request_method() => mapped_method,
+        HTTPAttributes.http_request_method() => map_method(env.method),
         HTTPMetrics.http_client_request_duration() => duration_ms
       }
-      |> maybe_put_method_original(original)
       |> maybe_put_url(env)
       |> maybe_put_resend_count(env)
       |> maybe_put_http_result(result)
     end
-
-    defp maybe_put_method_original(attrs, nil), do: attrs
-
-    defp maybe_put_method_original(attrs, original),
-      do: Map.put(attrs, HTTPAttributes.http_request_method_original(), original)
 
     defp maybe_put_url(attrs, %Tesla.Env{url: url, query: query}) when is_binary(url) do
       full_url = build_url_full(url, query)
@@ -87,19 +78,7 @@ if Code.ensure_loaded?(OpenTelemetry.SemConv.HTTPAttributes) do
 
     defp maybe_put_http_result(attrs, _), do: attrs
 
-    defp map_method(:connect), do: {"CONNECT", nil}
-    defp map_method(:delete), do: {"DELETE", nil}
-    defp map_method(:get), do: {"GET", nil}
-    defp map_method(:head), do: {"HEAD", nil}
-    defp map_method(:options), do: {"OPTIONS", nil}
-    defp map_method(:patch), do: {"PATCH", nil}
-    defp map_method(:post), do: {"POST", nil}
-    defp map_method(:put), do: {"PUT", nil}
-    defp map_method(:trace), do: {"TRACE", nil}
-
-    defp map_method(method) when is_atom(method) do
-      {@method_other, method |> Atom.to_string() |> String.upcase()}
-    end
+    defp map_method(method), do: method |> Atom.to_string() |> String.upcase()
 
     defp build_url_full(url, query) do
       url
