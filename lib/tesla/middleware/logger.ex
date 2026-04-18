@@ -81,7 +81,8 @@ defmodule Tesla.Middleware.Logger do
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
   - `:metadata` - metadata to pass to `Logger`. Accepts a keyword list for arbitrary key-value
     pairs, or `{:otel, overrides}` to emit OpenTelemetry semantic-convention attributes with
-    optional keyword overrides (your keys win on duplicates).
+    optional keyword overrides (your keys win on duplicates). If `:opentelemetry_semantic_conventions`
+    is not available, OTel attributes are skipped and only `overrides` are emitted.
   - `:debug` - use `Logger.debug/2` to log request/response details
   - `:format` - custom string template or function for log message (see below)
 
@@ -90,8 +91,8 @@ defmodule Tesla.Middleware.Logger do
   > #### Optional dependency {: .info}
   >
   > The `{:otel, overrides}` form requires the `:opentelemetry_semantic_conventions`
-  > package. Add it to your `mix.exs` deps to enable. Without it,
-  > Tesla raises an error when the OTel form is used.
+  > package. Add it to your `mix.exs` deps to enable. Without it, OTel attributes
+  > are not emitted and a warning is logged on every request.
 
   `{:otel, overrides}` emits a subset of the official OpenTelemetry semantic-convention attributes
   for HTTP client requests, depending on what request/response data is available at log time. See
