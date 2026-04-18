@@ -39,6 +39,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
       Processing of the chunks and checking body size must be done by yourself. Example of processing function is in `test/tesla/adapter/mint_test.exs` - `Tesla.Adapter.MintTest.read_body/4`. If you don't need connection later don't forget to close it with `Tesla.Adapter.Mint.close/1`.
     - `:max_body` - Max response body size in bytes. Works only with `body_as: :plain`, with other settings you need to check response body size by yourself.
     - `:conn` - Opened connection with mint. Is used for reusing mint connections.
+    - `:mode` - Mint receive mode. Defaults to `:passive` for connections opened by the adapter. When reusing a caller-supplied `:conn`, pass `:mode` explicitly if that connection is not `:active`.
     - `:original` - Original host with port, for which reused connection was open. Needed for `Tesla.Middleware.FollowRedirects`. Otherwise adapter will use connection for another open host.
     - `:close_conn` - Close connection or not after receiving full response body. Is used for reusing mint connections. Defaults to `true`.
     - `:proxy` - Proxy settings. E.g.: `{:http, "localhost", 8888, []}`, `{:http, "127.0.0.1", 8888, []}`
@@ -51,7 +52,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     alias Tesla.Multipart
     alias Mint.HTTP
 
-    @default timeout: 2_000, body_as: :plain, close_conn: true, mode: :active
+    @default timeout: 2_000, body_as: :plain, close_conn: true
 
     @tags [:tcp_error, :ssl_error, :tcp_closed, :ssl_closed, :tcp, :ssl]
 
@@ -132,7 +133,11 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp check_original(_uri, opts), do: opts
 
     defp open_conn(_uri, %{conn: conn, original_matches: true} = opts) do
-      {:ok, conn, opts}
+      opts = Map.put_new(opts, :mode, :active)
+
+      with {:ok, conn} <- HTTP.set_mode(conn, opts[:mode]) do
+        {:ok, conn, opts}
+      end
     end
 
     defp open_conn(uri, %{conn: conn, original_matches: false} = opts) do
@@ -314,7 +319,11 @@ if Code.ensure_loaded?(Mint.HTTP) do
           if opts[:close_conn], do: {:ok, _conn} = close(conn)
           {:error, error}
 
-        {:error, _conn, error, _res} ->
+        {:error, conn, %Mint.TransportError{reason: :timeout}, _res} ->
+          if opts[:close_conn], do: {:ok, _conn} = close(conn)
+          {:error, :timeout}
+
+        {:error, conn, error, _res} ->
           if opts[:close_conn], do: {:ok, _conn} = close(conn)
           # TODO: (breaking change) fix typo in error message, "Encounter" => "Encountered"
           {:error, "Encounter Mint error #{inspect(error)}"}

@@ -51,6 +51,7 @@ defmodule Tesla.Adapter.MintTest do
     assert response.status == 200
     %{conn: conn, ref: ref, opts: opts, body: body} = response.body
     assert opts[:body_as] == :chunks
+    assert opts[:mode] == :passive
 
     {:ok, conn, received_body} = read_body(conn, ref, opts, body)
     assert byte_size(received_body) == 16
@@ -195,8 +196,11 @@ defmodule Tesla.Adapter.MintTest do
       {:ok, conn} = Tesla.Adapter.Mint.close(conn)
       assert conn.state == :closed
 
-      assert {:error, %Mint.HTTPError{reason: :closed, module: Mint.HTTP1}} =
+      assert {:error, error} =
                call(request, conn: conn, original: original, close_conn: false)
+
+      assert match?(%Mint.HTTPError{reason: :closed, module: Mint.HTTP1}, error) or
+               match?(%Mint.TransportError{reason: :einval}, error)
     end
 
     test "body_as :stream", %{conn: conn, original: original} do
