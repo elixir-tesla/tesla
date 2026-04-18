@@ -53,6 +53,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     alias Mint.HTTP
 
     @default timeout: 2_000, body_as: :plain, close_conn: true
+    @http2_request_chunk_size 16_384
 
     @tags [:tcp_error, :ssl_error, :tcp_closed, :ssl_closed, :tcp, :ssl]
 
@@ -387,16 +388,14 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp stream_request_body_chunk(conn, ref, chunk, opts, acc) do
       case HTTP.protocol(conn) do
         :http2 ->
-          with {:ok, conn, acc} <- await_request_window(conn, ref, opts, acc) do
-            window_size = request_window_size(conn, ref)
-            chunk_size = min(byte_size(chunk), window_size)
-            <<body_chunk::binary-size(chunk_size), rest::binary>> = chunk
-
-            case HTTP.stream_request_body(conn, ref, body_chunk) do
-              {:ok, conn} -> stream_request_body_chunk(conn, ref, rest, opts, acc)
-              {:error, _conn, error} -> {:error, error}
-            end
-          end
+          stream_http2_body_chunk(
+            conn,
+            ref,
+            chunk,
+            opts,
+            acc,
+            min(byte_size(chunk), @http2_request_chunk_size)
+          )
 
         _ ->
           case HTTP.stream_request_body(conn, ref, chunk) do
@@ -406,21 +405,38 @@ if Code.ensure_loaded?(Mint.HTTP) do
       end
     end
 
-    defp await_request_window(conn, ref, opts, acc) do
-      if request_window_size(conn, ref) > 0 do
-        {:ok, conn, acc}
-      else
-        with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
-          await_request_window(conn, ref, opts, acc)
-        end
+    defp stream_http2_body_chunk(conn, _ref, "", _opts, acc, _chunk_size), do: {:ok, conn, acc}
+
+    defp stream_http2_body_chunk(conn, ref, chunk, opts, acc, chunk_size) do
+      chunk_size = min(byte_size(chunk), chunk_size)
+      <<body_chunk::binary-size(chunk_size), rest::binary>> = chunk
+
+      case HTTP.stream_request_body(conn, ref, body_chunk) do
+        {:ok, conn} ->
+          stream_http2_body_chunk(
+            conn,
+            ref,
+            rest,
+            opts,
+            acc,
+            min(byte_size(rest), @http2_request_chunk_size)
+          )
+
+        {:error, conn, %Mint.HTTPError{reason: {:exceeds_window_size, _, 0}}} ->
+          await_request_window(conn, ref, chunk, opts, acc, chunk_size)
+
+        {:error, conn, %Mint.HTTPError{reason: {:exceeds_window_size, _, window_size}}} ->
+          stream_http2_body_chunk(conn, ref, chunk, opts, acc, window_size)
+
+        {:error, _conn, error} ->
+          {:error, error}
       end
     end
 
-    defp request_window_size(conn, ref) do
-      min(
-        Mint.HTTP2.get_window_size(conn, :connection),
-        Mint.HTTP2.get_window_size(conn, {:request, ref})
-      )
+    defp await_request_window(conn, ref, chunk, opts, acc, chunk_size) do
+      with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
+        stream_http2_body_chunk(conn, ref, chunk, opts, acc, chunk_size)
+      end
     end
 
     defp reduce_responses(responses, ref, acc) do
