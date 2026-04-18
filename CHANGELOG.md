@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.17.0](https://github.com/elixir-tesla/tesla/compare/v1.16.0...v1.17.0) (2026-04-18)
+
+
+### Features
+
+* Add :metadata option to Logger middleware ([#829](https://github.com/elixir-tesla/tesla/issues/829)) ([38e209a](https://github.com/elixir-tesla/tesla/commit/38e209a5a370160a723eb7a69665befdf9978b1a))
+* add `assigns` and `private` fields to `Tesla.Env` ([#836](https://github.com/elixir-tesla/tesla/issues/836)) ([b8b622c](https://github.com/elixir-tesla/tesla/commit/b8b622ca1cd3104fd5d437bb3245d865d6af0b37))
+* **client:** add put_middleware/2, replace_middleware!/3, update_middleware!/3, and insert_middleware!/4 ([#840](https://github.com/elixir-tesla/tesla/issues/840)) ([fa755c9](https://github.com/elixir-tesla/tesla/commit/fa755c97a24dbb4d542cffdad1bba8222053dbe1))
+* **client:** add update_middleware/2 to transform middleware list ([#523](https://github.com/elixir-tesla/tesla/issues/523)) ([0689e64](https://github.com/elixir-tesla/tesla/commit/0689e64a3689bdbcb2a5921c1f3a1b32fb7f64c8))
+* **logger:** emit url.template from KeepRequest preserved URL ([#839](https://github.com/elixir-tesla/tesla/issues/839)) ([544e1d7](https://github.com/elixir-tesla/tesla/commit/544e1d7473e54030315553a6534d7e291250009d))
+* **logger:** semantic OTel metadata and legacy mode ([#838](https://github.com/elixir-tesla/tesla/issues/838)) ([aae0866](https://github.com/elixir-tesla/tesla/commit/aae0866c4e200858eb29789056bc90824c580be9))
+
+
+### Bug Fixes
+
+* avoid soft-deprecated warning logs when compiling tesla itself ([#834](https://github.com/elixir-tesla/tesla/issues/834)) ([ab82264](https://github.com/elixir-tesla/tesla/commit/ab822644006666702e1820625c96c60023a2a3e1))
+* dialyzer spec for mock opts ([#831](https://github.com/elixir-tesla/tesla/issues/831)) ([440ec4e](https://github.com/elixir-tesla/tesla/commit/440ec4e442db3541b10f63a3da6235a5239fdab8))
+* enhance response handling in Mint adapter ([#803](https://github.com/elixir-tesla/tesla/issues/803)) ([a672177](https://github.com/elixir-tesla/tesla/commit/a6721774e226ae48a9e3fc10f6592b595d5cde2f))
+* include caller module name in `use Tesla` deprecation warning ([#832](https://github.com/elixir-tesla/tesla/issues/832)) ([b8fb158](https://github.com/elixir-tesla/tesla/commit/b8fb158f1ef5e2bebad7fd3b207738b1f4a3b9f6))
+* **mint:** avoid active-mode message races without breaking reused connections ([#812](https://github.com/elixir-tesla/tesla/issues/812)) ([d812f54](https://github.com/elixir-tesla/tesla/commit/d812f543c905f53326899f38f687153f77551c44))
+
 ## [1.16.0](https://github.com/elixir-tesla/tesla/compare/v1.15.3...v1.16.0) (2026-01-01)
 
 
