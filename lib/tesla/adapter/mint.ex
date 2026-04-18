@@ -434,7 +434,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     defp next_iodata_chunk({[chunk | _rest], _buffer, _buffer_size}) do
-      IO.iodata_to_binary([chunk])
+      raise ArgumentError, "invalid iodata element in request body: #{inspect(chunk)}"
     end
 
     defp prepend_iodata([], rest), do: rest
