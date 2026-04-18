@@ -338,6 +338,78 @@ defmodule Tesla.Adapter.MintTest do
     end
   end
 
+  describe "issue #394 - handle early HTTP/2 responses during upload" do
+    setup do
+      listener_ref = :"mint-early-response-#{System.unique_integer([:positive])}"
+      dispatch = early_response_dispatch()
+      priv_dir = :code.priv_dir(:httparrot)
+
+      {:ok, _pid} =
+        :cowboy.start_tls(
+          listener_ref,
+          [
+            port: 0,
+            certfile: priv_dir ++ ~c"/ssl/server.crt",
+            keyfile: priv_dir ++ ~c"/ssl/server.key"
+          ],
+          %{env: %{dispatch: dispatch}}
+        )
+
+      on_exit(fn -> :cowboy.stop_listener(listener_ref) end)
+
+      {_, port} = :ranch.get_addr(listener_ref)
+
+      {:ok,
+       early_response_url: "https://localhost:#{port}",
+       early_response_cacertfile: Path.join([to_string(priv_dir), "ssl/server-ca.crt"])}
+    end
+
+    test "returns the response body without waiting for another packet", %{
+      early_response_url: early_response_url,
+      early_response_cacertfile: early_response_cacertfile
+    } do
+      request = %Env{
+        method: :post,
+        url: "#{early_response_url}/early-response",
+        headers: [{"content-type", "text/plain"}],
+        body: String.duplicate("a", @large_http2_request_size)
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 timeout: 200,
+                 transport_opts: [cacertfile: early_response_cacertfile]
+               )
+
+      assert response.status == 200
+      assert response.body == "early response"
+    end
+
+    test "returns chunked responses that already finished during upload", %{
+      early_response_url: early_response_url,
+      early_response_cacertfile: early_response_cacertfile
+    } do
+      request = %Env{
+        method: :post,
+        url: "#{early_response_url}/early-response",
+        headers: [{"content-type", "text/plain"}],
+        body: String.duplicate("a", @large_http2_request_size)
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 body_as: :chunks,
+                 protocols: [:http2],
+                 timeout: 200,
+                 transport_opts: [cacertfile: early_response_cacertfile]
+               )
+
+      assert response.status == 200
+      assert %{body: {:fin, "early response"}} = response.body
+    end
+  end
+
   def read_body(conn, _ref, _opts, {:fin, body}), do: {:ok, conn, body}
 
   def read_body(conn, ref, opts, {:nofin, acc}),
@@ -800,5 +872,11 @@ defmodule Tesla.Adapter.MintTest do
     else
       recv_until_response(conn, match?, timeout, attempts - 1, responses)
     end
+  end
+
+  defp early_response_dispatch do
+    :cowboy_router.compile([
+      {:_, [{"/early-response", Tesla.TestSupport.MintEarlyResponseHandler, []}]}
+    ])
   end
 end

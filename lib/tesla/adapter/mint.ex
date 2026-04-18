@@ -213,7 +213,11 @@ if Code.ensure_loaded?(Mint.HTTP) do
       end
     end
 
-    defp stream_request(conn, ref, fun, opts, acc \\ %{}) do
+    defp stream_request(conn, ref, fun, opts, acc \\ %{})
+
+    defp stream_request(conn, _ref, _fun, _opts, %{done: true} = acc), do: {:ok, conn, acc}
+
+    defp stream_request(conn, ref, fun, opts, acc) do
       case next_chunk(fun) do
         {:ok, item, fun} ->
           with {:ok, conn, acc} <- stream_request_body(conn, ref, item, opts, acc) do
@@ -293,13 +297,14 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     defp receive_responses(conn, ref, opts, acc) do
-      with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc),
-           :ok <- check_data_size(acc, conn, opts) do
+      with :ok <- check_data_size(acc, conn, opts) do
         if acc[:done] do
           if opts[:close_conn], do: {:ok, _conn} = close(conn)
           {:ok, acc}
         else
-          receive_responses(conn, ref, opts, acc)
+          with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
+            receive_responses(conn, ref, opts, acc)
+          end
         end
       end
     end
@@ -317,12 +322,14 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp check_data_size(_, _, _), do: :ok
 
     defp receive_headers_and_status(conn, ref, opts, acc) do
-      with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
-        case acc do
-          %{status: _status, headers: _headers} -> {:ok, conn, acc}
-          # if we don't have status or headers we try to get them in next packet
-          _ -> receive_headers_and_status(conn, ref, opts, acc)
-        end
+      case acc do
+        %{status: _status, headers: _headers} ->
+          {:ok, conn, acc}
+
+        _ ->
+          with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
+            receive_headers_and_status(conn, ref, opts, acc)
+          end
       end
     end
 
@@ -509,7 +516,11 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     defp await_request_window(conn, ref, chunk, opts, acc, chunk_size) do
       with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
-        stream_http2_body_chunk(conn, ref, chunk, opts, acc, chunk_size)
+        if acc[:done] do
+          {:ok, conn, acc}
+        else
+          stream_http2_body_chunk(conn, ref, chunk, opts, acc, chunk_size)
+        end
       end
     end
 
