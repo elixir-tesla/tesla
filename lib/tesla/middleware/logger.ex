@@ -80,9 +80,10 @@ defmodule Tesla.Middleware.Logger do
   - `:log_level` - (deprecated) custom function for calculating log level (see below)
   - `:filter_headers` - sanitizes sensitive headers before logging in debug mode (see below)
   - `:metadata` - metadata to pass to `Logger`. Accepts a keyword list for arbitrary key-value
-    pairs, or `{:otel, overrides}` to emit OpenTelemetry semantic-convention attributes with
-    optional keyword overrides (your keys win on duplicates). If `:opentelemetry_semantic_conventions`
-    is not available, OTel attributes are skipped and only `overrides` are emitted.
+    pairs, `:otel` to emit OpenTelemetry semantic-convention attributes, or `{:otel, overrides}`
+    to do the same with additional keyword overrides (your keys win on duplicates). If
+    `:opentelemetry_semantic_conventions` is not available, OTel attributes are skipped and only
+    `overrides` are emitted.
   - `:debug` - use `Logger.debug/2` to log request/response details
   - `:format` - custom string template or function for log message (see below)
 
@@ -307,6 +308,9 @@ defmodule Tesla.Middleware.Logger do
 
   defp build_metadata(env, response, time, config) do
     case Keyword.get(config, :metadata, []) do
+      :otel ->
+        otel_metadata(env, response, time, [])
+
       {:otel, overrides} ->
         otel_metadata(env, response, time, overrides)
 

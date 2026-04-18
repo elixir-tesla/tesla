@@ -446,6 +446,19 @@ defmodule Tesla.Middleware.LoggerTest do
       assert log =~ "server.port=80"
     end
 
+    test "bare :otel emits attributes without overrides" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: :otel}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "https://api.example.com/ok") end)
+
+      assert log =~ "http.request.method=GET"
+      assert log =~ "http.response.status_code=200"
+    end
+
     test "default metadata is keyword list passthrough" do
       client =
         Tesla.client(
