@@ -237,6 +237,254 @@ defmodule Tesla.Middleware.LoggerTest do
     end
   end
 
+  describe "semantic log attributes (OpenTelemetry-style metadata)" do
+    @capture_opts [
+      metadata: [
+        :request_id,
+        :"http.request.method",
+        :"http.request.resend_count",
+        :"http.response.status_code",
+        :"http.client.request.duration",
+        :"url.full",
+        :"url.scheme",
+        :"server.address",
+        :"server.port",
+        :"error.type"
+      ]
+    ]
+
+    setup do
+      Logger.configure(level: :info)
+      :ok
+    end
+
+    test "includes http and url attributes on success" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, [request_id: "r1"]}}],
+          fn env -> {:ok, %{env | status: 201, body: "ok"}} end
+        )
+
+      log =
+        capture_log(@capture_opts, fn ->
+          Tesla.get(client, "https://api.example.com/v1/items", query: [page: 1])
+        end)
+
+      assert log =~ "request_id=r1"
+      assert log =~ "http.request.method=GET"
+      assert log =~ "http.response.status_code=201"
+      assert log =~ "url.full=https://api.example.com/v1/items?page=1"
+      assert log =~ "url.scheme=https"
+      assert log =~ "server.address=api.example.com"
+      assert log =~ "server.port=443"
+      assert log =~ "http.client.request.duration="
+      refute log =~ "error.type="
+    end
+
+    test "user overrides win over generated otel attributes" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, [{:"http.request.method", "OVERRIDE"}]}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "/ok") end)
+
+      assert log =~ "http.request.method=OVERRIDE"
+      refute log =~ "http.request.method=GET"
+    end
+
+    test "relative URL skips server and scheme attributes" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "/relative") end)
+
+      assert log =~ "http.request.method=GET"
+      assert log =~ "url.full=/relative"
+      assert log =~ "http.response.status_code=200"
+      refute log =~ "server.address="
+    end
+
+    test "connection error includes error.type" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn _env -> {:error, :econnrefused} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "https://down.example/") end)
+
+      assert log =~ "error.type=econnrefused"
+      assert log =~ "http.request.method=GET"
+      refute log =~ "http.response.status_code="
+    end
+
+    test "HTTP 4xx/5xx sets error.type to status code string" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 404, body: "not found"}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "https://api.example.com/x") end)
+
+      assert log =~ "http.response.status_code=404"
+      assert log =~ "error.type=404"
+    end
+
+    test "HTTP 2xx does not set error.type" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "/ok") end)
+
+      assert log =~ "http.response.status_code=200"
+      refute log =~ "error.type="
+    end
+
+    test "unknown method is uppercased" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log =
+        capture_log(@capture_opts, fn -> Tesla.request(client, url: "/x", method: :propfind) end)
+
+      assert log =~ "http.request.method=PROPFIND"
+    end
+
+    test "url.full includes query parameters" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log =
+        capture_log(@capture_opts, fn ->
+          Tesla.get(client, "https://api.example.com/items", query: [page: 2, q: "test"])
+        end)
+
+      assert log =~ "url.full=https://api.example.com/items?page=2&q=test"
+    end
+
+    test "url.full redacts userinfo credentials" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log =
+        capture_log(@capture_opts, fn ->
+          Tesla.get(client, "https://user:secret@api.example.com/data")
+        end)
+
+      assert log =~ "url.full=https://REDACTED:REDACTED@api.example.com/data"
+    end
+
+    test "resend count is included from retry opts" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log =
+        capture_log(@capture_opts, fn ->
+          Tesla.get(client, "/ok", opts: [retry_count: 2])
+        end)
+
+      assert log =~ "http.request.resend_count=2"
+    end
+
+    test "resend count is omitted when not retrying" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "/ok") end)
+
+      refute log =~ "http.request.resend_count="
+    end
+
+    test "exception struct error uses module name" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn _env -> {:error, %RuntimeError{message: "boom"}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "/err") end)
+
+      assert log =~ "error.type=RuntimeError"
+    end
+
+    test "default port is inferred from scheme" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log =
+        capture_log(@capture_opts, fn ->
+          Tesla.get(client, "http://plain.example.com/path")
+        end)
+
+      assert log =~ "server.port=80"
+    end
+
+    test "bare :otel emits attributes without overrides" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: :otel}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "https://api.example.com/ok") end)
+
+      assert log =~ "http.request.method=GET"
+      assert log =~ "http.response.status_code=200"
+    end
+
+    test "default metadata is keyword list passthrough" do
+      client =
+        Tesla.client(
+          [Tesla.Middleware.Logger],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "/ok") end)
+
+      refute log =~ "http.request.method="
+    end
+
+    test "keyword list metadata is passed through without otel attributes" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: [request_id: "x"]}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "/ok") end)
+
+      assert log =~ "request_id=x"
+      refute log =~ "http.request.method="
+    end
+  end
+
   describe "with level" do
     defmodule ClientWithLevel do
       use Tesla
