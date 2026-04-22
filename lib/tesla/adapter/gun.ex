@@ -455,25 +455,116 @@ if Code.ensure_loaded?(:gun) do
       if stream_owner == request_owner do
         original_reply_to
       else
-        fn
-          {:gun_data, _pid, _stream, _is_fin, _data} = message ->
-            send(request_owner, message)
-            notify_reply_to(original_reply_to, request_owner, message)
-            notify_stream_owner(stream_owner, request_owner, original_reply_to, message)
-
-          {:gun_error, _pid, _stream, _reason} = message ->
-            send(request_owner, message)
-            notify_reply_to(original_reply_to, request_owner, message)
-            notify_stream_owner(stream_owner, request_owner, original_reply_to, message)
-
-          message ->
-            send(request_owner, message)
-            notify_reply_to(original_reply_to, request_owner, message)
-        end
+        wrap_reply_to(request_owner, stream_owner, original_reply_to)
       end
     end
 
     defp reply_to(opts), do: opts[:reply_to] || self()
+
+    if Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0") do
+      defp wrap_reply_to(request_owner, stream_owner, original_reply_to) do
+        fn message ->
+          route_reply_message(request_owner, stream_owner, original_reply_to, message)
+        end
+      end
+    else
+      defp wrap_reply_to(request_owner, stream_owner, original_reply_to) do
+        spawn(fn ->
+          request_owner_ref = Process.monitor(request_owner)
+
+          stream_owner_ref =
+            if stream_owner == request_owner, do: nil, else: Process.monitor(stream_owner)
+
+          reply_router(
+            request_owner,
+            request_owner_ref,
+            stream_owner,
+            stream_owner_ref,
+            original_reply_to,
+            :waiting_response
+          )
+        end)
+      end
+
+      defp reply_router(
+             request_owner,
+             request_owner_ref,
+             stream_owner,
+             stream_owner_ref,
+             original_reply_to,
+             state
+           ) do
+        receive do
+          {:DOWN, ^request_owner_ref, :process, ^request_owner, _reason} ->
+            if state == :waiting_response do
+              :ok
+            else
+              reply_router(
+                request_owner,
+                request_owner_ref,
+                stream_owner,
+                stream_owner_ref,
+                original_reply_to,
+                state
+              )
+            end
+
+          {:DOWN, ^stream_owner_ref, :process, ^stream_owner, _reason} ->
+            :ok
+
+          message ->
+            route_reply_message(request_owner, stream_owner, original_reply_to, message)
+
+            unless terminal_reply_message?(message) do
+              reply_router(
+                request_owner,
+                request_owner_ref,
+                stream_owner,
+                stream_owner_ref,
+                original_reply_to,
+                next_reply_state(state, message)
+              )
+            end
+        end
+      end
+    end
+
+    defp route_reply_message(request_owner, stream_owner, original_reply_to, message) do
+      case message do
+        {:gun_data, _pid, _stream, _is_fin, _data} ->
+          send(request_owner, message)
+          notify_reply_to(original_reply_to, request_owner, message)
+          notify_stream_owner(stream_owner, request_owner, original_reply_to, message)
+
+        {:gun_error, _pid, _stream, _reason} ->
+          send(request_owner, message)
+          notify_reply_to(original_reply_to, request_owner, message)
+          notify_stream_owner(stream_owner, request_owner, original_reply_to, message)
+
+        _ ->
+          send(request_owner, message)
+          notify_reply_to(original_reply_to, request_owner, message)
+      end
+    end
+
+    defp next_reply_state(_state, {:gun_response, _pid, _stream, :nofin, _status, _headers}),
+      do: :streaming
+
+    defp next_reply_state(state, _message), do: state
+
+    defp terminal_reply_message?({:gun_response, _pid, _stream, :fin, _status, _headers}),
+      do: true
+
+    defp terminal_reply_message?({:gun_data, _pid, _stream, :fin, _data}), do: true
+    defp terminal_reply_message?({:gun_error, _pid, _stream, _reason}), do: true
+    defp terminal_reply_message?({:gun_error, _pid, _reason}), do: true
+
+    defp terminal_reply_message?(
+           {:gun_down, _pid, _protocol, _reason, _killed_streams, _unprocessed}
+         ),
+         do: true
+
+    defp terminal_reply_message?(_message), do: false
 
     defp notify_reply_to(reply_to, request_owner, _message)
          when is_pid(reply_to) and reply_to == request_owner,

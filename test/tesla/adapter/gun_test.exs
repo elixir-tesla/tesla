@@ -198,20 +198,50 @@ defmodule Tesla.Adapter.GunTest do
     assert is_pid(pid)
   end
 
-  test "passes explicit reply_to through to gun on plain responses" do
+  test "passes explicit pid reply_to through to gun on plain responses" do
     request = %Env{
       method: :get,
       url: "#{@http}/stream-bytes/10"
     }
 
     test_pid = self()
-    reply_to = fn message -> send(test_pid, {:gun_reply_to, message}) end
+
+    reply_to =
+      spawn(fn ->
+        receive do
+          message -> send(test_pid, {:gun_reply_to, message})
+        end
+      end)
 
     assert {:error, :recv_response_timeout} = call(request, reply_to: reply_to, timeout: 100)
 
     assert_receive {:gun_reply_to, {:gun_response, pid, stream, :nofin, 200, _headers}}
     assert is_pid(pid)
     assert is_reference(stream)
+  end
+
+  test "preserves explicit function reply_to when stream ownership is handed off" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10",
+      private: %{tesla_gun_stream_owner: self()}
+    }
+
+    test_pid = self()
+    reply_to = fn message -> send(test_pid, {:gun_reply_to, message}) end
+
+    task =
+      Task.async(fn ->
+        Tesla.Adapter.Gun.call(request, body_as: :stream, reply_to: reply_to)
+      end)
+
+    assert {:ok, %Env{status: 200, body: body}} = Task.await(task)
+    assert body |> Enum.join() |> byte_size() == 16
+
+    assert_receive {:gun_reply_to, {:gun_response, pid, stream, :nofin, 200, _headers}}
+    assert is_pid(pid)
+    assert is_reference(stream)
+    assert_receive {:gun_reply_to, {:gun_data, ^pid, ^stream, _, _}}
   end
 
   test "on TLS errors get timeout error from await_up method" do
