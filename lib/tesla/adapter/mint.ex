@@ -185,21 +185,14 @@ if Code.ensure_loaded?(Mint.HTTP) do
       end
     end
 
-    defp make_request(conn, method, path, headers, body, opts)
+    defp make_request(conn, method, path, headers, body, _opts)
          when is_binary(body) or is_list(body) do
-      body_length = IO.iodata_length(body)
+      case HTTP.request(conn, method, path, headers, body) do
+        {:ok, conn, ref} ->
+          {:ok, conn, ref, %{}}
 
-      if HTTP.protocol(conn) == :http2 and body_length > 0 do
-        headers = put_default_content_length_header(headers, body_length)
-        make_request(conn, method, path, headers, stream_to_fun(iodata_stream(body)), opts)
-      else
-        case HTTP.request(conn, method, path, headers, body) do
-          {:ok, conn, ref} ->
-            {:ok, conn, ref, %{}}
-
-          {:error, _conn, error} ->
-            {:error, error}
-        end
+        {:error, _conn, error} ->
+          {:error, error}
       end
     end
 
@@ -378,68 +371,6 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp raise_stream_error(error) when is_binary(error), do: raise(RuntimeError, message: error)
     defp raise_stream_error(error), do: raise(RuntimeError, message: inspect(error))
 
-    defp put_default_content_length_header(headers, body_length) do
-      if Enum.any?(headers, fn {name, _value} -> String.downcase(name) == "content-length" end) do
-        headers
-      else
-        [{"content-length", Integer.to_string(body_length)} | headers]
-      end
-    end
-
-    defp iodata_stream(body) do
-      Stream.resource(
-        fn -> {[body], [], 0} end,
-        &next_iodata_chunk/1,
-        fn _ -> :ok end
-      )
-    end
-
-    defp next_iodata_chunk({[], [], 0}), do: {:halt, {[], [], 0}}
-
-    defp next_iodata_chunk({[], buffer, _buffer_size}) do
-      {[IO.iodata_to_binary(Enum.reverse(buffer))], {[], [], 0}}
-    end
-
-    defp next_iodata_chunk({[chunk | rest], buffer, buffer_size}) when is_binary(chunk) do
-      chunk_size = byte_size(chunk)
-
-      cond do
-        buffer_size == 0 and chunk_size > @http2_request_chunk_size ->
-          <<head::binary-size(@http2_request_chunk_size), tail::binary>> = chunk
-          {[head], {[tail | rest], [], 0}}
-
-        buffer_size + chunk_size < @http2_request_chunk_size ->
-          next_iodata_chunk({rest, [chunk | buffer], buffer_size + chunk_size})
-
-        true ->
-          take_size = @http2_request_chunk_size - buffer_size
-          <<head::binary-size(take_size), tail::binary>> = chunk
-          chunk = IO.iodata_to_binary(Enum.reverse([head | buffer]))
-          {[chunk], {[tail | rest], [], 0}}
-      end
-    end
-
-    defp next_iodata_chunk({[chunk | rest], buffer, buffer_size})
-         when is_integer(chunk) and chunk >= 0 and chunk <= 255 do
-      if buffer_size + 1 < @http2_request_chunk_size do
-        next_iodata_chunk({rest, [chunk | buffer], buffer_size + 1})
-      else
-        chunk = IO.iodata_to_binary(Enum.reverse([chunk | buffer]))
-        {[chunk], {rest, [], 0}}
-      end
-    end
-
-    defp next_iodata_chunk({[chunk | rest], buffer, buffer_size}) when is_list(chunk) do
-      next_iodata_chunk({prepend_iodata(chunk, rest), buffer, buffer_size})
-    end
-
-    defp next_iodata_chunk({[chunk | _rest], _buffer, _buffer_size}) do
-      raise ArgumentError, "invalid iodata element in request body: #{inspect(chunk)}"
-    end
-
-    defp prepend_iodata([], rest), do: rest
-    defp prepend_iodata([head | tail], rest), do: [head | prepend_iodata(tail, rest)]
-
     defp stream_request_body(conn, ref, chunk, opts, acc) when is_binary(chunk) do
       stream_request_body_chunk(conn, ref, chunk, opts, acc)
     end
@@ -450,18 +381,24 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     defp stream_request_body(conn, ref, chunk, opts, acc) when is_list(chunk) do
-      Enum.reduce_while(iodata_stream(chunk), {:ok, conn, acc}, fn item, {:ok, conn, acc} ->
-        case stream_request_body(conn, ref, item, opts, acc) do
-          {:ok, conn, acc} -> {:cont, {:ok, conn, acc}}
-          {:error, error} -> {:halt, {:error, error}}
-        end
-      end)
-    end
-
-    defp stream_request_body(conn, ref, chunk, opts, acc) do
       chunk
       |> IO.iodata_to_binary()
       |> then(&stream_request_body_chunk(conn, ref, &1, opts, acc))
+    end
+
+    defp stream_request_body(conn, ref, chunk, opts, acc) do
+      case HTTP.protocol(conn) do
+        :http2 ->
+          chunk
+          |> IO.iodata_to_binary()
+          |> then(&stream_request_body_chunk(conn, ref, &1, opts, acc))
+
+        _ ->
+          case HTTP.stream_request_body(conn, ref, chunk) do
+            {:ok, conn} -> {:ok, conn, acc}
+            {:error, _conn, error} -> {:error, error}
+          end
+      end
     end
 
     defp stream_request_body_chunk(conn, _ref, "", _opts, acc), do: {:ok, conn, acc}
