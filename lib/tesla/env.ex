@@ -35,7 +35,7 @@ defmodule Tesla.Env do
   - `"/users/1"` when used with `Tesla.Middleware.BaseUrl`
 
   Callers are expected to pass a valid, already-encoded URL or request target.
-  Tesla does not automatically validate, normalize, or percent-encode the URL path.
+  `Tesla` does not automatically validate, normalize, or percent-encode the URL path.
   Some middleware may rewrite `env.url`.
   """
   @type url :: binary
