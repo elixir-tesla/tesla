@@ -71,14 +71,12 @@ defmodule Tesla.Middleware.TimeoutTest do
     end
   end
 
-  if Code.ensure_loaded?(:gun) do
-    defmodule GunStreamClient do
-      use Tesla
+  defmodule GunStreamClient do
+    use Tesla
 
-      plug Tesla.Middleware.Timeout, timeout: 5_000
+    plug Tesla.Middleware.Timeout, timeout: 5_000
 
-      adapter Tesla.Adapter.Gun
-    end
+    adapter Tesla.Adapter.Gun
   end
 
   describe "using custom timeout (100ms)" do
@@ -180,16 +178,14 @@ defmodule Tesla.Middleware.TimeoutTest do
     end
   end
 
-  if Code.ensure_loaded?(:gun) do
-    describe "streaming with the gun adapter" do
-      test "should preserve streamed responses through the timeout task" do
-        assert {:ok, %Tesla.Env{status: 200, body: body}} =
-                 __MODULE__.GunStreamClient.get("#{@url}/stream-bytes/10",
-                   opts: [adapter: [body_as: :stream]]
-                 )
+  describe "streaming with the gun adapter" do
+    test "should preserve streamed responses through the timeout task" do
+      assert {:ok, %Tesla.Env{status: 200, body: body}} =
+               __MODULE__.GunStreamClient.get("#{@url}/stream-bytes/10",
+                 opts: [adapter: [body_as: :stream]]
+               )
 
-        assert body |> Enum.join() |> byte_size() == 16
-      end
+      assert body |> Enum.join() |> byte_size() == 16
     end
   end
 end
