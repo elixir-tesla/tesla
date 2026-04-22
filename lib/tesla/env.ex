@@ -25,6 +25,19 @@ defmodule Tesla.Env do
 
   @type client :: Tesla.Client.t()
   @type method :: :head | :get | :delete | :trace | :options | :post | :put | :patch
+
+  @typedoc """
+  Request URL or request target.
+
+  Examples:
+
+  - `"https://www.google.com"`
+  - `"/users/1"` when used with `Tesla.Middleware.BaseUrl`
+
+  Callers are expected to pass a valid, already-encoded URL or request target.
+  `Tesla` does not automatically validate, normalize, or percent-encode the URL path.
+  Some middleware may rewrite `env.url`.
+  """
   @type url :: binary
   @type query_key :: binary | atom
   @type query_scalar :: String.Chars.t()
