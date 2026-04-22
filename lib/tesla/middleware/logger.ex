@@ -434,6 +434,7 @@ defmodule Tesla.Middleware.Logger do
   end
 
   defp debug_query([]), do: @debug_no_query
+  defp debug_query(query) when map_size(query) == 0, do: @debug_no_query
 
   defp debug_query(query) do
     query

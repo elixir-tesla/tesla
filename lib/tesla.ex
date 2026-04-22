@@ -373,7 +373,8 @@ defmodule Tesla do
   @deprecated "Use client/1 or client/2 instead"
   def build_adapter(fun), do: Tesla.Builder.client([], [], fun)
 
-  @type encoding_strategy :: :rfc3986 | :www_form
+  @type query_encoding_fun :: (Tesla.Env.query() -> binary)
+  @type encoding_strategy :: :rfc3986 | :www_form | query_encoding_fun
 
   @doc """
   Builds URL with the given URL and query params.
@@ -381,8 +382,9 @@ defmodule Tesla do
   Useful when you need to create a URL with dynamic query params from a Keyword
   list
 
-  Allows to specify the `encoding` strategy to be one either `:www_form` or
-  `:rfc3986`. Read more about encoding at `URI.encode_query/2`.
+  Allows to specify the `encoding` strategy as either `:www_form`,
+  `:rfc3986`, or a custom function that receives the query params and returns
+  the encoded query string.
 
   - `url` - the base URL to which the query params will be appended.
   - `query` - a list of key-value pairs to be encoded as query params.
@@ -408,11 +410,34 @@ defmodule Tesla do
 
       iex> Tesla.build_url("https://api.example.com", [user_name: "John Smith"], :rfc3986)
       "https://api.example.com?user_name=John%20Smith"
+
+  Custom encoding function:
+
+      Tesla.get(
+        "http://example.com",
+        query: [username: "John Smith"],
+        opts: [query_encoding: &Plug.Conn.Query.encode/1]
+      )
+
+      Tesla.build_url(
+        "https://api.example.com",
+        [filters: [pagination: [page: 2]]],
+        &Plug.Conn.Query.encode/1
+      )
+      #=> "https://api.example.com?filters[pagination][page]=2"
+
+  This keeps query params structured inside Tesla while letting applications
+  delegate serialization to encoders such as `Plug.Conn.Query.encode/1`.
+
+  When query params are passed as maps, the encoded parameter order is
+  unspecified. Pass an ordered list of pairs if the exact query string order
+  matters.
   """
   @spec build_url(Tesla.Env.url(), Tesla.Env.query(), encoding_strategy) :: binary
   def build_url(url, query, encoding \\ :www_form)
 
   def build_url(url, [], _encoding), do: url
+  def build_url(url, query, _encoding) when map_size(query) == 0, do: url
 
   def build_url(url, query, encoding) do
     join = if String.contains?(url, "?"), do: "&", else: "?"
@@ -431,16 +456,24 @@ defmodule Tesla do
     Tesla.build_url(env.url, env.query, query_encoding)
   end
 
-  def encode_query(query, encoding \\ :www_form) do
+  @spec encode_query(Tesla.Env.query(), encoding_strategy) :: binary
+  def encode_query(query, encoding \\ :www_form)
+
+  def encode_query(query, fun) when is_function(fun, 1), do: fun.(query)
+
+  def encode_query(query, encoding) do
     query
     |> Enum.flat_map(&encode_pair/1)
     |> URI.encode_query(encoding)
   end
 
   @doc false
+  def encode_pair({key, value}) when is_map(value) and not is_struct(value),
+    do: encode_nested_pairs(key, value)
+
   def encode_pair({key, value}) when is_list(value) do
     if list_of_tuples?(value) do
-      Enum.flat_map(value, fn {k, v} -> encode_pair({"#{key}[#{k}]", v}) end)
+      encode_nested_pairs(key, value)
     else
       Enum.map(value, fn e -> {"#{key}[]", e} end)
     end
@@ -448,6 +481,16 @@ defmodule Tesla do
 
   @doc false
   def encode_pair({key, value}), do: [{key, value}]
+
+  defp encode_nested_pairs(parent_key, value) do
+    Enum.flat_map(value, &encode_nested_pair(parent_key, &1))
+  end
+
+  defp encode_nested_pair(parent_key, {key, value}) do
+    encode_pair({nested_key(parent_key, key), value})
+  end
+
+  defp nested_key(parent_key, key), do: "#{parent_key}[#{key}]"
 
   defp list_of_tuples?([{k, _} | rest]) when is_atom(k) or is_binary(k), do: list_of_tuples?(rest)
   defp list_of_tuples?([]), do: true

@@ -27,6 +27,17 @@ defmodule Tesla.Middleware.Query do
   defp merge(env, nil), do: env
 
   defp merge(env, query) do
-    Map.update!(env, :query, &(&1 ++ query))
+    Map.update!(env, :query, &merge_query_params(&1, query))
   end
+
+  defp merge_query_params(existing, query) when is_map(existing) and is_map(query) do
+    Map.merge(query, existing)
+  end
+
+  defp merge_query_params(existing, query) do
+    to_query_list(existing) ++ to_query_list(query)
+  end
+
+  defp to_query_list(query) when is_map(query), do: Map.to_list(query)
+  defp to_query_list(query), do: List.wrap(query)
 end

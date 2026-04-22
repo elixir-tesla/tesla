@@ -305,6 +305,47 @@ defmodule TeslaTest do
                @api_url <> "?nested%5Bmore_nested%5D%5Bargument%5D=1"
     end
 
+    test "returns URL with query params from nested map" do
+      query_params = %{filters: %{direction: "asc", name: "dave", pagination: %{page: 1}}}
+
+      assert URI.decode_query(
+               build_url(@api_url, query_params)
+               |> URI.parse()
+               |> Map.fetch!(:query)
+             ) ==
+               %{
+                 "filters[direction]" => "asc",
+                 "filters[name]" => "dave",
+                 "filters[pagination][page]" => "1"
+               }
+    end
+
+    test "returns URL with query params from map" do
+      query_params = %{b: 2, a: 1}
+
+      assert URI.decode_query(
+               build_url(@api_url, query_params)
+               |> URI.parse()
+               |> Map.fetch!(:query)
+             ) ==
+               %{"a" => "1", "b" => "2"}
+    end
+
+    test "returns URL with query params from nested maps" do
+      query_params = %{filters: %{b: 2, a: 1}}
+
+      assert URI.decode_query(
+               build_url(@api_url, query_params)
+               |> URI.parse()
+               |> Map.fetch!(:query)
+             ) ==
+               %{"filters[a]" => "1", "filters[b]" => "2"}
+    end
+
+    test "treats structs as scalar query values" do
+      assert build_url(@api_url, on: ~D[2026-04-21]) == @api_url <> "?on=2026-04-21"
+    end
+
     test "returns URL with new query params concated from keyword list" do
       url_with_param = @api_url <> "?user=4"
       query_params = [page: 2, status: true]
@@ -313,6 +354,14 @@ defmodule TeslaTest do
 
     test "returns normal URL when query list is empty" do
       assert build_url(@api_url, []) == @api_url
+    end
+
+    test "returns normal URL when query map is empty" do
+      assert build_url(@api_url, %{}) == @api_url
+    end
+
+    test "does not append separator when empty query map is used with existing query params" do
+      assert build_url(@api_url <> "?user=4", %{}) == @api_url <> "?user=4"
     end
 
     test "returns error when passing wrong params" do
@@ -341,12 +390,37 @@ defmodule TeslaTest do
       query_params = [name: "foo bar", page: 2]
       assert build_url(@api_url, query_params, :www_form) == build_url(@api_url, query_params)
     end
+
+    test "encoding with custom function" do
+      query_params = [name: "foo bar", page: 2]
+
+      assert build_url(@api_url, query_params, &TestSupport.custom_query_encoder/1) ==
+               @api_url <> "?name=foo+bar&page=2"
+    end
   end
 
   describe "build_url/1" do
     test "returns URL with query params from Tesla.Env struct" do
       env = %Tesla.Env{url: @api_url, query: [user: 3, page: 2]}
       assert Tesla.build_url(env) == @api_url <> "?user=3&page=2"
+    end
+
+    test "returns URL with query params from Tesla.Env struct using nested map" do
+      env = %Tesla.Env{url: @api_url, query: %{filters: %{pagination: %{page: 1}}}}
+
+      assert URI.decode_query(Tesla.build_url(env) |> URI.parse() |> Map.fetch!(:query)) ==
+               %{"filters[pagination][page]" => "1"}
+    end
+
+    test "returns URL with query params from Tesla.Env struct using custom encoding function" do
+      env =
+        %Tesla.Env{
+          url: @api_url,
+          query: [user_name: "John Smith"],
+          opts: [query_encoding: &TestSupport.custom_query_encoder/1]
+        }
+
+      assert Tesla.build_url(env) == @api_url <> "?user_name=John+Smith"
     end
   end
 end
