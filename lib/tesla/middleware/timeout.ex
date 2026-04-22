@@ -48,6 +48,7 @@ defmodule Tesla.Middleware.Timeout do
     opts = opts || []
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     task_module = Keyword.get(opts, :task_module, Task)
+    env = put_gun_stream_owner(env, self())
 
     task = safe_async(task_module, fn -> Tesla.run(env, next) end)
 
@@ -75,6 +76,9 @@ defmodule Tesla.Middleware.Timeout do
       end
     end)
   end
+
+  defp put_gun_stream_owner(env, stream_owner),
+    do: %{env | private: Map.put_new(env.private, :tesla_gun_stream_owner, stream_owner)}
 
   defp repass_error({:exception, error, stacktrace}), do: reraise(error, stacktrace)
 

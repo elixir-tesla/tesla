@@ -1,6 +1,8 @@
 defmodule Tesla.Middleware.TimeoutTest do
   use ExUnit.Case, async: false
 
+  @url "http://localhost:#{Application.compile_env(:httparrot, :http_port)}"
+
   defmodule Client do
     use Tesla
 
@@ -69,6 +71,24 @@ defmodule Tesla.Middleware.TimeoutTest do
     end
   end
 
+  defmodule GunStreamClient do
+    use Tesla
+
+    plug Tesla.Middleware.Timeout, timeout: 5_000
+
+    adapter Tesla.Adapter.Gun
+  end
+
+  defmodule AdapterOptsClient do
+    use Tesla
+
+    plug Tesla.Middleware.Timeout, timeout: 100
+
+    adapter fn env ->
+      {:ok, %{env | status: 200, body: env.opts[:adapter] || []}}
+    end
+  end
+
   describe "using custom timeout (100ms)" do
     test "should return timeout error when the stack timeout" do
       assert {:error, :timeout} = Client.get("/sleep_150ms")
@@ -87,6 +107,13 @@ defmodule Tesla.Middleware.TimeoutTest do
         end)
 
       assert_receive {:EXIT, ^pid, :normal}, 200
+    end
+
+    test "should not inject gun-specific adapter opts into other adapters" do
+      assert {:ok, %Tesla.Env{status: 200, body: body}} =
+               AdapterOptsClient.get("/ok", opts: [adapter: [preserved: :value]])
+
+      assert body == [preserved: :value]
     end
   end
 
@@ -116,7 +143,7 @@ defmodule Tesla.Middleware.TimeoutTest do
 
           assert Tesla.Middleware.TimeoutTest.Client == last_module
           assert file_info[:file] == ~c"lib/tesla/builder.ex"
-          assert file_info[:line] == 23
+          assert file_info[:line] == 25
       else
         _ ->
           flunk("Expected exception to be thrown")
@@ -131,7 +158,7 @@ defmodule Tesla.Middleware.TimeoutTest do
           [_, {timeout_module, _, _, module_file_info} | _] = __STACKTRACE__
 
           assert Tesla.Middleware.Timeout == timeout_module
-          assert module_file_info == [file: ~c"lib/tesla/middleware/timeout.ex", line: 68]
+          assert module_file_info == [file: ~c"lib/tesla/middleware/timeout.ex", line: 69]
       else
         _ ->
           flunk("Expected exception to be thrown")
@@ -165,6 +192,34 @@ defmodule Tesla.Middleware.TimeoutTest do
         end)
 
       assert_receive {:EXIT, ^pid, :normal}, 200
+    end
+  end
+
+  describe "streaming with the gun adapter" do
+    test "should preserve streamed responses through the timeout task" do
+      assert {:ok, %Tesla.Env{status: 200, body: body}} =
+               __MODULE__.GunStreamClient.get("#{@url}/stream-bytes/10",
+                 opts: [adapter: [body_as: :stream]]
+               )
+
+      assert body |> Enum.join() |> byte_size() == 16
+    end
+
+    test "should preserve explicit gun reply_to while streaming through the timeout task" do
+      test_pid = self()
+      reply_to = fn message -> send(test_pid, {:gun_reply_to, message}) end
+
+      assert {:ok, %Tesla.Env{status: 200, body: body}} =
+               __MODULE__.GunStreamClient.get("#{@url}/stream-bytes/10",
+                 opts: [adapter: [body_as: :stream, reply_to: reply_to]]
+               )
+
+      assert body |> Enum.join() |> byte_size() == 16
+
+      assert_receive {:gun_reply_to, {:gun_response, pid, stream, :nofin, 200, _headers}}
+      assert is_pid(pid)
+      assert is_reference(stream)
+      assert_receive {:gun_reply_to, {:gun_data, ^pid, ^stream, _, _}}
     end
   end
 end

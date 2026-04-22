@@ -140,7 +140,7 @@ if Code.ensure_loaded?(:gun) do
     Returns `{:fin, binary()}` if all body received, otherwise returns `{:nofin, binary()}`.
     """
     @spec read_chunk(pid(), reference(), keyword() | map()) ::
-            {:fin, binary()} | {:nofin, binary()} | {:error, atom()}
+            {:fin, binary()} | {:nofin, binary()} | {:error, any()}
     def read_chunk(pid, stream, opts) do
       with {status, _} = chunk when status in [:fin, :error] <- do_read_chunk(pid, stream, opts) do
         if opts[:close_conn], do: close(pid)
@@ -155,6 +155,9 @@ if Code.ensure_loaded?(:gun) do
 
         {:gun_data, ^pid, ^stream, :nofin, part} ->
           {:nofin, part}
+
+        {:gun_error, ^pid, ^stream, reason} ->
+          {:error, reason}
 
         {:DOWN, _, _, _, reason} ->
           {:error, reason}
@@ -177,19 +180,28 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp request(env, opts) do
-      request(
-        Tesla.Adapter.Shared.format_method(env.method),
-        Tesla.build_url(env),
-        format_headers(env.headers),
-        env.body || "",
+      opts =
         Tesla.Adapter.opts(
           [close_conn: true, body_as: :plain, send_body: :at_once, receive: true],
           env,
           opts
         )
         |> Enum.into(%{})
+        |> maybe_put_gun_stream_owner(env.private[:tesla_gun_stream_owner])
+
+      request(
+        Tesla.Adapter.Shared.format_method(env.method),
+        Tesla.build_url(env),
+        format_headers(env.headers),
+        env.body || "",
+        opts
       )
     end
+
+    defp maybe_put_gun_stream_owner(opts, stream_owner) when is_pid(stream_owner),
+      do: Map.put_new(opts, :tesla_gun_stream_owner, stream_owner)
+
+    defp maybe_put_gun_stream_owner(opts, _stream_owner), do: opts
 
     defp request(method, url, headers, %Stream{} = body, opts),
       do: do_request(method, url, headers, body, Map.put(opts, :send_body, :stream))
@@ -430,9 +442,159 @@ if Code.ensure_loaded?(:gun) do
     defp add_socks_proxy_auth_credentials(opts, _), do: opts
 
     defp open_stream(pid, method, path, headers, body, opts) do
-      req_opts = %{reply_to: opts[:reply_to] || self()}
+      req_opts = %{reply_to: reply_to(opts)}
 
       open_stream(pid, method, path, headers, body, req_opts, opts[:send_body])
+    end
+
+    defp reply_to(%{body_as: body_as, tesla_gun_stream_owner: stream_owner} = opts)
+         when body_as in [:stream, :chunks] and is_pid(stream_owner) do
+      request_owner = self()
+      original_reply_to = opts[:reply_to] || request_owner
+
+      if stream_owner == request_owner do
+        original_reply_to
+      else
+        wrap_reply_to(request_owner, stream_owner, original_reply_to)
+      end
+    end
+
+    defp reply_to(opts), do: opts[:reply_to] || self()
+
+    if Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0") do
+      defp wrap_reply_to(request_owner, stream_owner, original_reply_to) do
+        fn message ->
+          route_reply_message(request_owner, stream_owner, original_reply_to, message)
+        end
+      end
+    else
+      defp wrap_reply_to(request_owner, stream_owner, original_reply_to) do
+        spawn(fn ->
+          request_owner_ref = Process.monitor(request_owner)
+
+          stream_owner_ref =
+            if stream_owner == request_owner, do: nil, else: Process.monitor(stream_owner)
+
+          reply_router(
+            request_owner,
+            request_owner_ref,
+            stream_owner,
+            stream_owner_ref,
+            original_reply_to,
+            :waiting_response
+          )
+        end)
+      end
+
+      defp reply_router(
+             request_owner,
+             request_owner_ref,
+             stream_owner,
+             stream_owner_ref,
+             original_reply_to,
+             state
+           ) do
+        receive do
+          {:DOWN, ^request_owner_ref, :process, ^request_owner, _reason} ->
+            if state == :waiting_response do
+              :ok
+            else
+              reply_router(
+                request_owner,
+                request_owner_ref,
+                stream_owner,
+                stream_owner_ref,
+                original_reply_to,
+                state
+              )
+            end
+
+          {:DOWN, ^stream_owner_ref, :process, ^stream_owner, _reason} ->
+            :ok
+
+          message ->
+            route_reply_message(request_owner, stream_owner, original_reply_to, message)
+
+            unless terminal_reply_message?(message) do
+              reply_router(
+                request_owner,
+                request_owner_ref,
+                stream_owner,
+                stream_owner_ref,
+                original_reply_to,
+                next_reply_state(state, message)
+              )
+            end
+        end
+      end
+    end
+
+    defp route_reply_message(request_owner, stream_owner, original_reply_to, message) do
+      case message do
+        {:gun_data, _pid, _stream, _is_fin, _data} ->
+          send(request_owner, message)
+          notify_reply_to(original_reply_to, request_owner, message)
+          notify_stream_owner(stream_owner, request_owner, original_reply_to, message)
+
+        {:gun_error, _pid, _stream, _reason} ->
+          send(request_owner, message)
+          notify_reply_to(original_reply_to, request_owner, message)
+          notify_stream_owner(stream_owner, request_owner, original_reply_to, message)
+
+        _ ->
+          send(request_owner, message)
+          notify_reply_to(original_reply_to, request_owner, message)
+      end
+    end
+
+    defp next_reply_state(_state, {:gun_response, _pid, _stream, :nofin, _status, _headers}),
+      do: :streaming
+
+    defp next_reply_state(state, _message), do: state
+
+    defp terminal_reply_message?({:gun_response, _pid, _stream, :fin, _status, _headers}),
+      do: true
+
+    defp terminal_reply_message?({:gun_data, _pid, _stream, :fin, _data}), do: true
+    defp terminal_reply_message?({:gun_error, _pid, _stream, _reason}), do: true
+    defp terminal_reply_message?({:gun_error, _pid, _reason}), do: true
+
+    defp terminal_reply_message?(
+           {:gun_down, _pid, _protocol, _reason, _killed_streams, _unprocessed}
+         ),
+         do: true
+
+    defp terminal_reply_message?(_message), do: false
+
+    defp notify_reply_to(reply_to, request_owner, _message)
+         when is_pid(reply_to) and reply_to == request_owner,
+         do: :ok
+
+    defp notify_reply_to(reply_to, _request_owner, message) when is_pid(reply_to) do
+      send(reply_to, message)
+    end
+
+    defp notify_reply_to({module, function, args}, _request_owner, message)
+         when is_atom(module) and is_atom(function) and is_list(args) do
+      apply(module, function, [message | args])
+    end
+
+    defp notify_reply_to({function, args}, _request_owner, message)
+         when is_list(args) and is_function(function, length(args) + 1) do
+      apply(function, [message | args])
+    end
+
+    defp notify_reply_to(function, _request_owner, message) when is_function(function, 1) do
+      function.(message)
+    end
+
+    defp notify_stream_owner(stream_owner, request_owner, reply_to, _message)
+         when stream_owner == request_owner or
+                (is_pid(reply_to) and stream_owner == reply_to),
+         do: :ok
+
+    defp notify_stream_owner(stream_owner, _request_owner, _reply_to, message) do
+      send(stream_owner, message)
     end
 
     defp open_stream(pid, method, path, headers, body, req_opts, :stream) do
@@ -494,6 +656,7 @@ if Code.ensure_loaded?(:gun) do
               case read_chunk(pid, stream, opts) do
                 {:nofin, part} -> {[part], %{pid: pid, stream: stream}}
                 {:fin, body} -> {[body], %{pid: pid, final: :fin}}
+                {:error, error} -> raise_stream_error(error)
               end
 
             %{pid: pid, final: :fin} ->
@@ -510,6 +673,10 @@ if Code.ensure_loaded?(:gun) do
     defp format_response(pid, stream, opts, status, headers, :chunks) do
       {:ok, status, headers, %{pid: pid, stream: stream, opts: Enum.into(opts, [])}}
     end
+
+    defp raise_stream_error(error) when Kernel.is_exception(error), do: raise(error)
+    defp raise_stream_error(error) when is_binary(error), do: raise(RuntimeError, message: error)
+    defp raise_stream_error(error), do: raise(RuntimeError, message: inspect(error))
 
     defp read_body(pid, stream, opts, acc \\ "") do
       limit = opts[:max_body]
