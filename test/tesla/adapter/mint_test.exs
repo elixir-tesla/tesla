@@ -288,7 +288,7 @@ defmodule Tesla.Adapter.MintTest do
       assert posted_headers(response.body)["content-length"] == Integer.to_string(byte_size(body))
     end
 
-    test "keeps plain request bodies subject to Mint's HTTP/2 flow control window" do
+    test "handles request bodies larger than the flow control window" do
       body = String.duplicate("a", @large_http2_request_size)
 
       request = %Env{
@@ -298,15 +298,14 @@ defmodule Tesla.Adapter.MintTest do
         body: body
       }
 
-      assert {:error,
-              %Mint.HTTPError{
-                reason: {:exceeds_window_size, _, _},
-                module: Mint.HTTP2
-              }} =
+      assert {:ok, %Env{} = response} =
                call(request,
                  protocols: [:http2],
                  transport_opts: [cacertfile: httparrot_cacertfile()]
                )
+
+      assert response.status == 200
+      assert posted_data(response.body) == body
     end
 
     test "handles streamed request bodies larger than the flow control window" do
@@ -365,7 +364,7 @@ defmodule Tesla.Adapter.MintTest do
         method: :post,
         url: "#{early_response_url}/early-response",
         headers: [{"content-type", "text/plain"}],
-        body: large_streamed_http2_body()
+        body: String.duplicate("a", @large_http2_request_size)
       }
 
       assert {:ok, %Env{} = response} =
@@ -387,7 +386,7 @@ defmodule Tesla.Adapter.MintTest do
         method: :post,
         url: "#{early_response_url}/early-response",
         headers: [{"content-type", "text/plain"}],
-        body: large_streamed_http2_body()
+        body: String.duplicate("a", @large_http2_request_size)
       }
 
       assert {:ok, %Env{} = response} =
@@ -410,7 +409,7 @@ defmodule Tesla.Adapter.MintTest do
         method: :post,
         url: "#{early_response_url}/early-response",
         headers: [{"content-type", "text/plain"}],
-        body: large_streamed_http2_body()
+        body: String.duplicate("a", @large_http2_request_size)
       }
 
       assert {:ok, %Env{} = response} =
