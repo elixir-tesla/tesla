@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.18.0](https://github.com/elixir-tesla/tesla/compare/v1.17.0...v1.18.0) (2026-04-22)
+
+
+### Features
+
+* **query:** support API-specific query serialization ([#843](https://github.com/elixir-tesla/tesla/issues/843)) ([9b95efb](https://github.com/elixir-tesla/tesla/commit/9b95efb0d725b30a57643953f885edc4c9ca28b9))
+
+
+### Bug Fixes
+
+* **gun:** keep timeout-wrapped streams readable ([#847](https://github.com/elixir-tesla/tesla/issues/847)) ([8a8ba74](https://github.com/elixir-tesla/tesla/commit/8a8ba747b06ab0f4487de8c584a335e9341e7ab0))
+* **mint:** avoid crashes on HTTP/2 request resets ([#846](https://github.com/elixir-tesla/tesla/issues/846)) ([6a42469](https://github.com/elixir-tesla/tesla/commit/6a424699ab63e7413861cbda2d5824715340d6cc))
+
 ## [1.17.0](https://github.com/elixir-tesla/tesla/compare/v1.16.0...v1.17.0) (2026-04-18)
 
 
