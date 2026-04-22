@@ -262,6 +262,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
                   {:ok, conn, _} ->
                     {[], %{conn: conn}}
+
+                  {:error, error} ->
+                    raise_stream_error(error)
                 end
             end,
             fn %{conn: conn} -> if opts[:close_conn], do: {:ok, _conn} = close(conn) end
@@ -312,7 +315,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     defp receive_packet(conn, ref, opts, acc \\ %{}) do
       with {:ok, conn, responses} <- receive_message(conn, opts),
-           acc <- reduce_responses(responses, ref, acc) do
+           {:ok, acc} <- reduce_responses(responses, ref, acc) do
         {:ok, conn, acc}
       else
         {:error, error} ->
@@ -346,23 +349,43 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp receive_message(conn, %{mode: :passive} = opts),
       do: HTTP.recv(conn, 0, opts[:timeout])
 
+    defp raise_stream_error(error) when Kernel.is_exception(error), do: raise(error)
+    defp raise_stream_error(error) when is_binary(error), do: raise(RuntimeError, message: error)
+    defp raise_stream_error(error), do: raise(RuntimeError, message: inspect(error))
+
     defp reduce_responses(responses, ref, acc) do
-      Enum.reduce(responses, acc, fn
-        {:status, ^ref, code}, acc ->
-          Map.put(acc, :status, code)
-
-        {:headers, ^ref, headers}, acc ->
-          Map.update(acc, :headers, headers, &(&1 ++ headers))
-
-        {:data, ^ref, data}, acc ->
-          Map.update(acc, :data, data, &(&1 <> data))
-
-        {:done, ^ref}, acc ->
-          Map.put(acc, :done, true)
-
-        {:push_promise, ^ref, _promised_ref, _headers}, acc ->
-          acc
-      end)
+      case Enum.reduce_while(responses, acc, &reduce_response(&1, ref, &2)) do
+        {:error, _} = error -> error
+        acc -> {:ok, acc}
+      end
     end
+
+    defp reduce_response({:status, response_ref, code}, ref, acc) when response_ref == ref,
+      do: {:cont, Map.put(acc, :status, code)}
+
+    defp reduce_response({:headers, response_ref, headers}, ref, acc) when response_ref == ref,
+      do: {:cont, Map.update(acc, :headers, headers, &(&1 ++ headers))}
+
+    defp reduce_response({:data, response_ref, data}, ref, acc) when response_ref == ref,
+      do: {:cont, Map.update(acc, :data, data, &(&1 <> data))}
+
+    defp reduce_response({:done, response_ref}, ref, acc) when response_ref == ref,
+      do: {:cont, Map.put(acc, :done, true)}
+
+    defp reduce_response({:error, response_ref, error}, ref, _acc) when response_ref == ref,
+      do: {:halt, {:error, error}}
+
+    defp reduce_response({:pong, response_ref}, ref, acc) when response_ref == ref,
+      do: {:cont, acc}
+
+    defp reduce_response({:status, _other_ref, _code}, _ref, acc), do: {:cont, acc}
+    defp reduce_response({:headers, _other_ref, _headers}, _ref, acc), do: {:cont, acc}
+    defp reduce_response({:data, _other_ref, _data}, _ref, acc), do: {:cont, acc}
+    defp reduce_response({:done, _other_ref}, _ref, acc), do: {:cont, acc}
+    defp reduce_response({:error, _other_ref, _error}, _ref, acc), do: {:cont, acc}
+    defp reduce_response({:pong, _other_ref}, _ref, acc), do: {:cont, acc}
+
+    defp reduce_response({:push_promise, _parent_ref, _promised_ref, _headers}, _ref, acc),
+      do: {:cont, acc}
   end
 end

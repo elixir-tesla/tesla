@@ -1,5 +1,9 @@
 defmodule Tesla.Adapter.MintTest do
   use ExUnit.Case
+  import ExUnit.CaptureLog
+
+  @internal_error_listener_ref :"mint-internal-error"
+  @push_promise_listener_ref :"mint-push-promise"
 
   use Tesla.AdapterCase, adapter: Tesla.Adapter.Mint
   use Tesla.AdapterCase.Basic
@@ -371,9 +375,150 @@ defmodule Tesla.Adapter.MintTest do
     Keyword.merge([conn: conn, original: original, close_conn: false], opts)
   end
 
+  describe "issue #553 - prove real HTTP/2 request resets" do
+    setup do
+      listener_ref = @internal_error_listener_ref
+      dispatch = internal_error_dispatch()
+      priv_dir = :code.priv_dir(:httparrot)
+
+      {:ok, _pid} =
+        :cowboy.start_tls(
+          listener_ref,
+          [
+            port: 0,
+            certfile: priv_dir ++ ~c"/ssl/server.crt",
+            keyfile: priv_dir ++ ~c"/ssl/server.key"
+          ],
+          %{
+            env: %{dispatch: dispatch},
+            stream_handlers: [Tesla.TestSupport.MintInternalErrorStreamHandler, :cowboy_stream_h]
+          }
+        )
+
+      on_exit(fn -> :cowboy.stop_listener(listener_ref) end)
+
+      {_, port} = :ranch.get_addr(listener_ref)
+
+      {:ok,
+       reset_url: "https://localhost:#{port}",
+       reset_cacertfile: Path.join([to_string(priv_dir), "ssl/server-ca.crt"])}
+    end
+
+    test "Mint emits server_closed_request from a live HTTP/2 peer", %{
+      reset_url: reset_url,
+      reset_cacertfile: reset_cacertfile
+    } do
+      uri = URI.parse(reset_url)
+
+      assert {:ok, conn} =
+               Mint.HTTP.connect(:https, uri.host, uri.port,
+                 mode: :passive,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: reset_cacertfile]
+               )
+
+      assert {:ok, conn, ref} = Mint.HTTP.request(conn, "GET", "/stream-reset", [], nil)
+
+      {conn, responses} = recv_until_response(conn, &match?({:error, ^ref, _}, &1))
+
+      assert {:error, ^ref,
+              %Mint.HTTPError{
+                reason: {:server_closed_request, :internal_error},
+                module: Mint.HTTP2
+              }} =
+               Enum.find(responses, &match?({:error, ^ref, _}, &1))
+
+      assert {:ok, _conn} = Mint.HTTP.close(conn)
+    end
+
+    test "Mint emits status and headers before a mid-stream HTTP/2 reset", %{
+      reset_url: reset_url,
+      reset_cacertfile: reset_cacertfile
+    } do
+      capture_log(fn ->
+        uri = URI.parse(reset_url)
+
+        assert {:ok, conn} =
+                 Mint.HTTP.connect(:https, uri.host, uri.port,
+                   mode: :passive,
+                   protocols: [:http2],
+                   transport_opts: [cacertfile: reset_cacertfile]
+                 )
+
+        assert {:ok, conn, ref} =
+                 Mint.HTTP.request(conn, "GET", "/stream-reset-after-headers", [], nil)
+
+        {conn, responses} = recv_until_response(conn, &match?({:error, ^ref, _}, &1))
+
+        assert {:status, ^ref, 200} = Enum.find(responses, &match?({:status, ^ref, _}, &1))
+
+        assert {:headers, ^ref, _headers} =
+                 Enum.find(responses, &match?({:headers, ^ref, _}, &1))
+
+        assert {:error, ^ref,
+                %Mint.HTTPError{
+                  reason: {:server_closed_request, :internal_error},
+                  module: Mint.HTTP2
+                }} =
+                 Enum.find(responses, &match?({:error, ^ref, _}, &1))
+
+        assert {:ok, _conn} = Mint.HTTP.close(conn)
+      end)
+    end
+
+    test "Tesla adapter returns the Mint request error instead of crashing", %{
+      reset_url: reset_url,
+      reset_cacertfile: reset_cacertfile
+    } do
+      request = %Env{
+        method: :get,
+        url: "#{reset_url}/stream-reset"
+      }
+
+      assert {:error,
+              %Mint.HTTPError{
+                reason: {:server_closed_request, :internal_error},
+                module: Mint.HTTP2
+              }} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: reset_cacertfile]
+               )
+    end
+
+    test "Tesla adapter raises the Mint request error while enumerating stream bodies", %{
+      reset_url: reset_url,
+      reset_cacertfile: reset_cacertfile
+    } do
+      capture_log(fn ->
+        request = %Env{
+          method: :get,
+          url: "#{reset_url}/stream-reset-after-headers"
+        }
+
+        assert {:ok, %Env{} = response} =
+                 call(request,
+                   body_as: :stream,
+                   protocols: [:http2],
+                   transport_opts: [cacertfile: reset_cacertfile]
+                 )
+
+        assert response.status == 200
+
+        error =
+          assert_raise Mint.HTTPError, fn ->
+            Enum.to_list(response.body)
+          end
+
+        assert error.reason == {:server_closed_request, :internal_error}
+        assert error.module == Mint.HTTP2
+      end)
+    end
+  end
+
   describe "issue #450 - handle missing Mint response types" do
     setup do
-      listener_ref = :"mint-push-promise-#{System.unique_integer([:positive])}"
+      listener_ref = @push_promise_listener_ref
       dispatch = push_promise_dispatch()
       priv_dir = :code.priv_dir(:httparrot)
 
@@ -440,6 +585,34 @@ defmodule Tesla.Adapter.MintTest do
       assert byte_size(data) > 0
     end
 
+    test "handles pushed stream responses from a real HTTP/2 server", %{
+      push_url: push_url,
+      push_cacertfile: push_cacertfile
+    } do
+      %{host: host, port: port} = URI.parse(push_url)
+
+      assert {:ok, conn} =
+               Mint.HTTP.connect(:https, host, port,
+                 mode: :passive,
+                 transport_opts: [cacertfile: push_cacertfile],
+                 protocols: [:http2]
+               )
+
+      assert {:ok, conn, ref} = Mint.HTTP.request(conn, "GET", "/index.html", [], nil)
+
+      {conn, responses} =
+        recv_until_response(conn, &match?({:push_promise, ^ref, _, _}, &1))
+
+      assert {:push_promise, ^ref, promised_ref, _headers} =
+               Enum.find(responses, &match?({:push_promise, ^ref, _, _}, &1))
+
+      {_conn, responses} =
+        recv_until_response(conn, &match?({:done, ^promised_ref}, &1), 100, 10, responses)
+
+      assert Enum.any?(responses, &match?({:status, ^promised_ref, 200}, &1))
+      assert Enum.any?(responses, &match?({:data, ^promised_ref, _}, &1))
+    end
+
     test "handles push_promise responses from a real HTTP/2 server", %{
       push_url: push_url,
       push_cacertfile: push_cacertfile
@@ -468,5 +641,34 @@ defmodule Tesla.Adapter.MintTest do
          {"/style.css", Tesla.TestSupport.MintPushPromiseStyleHandler, []}
        ]}
     ])
+  end
+
+  defp internal_error_dispatch do
+    :cowboy_router.compile([
+      {:_,
+       [
+         {"/stream-reset", Tesla.TestSupport.MintInternalErrorRequestHandler, []},
+         {"/stream-reset-after-headers",
+          Tesla.TestSupport.MintInternalErrorAfterHeadersRequestHandler, []}
+       ]}
+    ])
+  end
+
+  defp recv_until_response(conn, match?, timeout \\ 100, attempts \\ 10, responses \\ [])
+
+  defp recv_until_response(_conn, _match?, _timeout, 0, responses) do
+    flunk("expected Mint to emit a matching response, got: #{inspect(responses)}")
+  end
+
+  defp recv_until_response(conn, match?, timeout, attempts, responses) do
+    assert {:ok, conn, new_responses} = Mint.HTTP.recv(conn, 0, timeout)
+
+    responses = responses ++ new_responses
+
+    if Enum.any?(responses, match?) do
+      {conn, responses}
+    else
+      recv_until_response(conn, match?, timeout, attempts - 1, responses)
+    end
   end
 end
