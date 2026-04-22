@@ -180,19 +180,28 @@ if Code.ensure_loaded?(:gun) do
     end
 
     defp request(env, opts) do
-      request(
-        Tesla.Adapter.Shared.format_method(env.method),
-        Tesla.build_url(env),
-        format_headers(env.headers),
-        env.body || "",
+      opts =
         Tesla.Adapter.opts(
           [close_conn: true, body_as: :plain, send_body: :at_once, receive: true],
           env,
           opts
         )
         |> Enum.into(%{})
+        |> maybe_put_gun_reply_to(env.private[:tesla_gun_reply_to])
+
+      request(
+        Tesla.Adapter.Shared.format_method(env.method),
+        Tesla.build_url(env),
+        format_headers(env.headers),
+        env.body || "",
+        opts
       )
     end
+
+    defp maybe_put_gun_reply_to(opts, reply_to) when is_pid(reply_to),
+      do: Map.put_new(opts, :tesla_gun_reply_to, reply_to)
+
+    defp maybe_put_gun_reply_to(opts, _reply_to), do: opts
 
     defp request(method, url, headers, %Stream{} = body, opts),
       do: do_request(method, url, headers, body, Map.put(opts, :send_body, :stream))
@@ -440,7 +449,7 @@ if Code.ensure_loaded?(:gun) do
 
     defp reply_to(%{body_as: body_as} = opts) when body_as in [:stream, :chunks] do
       request_owner = self()
-      stream_owner = opts[:reply_to] || request_owner
+      stream_owner = opts[:reply_to] || opts[:tesla_gun_reply_to] || request_owner
 
       if stream_owner == request_owner do
         request_owner

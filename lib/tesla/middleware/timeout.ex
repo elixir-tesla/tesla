@@ -48,7 +48,7 @@ defmodule Tesla.Middleware.Timeout do
     opts = opts || []
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     task_module = Keyword.get(opts, :task_module, Task)
-    env = put_adapter_reply_to(env, self())
+    env = put_gun_reply_to(env, self())
 
     task = safe_async(task_module, fn -> Tesla.run(env, next) end)
 
@@ -77,14 +77,8 @@ defmodule Tesla.Middleware.Timeout do
     end)
   end
 
-  defp put_adapter_reply_to(env, reply_to) do
-    adapter_opts = env.opts[:adapter] || []
-
-    %{
-      env
-      | opts: Keyword.put(env.opts, :adapter, Keyword.put_new(adapter_opts, :reply_to, reply_to))
-    }
-  end
+  defp put_gun_reply_to(env, reply_to),
+    do: %{env | private: Map.put_new(env.private, :tesla_gun_reply_to, reply_to)}
 
   defp repass_error({:exception, error, stacktrace}), do: reraise(error, stacktrace)
 

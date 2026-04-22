@@ -79,6 +79,16 @@ defmodule Tesla.Middleware.TimeoutTest do
     adapter Tesla.Adapter.Gun
   end
 
+  defmodule AdapterOptsClient do
+    use Tesla
+
+    plug Tesla.Middleware.Timeout, timeout: 100
+
+    adapter fn env ->
+      {:ok, %{env | status: 200, body: env.opts[:adapter] || []}}
+    end
+  end
+
   describe "using custom timeout (100ms)" do
     test "should return timeout error when the stack timeout" do
       assert {:error, :timeout} = Client.get("/sleep_150ms")
@@ -97,6 +107,13 @@ defmodule Tesla.Middleware.TimeoutTest do
         end)
 
       assert_receive {:EXIT, ^pid, :normal}, 200
+    end
+
+    test "should not inject gun-specific adapter opts into other adapters" do
+      assert {:ok, %Tesla.Env{status: 200, body: body}} =
+               AdapterOptsClient.get("/ok", opts: [adapter: [preserved: :value]])
+
+      assert body == [preserved: :value]
     end
   end
 
