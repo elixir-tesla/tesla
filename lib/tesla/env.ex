@@ -34,8 +34,9 @@ defmodule Tesla.Env do
   - `"https://www.google.com"`
   - `"/users/1"` when used with `Tesla.Middleware.BaseUrl`
 
-  Callers are expected to pass a valid, already-encoded value.
-  Tesla leaves the URL untouched and does not validate or normalize malformed input.
+  Callers are expected to pass a valid, already-encoded URL or request target.
+  Tesla does not automatically validate, normalize, or percent-encode the URL path.
+  Some middleware may rewrite `env.url`.
   """
   @type url :: binary
   @type query_key :: binary | atom
