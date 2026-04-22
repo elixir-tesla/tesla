@@ -288,7 +288,7 @@ defmodule Tesla.Adapter.MintTest do
       assert posted_headers(response.body)["content-length"] == Integer.to_string(byte_size(body))
     end
 
-    test "handles request bodies larger than the flow control window" do
+    test "keeps plain request bodies subject to Mint's HTTP/2 flow control window" do
       body = String.duplicate("a", @large_http2_request_size)
 
       request = %Env{
@@ -298,39 +298,19 @@ defmodule Tesla.Adapter.MintTest do
         body: body
       }
 
-      assert {:ok, %Env{} = response} =
+      assert {:error,
+              %Mint.HTTPError{
+                reason: {:exceeds_window_size, _, _},
+                module: Mint.HTTP2
+              }} =
                call(request,
                  protocols: [:http2],
                  transport_opts: [cacertfile: httparrot_cacertfile()]
                )
-
-      assert response.status == 200
-      assert posted_data(response.body) == body
     end
 
     test "handles streamed request bodies larger than the flow control window" do
       body = large_streamed_http2_body()
-      expected = String.duplicate("a", @large_http2_request_size)
-
-      request = %Env{
-        method: :post,
-        url: "#{@https}/post",
-        headers: [{"content-type", "text/plain"}],
-        body: body
-      }
-
-      assert {:ok, %Env{} = response} =
-               call(request,
-                 protocols: [:http2],
-                 transport_opts: [cacertfile: httparrot_cacertfile()]
-               )
-
-      assert response.status == 200
-      assert posted_data(response.body) == expected
-    end
-
-    test "handles large iodata request bodies without flattening them up front" do
-      body = large_iodata_http2_body()
       expected = String.duplicate("a", @large_http2_request_size)
 
       request = %Env{
@@ -385,7 +365,7 @@ defmodule Tesla.Adapter.MintTest do
         method: :post,
         url: "#{early_response_url}/early-response",
         headers: [{"content-type", "text/plain"}],
-        body: String.duplicate("a", @large_http2_request_size)
+        body: large_streamed_http2_body()
       }
 
       assert {:ok, %Env{} = response} =
@@ -407,7 +387,7 @@ defmodule Tesla.Adapter.MintTest do
         method: :post,
         url: "#{early_response_url}/early-response",
         headers: [{"content-type", "text/plain"}],
-        body: String.duplicate("a", @large_http2_request_size)
+        body: large_streamed_http2_body()
       }
 
       assert {:ok, %Env{} = response} =
@@ -420,6 +400,29 @@ defmodule Tesla.Adapter.MintTest do
 
       assert response.status == 200
       assert %{body: {:fin, "early response"}} = response.body
+    end
+
+    test "returns streamed responses that already finished during upload", %{
+      early_response_url: early_response_url,
+      early_response_cacertfile: early_response_cacertfile
+    } do
+      request = %Env{
+        method: :post,
+        url: "#{early_response_url}/early-response",
+        headers: [{"content-type", "text/plain"}],
+        body: large_streamed_http2_body()
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 body_as: :stream,
+                 protocols: [:http2],
+                 timeout: 200,
+                 transport_opts: [cacertfile: early_response_cacertfile]
+               )
+
+      assert response.status == 200
+      assert Enum.join(response.body) == "early response"
     end
   end
 
@@ -699,16 +702,6 @@ defmodule Tesla.Adapter.MintTest do
       end
 
     Stream.map(chunks, & &1)
-  end
-
-  defp large_iodata_http2_body do
-    chunks =
-      List.duplicate(String.duplicate("a", 8_192), div(@large_http2_request_size, 8_192))
-
-    case rem(@large_http2_request_size, 8_192) do
-      0 -> [chunks]
-      remainder -> [chunks, [String.duplicate("a", remainder)]]
-    end
   end
 
   defp posted_data(body) do
