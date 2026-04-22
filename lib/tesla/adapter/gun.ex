@@ -140,7 +140,7 @@ if Code.ensure_loaded?(:gun) do
     Returns `{:fin, binary()}` if all body received, otherwise returns `{:nofin, binary()}`.
     """
     @spec read_chunk(pid(), reference(), keyword() | map()) ::
-            {:fin, binary()} | {:nofin, binary()} | {:error, atom()}
+            {:fin, binary()} | {:nofin, binary()} | {:error, any()}
     def read_chunk(pid, stream, opts) do
       with {status, _} = chunk when status in [:fin, :error] <- do_read_chunk(pid, stream, opts) do
         if opts[:close_conn], do: close(pid)
@@ -155,6 +155,9 @@ if Code.ensure_loaded?(:gun) do
 
         {:gun_data, ^pid, ^stream, :nofin, part} ->
           {:nofin, part}
+
+        {:gun_error, ^pid, ^stream, reason} ->
+          {:error, reason}
 
         {:DOWN, _, _, _, reason} ->
           {:error, reason}
@@ -430,10 +433,32 @@ if Code.ensure_loaded?(:gun) do
     defp add_socks_proxy_auth_credentials(opts, _), do: opts
 
     defp open_stream(pid, method, path, headers, body, opts) do
-      req_opts = %{reply_to: opts[:reply_to] || self()}
+      req_opts = %{reply_to: reply_to(opts)}
 
       open_stream(pid, method, path, headers, body, req_opts, opts[:send_body])
     end
+
+    defp reply_to(%{body_as: body_as} = opts) when body_as in [:stream, :chunks] do
+      request_owner = self()
+      stream_owner = opts[:reply_to] || request_owner
+
+      if stream_owner == request_owner do
+        request_owner
+      else
+        fn
+          {:gun_data, _pid, _stream, _is_fin, _data} = message ->
+            send(stream_owner, message)
+
+          {:gun_error, _pid, _stream, _reason} = message ->
+            send(stream_owner, message)
+
+          message ->
+            send(request_owner, message)
+        end
+      end
+    end
+
+    defp reply_to(_opts), do: self()
 
     defp open_stream(pid, method, path, headers, body, req_opts, :stream) do
       stream = perform_stream_request(pid, method, path, headers, req_opts)
@@ -494,6 +519,7 @@ if Code.ensure_loaded?(:gun) do
               case read_chunk(pid, stream, opts) do
                 {:nofin, part} -> {[part], %{pid: pid, stream: stream}}
                 {:fin, body} -> {[body], %{pid: pid, final: :fin}}
+                {:error, error} -> raise_stream_error(error)
               end
 
             %{pid: pid, final: :fin} ->
@@ -510,6 +536,10 @@ if Code.ensure_loaded?(:gun) do
     defp format_response(pid, stream, opts, status, headers, :chunks) do
       {:ok, status, headers, %{pid: pid, stream: stream, opts: Enum.into(opts, [])}}
     end
+
+    defp raise_stream_error(error) when Kernel.is_exception(error), do: raise(error)
+    defp raise_stream_error(error) when is_binary(error), do: raise(RuntimeError, message: error)
+    defp raise_stream_error(error), do: raise(RuntimeError, message: inspect(error))
 
     defp read_body(pid, stream, opts, acc \\ "") do
       limit = opts[:max_body]

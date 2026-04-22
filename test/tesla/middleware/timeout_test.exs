@@ -1,6 +1,8 @@
 defmodule Tesla.Middleware.TimeoutTest do
   use ExUnit.Case, async: false
 
+  @url "http://localhost:#{Application.compile_env(:httparrot, :http_port)}"
+
   defmodule Client do
     use Tesla
 
@@ -69,6 +71,16 @@ defmodule Tesla.Middleware.TimeoutTest do
     end
   end
 
+  if Code.ensure_loaded?(:gun) do
+    defmodule GunStreamClient do
+      use Tesla
+
+      plug Tesla.Middleware.Timeout, timeout: 5_000
+
+      adapter Tesla.Adapter.Gun
+    end
+  end
+
   describe "using custom timeout (100ms)" do
     test "should return timeout error when the stack timeout" do
       assert {:error, :timeout} = Client.get("/sleep_150ms")
@@ -116,7 +128,7 @@ defmodule Tesla.Middleware.TimeoutTest do
 
           assert Tesla.Middleware.TimeoutTest.Client == last_module
           assert file_info[:file] == ~c"lib/tesla/builder.ex"
-          assert file_info[:line] == 23
+          assert file_info[:line] == 25
       else
         _ ->
           flunk("Expected exception to be thrown")
@@ -131,7 +143,7 @@ defmodule Tesla.Middleware.TimeoutTest do
           [_, {timeout_module, _, _, module_file_info} | _] = __STACKTRACE__
 
           assert Tesla.Middleware.Timeout == timeout_module
-          assert module_file_info == [file: ~c"lib/tesla/middleware/timeout.ex", line: 68]
+          assert module_file_info == [file: ~c"lib/tesla/middleware/timeout.ex", line: 69]
       else
         _ ->
           flunk("Expected exception to be thrown")
@@ -165,6 +177,19 @@ defmodule Tesla.Middleware.TimeoutTest do
         end)
 
       assert_receive {:EXIT, ^pid, :normal}, 200
+    end
+  end
+
+  if Code.ensure_loaded?(:gun) do
+    describe "streaming with the gun adapter" do
+      test "should preserve streamed responses through the timeout task" do
+        assert {:ok, %Tesla.Env{status: 200, body: body}} =
+                 __MODULE__.GunStreamClient.get("#{@url}/stream-bytes/10",
+                   opts: [adapter: [body_as: :stream]]
+                 )
+
+        assert body |> Enum.join() |> byte_size() == 16
+      end
     end
   end
 end
