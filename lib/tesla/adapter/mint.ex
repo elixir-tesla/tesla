@@ -185,14 +185,22 @@ if Code.ensure_loaded?(Mint.HTTP) do
       end
     end
 
-    defp make_request(conn, method, path, headers, body, _opts)
+    defp make_request(conn, method, path, headers, body, opts)
          when is_binary(body) or is_list(body) do
-      case HTTP.request(conn, method, path, headers, body) do
-        {:ok, conn, ref} ->
-          {:ok, conn, ref, %{}}
+      body_length = IO.iodata_length(body)
 
-        {:error, _conn, error} ->
-          {:error, error}
+      if HTTP.protocol(conn) == :http2 and body_length > 0 do
+        headers = put_default_content_length_header(headers, body_length)
+        body = IO.iodata_to_binary(body)
+        make_request(conn, method, path, headers, stream_to_fun([body]), opts)
+      else
+        case HTTP.request(conn, method, path, headers, body) do
+          {:ok, conn, ref} ->
+            {:ok, conn, ref, %{}}
+
+          {:error, _conn, error} ->
+            {:error, error}
+        end
       end
     end
 
@@ -370,6 +378,16 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp raise_stream_error(error) when Kernel.is_exception(error), do: raise(error)
     defp raise_stream_error(error) when is_binary(error), do: raise(RuntimeError, message: error)
     defp raise_stream_error(error), do: raise(RuntimeError, message: inspect(error))
+
+    defp put_default_content_length_header(headers, body_length) do
+      if Enum.any?(headers, fn {name, _value} ->
+           String.downcase(to_string(name)) == "content-length"
+         end) do
+        headers
+      else
+        [{"content-length", Integer.to_string(body_length)} | headers]
+      end
+    end
 
     defp stream_request_body(conn, ref, chunk, opts, acc) when is_binary(chunk) do
       stream_request_body_chunk(conn, ref, chunk, opts, acc)
