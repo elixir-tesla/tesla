@@ -6,8 +6,7 @@ defmodule Tesla.Env do
 
   - `:method` - method of request. Example: `:get`
   - `:url` - request url. Example: `"https://www.google.com"`
-  - `:query` - list of query params.
-    Example: `[{"param", "value"}]` will be translated to `?params=value`.
+  - `:query` - structured query params. See `t:query/0`.
     Note: query params passed in url (e.g. `"/get?param=value"`) are not parsed to `query` field.
   - `:headers` - list of request/response headers.
     Example: `[{"content-type", "application/json"}]`.
@@ -27,8 +26,26 @@ defmodule Tesla.Env do
   @type client :: Tesla.Client.t()
   @type method :: :head | :get | :delete | :trace | :options | :post | :put | :patch
   @type url :: binary
-  @type param :: binary | [{binary | atom, param}]
-  @type query :: [{binary | atom, param}]
+  @type query_key :: binary | atom
+  @type query_scalar :: String.Chars.t()
+  @type query_scalar_list :: [query_scalar]
+  @type query_pair :: {query_key, param}
+  @type query_list :: [query_pair]
+  @type param :: query_scalar | query_scalar_list | query_list | %{optional(query_key) => param}
+
+  @typedoc """
+  Structured query params as a list or map, including nested maps.
+
+  ## Examples
+
+  - `[{"param", "value"}]` will be translated to `?param=value`.
+  - `%{filters: %{page: 1}}` will be translated to `?filters%5Bpage%5D=1`
+    (that is, `filters[page]` with brackets percent-encoded by default).
+
+  Map query params do not guarantee encoded parameter order. Pass an ordered list
+  of pairs if the exact query string order matters.
+  """
+  @type query :: [query_pair] | %{optional(query_key) => param}
   @type headers :: [{binary, binary}]
 
   @type body :: any

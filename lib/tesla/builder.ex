@@ -51,7 +51,7 @@ defmodule Tesla.Builder do
 
         - `:method` - the request method, one of [`:head`, `:get`, `:delete`, `:trace`, `:options`, `:post`, `:put`, `:patch`]
         - `:url` - either full url e.g. "http://example.com/some/path" or just "/some/path" if using `Tesla.Middleware.BaseUrl`
-        - `:query` - a keyword list of query params, e.g. `[page: 1, per_page: 100]`
+        - `:query` - a keyword list or nested map of query params, e.g. `[page: 1, per_page: 100]`
         - `:headers` - a keyword list of headers, e.g. `[{"content-type", "text/plain"}]`
         - `:body` - depends on used middleware:
             - by default it can be a binary
@@ -62,6 +62,8 @@ defmodule Tesla.Builder do
         ## Examples
 
             ExampleApi.request(method: :get, url: "/users/path")
+
+            ExampleApi.get("/users", query: [username: "John Smith"], opts: [query_encoding: &Plug.Conn.Query.encode/1])
 
             # use shortcut methods
             ExampleApi.get("/users/1")

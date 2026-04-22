@@ -75,6 +75,28 @@ defmodule Tesla.Middleware.LoggerTest do
 
       assert log =~ "test=foo%20bar"
     end
+
+    test "encodes nested maps" do
+      log =
+        capture_log(fn ->
+          Client.get("/ok", query: %{filters: %{name: "foo", pagination: %{page: 2}}})
+        end)
+
+      assert log =~ "filters%5Bname%5D=foo"
+      assert log =~ "filters%5Bpagination%5D%5Bpage%5D=2"
+    end
+
+    test "encodes with custom function" do
+      log =
+        capture_log(fn ->
+          Client.get("/ok",
+            query: [user_name: "John Smith"],
+            opts: [query_encoding: &TestSupport.custom_query_encoder/1]
+          )
+        end)
+
+      assert log =~ "user_name=John+Smith"
+    end
   end
 
   describe "Debug mode" do
@@ -88,10 +110,27 @@ defmodule Tesla.Middleware.LoggerTest do
       assert log =~ "Query: test: true"
     end
 
+    test "ok with empty map params" do
+      log = capture_log(fn -> Client.get("/ok", query: %{}) end)
+      assert log =~ "(no query)"
+    end
+
     test "ok with list params" do
       log = capture_log(fn -> Client.get("/ok", query: %{"test" => ["first", "second"]}) end)
       assert log =~ "Query: test[]: first"
       assert log =~ "Query: test[]: second"
+    end
+
+    test "ok with nested map params" do
+      log =
+        capture_log(fn ->
+          Client.get("/ok",
+            query: %{"filters" => %{"name" => "foo", "pagination" => %{"page" => 2}}}
+          )
+        end)
+
+      assert log =~ "Query: filters[name]: foo"
+      assert log =~ "Query: filters[pagination][page]: 2"
     end
 
     test "multipart" do
