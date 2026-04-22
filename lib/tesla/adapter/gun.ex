@@ -187,7 +187,7 @@ if Code.ensure_loaded?(:gun) do
           opts
         )
         |> Enum.into(%{})
-        |> maybe_put_gun_reply_to(env.private[:tesla_gun_reply_to])
+        |> maybe_put_gun_stream_owner(env.private[:tesla_gun_stream_owner])
 
       request(
         Tesla.Adapter.Shared.format_method(env.method),
@@ -198,10 +198,10 @@ if Code.ensure_loaded?(:gun) do
       )
     end
 
-    defp maybe_put_gun_reply_to(opts, reply_to) when is_pid(reply_to),
-      do: Map.put_new(opts, :tesla_gun_reply_to, reply_to)
+    defp maybe_put_gun_stream_owner(opts, stream_owner) when is_pid(stream_owner),
+      do: Map.put_new(opts, :tesla_gun_stream_owner, stream_owner)
 
-    defp maybe_put_gun_reply_to(opts, _reply_to), do: opts
+    defp maybe_put_gun_stream_owner(opts, _stream_owner), do: opts
 
     defp request(method, url, headers, %Stream{} = body, opts),
       do: do_request(method, url, headers, body, Map.put(opts, :send_body, :stream))
@@ -447,27 +447,64 @@ if Code.ensure_loaded?(:gun) do
       open_stream(pid, method, path, headers, body, req_opts, opts[:send_body])
     end
 
-    defp reply_to(%{body_as: body_as} = opts) when body_as in [:stream, :chunks] do
+    defp reply_to(%{body_as: body_as, tesla_gun_stream_owner: stream_owner} = opts)
+         when body_as in [:stream, :chunks] and is_pid(stream_owner) do
       request_owner = self()
-      stream_owner = opts[:reply_to] || opts[:tesla_gun_reply_to] || request_owner
+      original_reply_to = opts[:reply_to] || request_owner
 
       if stream_owner == request_owner do
-        request_owner
+        original_reply_to
       else
         fn
           {:gun_data, _pid, _stream, _is_fin, _data} = message ->
-            send(stream_owner, message)
+            send(request_owner, message)
+            notify_reply_to(original_reply_to, request_owner, message)
+            notify_stream_owner(stream_owner, request_owner, original_reply_to, message)
 
           {:gun_error, _pid, _stream, _reason} = message ->
-            send(stream_owner, message)
+            send(request_owner, message)
+            notify_reply_to(original_reply_to, request_owner, message)
+            notify_stream_owner(stream_owner, request_owner, original_reply_to, message)
 
           message ->
             send(request_owner, message)
+            notify_reply_to(original_reply_to, request_owner, message)
         end
       end
     end
 
-    defp reply_to(_opts), do: self()
+    defp reply_to(opts), do: opts[:reply_to] || self()
+
+    defp notify_reply_to(reply_to, request_owner, _message)
+         when is_pid(reply_to) and reply_to == request_owner,
+         do: :ok
+
+    defp notify_reply_to(reply_to, _request_owner, message) when is_pid(reply_to) do
+      send(reply_to, message)
+    end
+
+    defp notify_reply_to({module, function, args}, _request_owner, message)
+         when is_atom(module) and is_atom(function) and is_list(args) do
+      apply(module, function, [message | args])
+    end
+
+    defp notify_reply_to({function, args}, _request_owner, message)
+         when is_list(args) and is_function(function, length(args) + 1) do
+      apply(function, [message | args])
+    end
+
+    defp notify_reply_to(function, _request_owner, message) when is_function(function, 1) do
+      function.(message)
+    end
+
+    defp notify_stream_owner(stream_owner, request_owner, reply_to, _message)
+         when stream_owner == request_owner or
+                (is_pid(reply_to) and stream_owner == reply_to),
+         do: :ok
+
+    defp notify_stream_owner(stream_owner, _request_owner, _reply_to, message) do
+      send(stream_owner, message)
+    end
 
     defp open_stream(pid, method, path, headers, body, req_opts, :stream) do
       stream = perform_stream_request(pid, method, path, headers, req_opts)

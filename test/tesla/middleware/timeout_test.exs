@@ -204,5 +204,22 @@ defmodule Tesla.Middleware.TimeoutTest do
 
       assert body |> Enum.join() |> byte_size() == 16
     end
+
+    test "should preserve explicit gun reply_to while streaming through the timeout task" do
+      test_pid = self()
+      reply_to = fn message -> send(test_pid, {:gun_reply_to, message}) end
+
+      assert {:ok, %Tesla.Env{status: 200, body: body}} =
+               __MODULE__.GunStreamClient.get("#{@url}/stream-bytes/10",
+                 opts: [adapter: [body_as: :stream, reply_to: reply_to]]
+               )
+
+      assert body |> Enum.join() |> byte_size() == 16
+
+      assert_receive {:gun_reply_to, {:gun_response, pid, stream, :nofin, 200, _headers}}
+      assert is_pid(pid)
+      assert is_reference(stream)
+      assert_receive {:gun_reply_to, {:gun_data, ^pid, ^stream, _, _}}
+    end
   end
 end

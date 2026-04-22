@@ -198,6 +198,22 @@ defmodule Tesla.Adapter.GunTest do
     assert is_pid(pid)
   end
 
+  test "passes explicit reply_to through to gun on plain responses" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    test_pid = self()
+    reply_to = fn message -> send(test_pid, {:gun_reply_to, message}) end
+
+    assert {:error, :recv_response_timeout} = call(request, reply_to: reply_to, timeout: 100)
+
+    assert_receive {:gun_reply_to, {:gun_response, pid, stream, :nofin, 200, _headers}}
+    assert is_pid(pid)
+    assert is_reference(stream)
+  end
+
   test "on TLS errors get timeout error from await_up method" do
     request = %Env{
       method: :get,
