@@ -380,13 +380,17 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp raise_stream_error(error), do: raise(RuntimeError, message: inspect(error))
 
     defp put_default_content_length_header(headers, body_length) do
-      if Enum.any?(headers, fn {name, _value} ->
-           String.downcase(to_string(name)) == "content-length"
-         end) do
+      if has_header?(headers, "content-length") do
         headers
       else
         [{"content-length", Integer.to_string(body_length)} | headers]
       end
+    end
+
+    defp has_header?(headers, expected_name) do
+      Enum.any?(headers, fn {name, _value} ->
+        String.downcase(name) == expected_name
+      end)
     end
 
     defp stream_request_body(conn, ref, chunk, opts, acc) when is_binary(chunk) do
