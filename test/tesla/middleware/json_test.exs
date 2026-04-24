@@ -300,6 +300,32 @@ defmodule Tesla.Middleware.JsonTest do
     end
   end
 
+  describe "Function: encode/2" do
+    test "does not add content-type header if body is not encodable" do
+      env = %Tesla.Env{body: "hello"}
+
+      {:ok, %Tesla.Env{headers: headers}} = Tesla.Middleware.JSON.encode(env, [])
+
+      assert headers == []
+    end
+
+    test "adds content-type header automatically if one is not present and body is encodable" do
+      env = %Tesla.Env{body: %{}}
+
+      {:ok, %Tesla.Env{headers: headers}} = Tesla.Middleware.JSON.encode(env, [])
+
+      assert [{"content-type", _}] = headers
+    end
+
+    test "does not put own content-type header if one is already present and body is encodable" do
+      env = %Tesla.Env{body: %{}, headers: [{"content-type", "application/x-ndjson"}]}
+
+      {:ok, %Tesla.Env{headers: headers}} = Tesla.Middleware.JSON.encode(env, [])
+
+      assert [{"content-type", "application/x-ndjson"}] = headers
+    end
+  end
+
   if Code.ensure_loaded?(JSON) do
     describe "Engine: JSON" do
       defmodule JSONClient do

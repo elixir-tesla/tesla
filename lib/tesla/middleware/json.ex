@@ -82,10 +82,14 @@ defmodule Tesla.Middleware.JSON do
   def encode(env, opts) do
     with true <- encodable?(env),
          {:ok, body} <- encode_body(env.body, opts) do
-      {:ok,
-       env
-       |> Tesla.put_body(body)
-       |> Tesla.put_headers([{"content-type", encode_content_type(opts)}])}
+      if Tesla.get_header(env, "content-type") do
+        {:ok, env |> Tesla.put_body(body)}
+      else
+        {:ok,
+         env
+         |> Tesla.put_body(body)
+         |> Tesla.put_headers([{"content-type", encode_content_type(opts)}])}
+      end
     else
       false -> {:ok, env}
       error -> error
