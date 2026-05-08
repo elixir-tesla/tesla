@@ -261,6 +261,13 @@ defmodule Tesla.Middleware.PathParamsTest do
 
       assert env.url == "/users/user%231/p/post%232"
     end
+
+    test "leaves URL untouched when path_params is an unsupported type" do
+      opts = [path_params: 42]
+
+      assert {:ok, env} = @middleware.call(%Env{url: "/users/{id}", opts: opts}, [], nil)
+      assert env.url == "/users/{id}"
+    end
   end
 
   describe "Mixed params (not recommended, {id} and :id)" do
