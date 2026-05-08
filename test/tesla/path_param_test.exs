@@ -69,7 +69,7 @@ defmodule Tesla.PathParamTest do
   end
 
   test "rejects non-path style atoms" do
-    for style <- [:form, :spaceDelimited, :pipeDelimited, :deepObject, :cookie] do
+    for style <- [:form, :space_delimited, :pipe_delimited, :deep_object, :cookie] do
       assert_raise ArgumentError, ~r/expected :simple, :matrix, or :label/, fn ->
         PathParam.new!("color", "blue", style: style)
       end

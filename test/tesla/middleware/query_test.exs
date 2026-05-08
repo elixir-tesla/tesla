@@ -9,6 +9,11 @@ defmodule Tesla.Middleware.QueryTest do
     assert env.query == [page: 1]
   end
 
+  test "ignores nil default query params" do
+    assert {:ok, env} = @middleware.call(%Env{query: [page: 1]}, [], nil)
+    assert env.query == [page: 1]
+  end
+
   test "should not override existing key" do
     assert {:ok, env} = @middleware.call(%Env{query: [page: 1]}, [], page: 5)
     assert env.query == [page: 1, page: 5]

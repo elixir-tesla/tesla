@@ -458,7 +458,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
   end
 
   describe "mode: :modern — OpenAPI path serialization limits" do
-    for style <- [:form, :spaceDelimited, :pipeDelimited, :deepObject, :cookie] do
+    for style <- [:form, :space_delimited, :pipe_delimited, :deep_object, :cookie] do
       test "rejects non-path style #{style}" do
         assert_raise ArgumentError, ~r/expected :simple, :matrix, or :label/, fn ->
           path_param("color", "blue", style: unquote(style))
