@@ -39,6 +39,8 @@ defmodule Tesla.HeaderParam do
   serialized order matters.
   """
 
+  alias Tesla.Param
+
   @derive {Inspect, except: [:value]}
   @enforce_keys [:name, :value, :style, :explode]
   defstruct [:name, :value, :style, :explode]
@@ -51,54 +53,30 @@ defmodule Tesla.HeaderParam do
             explode: boolean()
           }
 
+  @styles [:simple]
+  @expected_styles ":simple"
+
   @spec new!(String.t(), term(), keyword()) :: t()
-  def new!(name, value, opts \\ [])
-
-  def new!(name, value, opts) when is_binary(name) and is_list(opts) do
-    build!(opts, name, value)
-  end
-
-  def new!(name, _value, _opts) when not is_binary(name) do
-    raise ArgumentError, "expected header parameter name to be a string; got #{inspect(name)}"
-  end
-
-  def new!(_name, _value, opts) do
-    raise ArgumentError,
-          "expected header parameter options to be a keyword list; got #{inspect(opts)}"
-  end
-
-  @spec to_header(t()) :: {String.t(), String.t()}
-  def to_header(%__MODULE__{} = param) do
-    {param.name, serialize(param)}
-  end
-
-  defp build!(opts, name, value) do
+  def new!(name, value, opts \\ []) do
+    name = Param.validate_name!(:header, name)
+    opts = Param.validate_opts!(:header, opts)
     opts = Keyword.validate!(opts, style: :simple, explode: false)
 
     %__MODULE__{
       name: name,
       value: value,
-      style: opts[:style] |> validate_style!(),
-      explode: validate_boolean!(:explode, opts[:explode])
+      style: validate_style!(opts[:style]),
+      explode: Param.validate_explode!(:header, opts[:explode])
     }
   end
 
-  defp validate_style!(:simple) do
-    :simple
-  end
-
   defp validate_style!(style) do
-    raise ArgumentError,
-          "unknown header parameter style #{inspect(style)}; expected :simple"
+    Param.validate_style!(style, @styles, :header, @expected_styles)
   end
 
-  defp validate_boolean!(_key, value) when is_boolean(value) do
-    value
-  end
-
-  defp validate_boolean!(key, value) do
-    raise ArgumentError,
-          "expected header parameter #{inspect(key)} to be a boolean; got #{inspect(value)}"
+  @spec to_header(t()) :: {String.t(), String.t()}
+  def to_header(%__MODULE__{} = param) do
+    {param.name, serialize(param)}
   end
 
   defp serialize(param) do
@@ -121,7 +99,7 @@ defmodule Tesla.HeaderParam do
 
   defp serialize_simple({:object, pairs}, %__MODULE__{explode: false}) do
     pairs
-    |> flatten_pairs()
+    |> Param.flatten_pairs()
     |> Enum.map_join(",", &to_string/1)
   end
 
@@ -133,54 +111,7 @@ defmodule Tesla.HeaderParam do
     "#{key}=#{value}"
   end
 
-  defp flatten_pairs(pairs) do
-    Enum.flat_map(pairs, &pair_values/1)
-  end
-
-  defp pair_values({key, value}) do
-    [key, value]
-  end
-
   defp classify_param(%__MODULE__{value: value}) do
-    classify_value(value)
-  end
-
-  defp classify_value(nil) do
-    :undefined
-  end
-
-  defp classify_value(value) when is_struct(value) do
-    classify_value(Map.from_struct(value))
-  end
-
-  defp classify_value(value) when is_map(value) do
-    {:object, value |> Map.to_list() |> Enum.map(&stringify_pair/1)}
-  end
-
-  defp classify_value([]) do
-    {:array, []}
-  end
-
-  defp classify_value(value) when is_list(value) do
-    case Enum.all?(value, &object_pair?/1) do
-      true -> {:object, Enum.map(value, &stringify_pair/1)}
-      false -> {:array, value}
-    end
-  end
-
-  defp classify_value(value) do
-    {:primitive, value}
-  end
-
-  defp stringify_pair({key, value}) do
-    {to_string(key), value}
-  end
-
-  defp object_pair?({key, _value}) when is_atom(key) or is_binary(key) do
-    true
-  end
-
-  defp object_pair?(_value) do
-    false
+    Param.classify_value(value)
   end
 end

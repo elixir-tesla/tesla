@@ -59,6 +59,8 @@ defmodule Tesla.QueryParam do
   for `:form`.
   """
 
+  alias Tesla.Param
+
   @derive {Inspect, except: [:value]}
   @enforce_keys [:name, :value, :style, :explode, :allow_reserved]
   defstruct [:name, :value, :style, :explode, :allow_reserved]
@@ -73,77 +75,49 @@ defmodule Tesla.QueryParam do
           }
 
   @styles [:form, :space_delimited, :pipe_delimited, :deep_object]
-  @reserved ~c":/?#[]@!$&'()*+,;="
+  @expected_styles ":form, :space_delimited, :pipe_delimited, or :deep_object"
 
   @spec new!(String.t(), term(), keyword()) :: t()
-  def new!(name, value, opts \\ [])
-
-  def new!(name, value, opts) when is_binary(name) and is_list(opts) do
-    build!(opts, name, value)
-  end
-
-  def new!(name, _value, _opts) when not is_binary(name) do
-    raise ArgumentError, "expected query parameter name to be a string; got #{inspect(name)}"
-  end
-
-  def new!(_name, _value, opts) do
-    raise ArgumentError,
-          "expected query parameter options to be a keyword list; got #{inspect(opts)}"
-  end
-
-  @doc false
-  @spec encode_name(term()) :: String.t()
-  def encode_name(value) do
-    value
-    |> to_string()
-    |> URI.encode(&unreserved?/1)
-  end
-
-  @doc false
-  @spec encode_value(%__MODULE__{}, term()) :: String.t()
-  def encode_value(%__MODULE__{allow_reserved: false}, value) do
-    value
-    |> to_string()
-    |> URI.encode(&unreserved?/1)
-  end
-
-  def encode_value(%__MODULE__{allow_reserved: true}, value) do
-    value
-    |> to_string()
-    |> encode_reserved()
-  end
-
-  defp build!(opts, name, value) do
+  def new!(name, value, opts \\ []) do
+    name = Param.validate_name!(:query, name)
+    opts = Param.validate_opts!(:query, opts)
     opts = Keyword.validate!(opts, [:style, :explode, :allow_reserved])
-    style = opts |> Keyword.get(:style, :form) |> validate_style!()
+
+    style =
+      opts
+      |> Keyword.get(:style, :form)
+      |> validate_style!()
+
+    explode = Keyword.get(opts, :explode, default_explode(style))
+    allow_reserved = Keyword.get(opts, :allow_reserved, false)
 
     %__MODULE__{
       name: name,
       value: value,
       style: style,
-      explode:
-        opts |> Keyword.get(:explode, default_explode(style)) |> validate_boolean!(:explode),
-      allow_reserved:
-        opts |> Keyword.get(:allow_reserved, false) |> validate_boolean!(:allow_reserved)
+      explode: Param.validate_explode!(:query, explode),
+      allow_reserved: Param.validate_allow_reserved!(:query, allow_reserved)
     }
   end
 
-  defp validate_style!(style) when style in @styles do
-    style
-  end
-
   defp validate_style!(style) do
-    raise ArgumentError,
-          "unknown query parameter style #{inspect(style)}; expected :form, :space_delimited, :pipe_delimited, or :deep_object"
+    Param.validate_style!(style, @styles, :query, @expected_styles)
   end
 
-  defp validate_boolean!(value, _key) when is_boolean(value) do
-    value
+  @doc false
+  @spec encode_name(term()) :: String.t()
+  def encode_name(value) do
+    Param.encode_unreserved(value)
   end
 
-  defp validate_boolean!(value, key) do
-    raise ArgumentError,
-          "expected query parameter #{inspect(key)} to be a boolean; got #{inspect(value)}"
+  @doc false
+  @spec encode_value(%__MODULE__{}, term()) :: String.t()
+  def encode_value(%__MODULE__{allow_reserved: false}, value) do
+    Param.encode_unreserved(value)
+  end
+
+  def encode_value(%__MODULE__{allow_reserved: true}, value) do
+    Param.encode_reserved_query(value)
   end
 
   defp default_explode(:form) do
@@ -151,78 +125,6 @@ defmodule Tesla.QueryParam do
   end
 
   defp default_explode(_style) do
-    false
-  end
-
-  defp encode_reserved(<<>>) do
-    ""
-  end
-
-  defp encode_reserved(<<"%", high, low, rest::binary>>) do
-    case hex_digit?(high) and hex_digit?(low) do
-      true ->
-        "%" <> <<high, low>> <> encode_reserved(rest)
-
-      false ->
-        "%25" <> encode_reserved(<<high, low, rest::binary>>)
-    end
-  end
-
-  defp encode_reserved(<<"%", rest::binary>>) do
-    "%25" <> encode_reserved(rest)
-  end
-
-  defp encode_reserved(<<byte, rest::binary>>) do
-    case unreserved_or_reserved?(byte) do
-      true ->
-        <<byte>> <> encode_reserved(rest)
-
-      false ->
-        percent_encode_byte(byte) <> encode_reserved(rest)
-    end
-  end
-
-  defp percent_encode_byte(byte) do
-    "%" <> Base.encode16(<<byte>>)
-  end
-
-  defp hex_digit?(byte) when byte in ?0..?9 do
-    true
-  end
-
-  defp hex_digit?(byte) when byte in ?A..?F do
-    true
-  end
-
-  defp hex_digit?(byte) when byte in ?a..?f do
-    true
-  end
-
-  defp hex_digit?(_byte) do
-    false
-  end
-
-  defp unreserved_or_reserved?(byte) do
-    unreserved?(byte) or byte in @reserved
-  end
-
-  defp unreserved?(byte) when byte in ?A..?Z do
-    true
-  end
-
-  defp unreserved?(byte) when byte in ?a..?z do
-    true
-  end
-
-  defp unreserved?(byte) when byte in ?0..?9 do
-    true
-  end
-
-  defp unreserved?(byte) when byte in [?-, ?_, ?., ?~] do
-    true
-  end
-
-  defp unreserved?(_byte) do
     false
   end
 end
