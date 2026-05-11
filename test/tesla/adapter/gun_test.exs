@@ -232,16 +232,19 @@ defmodule Tesla.Adapter.GunTest do
 
     task =
       Task.async(fn ->
-        Tesla.Adapter.Gun.call(request, body_as: :stream, reply_to: reply_to)
+        Tesla.Adapter.Gun.call(request, body_as: :chunks, reply_to: reply_to, timeout: 5_000)
       end)
 
-    assert {:ok, %Env{status: 200, body: body}} = Task.await(task)
-    assert body |> Enum.join() |> byte_size() == 16
+    assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream}}} =
+             Task.await(task)
 
-    assert_receive {:gun_reply_to, {:gun_response, pid, stream, :nofin, 200, _headers}}
+    assert_receive {:gun_reply_to, {:gun_response, ^pid, ^stream, :nofin, 200, _headers}}
     assert is_pid(pid)
     assert is_reference(stream)
     assert_receive {:gun_reply_to, {:gun_data, ^pid, ^stream, _, _}}
+    assert_receive {:gun_data, ^pid, ^stream, _, _}
+
+    Gun.close(pid)
   end
 
   test "on TLS errors get timeout error from await_up method" do

@@ -45,25 +45,25 @@ defmodule Tesla.Middleware.Query.Modern do
 
   defp serialize_param(%QueryParam{style: :form} = param) do
     param
-    |> classify_param()
+    |> value_type()
     |> serialize_form(param)
   end
 
   defp serialize_param(%QueryParam{style: :space_delimited} = param) do
     param
-    |> classify_param()
+    |> value_type()
     |> serialize_space_delimited(param)
   end
 
   defp serialize_param(%QueryParam{style: :pipe_delimited} = param) do
     param
-    |> classify_param()
+    |> value_type()
     |> serialize_pipe_delimited(param)
   end
 
   defp serialize_param(%QueryParam{style: :deep_object} = param) do
     param
-    |> classify_param()
+    |> value_type()
     |> serialize_deep_object(param)
   end
 
@@ -208,7 +208,7 @@ defmodule Tesla.Middleware.Query.Modern do
     Enum.map_join(values, separator, &QueryParam.encode_value(param, &1))
   end
 
-  defp classify_param(%QueryParam{value: value}) do
-    Param.classify_value(value)
+  defp value_type(%QueryParam{value: value}) do
+    Param.value_type(value)
   end
 end

@@ -53,32 +53,32 @@ defmodule Tesla.Param do
           "expected #{kind} parameter #{inspect(key)} to be a boolean; got #{inspect(value)}"
   end
 
-  def classify_value(nil) do
+  def value_type(nil) do
     :undefined
   end
 
-  def classify_value(value) when is_struct(value) do
+  def value_type(value) when is_struct(value) do
     value
     |> Map.from_struct()
-    |> classify_value()
+    |> value_type()
   end
 
-  def classify_value(value) when is_map(value) do
+  def value_type(value) when is_map(value) do
     {:object, Map.to_list(value)}
   end
 
-  def classify_value([]) do
+  def value_type([]) do
     {:array, []}
   end
 
-  def classify_value(value) when is_list(value) do
-    case Enum.all?(value, &object_pair?/1) do
+  def value_type(value) when is_list(value) do
+    case Keyword.keyword?(value) do
       true -> {:object, value}
       false -> {:array, value}
     end
   end
 
-  def classify_value(value) do
+  def value_type(value) do
     {:primitive, value}
   end
 
@@ -102,14 +102,6 @@ defmodule Tesla.Param do
     value
     |> to_string()
     |> encode_reserved(&path_reserved?/1)
-  end
-
-  defp object_pair?({key, _value}) when is_atom(key) or is_binary(key) do
-    true
-  end
-
-  defp object_pair?(_value) do
-    false
   end
 
   defp pair_values({key, value}) do

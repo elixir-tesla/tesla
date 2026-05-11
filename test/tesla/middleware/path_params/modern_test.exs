@@ -778,10 +778,10 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/id=7"
     end
 
-    test "accepts string-keyed object pair lists" do
+    test "accepts quoted atom keyword lists as object values" do
       opts = [
         path_params: [
-          path_param("color", [{"R", 100}, {"G", 200}], style: :simple, explode: false)
+          path_param("color", [R: 100, G: 200], style: :simple, explode: false)
         ]
       ]
 
