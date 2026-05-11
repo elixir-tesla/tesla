@@ -397,6 +397,34 @@ defmodule TeslaTest do
       assert build_url(@api_url, query_params, &TestSupport.custom_query_encoder/1) ==
                @api_url <> "?name=foo+bar&page=2"
     end
+
+    test "whole query string" do
+      query_string = Tesla.QueryString.raw!("foo=a+%2B+b&bar=true")
+
+      assert build_url(@api_url, query_string) == @api_url <> "?foo=a+%2B+b&bar=true"
+    end
+
+    test "whole form-urlencoded query string" do
+      query_string = Tesla.QueryString.form!(foo: "a + b", bar: true)
+
+      assert build_url(@api_url, query_string) == @api_url <> "?foo=a+%2B+b&bar=true"
+    end
+
+    test "whole query string ignores custom query encoders" do
+      query_string = Tesla.QueryString.raw!("foo=a+%2B+b&bar=true")
+
+      assert build_url(@api_url, query_string, fn _query ->
+               raise "should not be called"
+             end) == @api_url <> "?foo=a+%2B+b&bar=true"
+    end
+
+    test "whole query string rejects URLs with existing query params" do
+      query_string = Tesla.QueryString.raw!("page=2")
+
+      assert_raise Tesla.QueryStringError, ~r/already contains a query string/, fn ->
+        build_url(@api_url <> "?user=3", query_string)
+      end
+    end
   end
 
   describe "build_url/1" do
@@ -421,6 +449,22 @@ defmodule TeslaTest do
         }
 
       assert Tesla.build_url(env) == @api_url <> "?user_name=John+Smith"
+    end
+
+    test "returns URL with whole query string from Tesla.Env struct" do
+      env = %Tesla.Env{url: @api_url, query: Tesla.QueryString.raw!("foo=a+%2B+b&bar=true")}
+
+      assert Tesla.build_url(env) == @api_url <> "?foo=a+%2B+b&bar=true"
+    end
+  end
+
+  describe "encode_query/2" do
+    test "whole query string returns its serialized value" do
+      query_string = Tesla.QueryString.raw!("foo=a+%2B+b&bar=true")
+
+      assert Tesla.encode_query(query_string, fn _query ->
+               raise "should not be called"
+             end) == "foo=a+%2B+b&bar=true"
     end
   end
 end

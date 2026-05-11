@@ -45,6 +45,7 @@ defmodule Tesla.Env do
   @type query_pair :: {query_key, param}
   @type query_list :: [query_pair]
   @type query_param :: Tesla.QueryParam.t()
+  @type query_string :: Tesla.QueryString.t()
   @type param :: query_scalar | query_scalar_list | query_list | %{optional(query_key) => param}
 
   @typedoc """
@@ -58,8 +59,11 @@ defmodule Tesla.Env do
 
   Map query params do not guarantee encoded parameter order. Pass an ordered list
   of pairs if the exact query string order matters.
+
+  A `t:Tesla.QueryString.t/0` value represents the entire URL query string and
+  must not be mixed with normal query params.
   """
-  @type query :: [query_pair] | [query_param] | %{optional(query_key) => param}
+  @type query :: [query_pair] | [query_param] | query_string | %{optional(query_key) => param}
   @type headers :: [{binary, binary}]
 
   @type body :: any
