@@ -432,9 +432,20 @@ defmodule Tesla do
   When query params are passed as maps, the encoded parameter order is
   unspecified. Pass an ordered list of pairs if the exact query string order
   matters.
+
+  Pass `t:Tesla.QueryString.t/0` as the query when the entire query string is
+  already serialized as one value:
+
+      iex> query = Tesla.QueryString.raw!("foo=a+%2B+b&bar=true")
+      iex> Tesla.build_url("https://api.example.com", query)
+      "https://api.example.com?foo=a+%2B+b&bar=true"
   """
   @spec build_url(Tesla.Env.url(), Tesla.Env.query(), encoding_strategy) :: binary
   def build_url(url, query, encoding \\ :www_form)
+
+  def build_url(url, %Tesla.QueryString{} = query_string, _encoding) do
+    Tesla.QueryString.append_to_url(query_string, url)
+  end
 
   def build_url(url, [], _encoding), do: url
   def build_url(url, query, _encoding) when map_size(query) == 0, do: url
@@ -458,6 +469,10 @@ defmodule Tesla do
 
   @spec encode_query(Tesla.Env.query(), encoding_strategy) :: binary
   def encode_query(query, encoding \\ :www_form)
+
+  def encode_query(%Tesla.QueryString{} = query_string, _encoding) do
+    Tesla.QueryString.to_query(query_string)
+  end
 
   def encode_query(query, fun) when is_function(fun, 1), do: fun.(query)
 
