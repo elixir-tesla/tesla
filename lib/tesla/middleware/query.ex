@@ -17,7 +17,11 @@ defmodule Tesla.Middleware.Query do
 
   @behaviour Tesla.Middleware
 
+  alias Tesla.Middleware.Query.Modern
+
   @impl Tesla.Middleware
+  def call(env, next, mode: :modern), do: Modern.call(env, next)
+
   def call(env, next, query) do
     env
     |> merge(query)
