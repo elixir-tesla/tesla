@@ -10,6 +10,10 @@ defmodule Tesla.Middleware.PathParams do
   Parameter values may be `t:struct/0` or must implement the `Enumerable`
   protocol and produce `{key, value}` tuples when enumerated.
 
+  By default, this middleware preserves legacy string substitution. Pass
+  `mode: :modern` to require a list of `Tesla.PathParam` values and
+  use their explicit serialization settings.
+
   ## Parameter Name Restrictions
 
   Phoenix style parameters may contain letters, numbers, or underscores,
@@ -52,8 +56,12 @@ defmodule Tesla.Middleware.PathParams do
 
   @behaviour Tesla.Middleware
 
+  alias Tesla.Middleware.PathParams.Modern
+
   @impl Tesla.Middleware
-  def call(env, next, _) do
+  def call(env, next, mode: :modern), do: Modern.call(env, next)
+
+  def call(env, next, _opts) do
     url = build_url(env.url, env.opts[:path_params])
     Tesla.run(%{env | url: url}, next)
   end
