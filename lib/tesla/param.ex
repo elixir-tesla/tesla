@@ -64,7 +64,7 @@ defmodule Tesla.Param do
   end
 
   def classify_value(value) when is_map(value) do
-    {:object, value |> Map.to_list() |> Enum.map(&stringify_pair/1)}
+    {:object, Map.to_list(value)}
   end
 
   def classify_value([]) do
@@ -73,7 +73,7 @@ defmodule Tesla.Param do
 
   def classify_value(value) when is_list(value) do
     case Enum.all?(value, &object_pair?/1) do
-      true -> {:object, Enum.map(value, &stringify_pair/1)}
+      true -> {:object, value}
       false -> {:array, value}
     end
   end
@@ -102,10 +102,6 @@ defmodule Tesla.Param do
     value
     |> to_string()
     |> encode_reserved(&path_reserved?/1)
-  end
-
-  defp stringify_pair({key, value}) do
-    {to_string(key), value}
   end
 
   defp object_pair?({key, _value}) when is_atom(key) or is_binary(key) do
