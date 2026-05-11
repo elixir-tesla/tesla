@@ -1,0 +1,260 @@
+defmodule Tesla.CookieParam do
+  @moduledoc """
+  A cookie parameter with explicit serialization settings.
+
+  `Tesla.CookieParam` is a Tesla-native value object for cookie parameters whose
+  serialization needs to be controlled explicitly. Its serialization options
+  follow the OpenAPI cookie parameter style semantics, while keeping the public
+  API focused on the cookie use case.
+
+  Convert cookie parameters to the raw `Cookie` header tuple accepted by Tesla:
+
+      alias Tesla.CookieParam
+
+      cookies = [
+        CookieParam.new!("session_id", "abc123"),
+        CookieParam.new!("theme", "dark")
+      ]
+
+      CookieParam.to_header(cookies)
+
+  ## Options
+
+  `new!/3` accepts a keyword list using Elixir atoms for hand-written Tesla
+  code:
+
+    * `:style` - one of `:form` or `:cookie`. Defaults to `:form`, matching
+      the OpenAPI compatibility default for cookie parameters.
+    * `:explode` - boolean. Defaults to `true` when the style is `:form`,
+      and `false` for all other styles.
+    * `:allow_reserved` - boolean. Defaults to `false`.
+
+  [oas-style]: https://spec.openapis.org/oas/latest.html#style-values
+
+  ## Encoding
+
+  `Tesla.CookieParam.to_header/1` serializes values using the
+  [OpenAPI cookie parameter rules][oas-style] for the `form` and `cookie`
+  styles.
+
+  The `cookie` style follows `Cookie` header syntax by separating name-value
+  pairs with `"; "`. Values are passed through unchanged after converting each
+  part with `to_string/1`; URI percent-encoding is not applied.
+
+  The `form` style follows the OpenAPI compatibility behavior for cookie
+  parameters and applies URI percent-encoding by default. With
+  `allow_reserved: true`, reserved characters and already-encoded percent
+  triples in values are preserved.
+
+  ## Object Value Ordering
+
+  Object values may be passed as maps, structs, or keyword lists. Keyword lists
+  preserve insertion order; map iteration order is intrinsic and not guaranteed
+  across Elixir versions. Pass an ordered keyword list when the exact
+  serialized order matters.
+  """
+
+  alias Tesla.Param
+
+  @derive {Inspect, except: [:value]}
+  @enforce_keys [:name, :value, :style, :explode, :allow_reserved]
+  defstruct [:name, :value, :style, :explode, :allow_reserved]
+
+  @type style :: :form | :cookie
+  @opaque t :: %__MODULE__{
+            name: String.t(),
+            value: term(),
+            style: style(),
+            explode: boolean(),
+            allow_reserved: boolean()
+          }
+
+  @styles [:form, :cookie]
+  @expected_styles ":form or :cookie"
+
+  @spec new!(String.t(), term(), keyword()) :: t()
+  def new!(name, value, opts \\ []) do
+    name = Param.validate_name!(:cookie, name)
+    opts = Param.validate_opts!(:cookie, opts)
+    opts = Keyword.validate!(opts, [:style, :explode, :allow_reserved])
+
+    style =
+      opts
+      |> Keyword.get(:style, :form)
+      |> validate_style!()
+
+    explode = Keyword.get(opts, :explode, default_explode(style))
+    allow_reserved = Keyword.get(opts, :allow_reserved, false)
+
+    %__MODULE__{
+      name: name,
+      value: value,
+      style: style,
+      explode: Param.validate_explode!(:cookie, explode),
+      allow_reserved: Param.validate_allow_reserved!(:cookie, allow_reserved)
+    }
+  end
+
+  defp validate_style!(style) do
+    Param.validate_style!(style, @styles, :cookie, @expected_styles)
+  end
+
+  defp default_explode(:form) do
+    true
+  end
+
+  defp default_explode(_style) do
+    false
+  end
+
+  @spec to_header(t() | [t()]) :: {String.t(), String.t()}
+  def to_header(%__MODULE__{} = param) do
+    {"cookie", serialize(param)}
+  end
+
+  def to_header(params) when is_list(params) do
+    {"cookie", Enum.map_join(params, "; ", &serialize_param!/1)}
+  end
+
+  def to_header(param) do
+    raise ArgumentError,
+          "expected cookie header to be a #{inspect(__MODULE__)} struct or a list of #{inspect(__MODULE__)} structs; got #{inspect(param)}"
+  end
+
+  defp serialize_param!(%__MODULE__{} = param) do
+    serialize(param)
+  end
+
+  defp serialize_param!(param) do
+    raise ArgumentError,
+          "expected cookie header to be a #{inspect(__MODULE__)} struct; got #{inspect(param)}"
+  end
+
+  defp serialize(%__MODULE__{style: :form} = param) do
+    param
+    |> value_type()
+    |> serialize_form(param)
+  end
+
+  defp serialize(%__MODULE__{style: :cookie} = param) do
+    param
+    |> value_type()
+    |> serialize_cookie(param)
+  end
+
+  defp serialize_form(:undefined, param) do
+    serialize_form_empty(param)
+  end
+
+  defp serialize_form({:primitive, value}, param) do
+    serialize_form_named_value(param, value)
+  end
+
+  defp serialize_form({:array, []}, param) do
+    serialize_form_empty(param)
+  end
+
+  defp serialize_form({:array, items}, %__MODULE__{explode: false} = param) do
+    serialize_form_name(param) <> "=" <> join_encoded_values(items, ",", param)
+  end
+
+  defp serialize_form({:array, items}, %__MODULE__{explode: true} = param) do
+    Enum.map_join(items, "&", &serialize_form_named_value(param, &1))
+  end
+
+  defp serialize_form({:object, []}, param) do
+    serialize_form_empty(param)
+  end
+
+  defp serialize_form({:object, pairs}, %__MODULE__{explode: false} = param) do
+    serialize_form_name(param) <>
+      "=" <>
+      (pairs
+       |> Param.flatten_pairs()
+       |> join_encoded_values(",", param))
+  end
+
+  defp serialize_form({:object, pairs}, %__MODULE__{explode: true} = param) do
+    Enum.map_join(pairs, "&", &serialize_form_pair(&1, param))
+  end
+
+  defp serialize_cookie(:undefined, param) do
+    serialize_cookie_empty(param)
+  end
+
+  defp serialize_cookie({:primitive, value}, param) do
+    serialize_cookie_named_value(param, value)
+  end
+
+  defp serialize_cookie({:array, []}, param) do
+    serialize_cookie_empty(param)
+  end
+
+  defp serialize_cookie({:array, items}, %__MODULE__{explode: false} = param) do
+    param.name <> "=" <> Enum.map_join(items, ",", &to_string/1)
+  end
+
+  defp serialize_cookie({:array, items}, %__MODULE__{explode: true} = param) do
+    Enum.map_join(items, "; ", &serialize_cookie_named_value(param, &1))
+  end
+
+  defp serialize_cookie({:object, []}, param) do
+    serialize_cookie_empty(param)
+  end
+
+  defp serialize_cookie({:object, pairs}, %__MODULE__{explode: false} = param) do
+    param.name <>
+      "=" <>
+      (pairs
+       |> Param.flatten_pairs()
+       |> Enum.map_join(",", &to_string/1))
+  end
+
+  defp serialize_cookie({:object, pairs}, %__MODULE__{explode: true}) do
+    Enum.map_join(pairs, "; ", &serialize_cookie_pair/1)
+  end
+
+  defp serialize_form_empty(param) do
+    serialize_form_name(param) <> "="
+  end
+
+  defp serialize_form_named_value(param, value) do
+    serialize_form_name(param) <> "=" <> encode_form_value(param, value)
+  end
+
+  defp serialize_form_pair({key, value}, param) do
+    Param.encode_unreserved(key) <> "=" <> encode_form_value(param, value)
+  end
+
+  defp serialize_cookie_empty(param) do
+    param.name <> "="
+  end
+
+  defp serialize_cookie_named_value(param, value) do
+    param.name <> "=" <> to_string(value)
+  end
+
+  defp serialize_cookie_pair({key, value}) do
+    "#{key}=#{value}"
+  end
+
+  defp serialize_form_name(param) do
+    Param.encode_unreserved(param.name)
+  end
+
+  defp join_encoded_values(values, separator, param) do
+    Enum.map_join(values, separator, &encode_form_value(param, &1))
+  end
+
+  defp encode_form_value(%__MODULE__{allow_reserved: false}, value) do
+    Param.encode_unreserved(value)
+  end
+
+  defp encode_form_value(%__MODULE__{allow_reserved: true}, value) do
+    Param.encode_reserved_query(value)
+  end
+
+  defp value_type(%__MODULE__{value: value}) do
+    Param.value_type(value)
+  end
+end
