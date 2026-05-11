@@ -1,6 +1,7 @@
 defmodule Tesla.Middleware.Query.Modern do
   @moduledoc false
 
+  alias Tesla.Param
   alias Tesla.QueryParam
 
   def call(env, next) do
@@ -104,7 +105,7 @@ defmodule Tesla.Middleware.Query.Modern do
       QueryParam.encode_name(param.name) <>
         "=" <>
         (pairs
-         |> flatten_pairs()
+         |> Param.flatten_pairs()
          |> join_encoded_values(",", param))
     ]
   end
@@ -131,7 +132,7 @@ defmodule Tesla.Middleware.Query.Modern do
       QueryParam.encode_name(param.name) <>
         "=" <>
         (pairs
-         |> flatten_pairs()
+         |> Param.flatten_pairs()
          |> join_encoded_values("%20", param))
     ]
   end
@@ -163,7 +164,7 @@ defmodule Tesla.Middleware.Query.Modern do
       QueryParam.encode_name(param.name) <>
         "=" <>
         (pairs
-         |> flatten_pairs()
+         |> Param.flatten_pairs()
          |> join_encoded_values("%7C", param))
     ]
   end
@@ -203,58 +204,11 @@ defmodule Tesla.Middleware.Query.Modern do
       "%5B" <> QueryParam.encode_name(key) <> "%5D=" <> QueryParam.encode_value(param, value)
   end
 
-  defp flatten_pairs(pairs) do
-    Enum.flat_map(pairs, &pair_values/1)
-  end
-
-  defp pair_values({key, value}) do
-    [key, value]
-  end
-
   defp join_encoded_values(values, separator, param) do
     Enum.map_join(values, separator, &QueryParam.encode_value(param, &1))
   end
 
   defp classify_param(%QueryParam{value: value}) do
-    classify_value(value)
-  end
-
-  defp classify_value(nil) do
-    :undefined
-  end
-
-  defp classify_value(value) when is_struct(value) do
-    classify_value(Map.from_struct(value))
-  end
-
-  defp classify_value(value) when is_map(value) do
-    {:object, value |> Map.to_list() |> Enum.map(&stringify_pair/1)}
-  end
-
-  defp classify_value([]) do
-    {:array, []}
-  end
-
-  defp classify_value(value) when is_list(value) do
-    case Enum.all?(value, &object_pair?/1) do
-      true -> {:object, Enum.map(value, &stringify_pair/1)}
-      false -> {:array, value}
-    end
-  end
-
-  defp classify_value(value) do
-    {:primitive, value}
-  end
-
-  defp stringify_pair({key, value}) do
-    {to_string(key), value}
-  end
-
-  defp object_pair?({key, _value}) when is_atom(key) or is_binary(key) do
-    true
-  end
-
-  defp object_pair?(_value) do
-    false
+    Param.classify_value(value)
   end
 end

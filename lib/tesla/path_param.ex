@@ -60,6 +60,8 @@ defmodule Tesla.PathParam do
   "undefined" column for the selected style.
   """
 
+  alias Tesla.Param
+
   @derive {Inspect, except: [:value]}
   @enforce_keys [:name, :value, :style, :explode, :allow_reserved]
   defstruct [:name, :value, :style, :explode, :allow_reserved]
@@ -73,115 +75,35 @@ defmodule Tesla.PathParam do
             allow_reserved: boolean()
           }
 
+  @styles [:simple, :matrix, :label]
+  @expected_styles ":simple, :matrix, or :label"
+
   @spec new!(String.t(), term(), keyword()) :: t()
-  def new!(name, value, opts \\ [])
-
-  def new!(name, value, opts) when is_binary(name) and is_list(opts) do
-    build!(opts, name, value)
-  end
-
-  def new!(name, _value, _opts) when not is_binary(name) do
-    raise ArgumentError, "expected path parameter name to be a string; got #{inspect(name)}"
-  end
-
-  def new!(_name, _value, opts) do
-    raise ArgumentError,
-          "expected path parameter options to be a keyword list; got #{inspect(opts)}"
-  end
-
-  @doc false
-  @spec encode_value(%__MODULE__{}, term()) :: String.t()
-  def encode_value(%__MODULE__{allow_reserved: false}, value) do
-    value |> to_string() |> URI.encode(&unreserved?/1)
-  end
-
-  def encode_value(%__MODULE__{allow_reserved: true}, value) do
-    value |> to_string() |> encode_reserved_path()
-  end
-
-  defp build!(opts, name, value) do
+  def new!(name, value, opts \\ []) do
+    name = Param.validate_name!(:path, name)
+    opts = Param.validate_opts!(:path, opts)
     opts = Keyword.validate!(opts, style: :simple, explode: false, allow_reserved: false)
 
     %__MODULE__{
       name: name,
       value: value,
-      style: opts[:style] |> validate_style!(),
-      explode: validate_boolean!(:explode, opts[:explode]),
-      allow_reserved: validate_boolean!(:allow_reserved, opts[:allow_reserved])
+      style: validate_style!(opts[:style]),
+      explode: Param.validate_explode!(:path, opts[:explode]),
+      allow_reserved: Param.validate_allow_reserved!(:path, opts[:allow_reserved])
     }
   end
 
-  defp validate_style!(style) when style in [:simple, :matrix, :label], do: style
-
   defp validate_style!(style) do
-    raise ArgumentError,
-          "unknown path parameter style #{inspect(style)}; expected :simple, :matrix, or :label"
+    Param.validate_style!(style, @styles, :path, @expected_styles)
   end
 
-  defp validate_boolean!(_key, value) when is_boolean(value), do: value
-
-  defp validate_boolean!(key, value) do
-    raise ArgumentError, "expected #{inspect(key)} to be a boolean; got #{inspect(value)}"
+  @doc false
+  @spec encode_value(%__MODULE__{}, term()) :: String.t()
+  def encode_value(%__MODULE__{allow_reserved: false}, value) do
+    Param.encode_unreserved(value)
   end
 
-  defp encode_reserved_path(<<"%", h1, h2, rest::binary>>)
-       when h1 in ?0..?9 or h1 in ?A..?F or h1 in ?a..?f do
-    case hex?(h2) do
-      true -> "%" <> <<h1, h2>> <> encode_reserved_path(rest)
-      false -> "%25" <> encode_reserved_path(<<h1, h2, rest::binary>>)
-    end
-  end
-
-  defp encode_reserved_path(<<c::utf8, rest::binary>>) do
-    char = <<c::utf8>>
-
-    case byte_size(char) == 1 and reserved_path_allowed?(c) do
-      true -> char <> encode_reserved_path(rest)
-      false -> URI.encode(char, &reserved_path_allowed?/1) <> encode_reserved_path(rest)
-    end
-  end
-
-  defp encode_reserved_path("") do
-    ""
-  end
-
-  defp hex?(c) when c in ?0..?9 do
-    true
-  end
-
-  defp hex?(c) when c in ?A..?F do
-    true
-  end
-
-  defp hex?(c) when c in ?a..?f do
-    true
-  end
-
-  defp hex?(_c) do
-    false
-  end
-
-  defp unreserved?(c) when c in ?A..?Z do
-    true
-  end
-
-  defp unreserved?(c) when c in ?a..?z do
-    true
-  end
-
-  defp unreserved?(c) when c in ?0..?9 do
-    true
-  end
-
-  defp unreserved?(c) when c in [?-, ?_, ?., ?~] do
-    true
-  end
-
-  defp unreserved?(_c) do
-    false
-  end
-
-  defp reserved_path_allowed?(c) do
-    unreserved?(c) or c in [?!, ?$, ?&, ?', ?(, ?), ?*, ?+, ?,, ?;, ?=, ?:, ?@]
+  def encode_value(%__MODULE__{allow_reserved: true}, value) do
+    Param.encode_reserved_path(value)
   end
 end
