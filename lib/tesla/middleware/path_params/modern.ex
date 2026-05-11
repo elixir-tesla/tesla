@@ -43,9 +43,7 @@ defmodule Tesla.Middleware.PathParams.Modern do
   end
 
   defp replace_placeholder(params, match, name) when is_map(params) do
-    params
-    |> Map.get(name)
-    |> replace_param(match)
+    replace_param(Map.get(params, name), match)
   end
 
   defp replace_param(%PathParam{value: nil}, match) do
@@ -73,15 +71,21 @@ defmodule Tesla.Middleware.PathParams.Modern do
   end
 
   defp serialize_value(%PathParam{style: :simple} = param) do
-    serialize_simple(classify_param(param), param)
+    param
+    |> value_type()
+    |> serialize_simple(param)
   end
 
   defp serialize_value(%PathParam{style: :matrix} = param) do
-    serialize_matrix(classify_param(param), param)
+    param
+    |> value_type()
+    |> serialize_matrix(param)
   end
 
   defp serialize_value(%PathParam{style: :label} = param) do
-    serialize_label(classify_param(param), param)
+    param
+    |> value_type()
+    |> serialize_label(param)
   end
 
   defp serialize_simple({:primitive, value}, param) do
@@ -198,7 +202,7 @@ defmodule Tesla.Middleware.PathParams.Modern do
     Enum.map_join(values, separator, &PathParam.encode_value(param, &1))
   end
 
-  defp classify_param(%PathParam{value: value}) do
-    Param.classify_value(value)
+  defp value_type(%PathParam{value: value}) do
+    Param.value_type(value)
   end
 end

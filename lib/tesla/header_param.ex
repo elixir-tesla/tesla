@@ -81,7 +81,7 @@ defmodule Tesla.HeaderParam do
 
   defp serialize(param) do
     param
-    |> classify_param()
+    |> value_type()
     |> serialize_simple(param)
   end
 
@@ -111,7 +111,7 @@ defmodule Tesla.HeaderParam do
     "#{key}=#{value}"
   end
 
-  defp classify_param(%__MODULE__{value: value}) do
-    Param.classify_value(value)
+  defp value_type(%__MODULE__{value: value}) do
+    Param.value_type(value)
   end
 end
