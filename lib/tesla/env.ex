@@ -103,25 +103,4 @@ defmodule Tesla.Env do
             private: %{},
             __module__: nil,
             __client__: nil
-
-  @doc """
-  Merges request private data maps from left to right.
-
-  This is useful for generated clients that precompute several Tesla private
-  values as module attributes:
-
-      @private Tesla.Env.merge_private([
-                 Tesla.OpenAPI.PathTemplate.put_private(@path_template),
-                 Tesla.OpenAPI.PathParams.put_private(@path_params),
-                 Tesla.OpenAPI.QueryParams.put_private(@query_params)
-               ])
-  """
-  @spec merge_private([private]) :: private
-  def merge_private(privates) when is_list(privates) do
-    Enum.reduce(privates, %{}, &merge_private/2)
-  end
-
-  defp merge_private(private, merged) when is_map(private) do
-    Map.merge(merged, private)
-  end
 end

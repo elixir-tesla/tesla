@@ -230,6 +230,7 @@ defmodule MyApi.Operation.GetItem do
   alias MyApi.Client
   alias MyApi.Operation.GetItem.{Cookie, Header, Path, Query}
   alias MyApi.Response
+  alias Tesla.OpenAPI
   alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
 
   defstruct path: nil,
@@ -261,7 +262,7 @@ defmodule MyApi.Operation.GetItem do
                   QueryParam.new!("filter", style: :deep_object)
                 ])
 
-  @private Tesla.Env.merge_private([
+  @private OpenAPI.merge_private([
              PathTemplate.put_private(@path_template),
              PathParams.put_private(@path_params),
              QueryParams.put_private(@query_params)
