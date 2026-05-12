@@ -62,7 +62,7 @@ defmodule Tesla.PathTemplateTest do
   test "put_private preserves existing private data" do
     template = PathTemplate.new!("/items/{id}")
 
-    assert PathTemplate.put_private(template, %{request_id: "abc123"}) == %{
+    assert PathTemplate.put_private(%{request_id: "abc123"}, template) == %{
              request_id: "abc123",
              tesla_path_template: template
            }
