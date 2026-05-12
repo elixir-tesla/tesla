@@ -1,8 +1,8 @@
 defmodule Tesla.Middleware.QueryTest do
   use ExUnit.Case
   alias Tesla.Env
-  alias Tesla.QueryString
-  alias Tesla.QueryStringError
+  alias Tesla.OpenAPI.QueryString
+  alias Tesla.OpenAPI.QueryStringError
 
   @middleware Tesla.Middleware.Query
 
@@ -74,7 +74,7 @@ defmodule Tesla.Middleware.QueryTest do
     query_string = QueryString.raw!("foo=a+%2B+b&bar=true")
 
     assert_raise QueryStringError,
-                 ~r/cannot merge Tesla.QueryString with normal query params/,
+                 ~r/cannot merge Tesla.OpenAPI.QueryString with normal query params/,
                  fn ->
                    @middleware.call(%Env{query: query_string}, [], page: 1)
                  end
@@ -84,7 +84,7 @@ defmodule Tesla.Middleware.QueryTest do
     query_string = QueryString.raw!("foo=a+%2B+b&bar=true")
 
     assert_raise QueryStringError,
-                 ~r/cannot merge Tesla.QueryString with normal query params/,
+                 ~r/cannot merge Tesla.OpenAPI.QueryString with normal query params/,
                  fn ->
                    @middleware.call(%Env{query: [page: 1]}, [], query_string)
                  end

@@ -1,15 +1,15 @@
-defmodule Tesla.CookieParam do
+defmodule Tesla.OpenAPI.CookieParam do
   @moduledoc """
   A cookie parameter with explicit serialization settings.
 
-  `Tesla.CookieParam` is a Tesla-native value object for cookie parameters whose
+  `Tesla.OpenAPI.CookieParam` is a Tesla-native value object for cookie parameters whose
   serialization needs to be controlled explicitly. Its serialization options
   follow the OpenAPI cookie parameter style semantics, while keeping the public
   API focused on the cookie use case.
 
   Convert cookie parameters to the raw `Cookie` header tuple accepted by Tesla:
 
-      alias Tesla.CookieParam
+      alias Tesla.OpenAPI.CookieParam
 
       cookies = [
         CookieParam.new!("session_id", "abc123"),
@@ -33,7 +33,7 @@ defmodule Tesla.CookieParam do
 
   ## Encoding
 
-  `Tesla.CookieParam.to_header/1` serializes values using the
+  `Tesla.OpenAPI.CookieParam.to_header/1` serializes values using the
   [OpenAPI cookie parameter rules][oas-style] for the `form` and `cookie`
   styles.
 

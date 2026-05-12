@@ -1,15 +1,15 @@
-defmodule Tesla.HeaderParam do
+defmodule Tesla.OpenAPI.HeaderParam do
   @moduledoc """
   A header parameter with explicit serialization settings.
 
-  `Tesla.HeaderParam` is a Tesla-native value object for header parameters whose
+  `Tesla.OpenAPI.HeaderParam` is a Tesla-native value object for header parameters whose
   serialization needs to be controlled explicitly. Its serialization options
   follow the OpenAPI header parameter style semantics, while keeping the public
   API focused on the header use case.
 
   Convert a header parameter to the raw header tuple accepted by Tesla:
 
-      alias Tesla.HeaderParam
+      alias Tesla.OpenAPI.HeaderParam
 
       HeaderParam.new!("X-Token", [12345678, 90099])
       |> HeaderParam.to_header()
@@ -26,7 +26,7 @@ defmodule Tesla.HeaderParam do
 
   ## Encoding
 
-  `Tesla.HeaderParam.to_header/1` serializes values using the
+  `Tesla.OpenAPI.HeaderParam.to_header/1` serializes values using the
   [OpenAPI header parameter rules][oas-style] for the `simple` style. Header
   values are passed through unchanged after converting each part with
   `to_string/1`; URI percent-encoding is not applied.

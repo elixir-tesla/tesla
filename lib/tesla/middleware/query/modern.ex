@@ -3,9 +3,9 @@ defmodule Tesla.Middleware.Query.Modern do
 
   alias Tesla.Env
   alias Tesla.Param
-  alias Tesla.QueryParam
-  alias Tesla.QueryParams
-  alias Tesla.QueryString
+  alias Tesla.OpenAPI.QueryParam
+  alias Tesla.OpenAPI.QueryParams
+  alias Tesla.OpenAPI.QueryString
 
   def call(%Env{} = env, next) do
     env

@@ -1,7 +1,7 @@
-defmodule Tesla.QueryParamTest do
+defmodule Tesla.OpenAPI.QueryParamTest do
   use ExUnit.Case
 
-  alias Tesla.QueryParam
+  alias Tesla.OpenAPI.QueryParam
 
   test "builds a form query parameter by default" do
     assert %QueryParam{

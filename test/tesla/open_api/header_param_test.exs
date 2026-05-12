@@ -1,7 +1,7 @@
-defmodule Tesla.HeaderParamTest do
+defmodule Tesla.OpenAPI.HeaderParamTest do
   use ExUnit.Case, async: true
 
-  alias Tesla.HeaderParam
+  alias Tesla.OpenAPI.HeaderParam
 
   defmodule TestFilter do
     defstruct [:role, :id]

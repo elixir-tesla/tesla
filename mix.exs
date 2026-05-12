@@ -121,15 +121,15 @@ defmodule Tesla.Mixfile do
           Tesla.Middleware
         ],
         "OpenAPI Parameters": [
-          Tesla.CookieParam,
-          Tesla.HeaderParam,
-          Tesla.PathParam,
-          Tesla.PathParams,
-          Tesla.PathTemplate,
-          Tesla.QueryParam,
-          Tesla.QueryParams,
-          Tesla.QueryString,
-          Tesla.QueryStringError
+          Tesla.OpenAPI.CookieParam,
+          Tesla.OpenAPI.HeaderParam,
+          Tesla.OpenAPI.PathParam,
+          Tesla.OpenAPI.PathParams,
+          Tesla.OpenAPI.PathTemplate,
+          Tesla.OpenAPI.QueryParam,
+          Tesla.OpenAPI.QueryParams,
+          Tesla.OpenAPI.QueryString,
+          Tesla.OpenAPI.QueryStringError
         ],
         Adapters: [~r/Tesla.Adapter./],
         Middlewares: [~r/Tesla.Middleware./],

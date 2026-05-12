@@ -1,16 +1,16 @@
-defmodule Tesla.QueryParam do
+defmodule Tesla.OpenAPI.QueryParam do
   @moduledoc """
   A query parameter definition with explicit serialization settings.
 
-  `Tesla.QueryParam` is a Tesla-native value object for query parameter
+  `Tesla.OpenAPI.QueryParam` is a Tesla-native value object for query parameter
   metadata whose serialization needs to be controlled explicitly. Its
   serialization options follow the OpenAPI query parameter style semantics,
   while keeping the public API focused on the query use case.
 
   In `Tesla.Middleware.Query` `:modern` mode, define query parameters once and
-  pass them through request private data with `Tesla.QueryParams`:
+  pass them through request private data with `Tesla.OpenAPI.QueryParams`:
 
-      alias Tesla.{QueryParam, QueryParams}
+      alias Tesla.OpenAPI.{QueryParam, QueryParams}
 
       query_params = QueryParams.new!([QueryParam.new!("id")])
       private = QueryParams.put_private(query_params)
@@ -22,9 +22,9 @@ defmodule Tesla.QueryParam do
 
   Pass options when a query value needs non-default serialization:
 
-      alias Tesla.QueryParam
+      alias Tesla.OpenAPI.QueryParam
 
-      Tesla.QueryParams.new!([
+      Tesla.OpenAPI.QueryParams.new!([
         QueryParam.new!("ids", style: :pipe_delimited)
       ])
 
@@ -63,10 +63,10 @@ defmodule Tesla.QueryParam do
   ## OpenAPI additionalProperties
 
   OpenAPI `additionalProperties` belongs to the schema of an object-valued
-  parameter. Model that parameter with `Tesla.QueryParam` and pass the dynamic
+  parameter. Model that parameter with `Tesla.OpenAPI.QueryParam` and pass the dynamic
   properties as the request value:
 
-      query_params = Tesla.QueryParams.new!([Tesla.QueryParam.new!("filter")])
+      query_params = Tesla.OpenAPI.QueryParams.new!([Tesla.OpenAPI.QueryParam.new!("filter")])
       query = %{"filter" => [status: "open", owner: "yordis"]}
 
   In `:form` style with `explode: true`, this serializes to

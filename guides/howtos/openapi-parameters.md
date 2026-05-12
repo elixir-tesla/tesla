@@ -85,8 +85,8 @@ defmodule MyApi.Operation.GetItem.Path do
 end
 ```
 
-The static OpenAPI path metadata for those names will use `Tesla.PathParam`,
-`Tesla.PathParams`, and `Tesla.PathTemplate` when the operation module is built.
+The static OpenAPI path metadata for those names will use `Tesla.OpenAPI.PathParam`,
+`Tesla.OpenAPI.PathParams`, and `Tesla.OpenAPI.PathTemplate` when the operation module is built.
 
 ## Build the query module
 
@@ -117,11 +117,11 @@ defmodule MyApi.Operation.GetItem.Query do
 end
 ```
 
-`Tesla.QueryParam` supports the OpenAPI query styles `:form`,
+`Tesla.OpenAPI.QueryParam` supports the OpenAPI query styles `:form`,
 `:space_delimited`, `:pipe_delimited`, and `:deep_object`. Omit optional query
 parameters from the returned map when they should not be sent. The static
-OpenAPI query metadata for those names will use `Tesla.QueryParam` and
-`Tesla.QueryParams` when the operation module is built.
+OpenAPI query metadata for those names will use `Tesla.OpenAPI.QueryParam` and
+`Tesla.OpenAPI.QueryParams` when the operation module is built.
 
 Other top-level query params can share the same request query map and remain
 normal Tesla query params. This example keeps those values in a generated
@@ -129,12 +129,12 @@ normal Tesla query params. This example keeps those values in a generated
 
 ## Build the header module
 
-For `in: "header"`, convert `Tesla.HeaderParam` structs to the raw header
+For `in: "header"`, convert `Tesla.OpenAPI.HeaderParam` structs to the raw header
 tuples accepted by Tesla:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Header do
-  alias Tesla.HeaderParam
+  alias Tesla.OpenAPI.HeaderParam
 
   @type t :: %__MODULE__{
           request_id: String.t()
@@ -152,16 +152,16 @@ defmodule MyApi.Operation.GetItem.Header do
 end
 ```
 
-`Tesla.HeaderParam` supports the OpenAPI header style `:simple`.
+`Tesla.OpenAPI.HeaderParam` supports the OpenAPI header style `:simple`.
 
 ## Build the cookie module
 
-For `in: "cookie"`, convert one or more `Tesla.CookieParam` structs into a
+For `in: "cookie"`, convert one or more `Tesla.OpenAPI.CookieParam` structs into a
 single `Cookie` header:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Cookie do
-  alias Tesla.CookieParam
+  alias Tesla.OpenAPI.CookieParam
 
   @type t :: %__MODULE__{
           session_id: String.t()
@@ -181,7 +181,7 @@ defmodule MyApi.Operation.GetItem.Cookie do
 end
 ```
 
-`Tesla.CookieParam` supports the OpenAPI cookie styles `:form` and `:cookie`.
+`Tesla.OpenAPI.CookieParam` supports the OpenAPI cookie styles `:form` and `:cookie`.
 
 ## Build the response wrapper
 
@@ -223,14 +223,14 @@ end
 
 Now assemble the nested modules into the generated operation. Static path
 metadata and request private data stay on the operation module with
-`Tesla.PathTemplate`, `Tesla.PathParam`, and `Tesla.PathParams`:
+`Tesla.OpenAPI.PathTemplate`, `Tesla.OpenAPI.PathParam`, and `Tesla.OpenAPI.PathParams`:
 
 ```elixir
 defmodule MyApi.Operation.GetItem do
   alias MyApi.Client
   alias MyApi.Operation.GetItem.{Cookie, Header, Path, Query}
   alias MyApi.Response
-  alias Tesla.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
+  alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
 
   defstruct path: nil,
             query: nil,
@@ -306,9 +306,9 @@ end
 ## Build the client stack
 
 Use `Tesla.Middleware.PathParams` in `:modern` mode when generated operations
-pass `Tesla.PathParams` through request private data. Use
+pass `Tesla.OpenAPI.PathParams` through request private data. Use
 `Tesla.Middleware.Query` in `:modern` mode when generated operations pass
-`Tesla.QueryParams` through request private data:
+`Tesla.OpenAPI.QueryParams` through request private data:
 
 ```elixir
 defmodule MyApi.Client do
