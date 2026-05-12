@@ -44,7 +44,6 @@ defmodule Tesla.Env do
   @type query_scalar_list :: [query_scalar]
   @type query_pair :: {query_key, param}
   @type query_list :: [query_pair]
-  @type query_param :: Tesla.QueryParam.t()
   @type query_string :: Tesla.QueryString.t()
   @type param :: query_scalar | query_scalar_list | query_list | %{optional(query_key) => param}
 
@@ -57,13 +56,15 @@ defmodule Tesla.Env do
   - `%{filters: %{page: 1}}` will be translated to `?filters%5Bpage%5D=1`
     (that is, `filters[page]` with brackets percent-encoded by default).
 
-  Map query params do not guarantee encoded parameter order. Pass an ordered list
-  of pairs if the exact query string order matters.
+  Map query params do not guarantee encoded parameter order when Tesla's default
+  URL builder encodes them directly. In `Tesla.Middleware.Query` `:modern` mode,
+  values matching `Tesla.QueryParams` definitions are encoded in definition
+  order.
 
   A `t:Tesla.QueryString.t/0` value represents the entire URL query string and
   must not be mixed with normal query params.
   """
-  @type query :: [query_pair] | [query_param] | query_string | %{optional(query_key) => param}
+  @type query :: query_list | query_string | %{optional(query_key) => param}
   @type headers :: [{binary, binary}]
 
   @type body :: any
@@ -102,4 +103,25 @@ defmodule Tesla.Env do
             private: %{},
             __module__: nil,
             __client__: nil
+
+  @doc """
+  Merges request private data maps from left to right.
+
+  This is useful for generated clients that precompute several Tesla private
+  values as module attributes:
+
+      @private Tesla.Env.merge_private([
+                 Tesla.PathTemplate.put_private(@path_template),
+                 Tesla.PathParams.put_private(@path_params),
+                 Tesla.QueryParams.put_private(@query_params)
+               ])
+  """
+  @spec merge_private([private]) :: private
+  def merge_private(privates) when is_list(privates) do
+    Enum.reduce(privates, %{}, &merge_private/2)
+  end
+
+  defp merge_private(private, merged) when is_map(private) do
+    Map.merge(merged, private)
+  end
 end

@@ -1,28 +1,36 @@
 defmodule Tesla.QueryParam do
   @moduledoc """
-  A query parameter with explicit serialization settings.
+  A query parameter definition with explicit serialization settings.
 
-  `Tesla.QueryParam` is a Tesla-native value object for query parameters whose
-  serialization needs to be controlled explicitly. Its serialization options
-  follow the OpenAPI query parameter style semantics, while keeping the public
-  API focused on the query use case.
+  `Tesla.QueryParam` is a Tesla-native value object for query parameter
+  metadata whose serialization needs to be controlled explicitly. Its
+  serialization options follow the OpenAPI query parameter style semantics,
+  while keeping the public API focused on the query use case.
 
-  In `Tesla.Middleware.Query` `:modern` mode, wrap each query parameter
-  explicitly, even when the default query serialization is enough:
+  In `Tesla.Middleware.Query` `:modern` mode, define query parameters once and
+  pass them through request private data with `Tesla.QueryParams`:
 
-      query: [QueryParam.new!("id", 42)]
+      alias Tesla.{QueryParam, QueryParams}
 
-  Pass options when a value needs non-default query serialization:
+      query_params = QueryParams.new!([QueryParam.new!("id")])
+      private = QueryParams.put_private(query_params)
+
+      Tesla.get(client, "/items",
+        query: %{"id" => 42},
+        private: private
+      )
+
+  Pass options when a query value needs non-default serialization:
 
       alias Tesla.QueryParam
 
-      query: [
-        QueryParam.new!("ids", [1, 2, 3], style: :pipe_delimited)
-      ]
+      Tesla.QueryParams.new!([
+        QueryParam.new!("ids", style: :pipe_delimited)
+      ])
 
   ## Options
 
-  `new!/3` accepts a keyword list using Elixir atoms for hand-written Tesla
+  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
   code:
 
     * `:style` - one of `:form`, `:space_delimited`, `:pipe_delimited`, or
@@ -35,8 +43,8 @@ defmodule Tesla.QueryParam do
 
   ## Encoding
 
-  `Tesla.Middleware.Query` serializes `Tesla.QueryParam` values using the
-  [OpenAPI query parameter rules][oas-style] for the `form`, `space_delimited`,
+  `Tesla.Middleware.Query` serializes values using the [OpenAPI query
+  parameter rules][oas-style] for the `form`, `space_delimited`,
   `pipe_delimited`, and `deep_object` styles. Serialized names and values are
   percent-encoded against the RFC 3986 unreserved set (`A-Z`, `a-z`, `0-9`,
   `-`, `_`, `.`, `~`); spaces become `%20` (not `+`).
@@ -52,23 +60,33 @@ defmodule Tesla.QueryParam do
   across Elixir versions. Pass an ordered keyword list when the exact
   serialized order matters.
 
+  ## OpenAPI additionalProperties
+
+  OpenAPI `additionalProperties` belongs to the schema of an object-valued
+  parameter. Model that parameter with `Tesla.QueryParam` and pass the dynamic
+  properties as the request value:
+
+      query_params = Tesla.QueryParams.new!([Tesla.QueryParam.new!("filter")])
+      query = %{"filter" => [status: "open", owner: "yordis"]}
+
+  In `:form` style with `explode: true`, this serializes to
+  `?status=open&owner=yordis`.
+
   ## Missing And Empty Values
 
-  Skip a query parameter by leaving it out of `env.query`. A `nil` value
-  represents the OpenAPI "undefined" value and only has a defined serialization
-  for `:form`.
+  Skip a query parameter by leaving it out of `env.query`. A present `nil`
+  value represents the OpenAPI "undefined" value and only has a defined
+  serialization for `:form`.
   """
 
   alias Tesla.Param
 
-  @derive {Inspect, except: [:value]}
-  @enforce_keys [:name, :value, :style, :explode, :allow_reserved]
-  defstruct [:name, :value, :style, :explode, :allow_reserved]
+  @enforce_keys [:name, :style, :explode, :allow_reserved]
+  defstruct [:name, :style, :explode, :allow_reserved]
 
   @type style :: :form | :space_delimited | :pipe_delimited | :deep_object
   @opaque t :: %__MODULE__{
             name: String.t(),
-            value: term(),
             style: style(),
             explode: boolean(),
             allow_reserved: boolean()
@@ -77,8 +95,8 @@ defmodule Tesla.QueryParam do
   @styles [:form, :space_delimited, :pipe_delimited, :deep_object]
   @expected_styles ":form, :space_delimited, :pipe_delimited, or :deep_object"
 
-  @spec new!(String.t(), term(), keyword()) :: t()
-  def new!(name, value, opts \\ []) do
+  @spec new!(String.t(), keyword()) :: t()
+  def new!(name, opts \\ []) do
     name = Param.validate_name!(:query, name)
     opts = Param.validate_opts!(:query, opts)
     opts = Keyword.validate!(opts, [:style, :explode, :allow_reserved])
@@ -93,7 +111,6 @@ defmodule Tesla.QueryParam do
 
     %__MODULE__{
       name: name,
-      value: value,
       style: style,
       explode: Param.validate_explode!(:query, explode),
       allow_reserved: Param.validate_allow_reserved!(:query, allow_reserved)

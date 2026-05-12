@@ -1,8 +1,11 @@
 defmodule Tesla.Middleware.Query do
   @moduledoc """
-  Set default query params for all requests
+  Set default query params or serialize OpenAPI-style query values.
 
-  ## Examples
+  ## Default Query Params
+
+  Pass a keyword list or map as the middleware argument to merge default query
+  params into every request:
 
   ```elixir
   defmodule MyClient do
@@ -13,6 +16,39 @@ defmodule Tesla.Middleware.Query do
     end
   end
   ```
+
+  ## Modern OpenAPI Query Params
+
+  Use `mode: :modern` with `Tesla.QueryParams` when generated clients need the
+  OpenAPI query parameter styles `:form`, `:space_delimited`,
+  `:pipe_delimited`, or `:deep_object`. Store the static parameter definitions
+  in request private data, then pass request values as a map. Other query params
+  remain normal Tesla query params:
+
+  ```elixir
+  query_params =
+    Tesla.QueryParams.new!([
+      Tesla.QueryParam.new!("filter"),
+      Tesla.QueryParam.new!("ids", style: :pipe_delimited)
+    ])
+
+  private = Tesla.QueryParams.put_private(query_params)
+
+  client = Tesla.client([{Tesla.Middleware.Query, mode: :modern}])
+
+  Tesla.get(client, "/items",
+    query: %{
+      "filter" => [status: "open", owner: "yordis"],
+      "ids" => [1, 2, 3],
+      "debug" => true
+    },
+    private: private
+  )
+  ```
+
+  Object-valued query params cover OpenAPI schemas with `additionalProperties`.
+  Unknown top-level query params, such as `"debug"` above, pass through as
+  normal Tesla query params.
   """
 
   @behaviour Tesla.Middleware
