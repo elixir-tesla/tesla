@@ -3,6 +3,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
 
   alias Tesla.Env
   alias Tesla.PathParam
+  alias Tesla.PathTemplate
 
   @middleware Tesla.Middleware.PathParams
 
@@ -14,6 +15,10 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
   defp path_param(name, value) when is_binary(name), do: PathParam.new!(name, value)
   defp path_param(value, opts) when is_list(opts), do: PathParam.new!("id", value, opts)
   defp path_param(name, value, opts), do: PathParam.new!(name, value, opts)
+
+  defp path_template_private(template) do
+    PathTemplate.put_private(template)
+  end
 
   describe "mode: :modern — simple style" do
     test "primitive (explode false) renders raw value" do
@@ -454,6 +459,85 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
                )
 
       assert env.url == "/users/{}"
+    end
+  end
+
+  describe "mode: :modern — precompiled OpenAPI path templates" do
+    test "uses a matching path template from private data" do
+      template = PathTemplate.new!("/users/{id}{coords}")
+
+      opts = [
+        path_params: [
+          path_param(5),
+          path_param("coords", ["blue", "black"], style: :matrix, explode: true)
+        ]
+      ]
+
+      assert {:ok, env} =
+               @middleware.call(
+                 %Env{
+                   url: template.path,
+                   private: path_template_private(template),
+                   opts: opts
+                 },
+                 [],
+                 mode: :modern
+               )
+
+      assert env.url == "/users/5;coords=blue;coords=black"
+    end
+
+    test "preserves missing and nil template expressions" do
+      template = PathTemplate.new!("/users/{id}/{missing}")
+      opts = [path_params: [path_param(nil)]]
+
+      assert {:ok, env} =
+               @middleware.call(
+                 %Env{
+                   url: template.path,
+                   private: path_template_private(template),
+                   opts: opts
+                 },
+                 [],
+                 mode: :modern
+               )
+
+      assert env.url == "/users/{id}/{missing}"
+    end
+
+    test "falls back when private path template does not match the request path" do
+      template = PathTemplate.new!("/other/{id}")
+      opts = [path_params: [path_param(42)]]
+
+      assert {:ok, env} =
+               @middleware.call(
+                 %Env{
+                   url: "/users/{id}",
+                   private: path_template_private(template),
+                   opts: opts
+                 },
+                 [],
+                 mode: :modern
+               )
+
+      assert env.url == "/users/42"
+    end
+
+    test "falls back when private path template data is invalid" do
+      opts = [path_params: [path_param(42)]]
+
+      assert {:ok, env} =
+               @middleware.call(
+                 %Env{
+                   url: "/users/{id}",
+                   private: %{tesla_path_template: :invalid},
+                   opts: opts
+                 },
+                 [],
+                 mode: :modern
+               )
+
+      assert env.url == "/users/42"
     end
   end
 

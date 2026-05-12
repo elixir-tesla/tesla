@@ -14,6 +14,22 @@ defmodule Tesla.Middleware.PathParams do
   `mode: :modern` to require a list of `Tesla.PathParam` values and
   use their explicit serialization settings.
 
+  ## Precompiled OpenAPI Path Templates
+
+  Generated clients can precompile OpenAPI Path Templating strings with
+  `Tesla.PathTemplate` and pass the template through request private data.
+  This keeps `env.url` as a string while letting `mode: :modern` skip parsing
+  the same template on every request.
+
+  ```elixir
+  template = Tesla.PathTemplate.new!("/users/{id}")
+
+  Tesla.get(client, template.path,
+    opts: [path_params: [Tesla.PathParam.new!("id", 42)]],
+    private: Tesla.PathTemplate.put_private(template)
+  )
+  ```
+
   ## Parameter Name Restrictions
 
   Phoenix style parameters may contain letters, numbers, or underscores,
@@ -21,13 +37,18 @@ defmodule Tesla.Middleware.PathParams do
 
     :[a-zA-Z][_a-zA-Z0-9]*\b
 
-  OpenAPI style parameters may contain letters, numbers, underscores, or
-  hyphens (`-`), matching this regular expression:
+  In legacy substitution mode, OpenAPI-style placeholders may contain letters,
+  numbers, underscores, or hyphens (`-`), matching this regular expression:
 
     \{[a-zA-Z][-_a-zA-Z0-9]*\}
 
-  In either case, parameters that begin with underscores (`_`), hyphens (`-`),
-  or numbers (`0-9`) are ignored and left as-is.
+  In legacy substitution mode, parameters that begin with underscores (`_`),
+  hyphens (`-`), or numbers (`0-9`) are ignored and left as-is.
+
+  In `mode: :modern`, OpenAPI-style placeholders are matched as `{name}` where
+  `name` is any non-empty value between balanced braces. When using
+  `Tesla.PathTemplate`, template expression names follow OpenAPI Path
+  Templating syntax instead of the legacy substitution regex.
 
   ## Examples
 

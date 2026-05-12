@@ -1,20 +1,36 @@
 defmodule Tesla.Middleware.PathParams.Modern do
   @moduledoc false
 
+  alias Tesla.Env
   alias Tesla.Param
   alias Tesla.PathParam
+  alias Tesla.PathTemplate
 
-  def call(env, next) do
-    url = build_url(env.url, env.opts[:path_params])
+  def call(%Env{opts: opts} = env, next) do
+    url = build_url(env, opts[:path_params])
     Tesla.run(%{env | url: url}, next)
   end
 
-  defp build_url(url, nil) do
-    url
+  defp build_url(%Env{} = env, nil) do
+    env.url
+  end
+
+  defp build_url(%Env{} = env, params) when is_list(params) do
+    case PathTemplate.fetch_private(env.private) do
+      {:ok, template} ->
+        build_url(env.url, template, params)
+
+      :error ->
+        build_url(env.url, params)
+    end
+  end
+
+  defp build_url(%Env{} = env, params) do
+    build_url(env.url, params)
   end
 
   defp build_url(url, params) when is_list(params) do
-    params = index_params!(params)
+    params = path_params_by_name!(params)
 
     Regex.replace(~r/[{]([^{}]+)[}]/, url, &replace_placeholder(params, &1, &2))
   end
@@ -23,11 +39,29 @@ defmodule Tesla.Middleware.PathParams.Modern do
     url
   end
 
-  defp index_params!(params) do
-    Enum.reduce(params, %{}, &index_param!/2)
+  defp build_url(url, template, params) do
+    params = path_params_by_name!(params)
+
+    case PathTemplate.render(template, url, params, &render_template_expression/3) do
+      {:ok, rendered_url} ->
+        rendered_url
+
+      {:error, :path_mismatch} ->
+        Regex.replace(~r/[{]([^{}]+)[}]/, url, &replace_placeholder(params, &1, &2))
+    end
   end
 
-  defp index_param!(%PathParam{name: name} = param, params) do
+  defp render_template_expression(name, expression, params) do
+    params
+    |> Map.get(name)
+    |> replace_param(expression)
+  end
+
+  defp path_params_by_name!(params) do
+    Enum.reduce(params, %{}, &put_path_param_by_name!/2)
+  end
+
+  defp put_path_param_by_name!(%PathParam{name: name} = param, params) do
     case Map.has_key?(params, name) do
       true ->
         raise ArgumentError, "duplicate path parameter #{inspect(name)} in modern mode"
@@ -37,7 +71,7 @@ defmodule Tesla.Middleware.PathParams.Modern do
     end
   end
 
-  defp index_param!(value, _params) do
+  defp put_path_param_by_name!(value, _params) do
     raise ArgumentError,
           "expected path_params to be a list of #{inspect(PathParam)} structs in modern mode; got #{inspect(value)}"
   end
