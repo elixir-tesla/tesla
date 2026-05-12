@@ -6,69 +6,64 @@ defmodule Tesla.QueryParamTest do
   test "builds a form query parameter by default" do
     assert %QueryParam{
              name: "id",
-             value: 42,
              style: :form,
              explode: true,
              allow_reserved: false
-           } = QueryParam.new!("id", 42)
+           } = QueryParam.new!("id")
   end
 
   test "defaults explode to false for non-form styles" do
-    assert %QueryParam{explode: false} = QueryParam.new!("ids", [1, 2], style: :pipe_delimited)
-    assert %QueryParam{explode: false} = QueryParam.new!("ids", [1, 2], style: :space_delimited)
-    assert %QueryParam{explode: false} = QueryParam.new!("filter", [id: 1], style: :deep_object)
+    assert %QueryParam{explode: false} = QueryParam.new!("ids", style: :pipe_delimited)
+    assert %QueryParam{explode: false} = QueryParam.new!("ids", style: :space_delimited)
+    assert %QueryParam{explode: false} = QueryParam.new!("filter", style: :deep_object)
   end
 
-  test "accepts nil values" do
-    assert %QueryParam{name: "filter", value: nil} = QueryParam.new!("filter", nil)
-  end
+  test "inspects static metadata" do
+    inspected = inspect(QueryParam.new!("token", style: :deep_object))
 
-  test "derives inspect without the value" do
-    inspected = inspect(QueryParam.new!("token", "secret"))
-
-    assert inspected =~ "#Tesla.QueryParam<"
-    refute inspected =~ "secret"
+    assert inspected =~ ~s(name: "token")
+    assert inspected =~ "style: :deep_object"
   end
 
   test "rejects non-string names" do
     assert_raise ArgumentError, ~r/expected query parameter name to be a string/, fn ->
-      QueryParam.new!(:id, 42)
+      QueryParam.new!(:id)
     end
   end
 
   test "rejects non-keyword options" do
     assert_raise ArgumentError, ~r/expected query parameter options to be a keyword list/, fn ->
-      QueryParam.new!("id", 42, %{style: :form})
+      QueryParam.new!("id", %{style: :form})
     end
   end
 
   test "rejects string option keys" do
     assert_raise ArgumentError, ~r/expected a keyword list/, fn ->
-      QueryParam.new!("id", 42, [{"style", :form}])
+      QueryParam.new!("id", [{"style", :form}])
     end
   end
 
   test "rejects unknown option keys" do
     assert_raise ArgumentError, ~r/unknown keys/, fn ->
-      QueryParam.new!("id", 42, style: :form, future_field: true)
+      QueryParam.new!("id", style: :form, future_field: true)
     end
   end
 
   test "rejects unknown styles" do
     assert_raise ArgumentError, ~r/unknown query parameter style :matrix/, fn ->
-      QueryParam.new!("id", 42, style: :matrix)
+      QueryParam.new!("id", style: :matrix)
     end
   end
 
   test "rejects string styles" do
     assert_raise ArgumentError, ~r/unknown query parameter style "form"/, fn ->
-      QueryParam.new!("id", 42, style: "form")
+      QueryParam.new!("id", style: "form")
     end
   end
 
   test "rejects non-boolean explode" do
     assert_raise ArgumentError, ~r/expected query parameter :explode to be a boolean/, fn ->
-      QueryParam.new!("id", 42, explode: "true")
+      QueryParam.new!("id", explode: "true")
     end
   end
 
@@ -76,7 +71,7 @@ defmodule Tesla.QueryParamTest do
     assert_raise ArgumentError,
                  ~r/expected query parameter :allow_reserved to be a boolean/,
                  fn ->
-                   QueryParam.new!("id", 42, allow_reserved: "true")
+                   QueryParam.new!("id", allow_reserved: "true")
                  end
   end
 
@@ -85,20 +80,20 @@ defmodule Tesla.QueryParamTest do
   end
 
   test "encodes values against the unreserved set by default" do
-    param = QueryParam.new!("q", nil)
+    param = QueryParam.new!("q")
 
     assert QueryParam.encode_value(param, "a/b c#d|") == "a%2Fb%20c%23d%7C"
   end
 
   test "preserves reserved values and percent triples when allow_reserved is true" do
-    param = QueryParam.new!("q", nil, allow_reserved: true)
+    param = QueryParam.new!("q", allow_reserved: true)
 
     assert QueryParam.encode_value(param, "a/b?c#d%2Fe %zz|") ==
              "a/b?c#d%2Fe%20%25zz%7C"
   end
 
   test "preserves lowercase percent triples and escapes incomplete percent sequences" do
-    param = QueryParam.new!("q", nil, allow_reserved: true)
+    param = QueryParam.new!("q", allow_reserved: true)
 
     assert QueryParam.encode_value(param, "%2f%") == "%2f%25"
   end

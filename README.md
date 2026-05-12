@@ -112,7 +112,8 @@ Check out the following sections to learn more about `Tesla`:
 
 - `Tesla.Middleware.BaseUrl` - set base URL.
 - `Tesla.Middleware.Headers` - set request headers.
-- `Tesla.Middleware.Query` - set query parameters.
+- `Tesla.Middleware.Query` - set query parameters, including OpenAPI-style
+  query serialization in modern mode.
 - `Tesla.Middleware.Opts` - set request options.
 - `Tesla.Middleware.FollowRedirects` - follow HTTP 3xx redirects.
 - `Tesla.Middleware.MethodOverride` - set `X-Http-Method-Override` header.

@@ -90,34 +90,42 @@ The static OpenAPI path metadata for those names will use `Tesla.PathParam`,
 
 ## Build the query module
 
-For `in: "query"`, return `Tesla.QueryParam` structs for
-`Tesla.Middleware.Query` in `:modern` mode:
+Start with the operation-owned value module for `in: "query"` request values.
+The final operation module will pass this map to `Tesla.Middleware.Query` in
+`:modern` mode:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Query do
-  alias Tesla.QueryParam
-
   @type t :: %__MODULE__{
+          :"$additional" => map() | nil,
           color: [String.t()],
           filter: keyword()
         }
 
-  defstruct [:color, :filter]
+  defstruct color: nil, filter: nil, "$additional": %{}
 
-  def to_query(nil), do: []
+  def to_query(nil), do: %{}
 
   def to_query(%__MODULE__{} = query) do
-    [
-      QueryParam.new!("color", query.color, style: :pipe_delimited),
-      QueryParam.new!("filter", query.filter, style: :deep_object)
-    ]
+    additional = query."$additional" || %{}
+
+    Map.merge(additional, %{
+      "color" => query.color,
+      "filter" => query.filter
+    })
   end
 end
 ```
 
 `Tesla.QueryParam` supports the OpenAPI query styles `:form`,
 `:space_delimited`, `:pipe_delimited`, and `:deep_object`. Omit optional query
-parameters from the returned list when they should not be sent.
+parameters from the returned map when they should not be sent. The static
+OpenAPI query metadata for those names will use `Tesla.QueryParam` and
+`Tesla.QueryParams` when the operation module is built.
+
+Other top-level query params can share the same request query map and remain
+normal Tesla query params. This example keeps those values in a generated
+`:"$additional"` field.
 
 ## Build the header module
 
@@ -222,7 +230,7 @@ defmodule MyApi.Operation.GetItem do
   alias MyApi.Client
   alias MyApi.Operation.GetItem.{Cookie, Header, Path, Query}
   alias MyApi.Response
-  alias Tesla.{PathParam, PathParams, PathTemplate}
+  alias Tesla.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
 
   defstruct path: nil,
             query: nil,
@@ -248,10 +256,16 @@ defmodule MyApi.Operation.GetItem do
                  PathParam.new!("coords", style: :matrix, explode: true)
                ])
 
-  @private Map.merge(
+  @query_params QueryParams.new!([
+                  QueryParam.new!("color", style: :pipe_delimited),
+                  QueryParam.new!("filter", style: :deep_object)
+                ])
+
+  @private Tesla.Env.merge_private([
              PathTemplate.put_private(@path_template),
-             PathParams.put_private(@path_params)
-           )
+             PathParams.put_private(@path_params),
+             QueryParams.put_private(@query_params)
+           ])
 
   def new(attrs) when is_map(attrs) do
     %__MODULE__{
@@ -294,7 +308,7 @@ end
 Use `Tesla.Middleware.PathParams` in `:modern` mode when generated operations
 pass `Tesla.PathParams` through request private data. Use
 `Tesla.Middleware.Query` in `:modern` mode when generated operations pass
-`Tesla.QueryParam` values:
+`Tesla.QueryParams` through request private data:
 
 ```elixir
 defmodule MyApi.Client do
@@ -347,7 +361,11 @@ alias MyApi.Operation.GetItem.{Cookie, Header, Path, Query}
 operation =
   GetItem.new(%{
     path: %Path{id: 42, coords: ["blue", "black"]},
-    query: %Query{color: ["blue", "black"], filter: [role: "admin"]},
+    query: %Query{
+      :"$additional" => %{"debug" => true},
+      color: ["blue", "black"],
+      filter: [role: "admin"]
+    },
     headers: %Header{request_id: "req-123"},
     cookies: %Cookie{session_id: "abc123"}
   })
