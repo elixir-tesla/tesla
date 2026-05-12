@@ -11,8 +11,8 @@ defmodule Tesla.Middleware.PathParams do
   protocol and produce `{key, value}` tuples when enumerated.
 
   By default, this middleware preserves legacy string substitution. Pass
-  `mode: :modern` to require a list of `Tesla.PathParam` values and
-  use their explicit serialization settings.
+  `mode: :modern` to read `Tesla.PathParams` definitions from request private
+  data and use their explicit serialization settings.
 
   ## Precompiled OpenAPI Path Templates
 
@@ -23,10 +23,16 @@ defmodule Tesla.Middleware.PathParams do
 
   ```elixir
   template = Tesla.PathTemplate.new!("/users/{id}")
+  path_params = Tesla.PathParams.new!([Tesla.PathParam.new!("id")])
+
+  private =
+    %{}
+    |> Tesla.PathTemplate.put_private(template)
+    |> Tesla.PathParams.put_private(path_params)
 
   Tesla.get(client, template.path,
-    opts: [path_params: [Tesla.PathParam.new!("id", 42)]],
-    private: Tesla.PathTemplate.put_private(template)
+    opts: [path_params: %{"id" => 42}],
+    private: private
   )
   ```
 

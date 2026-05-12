@@ -9,10 +9,16 @@ defmodule Tesla.PathTemplate do
       alias Tesla.PathTemplate
 
       template = PathTemplate.new!("/items/{id}")
+      path_params = Tesla.PathParams.new!([Tesla.PathParam.new!("id")])
+
+      private =
+        %{}
+        |> PathTemplate.put_private(template)
+        |> Tesla.PathParams.put_private(path_params)
 
       Tesla.get(client, template.path,
-        opts: [path_params: [Tesla.PathParam.new!("id", id)]],
-        private: PathTemplate.put_private(template)
+        opts: [path_params: %{"id" => id}],
+        private: private
       )
 
   Path templates follow the [OpenAPI Path Templating][oas-path-templating]
@@ -28,7 +34,7 @@ defmodule Tesla.PathTemplate do
   @typep expression_part ::
            {:expr, name :: String.t(), expression :: String.t()}
   @typep part :: String.t() | expression_part()
-  @typep renderer :: (String.t(), String.t(), map() -> iodata())
+  @typep renderer :: (String.t(), String.t(), term() -> iodata())
   @opaque t :: %__MODULE__{
             path: String.t(),
             parts: [part()]
@@ -50,14 +56,25 @@ defmodule Tesla.PathTemplate do
   Adds the compiled path template to Tesla request private data.
 
       template = Tesla.PathTemplate.new!("/items/{id}")
+      path_params = Tesla.PathParams.new!([Tesla.PathParam.new!("id")])
+
+      private =
+        %{}
+        |> Tesla.PathTemplate.put_private(template)
+        |> Tesla.PathParams.put_private(path_params)
 
       Tesla.get(client, template.path,
-        opts: [path_params: [Tesla.PathParam.new!("id", id)]],
-        private: Tesla.PathTemplate.put_private(template)
+        opts: [path_params: %{"id" => id}],
+        private: private
       )
   """
-  @spec put_private(t(), Tesla.Env.private()) :: Tesla.Env.private()
-  def put_private(%__MODULE__{} = template, private \\ %{}) when is_map(private) do
+  @spec put_private(t()) :: Tesla.Env.private()
+  def put_private(%__MODULE__{} = template) do
+    put_private(%{}, template)
+  end
+
+  @spec put_private(Tesla.Env.private(), t()) :: Tesla.Env.private()
+  def put_private(private, %__MODULE__{} = template) when is_map(private) do
     Map.put(private, @private_key, template)
   end
 
@@ -77,10 +94,10 @@ defmodule Tesla.PathTemplate do
   end
 
   @doc false
-  @spec render(t(), String.t(), map(), renderer()) ::
+  @spec render(t(), String.t(), term(), renderer()) ::
           {:ok, String.t()} | {:error, :path_mismatch}
   def render(%__MODULE__{} = template, path, params, renderer)
-      when is_binary(path) and is_map(params) and is_function(renderer, 3) do
+      when is_binary(path) and is_function(renderer, 3) do
     case template.path == path do
       true ->
         rendered_path =

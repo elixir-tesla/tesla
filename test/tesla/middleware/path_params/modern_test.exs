@@ -3,6 +3,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
 
   alias Tesla.Env
   alias Tesla.PathParam
+  alias Tesla.PathParams
   alias Tesla.PathTemplate
 
   @middleware Tesla.Middleware.PathParams
@@ -11,13 +12,79 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
     defstruct [:id]
   end
 
-  defp path_param(value), do: PathParam.new!("id", value)
-  defp path_param(name, value) when is_binary(name), do: PathParam.new!(name, value)
-  defp path_param(value, opts) when is_list(opts), do: PathParam.new!("id", value, opts)
-  defp path_param(name, value, opts), do: PathParam.new!(name, value, opts)
+  defp path_param(value) do
+    path_param("id", value, [])
+  end
+
+  defp path_param(name, value) when is_binary(name) do
+    path_param(name, value, [])
+  end
+
+  defp path_param(value, opts) when is_list(opts) do
+    path_param("id", value, opts)
+  end
+
+  defp path_param(name, value, opts) do
+    {PathParam.new!(name, opts), value}
+  end
 
   defp path_template_private(template) do
-    PathTemplate.put_private(template)
+    PathTemplate.put_private(%{}, template)
+  end
+
+  defp call(%Env{} = env, next, mode: :modern) do
+    env = put_path_params_private(env)
+
+    @middleware.call(env, next, mode: :modern)
+  end
+
+  defp call(%Env{} = env, next, opts) do
+    @middleware.call(env, next, opts)
+  end
+
+  defp put_path_params_private(%Env{opts: opts} = env) do
+    case opts[:path_params] do
+      params when is_list(params) ->
+        put_path_params_private(env, params)
+
+      _params ->
+        env
+    end
+  end
+
+  defp put_path_params_private(%Env{} = env, params) do
+    case Enum.all?(params, &path_param_pair?/1) do
+      true ->
+        definitions =
+          params
+          |> Enum.map(&definition_from_path_param_pair/1)
+          |> PathParams.new!()
+
+        values = Map.new(params, &value_from_path_param_pair/1)
+        private = PathParams.put_private(env.private, definitions)
+        opts = Keyword.put(env.opts, :path_params, values)
+
+        %Env{env | private: private, opts: opts}
+
+      false ->
+        env
+    end
+  end
+
+  defp path_param_pair?({%PathParam{}, _value}) do
+    true
+  end
+
+  defp path_param_pair?(_value) do
+    false
+  end
+
+  defp definition_from_path_param_pair({path_param, _value}) do
+    path_param
+  end
+
+  defp value_from_path_param_pair({%PathParam{name: name}, value}) do
+    {name, value}
   end
 
   describe "mode: :modern — simple style" do
@@ -25,7 +92,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(5, style: :simple, explode: false)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -38,7 +105,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(5, style: :simple, explode: true)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -51,7 +118,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param([3, 4, 5], style: :simple, explode: false)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -64,7 +131,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param([3, 4, 5], style: :simple, explode: true)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -81,7 +148,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -98,7 +165,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -113,7 +180,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(5, style: :matrix, explode: false)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -126,7 +193,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param([3, 4, 5], style: :matrix, explode: false)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -139,7 +206,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param([3, 4, 5], style: :matrix, explode: true)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -156,7 +223,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -173,7 +240,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -188,7 +255,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(5, style: :label, explode: false)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -201,7 +268,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param([3, 4, 5], style: :label, explode: false)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -214,7 +281,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param([3, 4, 5], style: :label, explode: true)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -231,7 +298,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -248,7 +315,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -301,7 +368,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
         ]
 
         assert {:ok, env} =
-                 @middleware.call(
+                 call(
                    %Env{url: "/users/{color}", opts: opts},
                    [],
                    mode: :modern
@@ -340,7 +407,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
         ]
 
         assert {:ok, env} =
-                 @middleware.call(
+                 call(
                    %Env{url: "/users/{color}", opts: opts},
                    [],
                    mode: :modern
@@ -356,7 +423,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("1color", "blue")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{1color}", opts: opts},
                  [],
                  mode: :modern
@@ -369,7 +436,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("_color", "blue")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{_color}", opts: opts},
                  [],
                  mode: :modern
@@ -382,7 +449,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("-color", "blue")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{-color}", opts: opts},
                  [],
                  mode: :modern
@@ -395,7 +462,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("color.name+shade", "blue")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color.name+shade}", opts: opts},
                  [],
                  mode: :modern
@@ -413,7 +480,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}/{Id}/{ID}", opts: opts},
                  [],
                  mode: :modern
@@ -426,7 +493,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("id", "blue")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}/related/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -439,7 +506,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("color name", "blue", style: :matrix)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color name}", opts: opts},
                  [],
                  mode: :modern
@@ -452,7 +519,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("", "blue")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{}", opts: opts},
                  [],
                  mode: :modern
@@ -474,7 +541,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{
                    url: template.path,
                    private: path_template_private(template),
@@ -492,7 +559,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(nil)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{
                    url: template.path,
                    private: path_template_private(template),
@@ -510,7 +577,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(42)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{
                    url: "/users/{id}",
                    private: path_template_private(template),
@@ -527,7 +594,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(42)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{
                    url: "/users/{id}",
                    private: %{tesla_path_template: :invalid},
@@ -564,7 +631,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
         opts = [path_params: [path_param("username", unquote(value))]]
 
         assert {:ok, env} =
-                 @middleware.call(
+                 call(
                    %Env{url: "/users/{username}", opts: opts},
                    [],
                    mode: :modern
@@ -585,7 +652,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
         opts = [path_params: [path_param("color", "", style: unquote(style))]]
 
         assert {:ok, env} =
-                 @middleware.call(
+                 call(
                    %Env{url: "/users/{color}", opts: opts},
                    [],
                    mode: :modern
@@ -599,7 +666,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("color", "a/b?c#d")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -612,7 +679,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("color", ["blue,green", "black"], style: :simple)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -629,7 +696,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -644,7 +711,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -659,7 +726,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -674,7 +741,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -689,7 +756,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -704,7 +771,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -717,7 +784,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
   describe "mode: :modern — encoding & edge cases" do
     test "leaves URL untouched when no path_params are provided" do
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}"},
                  [],
                  mode: :modern
@@ -730,7 +797,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("a/b c#d")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -743,7 +810,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("John Smith")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -756,7 +823,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("other", 1)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -765,11 +832,11 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/{id}"
     end
 
-    test "leaves placeholder when PathParam value is nil" do
+    test "leaves placeholder when request value is nil" do
       opts = [path_params: [path_param(nil)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -782,7 +849,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param([])]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -795,7 +862,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(%{})]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -804,11 +871,11 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/"
     end
 
-    test "PathParam value uses defaults (style: :simple, explode: false)" do
+    test "path parameter definition uses defaults (style: :simple, explode: false)" do
       opts = [path_params: [path_param(42)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -817,11 +884,11 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/42"
     end
 
-    test "PathParam opts default :explode to false when omitted" do
+    test "path parameter opts default :explode to false when omitted" do
       opts = [path_params: [path_param([3, 4, 5], style: :matrix)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -830,11 +897,11 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/;id=3,4,5"
     end
 
-    test "PathParam opts default :style to :simple when omitted" do
+    test "path parameter opts default :style to :simple when omitted" do
       opts = [path_params: [path_param([3, 4, 5], explode: false)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -853,7 +920,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(%TestUser{id: 7}, style: :simple, explode: true)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -870,7 +937,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -887,7 +954,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{color}", opts: opts},
                  [],
                  mode: :modern
@@ -896,7 +963,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/R=100"
     end
 
-    test "supports list-shaped path_params" do
+    test "supports multiple path parameter definitions" do
       opts = [
         path_params: [
           path_param(5),
@@ -905,7 +972,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/items/{id}{coords}", opts: opts},
                  [],
                  mode: :modern
@@ -914,11 +981,11 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/items/5;coords=blue;coords=black"
     end
 
-    test "supports named PathParam structs" do
+    test "supports named path parameter definitions" do
       opts = [path_params: [path_param(42)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -927,11 +994,11 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/42"
     end
 
-    test "raises on duplicate PathParam names" do
+    test "raises on duplicate path parameter definitions" do
       opts = [path_params: [path_param(1), path_param(2)]]
 
-      assert_raise ArgumentError, ~r/duplicate path parameter "id" in modern mode/, fn ->
-        @middleware.call(
+      assert_raise ArgumentError, ~r/duplicate path parameter "id"/, fn ->
+        call(
           %Env{url: "/users/{id}", opts: opts},
           [],
           mode: :modern
@@ -939,37 +1006,35 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       end
     end
 
-    test "does not treat maps as modern path_params" do
+    test "raises when request values are provided without private path params" do
       opts = [path_params: %{"id" => path_param(42)}]
 
-      assert {:ok, env} =
-               @middleware.call(
-                 %Env{url: "/users/{id}", opts: opts},
-                 [],
-                 mode: :modern
-               )
-
-      assert env.url == "/users/{id}"
+      assert_raise ArgumentError, ~r/expected Tesla.PathParams private data/, fn ->
+        call(
+          %Env{url: "/users/{id}", opts: opts},
+          [],
+          mode: :modern
+        )
+      end
     end
 
-    test "ignores struct-shaped outer containers" do
+    test "requires private path params for struct-shaped request values" do
       opts = [path_params: %TestUser{id: path_param(7)}]
 
-      assert {:ok, env} =
-               @middleware.call(
-                 %Env{url: "/users/{id}", opts: opts},
-                 [],
-                 mode: :modern
-               )
-
-      assert env.url == "/users/{id}"
+      assert_raise ArgumentError, ~r/expected Tesla.PathParams private data/, fn ->
+        call(
+          %Env{url: "/users/{id}", opts: opts},
+          [],
+          mode: :modern
+        )
+      end
     end
 
     test "leaves Phoenix-style placeholders untouched" do
       opts = [path_params: [path_param([3, 4, 5], style: :matrix, explode: true)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/:id", opts: opts},
                  [],
                  mode: :modern
@@ -994,7 +1059,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       ]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/items/{id}{coords}{tags}", opts: opts},
                  [],
                  mode: :modern
@@ -1003,26 +1068,27 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/items/5;coords=blue;coords=black.a,b,c"
     end
 
-    test "leaves URL untouched when path_params is an unsupported type" do
+    test "raises when path_params is an unsupported type" do
       opts = [path_params: 42]
 
-      assert {:ok, env} =
-               @middleware.call(
-                 %Env{url: "/users/{id}", opts: opts},
-                 [],
-                 mode: :modern
-               )
-
-      assert env.url == "/users/{id}"
+      assert_raise ArgumentError,
+                   ~r/expected path_params to be a map of request values in modern mode/,
+                   fn ->
+                     call(
+                       %Env{url: "/users/{id}", opts: opts},
+                       [],
+                       mode: :modern
+                     )
+                   end
     end
 
-    test "raises when list entries are not PathParam structs" do
+    test "raises when path_params is a keyword list" do
       opts = [path_params: [id: path_param(42)]]
 
       assert_raise ArgumentError,
-                   ~r/expected path_params to be a list of Tesla.PathParam structs in modern mode/,
+                   ~r/expected path_params to be a map of request values in modern mode/,
                    fn ->
-                     @middleware.call(
+                     call(
                        %Env{url: "/users/{id}", opts: opts},
                        [],
                        mode: :modern
@@ -1030,13 +1096,13 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
                    end
     end
 
-    test "raises when modern path_params value is not a PathParam" do
+    test "raises when path_params is a list of raw values" do
       opts = [path_params: [42]]
 
       assert_raise ArgumentError,
-                   ~r/expected path_params to be a list of Tesla.PathParam structs in modern mode/,
+                   ~r/expected path_params to be a map of request values in modern mode/,
                    fn ->
-                     @middleware.call(
+                     call(
                        %Env{url: "/users/{id}", opts: opts},
                        [],
                        mode: :modern
@@ -1044,13 +1110,13 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
                    end
     end
 
-    test "raises when modern path_params value is an option map instead of a PathParam" do
+    test "raises when path_params is a list of option maps" do
       opts = [path_params: [%{style: :simple}]]
 
       assert_raise ArgumentError,
-                   ~r/expected path_params to be a list of Tesla.PathParam structs in modern mode/,
+                   ~r/expected path_params to be a map of request values in modern mode/,
                    fn ->
-                     @middleware.call(
+                     call(
                        %Env{url: "/users/{id}", opts: opts},
                        [],
                        mode: :modern
@@ -1058,13 +1124,13 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
                    end
     end
 
-    test "raises when modern path_params value is a struct instead of a PathParam" do
+    test "raises when path_params is a list of structs" do
       opts = [path_params: [%TestUser{id: 7}]]
 
       assert_raise ArgumentError,
-                   ~r/expected path_params to be a list of Tesla.PathParam structs in modern mode/,
+                   ~r/expected path_params to be a map of request values in modern mode/,
                    fn ->
-                     @middleware.call(
+                     call(
                        %Env{url: "/users/{id}", opts: opts},
                        [],
                        mode: :modern
@@ -1076,7 +1142,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param([], style: :matrix, explode: false)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -1089,7 +1155,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(%{}, style: :matrix, explode: true)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -1102,7 +1168,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param([], style: :label, explode: true)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -1115,7 +1181,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param(%{}, style: :label, explode: false)]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -1128,7 +1194,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       opts = [path_params: [path_param("a-b_c.d~e")]]
 
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: opts},
                  [],
                  mode: :modern
@@ -1139,7 +1205,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
 
     test "uses legacy behavior unless modern mode is matched" do
       assert {:ok, env} =
-               @middleware.call(
+               call(
                  %Env{url: "/users/{id}", opts: [path_params: [id: 1]]},
                  [],
                  mode: :foo

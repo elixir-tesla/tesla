@@ -4,6 +4,7 @@ defmodule Tesla.Middleware.PathParams.Modern do
   alias Tesla.Env
   alias Tesla.Param
   alias Tesla.PathParam
+  alias Tesla.PathParams
   alias Tesla.PathTemplate
 
   def call(%Env{opts: opts} = env, next) do
@@ -15,81 +16,87 @@ defmodule Tesla.Middleware.PathParams.Modern do
     env.url
   end
 
-  defp build_url(%Env{} = env, params) when is_list(params) do
-    case PathTemplate.fetch_private(env.private) do
-      {:ok, template} ->
-        build_url(env.url, template, params)
+  defp build_url(%Env{} = env, values) when is_map(values) do
+    case PathParams.fetch_private(env.private) do
+      {:ok, path_params} ->
+        build_url(env, path_params, values)
 
       :error ->
-        build_url(env.url, params)
+        raise ArgumentError,
+              "expected #{inspect(PathParams)} private data when using path_params in modern mode"
     end
   end
 
-  defp build_url(%Env{} = env, params) do
-    build_url(env.url, params)
+  defp build_url(%Env{} = _env, values) do
+    raise ArgumentError,
+          "expected path_params to be a map of request values in modern mode; got #{inspect(values)}"
   end
 
-  defp build_url(url, params) when is_list(params) do
-    params = path_params_by_name!(params)
+  defp build_url(%Env{} = env, path_params, values) do
+    case PathTemplate.fetch_private(env.private) do
+      {:ok, template} ->
+        build_url(env.url, template, path_params, values)
 
-    Regex.replace(~r/[{]([^{}]+)[}]/, url, &replace_placeholder(params, &1, &2))
+      :error ->
+        build_url(env.url, path_params, values)
+    end
   end
 
-  defp build_url(url, _params) do
-    url
+  defp build_url(url, path_params, values) do
+    Regex.replace(~r/[{]([^{}]+)[}]/, url, &replace_placeholder(path_params, values, &1, &2))
   end
 
-  defp build_url(url, template, params) do
-    params = path_params_by_name!(params)
+  defp build_url(url, template, path_params, values) do
+    render_context = {path_params, values}
 
-    case PathTemplate.render(template, url, params, &render_template_expression/3) do
+    case PathTemplate.render(template, url, render_context, &render_template_expression/3) do
       {:ok, rendered_url} ->
         rendered_url
 
       {:error, :path_mismatch} ->
-        Regex.replace(~r/[{]([^{}]+)[}]/, url, &replace_placeholder(params, &1, &2))
+        build_url(url, path_params, values)
     end
   end
 
-  defp render_template_expression(name, expression, params) do
-    params
-    |> Map.get(name)
-    |> replace_param(expression)
+  defp render_template_expression(name, expression, {path_params, values}) do
+    replace_param(path_params, values, name, expression)
   end
 
-  defp path_params_by_name!(params) do
-    Enum.reduce(params, %{}, &put_path_param_by_name!/2)
+  defp replace_placeholder(path_params, values, match, name) do
+    replace_param(path_params, values, name, match)
   end
 
-  defp put_path_param_by_name!(%PathParam{name: name} = param, params) do
-    case Map.has_key?(params, name) do
-      true ->
-        raise ArgumentError, "duplicate path parameter #{inspect(name)} in modern mode"
+  defp replace_param(path_params, values, name, match) do
+    case fetch_param(path_params, values, name) do
+      {:ok, _path_param, nil} ->
+        match
 
-      false ->
-        Map.put(params, name, param)
+      {:ok, path_param, value} ->
+        serialize_value(path_param, value)
+
+      :error ->
+        match
     end
   end
 
-  defp put_path_param_by_name!(value, _params) do
-    raise ArgumentError,
-          "expected path_params to be a list of #{inspect(PathParam)} structs in modern mode; got #{inspect(value)}"
+  defp fetch_param(path_params, values, name) do
+    case PathParams.fetch(path_params, name) do
+      {:ok, path_param} ->
+        fetch_value(path_param, values, name)
+
+      :error ->
+        :error
+    end
   end
 
-  defp replace_placeholder(params, match, name) when is_map(params) do
-    replace_param(Map.get(params, name), match)
-  end
+  defp fetch_value(path_param, values, name) do
+    case Map.fetch(values, name) do
+      {:ok, value} ->
+        {:ok, path_param, value}
 
-  defp replace_param(%PathParam{value: nil}, match) do
-    match
-  end
-
-  defp replace_param(%PathParam{} = param, _match) do
-    serialize_value(param)
-  end
-
-  defp replace_param(nil, match) do
-    match
+      :error ->
+        :error
+    end
   end
 
   defp serialize_undefined(:simple, _param) do
@@ -104,21 +111,21 @@ defmodule Tesla.Middleware.PathParams.Modern do
     "."
   end
 
-  defp serialize_value(%PathParam{style: :simple} = param) do
-    param
-    |> value_type()
+  defp serialize_value(%PathParam{style: :simple} = param, value) do
+    value
+    |> Param.value_type()
     |> serialize_simple(param)
   end
 
-  defp serialize_value(%PathParam{style: :matrix} = param) do
-    param
-    |> value_type()
+  defp serialize_value(%PathParam{style: :matrix} = param, value) do
+    value
+    |> Param.value_type()
     |> serialize_matrix(param)
   end
 
-  defp serialize_value(%PathParam{style: :label} = param) do
-    param
-    |> value_type()
+  defp serialize_value(%PathParam{style: :label} = param, value) do
+    value
+    |> Param.value_type()
     |> serialize_label(param)
   end
 
@@ -234,9 +241,5 @@ defmodule Tesla.Middleware.PathParams.Modern do
 
   defp join_encoded_values(values, separator, param) do
     Enum.map_join(values, separator, &PathParam.encode_value(param, &1))
-  end
-
-  defp value_type(%PathParam{value: value}) do
-    Param.value_type(value)
   end
 end

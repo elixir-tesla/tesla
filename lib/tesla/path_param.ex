@@ -1,30 +1,34 @@
 defmodule Tesla.PathParam do
   @moduledoc """
-  A path parameter with explicit serialization settings.
+  A path parameter definition with explicit serialization settings.
 
-  `Tesla.PathParam` is a Tesla-native value object for path parameters whose
-  serialization needs to be controlled explicitly. Its serialization options
-  follow the OpenAPI path parameter style semantics, while keeping the public
-  API focused on the path use case.
+  `Tesla.PathParam` is a Tesla-native value object for path parameter metadata
+  whose serialization needs to be controlled explicitly. Its serialization
+  options follow the OpenAPI path parameter style semantics, while keeping the
+  public API focused on the path use case.
 
-  In `Tesla.Middleware.PathParams` `:modern` mode, wrap each path parameter
-  explicitly, even when the default path serialization is enough:
+  In `Tesla.Middleware.PathParams` `:modern` mode, define path parameters once
+  and pass them through request private data with `Tesla.PathParams`:
 
-      opts: [path_params: [PathParam.new!("id", 42)]]
+      path_params = Tesla.PathParams.new!([PathParam.new!("id")])
+      private = Tesla.PathParams.put_private(path_params)
+
+      Tesla.get(client, "/items/{id}",
+        opts: [path_params: %{"id" => 42}],
+        private: private
+      )
 
   Pass options when a value needs non-default path serialization:
 
       alias Tesla.PathParam
 
-      opts: [
-        path_params: [
-          PathParam.new!("coords", ["blue", "black"], style: :matrix, explode: true)
-        ]
-      ]
+      Tesla.PathParams.new!([
+        PathParam.new!("coords", style: :matrix, explode: true)
+      ])
 
   ## Options
 
-  `new!/3` accepts a keyword list using Elixir atoms for hand-written Tesla
+  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
   code:
 
     * `:style` — one of `:simple`, `:matrix`, `:label`. Defaults to `:simple`.
@@ -35,7 +39,7 @@ defmodule Tesla.PathParam do
 
   ## Encoding
 
-  `Tesla.Middleware.PathParams` serializes `Tesla.PathParam` values using the
+  `Tesla.Middleware.PathParams` serializes values using the
   [OpenAPI path parameter rules][oas-style] for the `simple`, `matrix`, and
   `label` styles. Serialized values are percent-encoded against the RFC 3986
   unreserved set (`A-Z`, `a-z`, `0-9`, `-`, `_`, `.`, `~`); spaces become
@@ -62,14 +66,12 @@ defmodule Tesla.PathParam do
 
   alias Tesla.Param
 
-  @derive {Inspect, except: [:value]}
-  @enforce_keys [:name, :value, :style, :explode, :allow_reserved]
-  defstruct [:name, :value, :style, :explode, :allow_reserved]
+  @enforce_keys [:name, :style, :explode, :allow_reserved]
+  defstruct [:name, :style, :explode, :allow_reserved]
 
   @type style :: :simple | :matrix | :label
   @opaque t :: %__MODULE__{
             name: String.t(),
-            value: term(),
             style: style(),
             explode: boolean(),
             allow_reserved: boolean()
@@ -78,15 +80,14 @@ defmodule Tesla.PathParam do
   @styles [:simple, :matrix, :label]
   @expected_styles ":simple, :matrix, or :label"
 
-  @spec new!(String.t(), term(), keyword()) :: t()
-  def new!(name, value, opts \\ []) do
+  @spec new!(String.t(), keyword()) :: t()
+  def new!(name, opts \\ []) do
     name = Param.validate_name!(:path, name)
     opts = Param.validate_opts!(:path, opts)
     opts = Keyword.validate!(opts, style: :simple, explode: false, allow_reserved: false)
 
     %__MODULE__{
       name: name,
-      value: value,
       style: validate_style!(opts[:style]),
       explode: Param.validate_explode!(:path, opts[:explode]),
       allow_reserved: Param.validate_allow_reserved!(:path, opts[:allow_reserved])
