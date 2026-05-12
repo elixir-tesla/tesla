@@ -120,7 +120,8 @@ defmodule Tesla.Mixfile do
           Tesla.Adapter,
           Tesla.Middleware
         ],
-        "OpenAPI Parameters": [
+        OpenAPI: [
+          Tesla.OpenAPI,
           Tesla.OpenAPI.CookieParam,
           Tesla.OpenAPI.HeaderParam,
           Tesla.OpenAPI.PathParam,
