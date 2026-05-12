@@ -7,16 +7,21 @@ defmodule Tesla.OpenAPI.HeaderParam do
   follow the OpenAPI header parameter style semantics, while keeping the public
   API focused on the header use case.
 
-  Convert a header parameter to the raw header tuple accepted by Tesla:
+  Define header parameters once and apply them to request values with
+  `Tesla.OpenAPI.HeaderParams`:
 
-      alias Tesla.OpenAPI.HeaderParam
+      alias Tesla.OpenAPI.{HeaderParam, HeaderParams}
 
-      HeaderParam.new!("X-Token", [12345678, 90099])
-      |> HeaderParam.to_header()
+      header_params =
+        HeaderParams.new!([
+          HeaderParam.new!("X-Token")
+        ])
+
+      HeaderParams.to_headers(header_params, %{"X-Token" => [12345678, 90099]})
 
   ## Options
 
-  `new!/3` accepts a keyword list using Elixir atoms for hand-written Tesla
+  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
   code:
 
     * `:style` - must be `:simple`. Defaults to `:simple`.
@@ -26,7 +31,7 @@ defmodule Tesla.OpenAPI.HeaderParam do
 
   ## Encoding
 
-  `Tesla.OpenAPI.HeaderParam.to_header/1` serializes values using the
+  `Tesla.OpenAPI.HeaderParams.to_headers/2` serializes values using the
   [OpenAPI header parameter rules][oas-style] for the `simple` style. Header
   values are passed through unchanged after converting each part with
   `to_string/1`; URI percent-encoding is not applied.
@@ -41,14 +46,12 @@ defmodule Tesla.OpenAPI.HeaderParam do
 
   alias Tesla.Param
 
-  @derive {Inspect, except: [:value]}
-  @enforce_keys [:name, :value, :style, :explode]
-  defstruct [:name, :value, :style, :explode]
+  @enforce_keys [:name, :style, :explode]
+  defstruct [:name, :style, :explode]
 
   @type style :: :simple
   @opaque t :: %__MODULE__{
             name: String.t(),
-            value: term(),
             style: style(),
             explode: boolean()
           }
@@ -56,15 +59,14 @@ defmodule Tesla.OpenAPI.HeaderParam do
   @styles [:simple]
   @expected_styles ":simple"
 
-  @spec new!(String.t(), term(), keyword()) :: t()
-  def new!(name, value, opts \\ []) do
+  @spec new!(String.t(), keyword()) :: t()
+  def new!(name, opts \\ []) do
     name = Param.validate_name!(:header, name)
     opts = Param.validate_opts!(:header, opts)
     opts = Keyword.validate!(opts, style: :simple, explode: false)
 
     %__MODULE__{
       name: name,
-      value: value,
       style: validate_style!(opts[:style]),
       explode: Param.validate_explode!(:header, opts[:explode])
     }
@@ -74,14 +76,11 @@ defmodule Tesla.OpenAPI.HeaderParam do
     Param.validate_style!(style, @styles, :header, @expected_styles)
   end
 
-  @spec to_header(t()) :: {String.t(), String.t()}
-  def to_header(%__MODULE__{} = param) do
-    {param.name, serialize(param)}
-  end
-
-  defp serialize(param) do
-    param
-    |> value_type()
+  @doc false
+  @spec serialize(%__MODULE__{}, term()) :: String.t()
+  def serialize(%__MODULE__{} = param, value) do
+    value
+    |> Param.value_type()
     |> serialize_simple(param)
   end
 
@@ -109,9 +108,5 @@ defmodule Tesla.OpenAPI.HeaderParam do
 
   defp serialize_exploded_pair({key, value}) do
     "#{key}=#{value}"
-  end
-
-  defp value_type(%__MODULE__{value: value}) do
-    Param.value_type(value)
   end
 end
