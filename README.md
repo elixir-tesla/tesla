@@ -91,8 +91,11 @@ Check out the following sections to learn more about `Tesla`:
 - [Testing](./guides/explanations/1.testing.md)
 - [Middleware](./guides/explanations/2.middleware.md)
 - [Adapter](./guides/explanations/3.adapter.md)
+- [OpenAPI](./guides/explanations/4.openapi.md)
 
 ### Howtos
+
+- [Working with OpenAPI parameters](./guides/howtos/openapi-parameters.md)
 
 #### Migrations
 
