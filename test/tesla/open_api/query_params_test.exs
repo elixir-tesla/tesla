@@ -1,8 +1,8 @@
-defmodule Tesla.QueryParamsTest do
+defmodule Tesla.OpenAPI.QueryParamsTest do
   use ExUnit.Case, async: true
 
-  alias Tesla.QueryParam
-  alias Tesla.QueryParams
+  alias Tesla.OpenAPI.QueryParam
+  alias Tesla.OpenAPI.QueryParams
 
   test "keeps query parameter definitions in declaration order" do
     definitions = [
@@ -55,7 +55,7 @@ defmodule Tesla.QueryParamsTest do
 
   test "raises when definitions are not query params" do
     assert_raise ArgumentError,
-                 ~r/expected query parameter definitions to be Tesla.QueryParam structs/,
+                 ~r/expected query parameter definitions to be Tesla.OpenAPI.QueryParam structs/,
                  fn ->
                    QueryParams.new!([%{name: "page"}])
                  end

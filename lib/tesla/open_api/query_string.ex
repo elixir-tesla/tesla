@@ -1,8 +1,8 @@
-defmodule Tesla.QueryString do
+defmodule Tesla.OpenAPI.QueryString do
   @moduledoc """
   A whole URL query string with explicit serialization.
 
-  `Tesla.QueryString` is a Tesla-native value object for requests where the
+  `Tesla.OpenAPI.QueryString` is a Tesla-native value object for requests where the
   entire query string is serialized as one value. It is useful for OpenAPI 3.2
   [`in: "querystring"` parameters][oas-parameter-locations], where the query
   string is content-based and does not behave like a normal named query
@@ -10,7 +10,7 @@ defmodule Tesla.QueryString do
 
   Pass a query string value directly as the request `:query`:
 
-      alias Tesla.QueryString
+      alias Tesla.OpenAPI.QueryString
 
       Tesla.get(client, "/search",
         query: QueryString.form!(foo: "a + b", bar: true)
@@ -28,7 +28,7 @@ defmodule Tesla.QueryString do
   [oas-parameter-locations]: https://spec.openapis.org/oas/latest.html#parameter-locations
   """
 
-  alias Tesla.QueryStringError
+  alias Tesla.OpenAPI.QueryStringError
 
   @derive {Inspect, except: [:encoded]}
   @enforce_keys [:encoded, :content_type]

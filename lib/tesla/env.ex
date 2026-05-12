@@ -44,7 +44,7 @@ defmodule Tesla.Env do
   @type query_scalar_list :: [query_scalar]
   @type query_pair :: {query_key, param}
   @type query_list :: [query_pair]
-  @type query_string :: Tesla.QueryString.t()
+  @type query_string :: Tesla.OpenAPI.QueryString.t()
   @type param :: query_scalar | query_scalar_list | query_list | %{optional(query_key) => param}
 
   @typedoc """
@@ -58,10 +58,10 @@ defmodule Tesla.Env do
 
   Map query params do not guarantee encoded parameter order when Tesla's default
   URL builder encodes them directly. In `Tesla.Middleware.Query` `:modern` mode,
-  values matching `Tesla.QueryParams` definitions are encoded in definition
+  values matching `Tesla.OpenAPI.QueryParams` definitions are encoded in definition
   order.
 
-  A `t:Tesla.QueryString.t/0` value represents the entire URL query string and
+  A `t:Tesla.OpenAPI.QueryString.t/0` value represents the entire URL query string and
   must not be mixed with normal query params.
   """
   @type query :: query_list | query_string | %{optional(query_key) => param}
@@ -111,9 +111,9 @@ defmodule Tesla.Env do
   values as module attributes:
 
       @private Tesla.Env.merge_private([
-                 Tesla.PathTemplate.put_private(@path_template),
-                 Tesla.PathParams.put_private(@path_params),
-                 Tesla.QueryParams.put_private(@query_params)
+                 Tesla.OpenAPI.PathTemplate.put_private(@path_template),
+                 Tesla.OpenAPI.PathParams.put_private(@path_params),
+                 Tesla.OpenAPI.QueryParams.put_private(@query_params)
                ])
   """
   @spec merge_private([private]) :: private

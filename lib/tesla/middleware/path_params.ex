@@ -11,24 +11,24 @@ defmodule Tesla.Middleware.PathParams do
   protocol and produce `{key, value}` tuples when enumerated.
 
   By default, this middleware preserves legacy string substitution. Pass
-  `mode: :modern` to read `Tesla.PathParams` definitions from request private
+  `mode: :modern` to read `Tesla.OpenAPI.PathParams` definitions from request private
   data and use their explicit serialization settings.
 
   ## Precompiled OpenAPI Path Templates
 
   Generated clients can precompile OpenAPI Path Templating strings with
-  `Tesla.PathTemplate` and pass the template through request private data.
+  `Tesla.OpenAPI.PathTemplate` and pass the template through request private data.
   This keeps `env.url` as a string while letting `mode: :modern` skip parsing
   the same template on every request.
 
   ```elixir
-  template = Tesla.PathTemplate.new!("/users/{id}")
-  path_params = Tesla.PathParams.new!([Tesla.PathParam.new!("id")])
+  template = Tesla.OpenAPI.PathTemplate.new!("/users/{id}")
+  path_params = Tesla.OpenAPI.PathParams.new!([Tesla.OpenAPI.PathParam.new!("id")])
 
   private =
     %{}
-    |> Tesla.PathTemplate.put_private(template)
-    |> Tesla.PathParams.put_private(path_params)
+    |> Tesla.OpenAPI.PathTemplate.put_private(template)
+    |> Tesla.OpenAPI.PathParams.put_private(path_params)
 
   Tesla.get(client, template.path,
     opts: [path_params: %{"id" => 42}],
@@ -53,7 +53,7 @@ defmodule Tesla.Middleware.PathParams do
 
   In `mode: :modern`, OpenAPI-style placeholders are matched as `{name}` where
   `name` is any non-empty value between balanced braces. When using
-  `Tesla.PathTemplate`, template expression names follow OpenAPI Path
+  `Tesla.OpenAPI.PathTemplate`, template expression names follow OpenAPI Path
   Templating syntax instead of the legacy substitution regex.
 
   ## Examples

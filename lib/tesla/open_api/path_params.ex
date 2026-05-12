@@ -1,12 +1,12 @@
-defmodule Tesla.PathParams do
+defmodule Tesla.OpenAPI.PathParams do
   @moduledoc """
   Precompiled path parameter definitions for `Tesla.Middleware.PathParams`.
 
-  `Tesla.PathParams` keeps static path parameter metadata separate from
+  `Tesla.OpenAPI.PathParams` keeps static path parameter metadata separate from
   per-request values. Generated clients can build it once, store it in request
   private data, and pass only the dynamic values through `opts[:path_params]`.
 
-      alias Tesla.{PathParam, PathParams}
+      alias Tesla.OpenAPI.{PathParam, PathParams}
 
       path_params =
         PathParams.new!([
@@ -22,7 +22,7 @@ defmodule Tesla.PathParams do
       )
   """
 
-  alias Tesla.PathParam
+  alias Tesla.OpenAPI.PathParam
 
   @enforce_keys [:definitions]
   defstruct [:definitions]
@@ -41,8 +41,8 @@ defmodule Tesla.PathParams do
   @doc """
   Adds path parameter definitions to Tesla request private data.
 
-      path_params = Tesla.PathParams.new!([Tesla.PathParam.new!("id")])
-      private = Tesla.PathParams.put_private(path_params)
+      path_params = Tesla.OpenAPI.PathParams.new!([Tesla.OpenAPI.PathParam.new!("id")])
+      private = Tesla.OpenAPI.PathParams.put_private(path_params)
 
       Tesla.get(client, "/items/{id}",
         opts: [path_params: %{"id" => 42}],

@@ -2,9 +2,9 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
   use ExUnit.Case, async: true
 
   alias Tesla.Env
-  alias Tesla.PathParam
-  alias Tesla.PathParams
-  alias Tesla.PathTemplate
+  alias Tesla.OpenAPI.PathParam
+  alias Tesla.OpenAPI.PathParams
+  alias Tesla.OpenAPI.PathTemplate
 
   @middleware Tesla.Middleware.PathParams
 
@@ -1009,7 +1009,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
     test "raises when request values are provided without private path params" do
       opts = [path_params: %{"id" => path_param(42)}]
 
-      assert_raise ArgumentError, ~r/expected Tesla.PathParams private data/, fn ->
+      assert_raise ArgumentError, ~r/expected Tesla.OpenAPI.PathParams private data/, fn ->
         call(
           %Env{url: "/users/{id}", opts: opts},
           [],
@@ -1021,7 +1021,7 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
     test "requires private path params for struct-shaped request values" do
       opts = [path_params: %TestUser{id: path_param(7)}]
 
-      assert_raise ArgumentError, ~r/expected Tesla.PathParams private data/, fn ->
+      assert_raise ArgumentError, ~r/expected Tesla.OpenAPI.PathParams private data/, fn ->
         call(
           %Env{url: "/users/{id}", opts: opts},
           [],

@@ -1,8 +1,8 @@
-defmodule Tesla.QueryStringTest do
+defmodule Tesla.OpenAPI.QueryStringTest do
   use ExUnit.Case, async: true
 
-  alias Tesla.QueryString
-  alias Tesla.QueryStringError
+  alias Tesla.OpenAPI.QueryString
+  alias Tesla.OpenAPI.QueryStringError
 
   test "raw! builds a query string from already serialized content" do
     assert %QueryString{

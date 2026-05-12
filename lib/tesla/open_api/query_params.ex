@@ -1,12 +1,12 @@
-defmodule Tesla.QueryParams do
+defmodule Tesla.OpenAPI.QueryParams do
   @moduledoc """
   Precompiled query parameter definitions for `Tesla.Middleware.Query`.
 
-  `Tesla.QueryParams` keeps static query parameter metadata separate from
+  `Tesla.OpenAPI.QueryParams` keeps static query parameter metadata separate from
   per-request values. Generated clients can build it once, store it in request
   private data, and pass only dynamic values through `env.query`.
 
-      alias Tesla.{QueryParam, QueryParams}
+      alias Tesla.OpenAPI.{QueryParam, QueryParams}
 
       query_params =
         QueryParams.new!([
@@ -26,7 +26,7 @@ defmodule Tesla.QueryParams do
       )
   """
 
-  alias Tesla.QueryParam
+  alias Tesla.OpenAPI.QueryParam
 
   @enforce_keys [:definitions, :by_name]
   defstruct [:definitions, :by_name]
@@ -46,8 +46,8 @@ defmodule Tesla.QueryParams do
   @doc """
   Adds query parameter definitions to Tesla request private data.
 
-      query_params = Tesla.QueryParams.new!([Tesla.QueryParam.new!("page")])
-      private = Tesla.QueryParams.put_private(query_params)
+      query_params = Tesla.OpenAPI.QueryParams.new!([Tesla.OpenAPI.QueryParam.new!("page")])
+      private = Tesla.OpenAPI.QueryParams.put_private(query_params)
 
       Tesla.get(client, "/items",
         query: %{"page" => 2},

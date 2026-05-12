@@ -3,9 +3,9 @@ defmodule Tesla.Middleware.PathParams.Modern do
 
   alias Tesla.Env
   alias Tesla.Param
-  alias Tesla.PathParam
-  alias Tesla.PathParams
-  alias Tesla.PathTemplate
+  alias Tesla.OpenAPI.PathParam
+  alias Tesla.OpenAPI.PathParams
+  alias Tesla.OpenAPI.PathTemplate
 
   def call(%Env{opts: opts} = env, next) do
     url = build_url(env, opts[:path_params])

@@ -1,9 +1,9 @@
-defmodule Tesla.PathParamTest do
+defmodule Tesla.OpenAPI.PathParamTest do
   use ExUnit.Case, async: true
 
   alias Tesla.Env
-  alias Tesla.PathParam
-  alias Tesla.PathParams
+  alias Tesla.OpenAPI.PathParam
+  alias Tesla.OpenAPI.PathParams
 
   @middleware Tesla.Middleware.PathParams
 

@@ -1,20 +1,20 @@
-defmodule Tesla.PathTemplate do
+defmodule Tesla.OpenAPI.PathTemplate do
   @moduledoc """
   A precompiled OpenAPI Path Templating path.
 
-  `Tesla.PathTemplate` keeps the request path as a string while carrying a
+  `Tesla.OpenAPI.PathTemplate` keeps the request path as a string while carrying a
   compiled representation that `Tesla.Middleware.PathParams` can use to avoid
   parsing the same path template on every request.
 
-      alias Tesla.PathTemplate
+      alias Tesla.OpenAPI.PathTemplate
 
       template = PathTemplate.new!("/items/{id}")
-      path_params = Tesla.PathParams.new!([Tesla.PathParam.new!("id")])
+      path_params = Tesla.OpenAPI.PathParams.new!([Tesla.OpenAPI.PathParam.new!("id")])
 
       private =
         %{}
         |> PathTemplate.put_private(template)
-        |> Tesla.PathParams.put_private(path_params)
+        |> Tesla.OpenAPI.PathParams.put_private(path_params)
 
       Tesla.get(client, template.path,
         opts: [path_params: %{"id" => id}],
@@ -55,13 +55,13 @@ defmodule Tesla.PathTemplate do
   @doc """
   Adds the compiled path template to Tesla request private data.
 
-      template = Tesla.PathTemplate.new!("/items/{id}")
-      path_params = Tesla.PathParams.new!([Tesla.PathParam.new!("id")])
+      template = Tesla.OpenAPI.PathTemplate.new!("/items/{id}")
+      path_params = Tesla.OpenAPI.PathParams.new!([Tesla.OpenAPI.PathParam.new!("id")])
 
       private =
         %{}
-        |> Tesla.PathTemplate.put_private(template)
-        |> Tesla.PathParams.put_private(path_params)
+        |> Tesla.OpenAPI.PathTemplate.put_private(template)
+        |> Tesla.OpenAPI.PathParams.put_private(path_params)
 
       Tesla.get(client, template.path,
         opts: [path_params: %{"id" => id}],

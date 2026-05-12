@@ -3,9 +3,9 @@ defmodule Tesla.Middleware.Query.ModernTest do
 
   alias Tesla.Env
   alias Tesla.Middleware.Query
-  alias Tesla.QueryParam
-  alias Tesla.QueryParams
-  alias Tesla.QueryString
+  alias Tesla.OpenAPI.QueryParam
+  alias Tesla.OpenAPI.QueryParams
+  alias Tesla.OpenAPI.QueryString
 
   defmodule TestFilter do
     defstruct [:role, :id]

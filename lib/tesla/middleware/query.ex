@@ -19,7 +19,7 @@ defmodule Tesla.Middleware.Query do
 
   ## Modern OpenAPI Query Params
 
-  Use `mode: :modern` with `Tesla.QueryParams` when generated clients need the
+  Use `mode: :modern` with `Tesla.OpenAPI.QueryParams` when generated clients need the
   OpenAPI query parameter styles `:form`, `:space_delimited`,
   `:pipe_delimited`, or `:deep_object`. Store the static parameter definitions
   in request private data, then pass request values as a map. Other query params
@@ -27,12 +27,12 @@ defmodule Tesla.Middleware.Query do
 
   ```elixir
   query_params =
-    Tesla.QueryParams.new!([
-      Tesla.QueryParam.new!("filter"),
-      Tesla.QueryParam.new!("ids", style: :pipe_delimited)
+    Tesla.OpenAPI.QueryParams.new!([
+      Tesla.OpenAPI.QueryParam.new!("filter"),
+      Tesla.OpenAPI.QueryParam.new!("ids", style: :pipe_delimited)
     ])
 
-  private = Tesla.QueryParams.put_private(query_params)
+  private = Tesla.OpenAPI.QueryParams.put_private(query_params)
 
   client = Tesla.client([{Tesla.Middleware.Query, mode: :modern}])
 
@@ -54,8 +54,8 @@ defmodule Tesla.Middleware.Query do
   @behaviour Tesla.Middleware
 
   alias Tesla.Middleware.Query.Modern
-  alias Tesla.QueryString
-  alias Tesla.QueryStringError
+  alias Tesla.OpenAPI.QueryString
+  alias Tesla.OpenAPI.QueryStringError
 
   @impl Tesla.Middleware
   def call(env, next, mode: :modern), do: Modern.call(env, next)

@@ -1,8 +1,8 @@
-defmodule Tesla.PathParamsTest do
+defmodule Tesla.OpenAPI.PathParamsTest do
   use ExUnit.Case, async: true
 
-  alias Tesla.PathParam
-  alias Tesla.PathParams
+  alias Tesla.OpenAPI.PathParam
+  alias Tesla.OpenAPI.PathParams
 
   test "indexes path parameter definitions by name" do
     path_params =
@@ -43,7 +43,7 @@ defmodule Tesla.PathParamsTest do
 
   test "raises when definitions are not path params" do
     assert_raise ArgumentError,
-                 ~r/expected path parameter definitions to be Tesla.PathParam structs/,
+                 ~r/expected path parameter definitions to be Tesla.OpenAPI.PathParam structs/,
                  fn ->
                    PathParams.new!([%{name: "id"}])
                  end

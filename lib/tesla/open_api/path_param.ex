@@ -1,17 +1,17 @@
-defmodule Tesla.PathParam do
+defmodule Tesla.OpenAPI.PathParam do
   @moduledoc """
   A path parameter definition with explicit serialization settings.
 
-  `Tesla.PathParam` is a Tesla-native value object for path parameter metadata
+  `Tesla.OpenAPI.PathParam` is a Tesla-native value object for path parameter metadata
   whose serialization needs to be controlled explicitly. Its serialization
   options follow the OpenAPI path parameter style semantics, while keeping the
   public API focused on the path use case.
 
   In `Tesla.Middleware.PathParams` `:modern` mode, define path parameters once
-  and pass them through request private data with `Tesla.PathParams`:
+  and pass them through request private data with `Tesla.OpenAPI.PathParams`:
 
-      path_params = Tesla.PathParams.new!([PathParam.new!("id")])
-      private = Tesla.PathParams.put_private(path_params)
+      path_params = Tesla.OpenAPI.PathParams.new!([PathParam.new!("id")])
+      private = Tesla.OpenAPI.PathParams.put_private(path_params)
 
       Tesla.get(client, "/items/{id}",
         opts: [path_params: %{"id" => 42}],
@@ -20,9 +20,9 @@ defmodule Tesla.PathParam do
 
   Pass options when a value needs non-default path serialization:
 
-      alias Tesla.PathParam
+      alias Tesla.OpenAPI.PathParam
 
-      Tesla.PathParams.new!([
+      Tesla.OpenAPI.PathParams.new!([
         PathParam.new!("coords", style: :matrix, explode: true)
       ])
 

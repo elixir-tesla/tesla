@@ -1,6 +1,6 @@
-defmodule Tesla.QueryStringError do
+defmodule Tesla.OpenAPI.QueryStringError do
   @moduledoc """
-  Raised when a whole `Tesla.QueryString` cannot own the request query string.
+  Raised when a whole `Tesla.OpenAPI.QueryString` cannot own the request query string.
   """
 
   defexception [:reason, :query, :url, :value, :details]
@@ -22,11 +22,11 @@ defmodule Tesla.QueryStringError do
         }
 
   def message(%__MODULE__{reason: :existing_query_string} = _value) do
-    "cannot append #{inspect(Tesla.QueryString)} to a URL that already contains a query string"
+    "cannot append #{inspect(Tesla.OpenAPI.QueryString)} to a URL that already contains a query string"
   end
 
   def message(%__MODULE__{reason: :mixed_query_params} = value) do
-    "cannot merge #{inspect(Tesla.QueryString)} with normal query params; got #{inspect(value.query)}"
+    "cannot merge #{inspect(Tesla.OpenAPI.QueryString)} with normal query params; got #{inspect(value.query)}"
   end
 
   def message(%__MODULE__{reason: :leading_query_delimiter} = value) do

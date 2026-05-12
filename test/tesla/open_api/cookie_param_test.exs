@@ -1,7 +1,7 @@
-defmodule Tesla.CookieParamTest do
+defmodule Tesla.OpenAPI.CookieParamTest do
   use ExUnit.Case, async: true
 
-  alias Tesla.CookieParam
+  alias Tesla.OpenAPI.CookieParam
 
   defmodule TestFilter do
     defstruct [:role, :id]
@@ -247,14 +247,21 @@ defmodule Tesla.CookieParamTest do
   end
 
   test "rejects non-cookie parameter values in header lists" do
-    assert_raise ArgumentError, ~r/expected cookie header to be a Tesla.CookieParam struct/, fn ->
-      CookieParam.to_header([CookieParam.new!("session_id", "abc123"), {"theme", "dark"}])
-    end
+    assert_raise ArgumentError,
+                 ~r/expected cookie header to be a Tesla.OpenAPI.CookieParam struct/,
+                 fn ->
+                   CookieParam.to_header([
+                     CookieParam.new!("session_id", "abc123"),
+                     {"theme", "dark"}
+                   ])
+                 end
   end
 
   test "rejects non-cookie parameter header input" do
-    assert_raise ArgumentError, ~r/expected cookie header to be a Tesla.CookieParam struct/, fn ->
-      CookieParam.to_header(%{session_id: "abc123"})
-    end
+    assert_raise ArgumentError,
+                 ~r/expected cookie header to be a Tesla.OpenAPI.CookieParam struct/,
+                 fn ->
+                   CookieParam.to_header(%{session_id: "abc123"})
+                 end
   end
 end

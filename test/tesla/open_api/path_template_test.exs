@@ -1,7 +1,7 @@
-defmodule Tesla.PathTemplateTest do
+defmodule Tesla.OpenAPI.PathTemplateTest do
   use ExUnit.Case, async: true
 
-  alias Tesla.PathTemplate
+  alias Tesla.OpenAPI.PathTemplate
 
   defp render_expression(name, _expression, params) do
     Map.fetch!(params, name)
