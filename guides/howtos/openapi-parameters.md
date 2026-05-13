@@ -141,7 +141,8 @@ end
 `Tesla.OpenAPI.QueryParam` supports the OpenAPI query styles `:form`,
 `:space_delimited`, `:pipe_delimited`, and `:deep_object`. Omit optional query
 parameters from the returned map when they should not be sent. The operation
-module stores the result of `Query.query_params()` in a module attribute.
+module assigns `@query_params Query.query_params()` so the result is stored in
+a module attribute.
 
 Other top-level query params can share the same request query map and remain
 normal Tesla query params. This example keeps those values in a generated
