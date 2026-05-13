@@ -64,8 +64,9 @@ paths:
 ## Build the path module
 
 Start with the operation-owned module for `in: "path"` values and metadata.
-The final operation module will store `path_params/0` in a module attribute and
-pass the request value map to `Tesla.Middleware.PathParams` in `:modern` mode:
+The final operation module will store the result of `Path.path_params()` in a
+module attribute and pass the request value map to `Tesla.Middleware.PathParams`
+in `:modern` mode:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Path do
@@ -101,8 +102,9 @@ attribute.
 ## Build the query module
 
 Start with the operation-owned module for `in: "query"` values and metadata.
-The final operation module will store `query_params/0` in a module attribute
-and pass the request value map to `Tesla.Middleware.Query` in `:modern` mode:
+The final operation module will store the result of `Query.query_params()` in a
+module attribute and pass the request value map to `Tesla.Middleware.Query` in
+`:modern` mode:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Query do
@@ -139,7 +141,7 @@ end
 `Tesla.OpenAPI.QueryParam` supports the OpenAPI query styles `:form`,
 `:space_delimited`, `:pipe_delimited`, and `:deep_object`. Omit optional query
 parameters from the returned map when they should not be sent. The operation
-module stores the static `query_params/0` result in a module attribute.
+module stores the result of `Query.query_params()` in a module attribute.
 
 Other top-level query params can share the same request query map and remain
 normal Tesla query params. This example keeps those values in a generated
@@ -225,8 +227,8 @@ end
 ## Build the operation module
 
 Now assemble the nested modules into the generated operation. The nested
-modules define each parameter collection, and the operation module stores those
-static definitions in module attributes:
+modules define each parameter collection, and the operation module stores the
+results in module attributes:
 
 ```elixir
 defmodule MyApi.Operation.GetItem do
