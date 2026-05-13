@@ -33,21 +33,36 @@ end
 ## Generated Operation Metadata
 
 ```elixir
+defmodule MyApi.Operation.GetItem.Path do
+  alias Tesla.OpenAPI.{PathParam, PathParams}
+
+  def path_params do
+    PathParams.new!([
+      PathParam.new!("id"),
+      PathParam.new!("coords", style: :matrix, explode: true)
+    ])
+  end
+end
+
+defmodule MyApi.Operation.GetItem.Query do
+  alias Tesla.OpenAPI.{QueryParam, QueryParams}
+
+  def query_params do
+    QueryParams.new!([
+      QueryParam.new!("color", style: :pipe_delimited),
+      QueryParam.new!("filter", style: :deep_object)
+    ])
+  end
+end
+
 defmodule MyApi.Operation.GetItem do
+  alias MyApi.Operation.GetItem.{Path, Query}
   alias Tesla.OpenAPI
-  alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
+  alias Tesla.OpenAPI.{PathParams, PathTemplate, QueryParams}
 
   @path_template PathTemplate.new!("/items/{id}{coords}")
-
-  @path_params PathParams.new!([
-                 PathParam.new!("id"),
-                 PathParam.new!("coords", style: :matrix, explode: true)
-               ])
-
-  @query_params QueryParams.new!([
-                  QueryParam.new!("color", style: :pipe_delimited),
-                  QueryParam.new!("filter", style: :deep_object)
-                ])
+  @path_params Path.path_params()
+  @query_params Query.query_params()
 
   @private OpenAPI.merge_private([
              PathTemplate.put_private(@path_template),
@@ -61,20 +76,13 @@ end
 
 ```elixir
 defmodule MyApi.Operation.GetItem do
+  alias MyApi.Operation.GetItem.{Path, Query}
   alias Tesla.OpenAPI
-  alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
+  alias Tesla.OpenAPI.{PathParams, PathTemplate, QueryParams}
 
   @path_template PathTemplate.new!("/items/{id}{coords}")
-
-  @path_params PathParams.new!([
-                 PathParam.new!("id"),
-                 PathParam.new!("coords", style: :matrix, explode: true)
-               ])
-
-  @query_params QueryParams.new!([
-                  QueryParam.new!("color", style: :pipe_delimited),
-                  QueryParam.new!("filter", style: :deep_object)
-                ])
+  @path_params Path.path_params()
+  @query_params Query.query_params()
 
   @private OpenAPI.merge_private([
              PathTemplate.put_private(@path_template),
@@ -104,16 +112,32 @@ end
 ## Headers And Cookies
 
 ```elixir
+defmodule MyApi.Operation.GetItem.Header do
+  alias Tesla.OpenAPI.{HeaderParam, HeaderParams}
+
+  def header_params do
+    HeaderParams.new!([
+      HeaderParam.new!("X-Request-ID")
+    ])
+  end
+end
+
+defmodule MyApi.Operation.GetItem.Cookie do
+  alias Tesla.OpenAPI.{CookieParam, CookieParams}
+
+  def cookie_params do
+    CookieParams.new!([
+      CookieParam.new!("session_id")
+    ])
+  end
+end
+
 defmodule MyApi.Operation.GetItem do
-  alias Tesla.OpenAPI.{CookieParam, CookieParams, HeaderParam, HeaderParams}
+  alias MyApi.Operation.GetItem.{Cookie, Header}
+  alias Tesla.OpenAPI.{CookieParams, HeaderParams}
 
-  @header_params HeaderParams.new!([
-                   HeaderParam.new!("X-Request-ID")
-                 ])
-
-  @cookie_params CookieParams.new!([
-                   CookieParam.new!("session_id")
-                 ])
+  @header_params Header.header_params()
+  @cookie_params Cookie.cookie_params()
 
   def headers do
     HeaderParams.to_headers(@header_params, %{"X-Request-ID" => "req-123"}) ++

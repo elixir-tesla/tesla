@@ -63,18 +63,27 @@ paths:
 
 ## Build the path module
 
-Start with the operation-owned value module for `in: "path"` request values.
-The final operation module will pass this map to `Tesla.Middleware.PathParams`
-in `:modern` mode:
+Start with the operation-owned module for `in: "path"` values and metadata.
+The final operation module will store `path_params/0` in a module attribute and
+pass the request value map to `Tesla.Middleware.PathParams` in `:modern` mode:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Path do
+  alias Tesla.OpenAPI.{PathParam, PathParams}
+
   @type t :: %__MODULE__{
           id: integer(),
           coords: [String.t()]
         }
 
   defstruct [:id, :coords]
+
+  def path_params do
+    PathParams.new!([
+      PathParam.new!("id"),
+      PathParam.new!("coords", style: :matrix, explode: true)
+    ])
+  end
 
   def to_path_params(%__MODULE__{} = path) do
     %{
@@ -85,17 +94,20 @@ defmodule MyApi.Operation.GetItem.Path do
 end
 ```
 
-The static OpenAPI path metadata for those names will use `Tesla.OpenAPI.PathParam`,
-`Tesla.OpenAPI.PathParams`, and `Tesla.OpenAPI.PathTemplate` when the operation module is built.
+The runtime struct contains request values only. `path_params/0` returns the
+static OpenAPI path metadata that the operation module stores in a module
+attribute.
 
 ## Build the query module
 
-Start with the operation-owned value module for `in: "query"` request values.
-The final operation module will pass this map to `Tesla.Middleware.Query` in
-`:modern` mode:
+Start with the operation-owned module for `in: "query"` values and metadata.
+The final operation module will store `query_params/0` in a module attribute
+and pass the request value map to `Tesla.Middleware.Query` in `:modern` mode:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Query do
+  alias Tesla.OpenAPI.{QueryParam, QueryParams}
+
   @type t :: %__MODULE__{
           :"$additional" => map() | nil,
           color: [String.t()],
@@ -103,6 +115,13 @@ defmodule MyApi.Operation.GetItem.Query do
         }
 
   defstruct color: nil, filter: nil, "$additional": %{}
+
+  def query_params do
+    QueryParams.new!([
+      QueryParam.new!("color", style: :pipe_delimited),
+      QueryParam.new!("filter", style: :deep_object)
+    ])
+  end
 
   def to_query(nil), do: %{}
 
@@ -119,9 +138,8 @@ end
 
 `Tesla.OpenAPI.QueryParam` supports the OpenAPI query styles `:form`,
 `:space_delimited`, `:pipe_delimited`, and `:deep_object`. Omit optional query
-parameters from the returned map when they should not be sent. The static
-OpenAPI query metadata for those names will use `Tesla.OpenAPI.QueryParam` and
-`Tesla.OpenAPI.QueryParams` when the operation module is built.
+parameters from the returned map when they should not be sent. The operation
+module stores the static `query_params/0` result in a module attribute.
 
 Other top-level query params can share the same request query map and remain
 normal Tesla query params. This example keeps those values in a generated
@@ -129,8 +147,8 @@ normal Tesla query params. This example keeps those values in a generated
 
 ## Build the header module
 
-For `in: "header"`, define `Tesla.OpenAPI.HeaderParam` metadata once and use
-`Tesla.OpenAPI.HeaderParams` to convert request values to raw header tuples:
+For `in: "header"`, expose `Tesla.OpenAPI.HeaderParam` metadata and convert the
+request struct into the value map used by `Tesla.OpenAPI.HeaderParams`:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Header do
@@ -142,16 +160,18 @@ defmodule MyApi.Operation.GetItem.Header do
 
   defstruct [:request_id]
 
-  @header_params HeaderParams.new!([
-                   HeaderParam.new!("X-Request-ID")
-                 ])
+  def header_params do
+    HeaderParams.new!([
+      HeaderParam.new!("X-Request-ID")
+    ])
+  end
 
-  def to_headers(nil), do: []
+  def to_header_params(nil), do: %{}
 
-  def to_headers(%__MODULE__{} = headers) do
-    HeaderParams.to_headers(@header_params, %{
+  def to_header_params(%__MODULE__{} = headers) do
+    %{
       "X-Request-ID" => headers.request_id
-    })
+    }
   end
 end
 ```
@@ -160,8 +180,8 @@ end
 
 ## Build the cookie module
 
-For `in: "cookie"`, define `Tesla.OpenAPI.CookieParam` metadata once and use
-`Tesla.OpenAPI.CookieParams` to convert request values to the `Cookie` header:
+For `in: "cookie"`, expose `Tesla.OpenAPI.CookieParam` metadata and convert the
+request struct into the value map used by `Tesla.OpenAPI.CookieParams`:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Cookie do
@@ -173,16 +193,18 @@ defmodule MyApi.Operation.GetItem.Cookie do
 
   defstruct [:session_id]
 
-  @cookie_params CookieParams.new!([
-                   CookieParam.new!("session_id")
-                 ])
+  def cookie_params do
+    CookieParams.new!([
+      CookieParam.new!("session_id")
+    ])
+  end
 
-  def to_headers(nil), do: []
+  def to_cookie_params(nil), do: %{}
 
-  def to_headers(%__MODULE__{} = cookies) do
-    CookieParams.to_headers(@cookie_params, %{
+  def to_cookie_params(%__MODULE__{} = cookies) do
+    %{
       "session_id" => cookies.session_id
-    })
+    }
   end
 end
 ```
@@ -202,9 +224,9 @@ end
 
 ## Build the operation module
 
-Now assemble the nested modules into the generated operation. Static path
-metadata and `t:Tesla.Env.private/0` data stay on the operation module with
-`Tesla.OpenAPI.PathTemplate`, `Tesla.OpenAPI.PathParam`, and `Tesla.OpenAPI.PathParams`:
+Now assemble the nested modules into the generated operation. The nested
+modules define each parameter collection, and the operation module stores those
+static definitions in module attributes:
 
 ```elixir
 defmodule MyApi.Operation.GetItem do
@@ -212,7 +234,7 @@ defmodule MyApi.Operation.GetItem do
   alias MyApi.Operation.GetItem.{Cookie, Header, Path, Query}
   alias MyApi.Response
   alias Tesla.OpenAPI
-  alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
+  alias Tesla.OpenAPI.{CookieParams, HeaderParams, PathParams, PathTemplate, QueryParams}
 
   defstruct path: nil,
             query: nil,
@@ -234,16 +256,10 @@ defmodule MyApi.Operation.GetItem do
   @type result() :: {:ok, resp_200() | resp_401() | resp_404()} | {:error, term()}
 
   @path_template PathTemplate.new!("/items/{id}{coords}")
-
-  @path_params PathParams.new!([
-                 PathParam.new!("id"),
-                 PathParam.new!("coords", style: :matrix, explode: true)
-               ])
-
-  @query_params QueryParams.new!([
-                  QueryParam.new!("color", style: :pipe_delimited),
-                  QueryParam.new!("filter", style: :deep_object)
-                ])
+  @path_params Path.path_params()
+  @query_params Query.query_params()
+  @header_params Header.header_params()
+  @cookie_params Cookie.cookie_params()
 
   @private OpenAPI.merge_private([
              PathTemplate.put_private(@path_template),
@@ -262,7 +278,9 @@ defmodule MyApi.Operation.GetItem do
 
   @doc false
   def handle_operation(%Client{} = client, %__MODULE__{} = operation, opts) do
-    headers = Header.to_headers(operation.headers) ++ Cookie.to_headers(operation.cookies)
+    headers =
+      HeaderParams.to_headers(@header_params, Header.to_header_params(operation.headers)) ++
+        CookieParams.to_headers(@cookie_params, Cookie.to_cookie_params(operation.cookies))
 
     request_opts = [
       method: :get,
