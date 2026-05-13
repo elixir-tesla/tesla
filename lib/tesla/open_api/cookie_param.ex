@@ -2,7 +2,7 @@ defmodule Tesla.OpenAPI.CookieParam do
   @moduledoc """
   A cookie parameter with explicit serialization settings.
 
-  `Tesla.OpenAPI.CookieParam` is a Tesla-native value object for cookie parameters whose
+  `Tesla.OpenAPI.CookieParam` is a value object for cookie parameters whose
   serialization needs to be controlled explicitly. Its serialization options
   follow the OpenAPI cookie parameter style semantics, while keeping the public
   API focused on the cookie use case.

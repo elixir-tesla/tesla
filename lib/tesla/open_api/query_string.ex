@@ -2,8 +2,8 @@ defmodule Tesla.OpenAPI.QueryString do
   @moduledoc """
   A whole URL query string with explicit serialization.
 
-  `Tesla.OpenAPI.QueryString` is a Tesla-native value object for requests where the
-  entire query string is serialized as one value. It is useful for OpenAPI 3.2
+  `Tesla.OpenAPI.QueryString` is a value object for requests where the entire
+  query string is serialized as one value. It is useful for OpenAPI 3.2
   [`in: "querystring"` parameters][oas-parameter-locations], where the query
   string is content-based and does not behave like a normal named query
   parameter.
