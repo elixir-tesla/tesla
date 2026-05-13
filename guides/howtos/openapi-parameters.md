@@ -141,8 +141,8 @@ end
 `Tesla.OpenAPI.QueryParam` supports the OpenAPI query styles `:form`,
 `:space_delimited`, `:pipe_delimited`, and `:deep_object`. Omit optional query
 parameters from the returned map when they should not be sent. The operation
-module assigns `@query_params Query.query_params()` so the result is stored in
-a module attribute.
+module uses the result of `Query.query_params()` when it builds its private
+metadata.
 
 Other top-level query params can share the same request query map and remain
 normal Tesla query params. This example keeps those values in a generated
@@ -228,8 +228,8 @@ end
 ## Build the operation module
 
 Now assemble the nested modules into the generated operation. The nested
-modules define each parameter collection, and the operation module stores the
-results in module attributes:
+modules expose each parameter collection, and the operation module uses those
+results when it builds static request metadata:
 
 ```elixir
 defmodule MyApi.Operation.GetItem do
@@ -259,15 +259,13 @@ defmodule MyApi.Operation.GetItem do
   @type result() :: {:ok, resp_200() | resp_401() | resp_404()} | {:error, term()}
 
   @path_template PathTemplate.new!("/items/{id}{coords}")
-  @path_params Path.path_params()
-  @query_params Query.query_params()
   @header_params Header.header_params()
   @cookie_params Cookie.cookie_params()
 
   @private OpenAPI.merge_private([
              PathTemplate.put_private(@path_template),
-             PathParams.put_private(@path_params),
-             QueryParams.put_private(@query_params)
+             PathParams.put_private(Path.path_params()),
+             QueryParams.put_private(Query.query_params())
            ])
 
   def new(attrs) when is_map(attrs) do

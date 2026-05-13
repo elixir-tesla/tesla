@@ -41,13 +41,11 @@ defmodule Tesla.OpenAPI do
         alias MyApi.Operation.GetItem.{Path, Query}
 
         @path_template Tesla.OpenAPI.PathTemplate.new!("/items/{id}")
-        @path_params Path.path_params()
-        @query_params Query.query_params()
 
         @private Tesla.OpenAPI.merge_private([
                    Tesla.OpenAPI.PathTemplate.put_private(@path_template),
-                   Tesla.OpenAPI.PathParams.put_private(@path_params),
-                   Tesla.OpenAPI.QueryParams.put_private(@query_params)
+                   Tesla.OpenAPI.PathParams.put_private(Path.path_params()),
+                   Tesla.OpenAPI.QueryParams.put_private(Query.query_params())
                  ])
       end
 

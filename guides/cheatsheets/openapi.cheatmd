@@ -61,13 +61,11 @@ defmodule MyApi.Operation.GetItem do
   alias Tesla.OpenAPI.{PathParams, PathTemplate, QueryParams}
 
   @path_template PathTemplate.new!("/items/{id}{coords}")
-  @path_params Path.path_params()
-  @query_params Query.query_params()
 
   @private OpenAPI.merge_private([
              PathTemplate.put_private(@path_template),
-             PathParams.put_private(@path_params),
-             QueryParams.put_private(@query_params)
+             PathParams.put_private(Path.path_params()),
+             QueryParams.put_private(Query.query_params())
            ])
 end
 ```
@@ -81,13 +79,11 @@ defmodule MyApi.Operation.GetItem do
   alias Tesla.OpenAPI.{PathParams, PathTemplate, QueryParams}
 
   @path_template PathTemplate.new!("/items/{id}{coords}")
-  @path_params Path.path_params()
-  @query_params Query.query_params()
 
   @private OpenAPI.merge_private([
              PathTemplate.put_private(@path_template),
-             PathParams.put_private(@path_params),
-             QueryParams.put_private(@query_params)
+             PathParams.put_private(Path.path_params()),
+             QueryParams.put_private(Query.query_params())
            ])
 
   def request(client) do
