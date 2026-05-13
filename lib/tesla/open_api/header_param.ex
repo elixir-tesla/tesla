@@ -59,7 +59,11 @@ defmodule Tesla.OpenAPI.HeaderParam do
     * `:style` - must be `:simple`. Defaults to `:simple`.
     * `:explode` - boolean. Defaults to `false`.
   """
-  @spec new!(String.t(), keyword()) :: t()
+  @spec new!(
+          String.t(),
+          style: style(),
+          explode: boolean()
+        ) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:header, name)
     opts = Param.validate_opts!(:header, opts)

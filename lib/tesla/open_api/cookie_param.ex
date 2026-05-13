@@ -75,7 +75,12 @@ defmodule Tesla.OpenAPI.CookieParam do
       and `false` for all other styles.
     * `:allow_reserved` - boolean. Defaults to `false`.
   """
-  @spec new!(String.t(), keyword()) :: t()
+  @spec new!(
+          String.t(),
+          style: style(),
+          explode: boolean(),
+          allow_reserved: boolean()
+        ) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:cookie, name)
     opts = Param.validate_opts!(:cookie, opts)

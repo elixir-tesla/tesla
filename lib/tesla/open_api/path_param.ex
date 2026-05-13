@@ -80,7 +80,12 @@ defmodule Tesla.OpenAPI.PathParam do
     * `:explode` — boolean. Defaults to `false`.
     * `:allow_reserved` — boolean. Defaults to `false`.
   """
-  @spec new!(String.t(), keyword()) :: t()
+  @spec new!(
+          String.t(),
+          style: style(),
+          explode: boolean(),
+          allow_reserved: boolean()
+        ) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:path, name)
     opts = Param.validate_opts!(:path, opts)
