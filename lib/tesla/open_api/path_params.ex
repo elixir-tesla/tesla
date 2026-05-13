@@ -5,7 +5,7 @@ defmodule Tesla.OpenAPI.PathParams do
   `Tesla.OpenAPI.PathParams` keeps static path parameter metadata separate from
   per-request values. Since path parameter definitions usually come from a
   static operation specification, prefer defining the collection in a module
-  attribute, storing it in request private data, and passing only the dynamic
+  attribute, storing it in `t:Tesla.Env.private/0`, and passing only the dynamic
   values through `opts[:path_params]`.
 
       defmodule MyApi.Operation.GetItem do
@@ -50,7 +50,7 @@ defmodule Tesla.OpenAPI.PathParams do
   end
 
   @doc """
-  Adds path parameter definitions to Tesla request private data.
+  Adds path parameter definitions to `t:Tesla.Env.private/0`.
 
       defmodule MyApi.Operation.GetItem do
         @path_params Tesla.OpenAPI.PathParams.new!([Tesla.OpenAPI.PathParam.new!("id")])

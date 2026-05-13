@@ -228,7 +228,7 @@ end
 ## Build the operation module
 
 Now assemble the nested modules into the generated operation. Static path
-metadata and request private data stay on the operation module with
+metadata and `t:Tesla.Env.private/0` data stay on the operation module with
 `Tesla.OpenAPI.PathTemplate`, `Tesla.OpenAPI.PathParam`, and `Tesla.OpenAPI.PathParams`:
 
 ```elixir
@@ -313,9 +313,9 @@ end
 ## Build the client stack
 
 Use `Tesla.Middleware.PathParams` in `:modern` mode when generated operations
-pass `Tesla.OpenAPI.PathParams` through request private data. Use
+pass `Tesla.OpenAPI.PathParams` through `t:Tesla.Env.private/0`. Use
 `Tesla.Middleware.Query` in `:modern` mode when generated operations pass
-`Tesla.OpenAPI.QueryParams` through request private data:
+`Tesla.OpenAPI.QueryParams` through `t:Tesla.Env.private/0`:
 
 ```elixir
 defmodule MyApi.Client do

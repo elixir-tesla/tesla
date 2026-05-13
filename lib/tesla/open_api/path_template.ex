@@ -53,7 +53,7 @@ defmodule Tesla.OpenAPI.PathTemplate do
   end
 
   @doc """
-  Adds the compiled path template to Tesla request private data.
+  Adds the compiled path template to `t:Tesla.Env.private/0`.
 
       template = Tesla.OpenAPI.PathTemplate.new!("/items/{id}")
       path_params = Tesla.OpenAPI.PathParams.new!([Tesla.OpenAPI.PathParam.new!("id")])

@@ -7,7 +7,7 @@ defmodule Tesla.OpenAPI.PathParam do
   follow the OpenAPI path parameter style semantics.
 
   In `Tesla.Middleware.PathParams` `:modern` mode, define path parameters once
-  and pass them through request private data with `Tesla.OpenAPI.PathParams`:
+  and pass them through `t:Tesla.Env.private/0` with `Tesla.OpenAPI.PathParams`:
 
       path_params = Tesla.OpenAPI.PathParams.new!([PathParam.new!("id")])
       private = Tesla.OpenAPI.PathParams.put_private(path_params)
