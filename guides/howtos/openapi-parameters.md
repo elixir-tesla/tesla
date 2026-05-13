@@ -79,12 +79,12 @@ defmodule MyApi.Operation.GetItem.Path do
 
   defstruct [:id, :coords]
 
-  def path_params do
-    PathParams.new!([
-      PathParam.new!("id"),
-      PathParam.new!("coords", style: :matrix, explode: true)
-    ])
-  end
+  @path_params PathParams.new!([
+                 PathParam.new!("id"),
+                 PathParam.new!("coords", style: :matrix, explode: true)
+               ])
+
+  def path_params, do: @path_params
 
   def to_path_params(%__MODULE__{} = path) do
     %{
@@ -118,12 +118,12 @@ defmodule MyApi.Operation.GetItem.Query do
 
   defstruct color: nil, filter: nil, "$additional": %{}
 
-  def query_params do
-    QueryParams.new!([
-      QueryParam.new!("color", style: :pipe_delimited),
-      QueryParam.new!("filter", style: :deep_object)
-    ])
-  end
+  @query_params QueryParams.new!([
+                  QueryParam.new!("color", style: :pipe_delimited),
+                  QueryParam.new!("filter", style: :deep_object)
+                ])
+
+  def query_params, do: @query_params
 
   def to_query(nil), do: %{}
 
@@ -163,11 +163,11 @@ defmodule MyApi.Operation.GetItem.Header do
 
   defstruct [:request_id]
 
-  def header_params do
-    HeaderParams.new!([
-      HeaderParam.new!("X-Request-ID")
-    ])
-  end
+  @header_params HeaderParams.new!([
+                   HeaderParam.new!("X-Request-ID")
+                 ])
+
+  def header_params, do: @header_params
 
   def to_header_params(nil), do: %{}
 
@@ -196,11 +196,11 @@ defmodule MyApi.Operation.GetItem.Cookie do
 
   defstruct [:session_id]
 
-  def cookie_params do
-    CookieParams.new!([
-      CookieParam.new!("session_id")
-    ])
-  end
+  @cookie_params CookieParams.new!([
+                   CookieParam.new!("session_id")
+                 ])
+
+  def cookie_params, do: @cookie_params
 
   def to_cookie_params(nil), do: %{}
 

@@ -36,23 +36,23 @@ end
 defmodule MyApi.Operation.GetItem.Path do
   alias Tesla.OpenAPI.{PathParam, PathParams}
 
-  def path_params do
-    PathParams.new!([
-      PathParam.new!("id"),
-      PathParam.new!("coords", style: :matrix, explode: true)
-    ])
-  end
+  @path_params PathParams.new!([
+                 PathParam.new!("id"),
+                 PathParam.new!("coords", style: :matrix, explode: true)
+               ])
+
+  def path_params, do: @path_params
 end
 
 defmodule MyApi.Operation.GetItem.Query do
   alias Tesla.OpenAPI.{QueryParam, QueryParams}
 
-  def query_params do
-    QueryParams.new!([
-      QueryParam.new!("color", style: :pipe_delimited),
-      QueryParam.new!("filter", style: :deep_object)
-    ])
-  end
+  @query_params QueryParams.new!([
+                  QueryParam.new!("color", style: :pipe_delimited),
+                  QueryParam.new!("filter", style: :deep_object)
+                ])
+
+  def query_params, do: @query_params
 end
 
 defmodule MyApi.Operation.GetItem do
@@ -115,21 +115,21 @@ end
 defmodule MyApi.Operation.GetItem.Header do
   alias Tesla.OpenAPI.{HeaderParam, HeaderParams}
 
-  def header_params do
-    HeaderParams.new!([
-      HeaderParam.new!("X-Request-ID")
-    ])
-  end
+  @header_params HeaderParams.new!([
+                   HeaderParam.new!("X-Request-ID")
+                 ])
+
+  def header_params, do: @header_params
 end
 
 defmodule MyApi.Operation.GetItem.Cookie do
   alias Tesla.OpenAPI.{CookieParam, CookieParams}
 
-  def cookie_params do
-    CookieParams.new!([
-      CookieParam.new!("session_id")
-    ])
-  end
+  @cookie_params CookieParams.new!([
+                   CookieParam.new!("session_id")
+                 ])
+
+  def cookie_params, do: @cookie_params
 end
 
 defmodule MyApi.Operation.GetItem do

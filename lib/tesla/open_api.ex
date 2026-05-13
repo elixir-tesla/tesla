@@ -22,19 +22,19 @@ defmodule Tesla.OpenAPI do
   attributes and pass only request values at runtime:
 
       defmodule MyApi.Operation.GetItem.Path do
-        def path_params do
-          Tesla.OpenAPI.PathParams.new!([
-            Tesla.OpenAPI.PathParam.new!("id")
-          ])
-        end
+        @path_params Tesla.OpenAPI.PathParams.new!([
+                       Tesla.OpenAPI.PathParam.new!("id")
+                     ])
+
+        def path_params, do: @path_params
       end
 
       defmodule MyApi.Operation.GetItem.Query do
-        def query_params do
-          Tesla.OpenAPI.QueryParams.new!([
-            Tesla.OpenAPI.QueryParam.new!("filter")
-          ])
-        end
+        @query_params Tesla.OpenAPI.QueryParams.new!([
+                        Tesla.OpenAPI.QueryParam.new!("filter")
+                      ])
+
+        def query_params, do: @query_params
       end
 
       defmodule MyApi.Operation.GetItem do
