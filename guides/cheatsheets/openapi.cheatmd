@@ -25,63 +25,93 @@ client =
 ## Generated Operation Metadata
 
 ```elixir
-alias Tesla.OpenAPI
-alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
+defmodule MyApi.Operation.GetItem do
+  alias Tesla.OpenAPI
+  alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
 
-@path_template PathTemplate.new!("/items/{id}{coords}")
+  @path_template PathTemplate.new!("/items/{id}{coords}")
 
-@path_params PathParams.new!([
-               PathParam.new!("id"),
-               PathParam.new!("coords", style: :matrix, explode: true)
-             ])
+  @path_params PathParams.new!([
+                 PathParam.new!("id"),
+                 PathParam.new!("coords", style: :matrix, explode: true)
+               ])
 
-@query_params QueryParams.new!([
-                QueryParam.new!("color", style: :pipe_delimited),
-                QueryParam.new!("filter", style: :deep_object)
-              ])
+  @query_params QueryParams.new!([
+                  QueryParam.new!("color", style: :pipe_delimited),
+                  QueryParam.new!("filter", style: :deep_object)
+                ])
 
-@private OpenAPI.merge_private([
-           PathTemplate.put_private(@path_template),
-           PathParams.put_private(@path_params),
-           QueryParams.put_private(@query_params)
-         ])
+  @private OpenAPI.merge_private([
+             PathTemplate.put_private(@path_template),
+             PathParams.put_private(@path_params),
+             QueryParams.put_private(@query_params)
+           ])
+end
 ```
 
 ## Request Values
 
 ```elixir
-Tesla.get(client, @path_template.path,
-  query: %{
-    "color" => ["blue", "black"],
-    "filter" => [role: "admin"],
-    "debug" => true
-  },
-  opts: [
-    path_params: %{
-      "id" => 42,
-      "coords" => ["blue", "black"]
-    }
-  ],
-  private: @private
-)
+defmodule MyApi.Operation.GetItem do
+  alias Tesla.OpenAPI
+  alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
+
+  @path_template PathTemplate.new!("/items/{id}{coords}")
+
+  @path_params PathParams.new!([
+                 PathParam.new!("id"),
+                 PathParam.new!("coords", style: :matrix, explode: true)
+               ])
+
+  @query_params QueryParams.new!([
+                  QueryParam.new!("color", style: :pipe_delimited),
+                  QueryParam.new!("filter", style: :deep_object)
+                ])
+
+  @private OpenAPI.merge_private([
+             PathTemplate.put_private(@path_template),
+             PathParams.put_private(@path_params),
+             QueryParams.put_private(@query_params)
+           ])
+
+  def request(client) do
+    Tesla.get(client, @path_template.path,
+      query: %{
+        "color" => ["blue", "black"],
+        "filter" => [role: "admin"],
+        "debug" => true
+      },
+      opts: [
+        path_params: %{
+          "id" => 42,
+          "coords" => ["blue", "black"]
+        }
+      ],
+      private: @private
+    )
+  end
+end
 ```
 
 ## Headers And Cookies
 
 ```elixir
-alias Tesla.OpenAPI.{CookieParam, CookieParams, HeaderParam, HeaderParams}
+defmodule MyApi.Operation.GetItem do
+  alias Tesla.OpenAPI.{CookieParam, CookieParams, HeaderParam, HeaderParams}
 
-@header_params HeaderParams.new!([
-                 HeaderParam.new!("X-Request-ID")
-               ])
+  @header_params HeaderParams.new!([
+                   HeaderParam.new!("X-Request-ID")
+                 ])
 
-@cookie_params CookieParams.new!([
-                 CookieParam.new!("session_id")
-               ])
+  @cookie_params CookieParams.new!([
+                   CookieParam.new!("session_id")
+                 ])
 
-headers =
-  HeaderParams.to_headers(@header_params, %{"X-Request-ID" => "req-123"}) ++
-    CookieParams.to_headers(@cookie_params, %{"session_id" => "abc123"})
+  def headers do
+    HeaderParams.to_headers(@header_params, %{"X-Request-ID" => "req-123"}) ++
+      CookieParams.to_headers(@cookie_params, %{"session_id" => "abc123"})
+  end
+end
 ```
 
 ## Query String Parameter

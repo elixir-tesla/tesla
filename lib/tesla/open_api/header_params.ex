@@ -1,19 +1,23 @@
 defmodule Tesla.OpenAPI.HeaderParams do
   @moduledoc """
-  Precompiled header parameter definitions.
+  A collection of header parameter definitions.
 
   `Tesla.OpenAPI.HeaderParams` keeps static header parameter metadata separate
-  from per-request values. Generated clients can build it once and pass only
-  dynamic values when creating request headers.
+  from per-request values. Since header parameter definitions usually come from
+  a static operation specification, prefer defining the collection in a module
+  attribute and passing only dynamic values when creating request headers.
 
-      alias Tesla.OpenAPI.{HeaderParam, HeaderParams}
+      defmodule MyApi.Operation.GetItem.Header do
+        alias Tesla.OpenAPI.{HeaderParam, HeaderParams}
 
-      header_params =
-        HeaderParams.new!([
-          HeaderParam.new!("X-Request-ID")
-        ])
+        @header_params HeaderParams.new!([
+                         HeaderParam.new!("X-Request-ID")
+                       ])
 
-      HeaderParams.to_headers(header_params, %{"X-Request-ID" => "req-123"})
+        def to_headers(values) do
+          HeaderParams.to_headers(@header_params, values)
+        end
+      end
   """
 
   alias Tesla.OpenAPI.HeaderParam

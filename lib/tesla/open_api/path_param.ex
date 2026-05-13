@@ -2,10 +2,9 @@ defmodule Tesla.OpenAPI.PathParam do
   @moduledoc """
   A path parameter definition with explicit serialization settings.
 
-  `Tesla.OpenAPI.PathParam` is a Tesla-native value object for path parameter metadata
-  whose serialization needs to be controlled explicitly. Its serialization
-  options follow the OpenAPI path parameter style semantics, while keeping the
-  public API focused on the path use case.
+  `Tesla.OpenAPI.PathParam` is a value object for path parameter metadata whose
+  serialization needs to be controlled explicitly. Its serialization options
+  follow the OpenAPI path parameter style semantics.
 
   In `Tesla.Middleware.PathParams` `:modern` mode, define path parameters once
   and pass them through request private data with `Tesla.OpenAPI.PathParams`:
@@ -25,15 +24,6 @@ defmodule Tesla.OpenAPI.PathParam do
       Tesla.OpenAPI.PathParams.new!([
         PathParam.new!("coords", style: :matrix, explode: true)
       ])
-
-  ## Options
-
-  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
-  code:
-
-    * `:style` — one of `:simple`, `:matrix`, `:label`. Defaults to `:simple`.
-    * `:explode` — boolean. Defaults to `false`.
-    * `:allow_reserved` — boolean. Defaults to `false`.
 
   [oas-style]: https://spec.openapis.org/oas/latest.html#style-values
 
@@ -80,7 +70,21 @@ defmodule Tesla.OpenAPI.PathParam do
   @styles [:simple, :matrix, :label]
   @expected_styles ":simple, :matrix, or :label"
 
-  @spec new!(String.t(), keyword()) :: t()
+  @doc """
+  Creates a path parameter definition.
+
+  Options use Elixir atoms for hand-written Tesla code:
+
+    * `:style` — one of `:simple`, `:matrix`, `:label`. Defaults to `:simple`.
+    * `:explode` — boolean. Defaults to `false`.
+    * `:allow_reserved` — boolean. Defaults to `false`.
+  """
+  @spec new!(
+          String.t(),
+          style: style(),
+          explode: boolean(),
+          allow_reserved: boolean()
+        ) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:path, name)
     opts = Param.validate_opts!(:path, opts)

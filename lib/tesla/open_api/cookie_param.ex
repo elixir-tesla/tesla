@@ -2,10 +2,9 @@ defmodule Tesla.OpenAPI.CookieParam do
   @moduledoc """
   A cookie parameter with explicit serialization settings.
 
-  `Tesla.OpenAPI.CookieParam` is a Tesla-native value object for cookie parameters whose
+  `Tesla.OpenAPI.CookieParam` is a value object for cookie parameters whose
   serialization needs to be controlled explicitly. Its serialization options
-  follow the OpenAPI cookie parameter style semantics, while keeping the public
-  API focused on the cookie use case.
+  follow the OpenAPI cookie parameter style semantics.
 
   Define cookie parameters once and apply them to request values with
   `Tesla.OpenAPI.CookieParams`:
@@ -22,17 +21,6 @@ defmodule Tesla.OpenAPI.CookieParam do
         "session_id" => "abc123",
         "theme" => "dark"
       })
-
-  ## Options
-
-  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
-  code:
-
-    * `:style` - one of `:form` or `:cookie`. Defaults to `:form`, matching
-      the OpenAPI compatibility default for cookie parameters.
-    * `:explode` - boolean. Defaults to `true` when the style is `:form`,
-      and `false` for all other styles.
-    * `:allow_reserved` - boolean. Defaults to `false`.
 
   [oas-style]: https://spec.openapis.org/oas/latest.html#style-values
 
@@ -75,7 +63,23 @@ defmodule Tesla.OpenAPI.CookieParam do
   @styles [:form, :cookie]
   @expected_styles ":form or :cookie"
 
-  @spec new!(String.t(), keyword()) :: t()
+  @doc """
+  Creates a cookie parameter definition.
+
+  Options use Elixir atoms for hand-written Tesla code:
+
+    * `:style` - one of `:form` or `:cookie`. Defaults to `:form`, matching
+      the OpenAPI compatibility default for cookie parameters.
+    * `:explode` - boolean. Defaults to `true` when the style is `:form`,
+      and `false` for all other styles.
+    * `:allow_reserved` - boolean. Defaults to `false`.
+  """
+  @spec new!(
+          String.t(),
+          style: style(),
+          explode: boolean(),
+          allow_reserved: boolean()
+        ) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:cookie, name)
     opts = Param.validate_opts!(:cookie, opts)

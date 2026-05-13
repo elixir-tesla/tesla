@@ -2,10 +2,9 @@ defmodule Tesla.OpenAPI.HeaderParam do
   @moduledoc """
   A header parameter with explicit serialization settings.
 
-  `Tesla.OpenAPI.HeaderParam` is a Tesla-native value object for header parameters whose
+  `Tesla.OpenAPI.HeaderParam` is a value object for header parameters whose
   serialization needs to be controlled explicitly. Its serialization options
-  follow the OpenAPI header parameter style semantics, while keeping the public
-  API focused on the header use case.
+  follow the OpenAPI header parameter style semantics.
 
   Define header parameters once and apply them to request values with
   `Tesla.OpenAPI.HeaderParams`:
@@ -18,14 +17,6 @@ defmodule Tesla.OpenAPI.HeaderParam do
         ])
 
       HeaderParams.to_headers(header_params, %{"X-Token" => [12345678, 90099]})
-
-  ## Options
-
-  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
-  code:
-
-    * `:style` - must be `:simple`. Defaults to `:simple`.
-    * `:explode` - boolean. Defaults to `false`.
 
   [oas-style]: https://spec.openapis.org/oas/latest.html#style-values
 
@@ -59,7 +50,19 @@ defmodule Tesla.OpenAPI.HeaderParam do
   @styles [:simple]
   @expected_styles ":simple"
 
-  @spec new!(String.t(), keyword()) :: t()
+  @doc """
+  Creates a header parameter definition.
+
+  Options use Elixir atoms for hand-written Tesla code:
+
+    * `:style` - must be `:simple`. Defaults to `:simple`.
+    * `:explode` - boolean. Defaults to `false`.
+  """
+  @spec new!(
+          String.t(),
+          style: style(),
+          explode: boolean()
+        ) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:header, name)
     opts = Param.validate_opts!(:header, opts)

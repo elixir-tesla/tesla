@@ -1,29 +1,34 @@
 defmodule Tesla.OpenAPI.QueryParams do
   @moduledoc """
-  Precompiled query parameter definitions for `Tesla.Middleware.Query`.
+  A collection of query parameter definitions for `Tesla.Middleware.Query`.
 
   `Tesla.OpenAPI.QueryParams` keeps static query parameter metadata separate from
-  per-request values. Generated clients can build it once, store it in request
-  private data, and pass only dynamic values through `env.query`.
+  per-request values. Since query parameter definitions usually come from a
+  static operation specification, prefer defining the collection in a module
+  attribute, storing it in request private data, and passing only dynamic values
+  through `env.query`.
 
-      alias Tesla.OpenAPI.{QueryParam, QueryParams}
+      defmodule MyApi.Operation.ListItems do
+        alias Tesla.OpenAPI.{QueryParam, QueryParams}
 
-      query_params =
-        QueryParams.new!([
-          QueryParam.new!("filter"),
-          QueryParam.new!("ids", style: :pipe_delimited)
-        ])
+        @query_params QueryParams.new!([
+                        QueryParam.new!("filter"),
+                        QueryParam.new!("ids", style: :pipe_delimited)
+                      ])
 
-      private = QueryParams.put_private(query_params)
+        @private QueryParams.put_private(@query_params)
 
-      Tesla.get(client, "/items",
-        query: %{
-          "filter" => [status: "open", owner: "yordis"],
-          "ids" => [10, 20],
-          "debug" => true
-        },
-        private: private
-      )
+        def request(client) do
+          Tesla.get(client, "/items",
+            query: %{
+              "filter" => [status: "open", owner: "yordis"],
+              "ids" => [10, 20],
+              "debug" => true
+            },
+            private: @private
+          )
+        end
+      end
   """
 
   alias Tesla.OpenAPI.QueryParam
@@ -46,13 +51,17 @@ defmodule Tesla.OpenAPI.QueryParams do
   @doc """
   Adds query parameter definitions to Tesla request private data.
 
-      query_params = Tesla.OpenAPI.QueryParams.new!([Tesla.OpenAPI.QueryParam.new!("page")])
-      private = Tesla.OpenAPI.QueryParams.put_private(query_params)
+      defmodule MyApi.Operation.ListItems do
+        @query_params Tesla.OpenAPI.QueryParams.new!([Tesla.OpenAPI.QueryParam.new!("page")])
+        @private Tesla.OpenAPI.QueryParams.put_private(@query_params)
 
-      Tesla.get(client, "/items",
-        query: %{"page" => 2},
-        private: private
-      )
+        def request(client) do
+          Tesla.get(client, "/items",
+            query: %{"page" => 2},
+            private: @private
+          )
+        end
+      end
   """
   @spec put_private(t()) :: Tesla.Env.private()
   def put_private(%__MODULE__{} = query_params) do

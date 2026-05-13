@@ -21,11 +21,17 @@ defmodule Tesla.OpenAPI do
   Generated clients should keep OpenAPI parameter definitions as module
   attributes and pass only request values at runtime:
 
-      @private Tesla.OpenAPI.merge_private([
-                 Tesla.OpenAPI.PathTemplate.put_private(@path_template),
-                 Tesla.OpenAPI.PathParams.put_private(@path_params),
-                 Tesla.OpenAPI.QueryParams.put_private(@query_params)
-               ])
+      defmodule MyApi.Operation.GetItem do
+        @path_template Tesla.OpenAPI.PathTemplate.new!("/items/{id}")
+        @path_params Tesla.OpenAPI.PathParams.new!([Tesla.OpenAPI.PathParam.new!("id")])
+        @query_params Tesla.OpenAPI.QueryParams.new!([Tesla.OpenAPI.QueryParam.new!("filter")])
+
+        @private Tesla.OpenAPI.merge_private([
+                   Tesla.OpenAPI.PathTemplate.put_private(@path_template),
+                   Tesla.OpenAPI.PathParams.put_private(@path_params),
+                   Tesla.OpenAPI.QueryParams.put_private(@query_params)
+                 ])
+      end
 
   Path and query parameter collections are placed in request private data
   because their middleware serializes them into the request URL. Header and

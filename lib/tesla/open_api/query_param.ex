@@ -2,10 +2,9 @@ defmodule Tesla.OpenAPI.QueryParam do
   @moduledoc """
   A query parameter definition with explicit serialization settings.
 
-  `Tesla.OpenAPI.QueryParam` is a Tesla-native value object for query parameter
-  metadata whose serialization needs to be controlled explicitly. Its
-  serialization options follow the OpenAPI query parameter style semantics,
-  while keeping the public API focused on the query use case.
+  `Tesla.OpenAPI.QueryParam` is a value object for query parameter metadata
+  whose serialization needs to be controlled explicitly. Its serialization
+  options follow the OpenAPI query parameter style semantics.
 
   In `Tesla.Middleware.Query` `:modern` mode, define query parameters once and
   pass them through request private data with `Tesla.OpenAPI.QueryParams`:
@@ -27,17 +26,6 @@ defmodule Tesla.OpenAPI.QueryParam do
       Tesla.OpenAPI.QueryParams.new!([
         QueryParam.new!("ids", style: :pipe_delimited)
       ])
-
-  ## Options
-
-  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
-  code:
-
-    * `:style` - one of `:form`, `:space_delimited`, `:pipe_delimited`, or
-      `:deep_object`. Defaults to `:form`.
-    * `:explode` - boolean. Defaults to `true` when the style is `:form`,
-      and `false` for all other styles.
-    * `:allow_reserved` - boolean. Defaults to `false`.
 
   [oas-style]: https://spec.openapis.org/oas/latest.html#style-values
 
@@ -95,7 +83,23 @@ defmodule Tesla.OpenAPI.QueryParam do
   @styles [:form, :space_delimited, :pipe_delimited, :deep_object]
   @expected_styles ":form, :space_delimited, :pipe_delimited, or :deep_object"
 
-  @spec new!(String.t(), keyword()) :: t()
+  @doc """
+  Creates a query parameter definition.
+
+  Options use Elixir atoms for hand-written Tesla code:
+
+    * `:style` - one of `:form`, `:space_delimited`, `:pipe_delimited`, or
+      `:deep_object`. Defaults to `:form`.
+    * `:explode` - boolean. Defaults to `true` when the style is `:form`,
+      and `false` for all other styles.
+    * `:allow_reserved` - boolean. Defaults to `false`.
+  """
+  @spec new!(
+          String.t(),
+          style: style(),
+          explode: boolean(),
+          allow_reserved: boolean()
+        ) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:query, name)
     opts = Param.validate_opts!(:query, opts)
