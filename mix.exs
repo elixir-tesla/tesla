@@ -84,6 +84,7 @@ defmodule Tesla.Mixfile do
       {:mix_test_watch, ">= 0.0.0", only: :dev},
       {:dialyxir, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:inch_ex, ">= 0.0.0", only: :docs},
+      {:benchee, "~> 1.4", only: :dev, runtime: false},
 
       # httparrot dependencies
       {:httparrot, "~> 1.4", only: :test},
