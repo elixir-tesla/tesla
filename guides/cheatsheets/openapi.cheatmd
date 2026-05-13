@@ -1,0 +1,104 @@
+# OpenAPI Cheat Sheet
+
+## Location To Tesla API
+
+| OpenAPI `in` | Tesla API |
+| --- | --- |
+| `path` | `Tesla.OpenAPI.PathTemplate`, `Tesla.OpenAPI.PathParam`, `Tesla.OpenAPI.PathParams`, `{Tesla.Middleware.PathParams, mode: :modern}` |
+| `query` | `Tesla.OpenAPI.QueryParam`, `Tesla.OpenAPI.QueryParams`, `{Tesla.Middleware.Query, mode: :modern}` |
+| `querystring` | `Tesla.OpenAPI.QueryString` as the request `:query` |
+| `header` | `Tesla.OpenAPI.HeaderParam`, `Tesla.OpenAPI.HeaderParams.to_headers/2` |
+| `cookie` | `Tesla.OpenAPI.CookieParam`, `Tesla.OpenAPI.CookieParams.to_headers/2` |
+
+## Client Stack
+
+```elixir
+client =
+  Tesla.client([
+    {Tesla.Middleware.BaseUrl, "https://api.example.com"},
+    {Tesla.Middleware.PathParams, mode: :modern},
+    {Tesla.Middleware.Query, mode: :modern},
+    Tesla.Middleware.JSON
+  ])
+```
+
+## Generated Operation Metadata
+
+```elixir
+alias Tesla.OpenAPI
+alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate, QueryParam, QueryParams}
+
+@path_template PathTemplate.new!("/items/{id}{coords}")
+
+@path_params PathParams.new!([
+               PathParam.new!("id"),
+               PathParam.new!("coords", style: :matrix, explode: true)
+             ])
+
+@query_params QueryParams.new!([
+                QueryParam.new!("color", style: :pipe_delimited),
+                QueryParam.new!("filter", style: :deep_object)
+              ])
+
+@private OpenAPI.merge_private([
+           PathTemplate.put_private(@path_template),
+           PathParams.put_private(@path_params),
+           QueryParams.put_private(@query_params)
+         ])
+```
+
+## Request Values
+
+```elixir
+Tesla.get(client, @path_template.path,
+  query: %{
+    "color" => ["blue", "black"],
+    "filter" => [role: "admin"],
+    "debug" => true
+  },
+  opts: [
+    path_params: %{
+      "id" => 42,
+      "coords" => ["blue", "black"]
+    }
+  ],
+  private: @private
+)
+```
+
+## Headers And Cookies
+
+```elixir
+alias Tesla.OpenAPI.{CookieParam, CookieParams, HeaderParam, HeaderParams}
+
+@header_params HeaderParams.new!([
+                 HeaderParam.new!("X-Request-ID")
+               ])
+
+@cookie_params CookieParams.new!([
+                 CookieParam.new!("session_id")
+               ])
+
+headers =
+  HeaderParams.to_headers(@header_params, %{"X-Request-ID" => "req-123"}) ++
+    CookieParams.to_headers(@cookie_params, %{"session_id" => "abc123"})
+```
+
+## Query String Parameter
+
+```elixir
+Tesla.get(client, "/search",
+  query: Tesla.OpenAPI.QueryString.form!(q: "blue", page: 2)
+)
+```
+
+## Style Names
+
+OpenAPI JSON names become Elixir atoms:
+
+| OpenAPI | Tesla |
+| --- | --- |
+| `pipeDelimited` | `:pipe_delimited` |
+| `spaceDelimited` | `:space_delimited` |
+| `deepObject` | `:deep_object` |
+| `allowReserved` | `:allow_reserved` |
