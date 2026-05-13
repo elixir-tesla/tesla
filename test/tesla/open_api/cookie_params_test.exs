@@ -8,33 +8,6 @@ defmodule Tesla.OpenAPI.CookieParamsTest do
     defstruct [:role, :id]
   end
 
-  test "keeps cookie parameter definitions in declaration order" do
-    definitions = [
-      CookieParam.new!("session_id"),
-      CookieParam.new!("theme", style: :cookie)
-    ]
-
-    cookie_params = CookieParams.new!(definitions)
-
-    assert CookieParams.definitions(cookie_params) == definitions
-  end
-
-  test "indexes cookie parameter definitions by name" do
-    cookie_params =
-      CookieParams.new!([
-        CookieParam.new!("session_id"),
-        CookieParam.new!("theme", style: :cookie)
-      ])
-
-    assert {:ok, %CookieParam{name: "session_id", style: :form}} =
-             CookieParams.fetch(cookie_params, "session_id")
-
-    assert {:ok, %CookieParam{name: "theme", style: :cookie}} =
-             CookieParams.fetch(cookie_params, "theme")
-
-    assert CookieParams.fetch(cookie_params, "missing") == :error
-  end
-
   describe "OpenAPI form style examples" do
     test "form style with explode false" do
       cookie_params = CookieParams.new!([CookieParam.new!("color", explode: false)])

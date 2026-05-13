@@ -40,6 +40,42 @@ defmodule Tesla.Param do
     validate_option_boolean!(kind, :allow_reserved, value)
   end
 
+  def validate_definitions!(definitions, module, kind) when is_list(definitions) do
+    definitions
+    |> validate_definitions!(module, kind, [], MapSet.new())
+    |> Enum.reverse()
+  end
+
+  defp validate_definitions!([], _module, _kind, definitions, _names) do
+    definitions
+  end
+
+  defp validate_definitions!([definition | rest], module, kind, definitions, names) do
+    {definition, names} = validate_definition!(definition, module, kind, names)
+    validate_definitions!(rest, module, kind, [definition | definitions], names)
+  end
+
+  defp validate_definition!(
+         %{__struct__: definition_module, name: name} = definition,
+         module,
+         kind,
+         names
+       )
+       when definition_module == module do
+    case MapSet.member?(names, name) do
+      true ->
+        raise ArgumentError, "duplicate #{kind} parameter #{inspect(name)}"
+
+      false ->
+        {definition, MapSet.put(names, name)}
+    end
+  end
+
+  defp validate_definition!(value, module, kind, _names) do
+    raise ArgumentError,
+          "expected #{kind} parameter definitions to be #{inspect(module)} structs; got #{inspect(value)}"
+  end
+
   defp validate_option_boolean!(_kind, _key, value) when is_boolean(value) do
     value
   end
