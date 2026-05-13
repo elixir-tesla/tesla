@@ -4,8 +4,7 @@ defmodule Tesla.OpenAPI.QueryParam do
 
   `Tesla.OpenAPI.QueryParam` is a value object for query parameter metadata
   whose serialization needs to be controlled explicitly. Its serialization
-  options follow the OpenAPI query parameter style semantics, while keeping the
-  public API focused on the query use case.
+  options follow the OpenAPI query parameter style semantics.
 
   In `Tesla.Middleware.Query` `:modern` mode, define query parameters once and
   pass them through request private data with `Tesla.OpenAPI.QueryParams`:

@@ -4,8 +4,7 @@ defmodule Tesla.OpenAPI.HeaderParam do
 
   `Tesla.OpenAPI.HeaderParam` is a value object for header parameters whose
   serialization needs to be controlled explicitly. Its serialization options
-  follow the OpenAPI header parameter style semantics, while keeping the public
-  API focused on the header use case.
+  follow the OpenAPI header parameter style semantics.
 
   Define header parameters once and apply them to request values with
   `Tesla.OpenAPI.HeaderParams`:

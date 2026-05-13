@@ -4,8 +4,7 @@ defmodule Tesla.OpenAPI.PathParam do
 
   `Tesla.OpenAPI.PathParam` is a value object for path parameter metadata whose
   serialization needs to be controlled explicitly. Its serialization options
-  follow the OpenAPI path parameter style semantics, while keeping the public
-  API focused on the path use case.
+  follow the OpenAPI path parameter style semantics.
 
   In `Tesla.Middleware.PathParams` `:modern` mode, define path parameters once
   and pass them through request private data with `Tesla.OpenAPI.PathParams`:
