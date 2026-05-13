@@ -8,6 +8,7 @@ export_locals_without_parens = [
 
 [
   inputs: [
+    "bench/**/*.{ex,exs}",
     "lib/**/*.{ex,exs}",
     "test/**/*.{ex,exs}",
     "mix.exs"
