@@ -33,7 +33,7 @@ defmodule Tesla.OpenAPI do
                  ])
       end
 
-  Path and query parameter collections are placed in request private data
+  Path and query parameter collections are placed in `t:Tesla.Env.private/0`
   because their middleware serializes them into the request URL. Header and
   cookie parameter collections are applied before the request enters the
   middleware stack and produce raw header tuples.
@@ -51,7 +51,7 @@ defmodule Tesla.OpenAPI do
   """
 
   @doc """
-  Merges request private data maps from left to right.
+  Merges `t:Tesla.Env.private/0` maps from left to right.
   """
   @spec merge_private([Tesla.Env.private()]) :: Tesla.Env.private()
   def merge_private(privates) when is_list(privates) do

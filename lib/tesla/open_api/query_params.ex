@@ -5,7 +5,7 @@ defmodule Tesla.OpenAPI.QueryParams do
   `Tesla.OpenAPI.QueryParams` keeps static query parameter metadata separate from
   per-request values. Since query parameter definitions usually come from a
   static operation specification, prefer defining the collection in a module
-  attribute, storing it in request private data, and passing only dynamic values
+  attribute, storing it in `t:Tesla.Env.private/0`, and passing only dynamic values
   through `env.query`.
 
       defmodule MyApi.Operation.ListItems do
@@ -49,7 +49,7 @@ defmodule Tesla.OpenAPI.QueryParams do
   end
 
   @doc """
-  Adds query parameter definitions to Tesla request private data.
+  Adds query parameter definitions to `t:Tesla.Env.private/0`.
 
       defmodule MyApi.Operation.ListItems do
         @query_params Tesla.OpenAPI.QueryParams.new!([Tesla.OpenAPI.QueryParam.new!("page")])

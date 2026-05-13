@@ -13,13 +13,9 @@ defmodule Tesla.OpenAPI.QueryStringError do
           | :invalid_query_string
           | :leading_query_delimiter
           | :mixed_query_params
-  @type t :: %__MODULE__{
-          reason: reason(),
-          query: term(),
-          value: term(),
-          details: String.t() | nil,
-          url: String.t() | nil
-        }
+  @opaque t :: %__MODULE__{
+            reason: reason()
+          }
 
   def message(%__MODULE__{reason: :existing_query_string} = _value) do
     "cannot append #{inspect(Tesla.OpenAPI.QueryString)} to a URL that already contains a query string"

@@ -1,26 +1,6 @@
 defmodule Tesla.Env do
   @moduledoc """
   This module defines a `t:Tesla.Env.t/0` struct that stores all data related to request/response.
-
-  ## Fields
-
-  - `:method` - method of request. Example: `:get`
-  - `:url` - request url. Example: `"https://www.google.com"`
-  - `:query` - structured query params. See `t:query/0`.
-    Note: query params passed in url (e.g. `"/get?param=value"`) are not parsed to `query` field.
-  - `:headers` - list of request/response headers.
-    Example: `[{"content-type", "application/json"}]`.
-    Note: request headers are overridden by response headers when adapter is called.
-  - `:body` - request/response body.
-    Note: request body is overridden by response body when adapter is called.
-  - `:status` - response status. Example: `200`
-  - `:opts` - list of options. Example: `[adapter: [recv_timeout: 30_000]]`
-  - `:assigns` - a place for user data as a map. It can be used to carry application-specific
-    metadata through the middleware pipeline.
-
-  - `:private` - a map reserved for libraries and middleware to use. The keys must be atoms.
-    Prefix the keys with the name of your project to avoid any future conflicts. The `tesla_`
-    prefix is reserved for Tesla.
   """
 
   @type client :: Tesla.Client.t()
@@ -78,6 +58,28 @@ defmodule Tesla.Env do
   @type assigns :: %{optional(atom) => any}
   @type private :: %{optional(atom) => any}
 
+  @typedoc """
+  Request/response state carried through the middleware pipeline.
+
+  ## Fields
+
+    * `:method` - method of request. Example: `:get`.
+    * `:url` - request URL. Example: `"https://www.google.com"`.
+    * `:query` - structured query params. See `t:query/0`.
+      Query params passed in the URL, such as `"/get?param=value"`, are not
+      parsed to the `:query` field.
+    * `:headers` - list of request/response headers.
+      Example: `[{"content-type", "application/json"}]`.
+      Request headers are overridden by response headers when the adapter is called.
+    * `:body` - request/response body.
+      Request body is overridden by response body when the adapter is called.
+    * `:status` - response status. Example: `200`.
+    * `:opts` - list of options. Example: `[adapter: [recv_timeout: 30_000]]`.
+    * `:assigns` - user data as a map for application-specific metadata.
+    * `:private` - data reserved for libraries and middleware. Keys must be
+      atoms. Prefix keys with the name of your project to avoid conflicts.
+      The `tesla_` prefix is reserved for Tesla.
+  """
   @type t :: %__MODULE__{
           method: method,
           query: query,

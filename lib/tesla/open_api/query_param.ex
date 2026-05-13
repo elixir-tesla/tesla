@@ -7,7 +7,7 @@ defmodule Tesla.OpenAPI.QueryParam do
   options follow the OpenAPI query parameter style semantics.
 
   In `Tesla.Middleware.Query` `:modern` mode, define query parameters once and
-  pass them through request private data with `Tesla.OpenAPI.QueryParams`:
+  pass them through `t:Tesla.Env.private/0` with `Tesla.OpenAPI.QueryParams`:
 
       alias Tesla.OpenAPI.{QueryParam, QueryParams}
 
