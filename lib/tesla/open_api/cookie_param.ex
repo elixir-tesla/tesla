@@ -23,17 +23,6 @@ defmodule Tesla.OpenAPI.CookieParam do
         "theme" => "dark"
       })
 
-  ## Options
-
-  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
-  code:
-
-    * `:style` - one of `:form` or `:cookie`. Defaults to `:form`, matching
-      the OpenAPI compatibility default for cookie parameters.
-    * `:explode` - boolean. Defaults to `true` when the style is `:form`,
-      and `false` for all other styles.
-    * `:allow_reserved` - boolean. Defaults to `false`.
-
   [oas-style]: https://spec.openapis.org/oas/latest.html#style-values
 
   ## Encoding
@@ -75,6 +64,17 @@ defmodule Tesla.OpenAPI.CookieParam do
   @styles [:form, :cookie]
   @expected_styles ":form or :cookie"
 
+  @doc """
+  Creates a cookie parameter definition.
+
+  Options use Elixir atoms for hand-written Tesla code:
+
+    * `:style` - one of `:form` or `:cookie`. Defaults to `:form`, matching
+      the OpenAPI compatibility default for cookie parameters.
+    * `:explode` - boolean. Defaults to `true` when the style is `:form`,
+      and `false` for all other styles.
+    * `:allow_reserved` - boolean. Defaults to `false`.
+  """
   @spec new!(String.t(), keyword()) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:cookie, name)

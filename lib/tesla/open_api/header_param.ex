@@ -19,14 +19,6 @@ defmodule Tesla.OpenAPI.HeaderParam do
 
       HeaderParams.to_headers(header_params, %{"X-Token" => [12345678, 90099]})
 
-  ## Options
-
-  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
-  code:
-
-    * `:style` - must be `:simple`. Defaults to `:simple`.
-    * `:explode` - boolean. Defaults to `false`.
-
   [oas-style]: https://spec.openapis.org/oas/latest.html#style-values
 
   ## Encoding
@@ -59,6 +51,14 @@ defmodule Tesla.OpenAPI.HeaderParam do
   @styles [:simple]
   @expected_styles ":simple"
 
+  @doc """
+  Creates a header parameter definition.
+
+  Options use Elixir atoms for hand-written Tesla code:
+
+    * `:style` - must be `:simple`. Defaults to `:simple`.
+    * `:explode` - boolean. Defaults to `false`.
+  """
   @spec new!(String.t(), keyword()) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:header, name)

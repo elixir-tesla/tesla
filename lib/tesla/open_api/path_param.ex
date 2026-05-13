@@ -26,15 +26,6 @@ defmodule Tesla.OpenAPI.PathParam do
         PathParam.new!("coords", style: :matrix, explode: true)
       ])
 
-  ## Options
-
-  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
-  code:
-
-    * `:style` — one of `:simple`, `:matrix`, `:label`. Defaults to `:simple`.
-    * `:explode` — boolean. Defaults to `false`.
-    * `:allow_reserved` — boolean. Defaults to `false`.
-
   [oas-style]: https://spec.openapis.org/oas/latest.html#style-values
 
   ## Encoding
@@ -80,6 +71,15 @@ defmodule Tesla.OpenAPI.PathParam do
   @styles [:simple, :matrix, :label]
   @expected_styles ":simple, :matrix, or :label"
 
+  @doc """
+  Creates a path parameter definition.
+
+  Options use Elixir atoms for hand-written Tesla code:
+
+    * `:style` — one of `:simple`, `:matrix`, `:label`. Defaults to `:simple`.
+    * `:explode` — boolean. Defaults to `false`.
+    * `:allow_reserved` — boolean. Defaults to `false`.
+  """
   @spec new!(String.t(), keyword()) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:path, name)

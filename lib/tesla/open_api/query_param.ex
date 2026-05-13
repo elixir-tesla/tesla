@@ -28,17 +28,6 @@ defmodule Tesla.OpenAPI.QueryParam do
         QueryParam.new!("ids", style: :pipe_delimited)
       ])
 
-  ## Options
-
-  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
-  code:
-
-    * `:style` - one of `:form`, `:space_delimited`, `:pipe_delimited`, or
-      `:deep_object`. Defaults to `:form`.
-    * `:explode` - boolean. Defaults to `true` when the style is `:form`,
-      and `false` for all other styles.
-    * `:allow_reserved` - boolean. Defaults to `false`.
-
   [oas-style]: https://spec.openapis.org/oas/latest.html#style-values
 
   ## Encoding
@@ -95,6 +84,17 @@ defmodule Tesla.OpenAPI.QueryParam do
   @styles [:form, :space_delimited, :pipe_delimited, :deep_object]
   @expected_styles ":form, :space_delimited, :pipe_delimited, or :deep_object"
 
+  @doc """
+  Creates a query parameter definition.
+
+  Options use Elixir atoms for hand-written Tesla code:
+
+    * `:style` - one of `:form`, `:space_delimited`, `:pipe_delimited`, or
+      `:deep_object`. Defaults to `:form`.
+    * `:explode` - boolean. Defaults to `true` when the style is `:form`,
+      and `false` for all other styles.
+    * `:allow_reserved` - boolean. Defaults to `false`.
+  """
   @spec new!(String.t(), keyword()) :: t()
   def new!(name, opts \\ []) do
     name = Param.validate_name!(:query, name)
