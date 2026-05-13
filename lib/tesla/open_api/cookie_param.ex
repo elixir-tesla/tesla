@@ -7,20 +7,25 @@ defmodule Tesla.OpenAPI.CookieParam do
   follow the OpenAPI cookie parameter style semantics, while keeping the public
   API focused on the cookie use case.
 
-  Convert cookie parameters to the raw `Cookie` header tuple accepted by Tesla:
+  Define cookie parameters once and apply them to request values with
+  `Tesla.OpenAPI.CookieParams`:
 
-      alias Tesla.OpenAPI.CookieParam
+      alias Tesla.OpenAPI.{CookieParam, CookieParams}
 
-      cookies = [
-        CookieParam.new!("session_id", "abc123"),
-        CookieParam.new!("theme", "dark")
-      ]
+      cookie_params =
+        CookieParams.new!([
+          CookieParam.new!("session_id"),
+          CookieParam.new!("theme")
+        ])
 
-      CookieParam.to_header(cookies)
+      CookieParams.to_headers(cookie_params, %{
+        "session_id" => "abc123",
+        "theme" => "dark"
+      })
 
   ## Options
 
-  `new!/3` accepts a keyword list using Elixir atoms for hand-written Tesla
+  `new!/2` accepts a keyword list using Elixir atoms for hand-written Tesla
   code:
 
     * `:style` - one of `:form` or `:cookie`. Defaults to `:form`, matching
@@ -33,7 +38,7 @@ defmodule Tesla.OpenAPI.CookieParam do
 
   ## Encoding
 
-  `Tesla.OpenAPI.CookieParam.to_header/1` serializes values using the
+  `Tesla.OpenAPI.CookieParams.to_headers/2` serializes values using the
   [OpenAPI cookie parameter rules][oas-style] for the `form` and `cookie`
   styles.
 
@@ -56,14 +61,12 @@ defmodule Tesla.OpenAPI.CookieParam do
 
   alias Tesla.Param
 
-  @derive {Inspect, except: [:value]}
-  @enforce_keys [:name, :value, :style, :explode, :allow_reserved]
-  defstruct [:name, :value, :style, :explode, :allow_reserved]
+  @enforce_keys [:name, :style, :explode, :allow_reserved]
+  defstruct [:name, :style, :explode, :allow_reserved]
 
   @type style :: :form | :cookie
   @opaque t :: %__MODULE__{
             name: String.t(),
-            value: term(),
             style: style(),
             explode: boolean(),
             allow_reserved: boolean()
@@ -72,8 +75,8 @@ defmodule Tesla.OpenAPI.CookieParam do
   @styles [:form, :cookie]
   @expected_styles ":form or :cookie"
 
-  @spec new!(String.t(), term(), keyword()) :: t()
-  def new!(name, value, opts \\ []) do
+  @spec new!(String.t(), keyword()) :: t()
+  def new!(name, opts \\ []) do
     name = Param.validate_name!(:cookie, name)
     opts = Param.validate_opts!(:cookie, opts)
     opts = Keyword.validate!(opts, [:style, :explode, :allow_reserved])
@@ -88,7 +91,6 @@ defmodule Tesla.OpenAPI.CookieParam do
 
     %__MODULE__{
       name: name,
-      value: value,
       style: style,
       explode: Param.validate_explode!(:cookie, explode),
       allow_reserved: Param.validate_allow_reserved!(:cookie, allow_reserved)
@@ -107,38 +109,17 @@ defmodule Tesla.OpenAPI.CookieParam do
     false
   end
 
-  @spec to_header(t() | [t()]) :: {String.t(), String.t()}
-  def to_header(%__MODULE__{} = param) do
-    {"cookie", serialize(param)}
-  end
-
-  def to_header(params) when is_list(params) do
-    {"cookie", Enum.map_join(params, "; ", &serialize_param!/1)}
-  end
-
-  def to_header(param) do
-    raise ArgumentError,
-          "expected cookie header to be a #{inspect(__MODULE__)} struct or a list of #{inspect(__MODULE__)} structs; got #{inspect(param)}"
-  end
-
-  defp serialize_param!(%__MODULE__{} = param) do
-    serialize(param)
-  end
-
-  defp serialize_param!(param) do
-    raise ArgumentError,
-          "expected cookie header to be a #{inspect(__MODULE__)} struct; got #{inspect(param)}"
-  end
-
-  defp serialize(%__MODULE__{style: :form} = param) do
-    param
-    |> value_type()
+  @doc false
+  @spec serialize(%__MODULE__{}, term()) :: String.t()
+  def serialize(%__MODULE__{style: :form} = param, value) do
+    value
+    |> Param.value_type()
     |> serialize_form(param)
   end
 
-  defp serialize(%__MODULE__{style: :cookie} = param) do
-    param
-    |> value_type()
+  def serialize(%__MODULE__{style: :cookie} = param, value) do
+    value
+    |> Param.value_type()
     |> serialize_cookie(param)
   end
 
@@ -252,9 +233,5 @@ defmodule Tesla.OpenAPI.CookieParam do
 
   defp encode_form_value(%__MODULE__{allow_reserved: true}, value) do
     Param.encode_reserved_query(value)
-  end
-
-  defp value_type(%__MODULE__{value: value}) do
-    Param.value_type(value)
   end
 end

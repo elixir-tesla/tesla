@@ -123,7 +123,9 @@ defmodule Tesla.Mixfile do
         OpenAPI: [
           Tesla.OpenAPI,
           Tesla.OpenAPI.CookieParam,
+          Tesla.OpenAPI.CookieParams,
           Tesla.OpenAPI.HeaderParam,
+          Tesla.OpenAPI.HeaderParams,
           Tesla.OpenAPI.PathParam,
           Tesla.OpenAPI.PathParams,
           Tesla.OpenAPI.PathTemplate,

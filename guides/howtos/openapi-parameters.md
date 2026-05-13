@@ -129,12 +129,12 @@ normal Tesla query params. This example keeps those values in a generated
 
 ## Build the header module
 
-For `in: "header"`, convert `Tesla.OpenAPI.HeaderParam` structs to the raw header
-tuples accepted by Tesla:
+For `in: "header"`, define `Tesla.OpenAPI.HeaderParam` metadata once and use
+`Tesla.OpenAPI.HeaderParams` to convert request values to raw header tuples:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Header do
-  alias Tesla.OpenAPI.HeaderParam
+  alias Tesla.OpenAPI.{HeaderParam, HeaderParams}
 
   @type t :: %__MODULE__{
           request_id: String.t()
@@ -142,12 +142,16 @@ defmodule MyApi.Operation.GetItem.Header do
 
   defstruct [:request_id]
 
+  @header_params HeaderParams.new!([
+                   HeaderParam.new!("X-Request-ID")
+                 ])
+
   def to_headers(nil), do: []
 
   def to_headers(%__MODULE__{} = headers) do
-    [
-      HeaderParam.to_header(HeaderParam.new!("X-Request-ID", headers.request_id))
-    ]
+    HeaderParams.to_headers(@header_params, %{
+      "X-Request-ID" => headers.request_id
+    })
   end
 end
 ```
@@ -156,12 +160,12 @@ end
 
 ## Build the cookie module
 
-For `in: "cookie"`, convert one or more `Tesla.OpenAPI.CookieParam` structs into a
-single `Cookie` header:
+For `in: "cookie"`, define `Tesla.OpenAPI.CookieParam` metadata once and use
+`Tesla.OpenAPI.CookieParams` to convert request values to the `Cookie` header:
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Cookie do
-  alias Tesla.OpenAPI.CookieParam
+  alias Tesla.OpenAPI.{CookieParam, CookieParams}
 
   @type t :: %__MODULE__{
           session_id: String.t()
@@ -169,14 +173,16 @@ defmodule MyApi.Operation.GetItem.Cookie do
 
   defstruct [:session_id]
 
+  @cookie_params CookieParams.new!([
+                   CookieParam.new!("session_id")
+                 ])
+
   def to_headers(nil), do: []
 
   def to_headers(%__MODULE__{} = cookies) do
-    [
-      CookieParam.to_header([
-        CookieParam.new!("session_id", cookies.session_id)
-      ])
-    ]
+    CookieParams.to_headers(@cookie_params, %{
+      "session_id" => cookies.session_id
+    })
   end
 end
 ```
