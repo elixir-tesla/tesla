@@ -383,6 +383,7 @@ MyApi.send_get_item(client, operation, [])
 ## Further reading
 
 - [OpenAPI in Tesla](../explanations/4.openapi.md)
+- [OpenAPI Cheat Sheet](../cheatsheets/openapi.cheatmd)
 - [OpenAPI Parameter Locations](https://spec.openapis.org/oas/latest.html#parameter-locations)
 - [OpenAPI Style Values](https://spec.openapis.org/oas/latest.html#style-values)
 - [OpenAPI Style Examples](https://spec.openapis.org/oas/latest.html#style-examples)

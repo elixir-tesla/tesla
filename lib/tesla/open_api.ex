@@ -1,15 +1,47 @@
 defmodule Tesla.OpenAPI do
   @moduledoc """
-  Helpers for OpenAPI-compatible generated clients.
+  Reference entry point for OpenAPI-compatible generated clients.
 
-  Generated clients can precompute OpenAPI parameter definitions as module
-  attributes and merge their request private data once:
+  Tesla does not parse OpenAPI documents or generate operation modules. It
+  provides value objects and middleware hooks that generated clients can use
+  after they have already interpreted the OpenAPI document.
+
+  ## Parameter Locations
+
+  | OpenAPI location | Tesla API |
+  | --- | --- |
+  | `path` | `Tesla.OpenAPI.PathTemplate`, `Tesla.OpenAPI.PathParam`, `Tesla.OpenAPI.PathParams`, and `Tesla.Middleware.PathParams` in `:modern` mode |
+  | `query` | `Tesla.OpenAPI.QueryParam`, `Tesla.OpenAPI.QueryParams`, and `Tesla.Middleware.Query` in `:modern` mode |
+  | `querystring` | `Tesla.OpenAPI.QueryString` passed as the request `:query` |
+  | `header` | `Tesla.OpenAPI.HeaderParam` and `Tesla.OpenAPI.HeaderParams.to_headers/2` |
+  | `cookie` | `Tesla.OpenAPI.CookieParam` and `Tesla.OpenAPI.CookieParams.to_headers/2` |
+
+  ## Static Metadata And Dynamic Values
+
+  Generated clients should keep OpenAPI parameter definitions as module
+  attributes and pass only request values at runtime:
 
       @private Tesla.OpenAPI.merge_private([
                  Tesla.OpenAPI.PathTemplate.put_private(@path_template),
                  Tesla.OpenAPI.PathParams.put_private(@path_params),
                  Tesla.OpenAPI.QueryParams.put_private(@query_params)
                ])
+
+  Path and query parameter collections are placed in request private data
+  because their middleware serializes them into the request URL. Header and
+  cookie parameter collections are applied before the request enters the
+  middleware stack and produce raw header tuples.
+
+  ## Field Mapping
+
+  `in` chooses the Tesla API. It is not passed as an option to the value
+  objects. `style`, `explode`, and `allowReserved` become `:style`, `:explode`,
+  and `:allow_reserved` options where the corresponding parameter location
+  supports them.
+
+  See [Working with OpenAPI parameters](openapi-parameters.html) for a
+  generated-operation walkthrough, or the [OpenAPI Cheat Sheet](openapi.html)
+  for quick lookup while implementing generated clients.
   """
 
   @doc """
