@@ -133,7 +133,8 @@ defmodule Tesla.Mixfile do
           Tesla.OpenAPI.QueryParam,
           Tesla.OpenAPI.QueryParams,
           Tesla.OpenAPI.QueryString,
-          Tesla.OpenAPI.QueryStringError
+          Tesla.OpenAPI.QueryStringError,
+          Tesla.OpenAPI.Response
         ],
         Adapters: [~r/Tesla.Adapter./],
         Middlewares: [~r/Tesla.Middleware./],
