@@ -15,7 +15,8 @@ defmodule Tesla.OpenAPI.Response do
       @moduledoc """
       HTTP response wrapper with status, headers, and typed body.
 
-      The `ok` field is `true` for 2xx status codes (200-299).
+      The `ok` field is `true` for 2xx status codes (200-299), `false` for
+      other status codes, and `nil` when the status is not set.
       """
 
       @type headers() :: Tesla.Env.headers()
@@ -26,13 +27,14 @@ defmodule Tesla.OpenAPI.Response do
       ## Fields
 
         * `:status` - response status.
-        * `:ok` - `true` for 2xx status codes (200-299).
+        * `:ok` - `true` for 2xx status codes (200-299), `false` for other
+          status codes, or `nil` when the status is not set.
         * `:headers` - response headers.
         * `:body` - typed response body.
       """
       @type t(body_type, header_type) :: %__MODULE__{
-              status: integer(),
-              ok: boolean(),
+              status: Tesla.Env.status(),
+              ok: boolean() | nil,
               headers: header_type,
               body: body_type
             }
@@ -41,6 +43,15 @@ defmodule Tesla.OpenAPI.Response do
 
       @doc false
       @spec new(Tesla.Env.t(), body_type) :: t(body_type, headers()) when body_type: term()
+      def new(%Tesla.Env{status: nil} = env, body) do
+        %__MODULE__{
+          status: env.status,
+          ok: nil,
+          headers: env.headers,
+          body: body
+        }
+      end
+
       def new(%Tesla.Env{} = env, body) do
         %__MODULE__{
           status: env.status,

@@ -42,4 +42,8 @@ defmodule Tesla.OpenAPI.ResponseTest do
     assert %Response{ok: true} = Response.new(%Tesla.Env{status: 299}, nil)
     assert %Response{ok: false} = Response.new(%Tesla.Env{status: 300}, nil)
   end
+
+  test "new/2 keeps ok unset when status is unset" do
+    assert %Response{status: nil, ok: nil} = Response.new(%Tesla.Env{}, nil)
+  end
 end
