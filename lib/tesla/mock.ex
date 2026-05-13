@@ -2,6 +2,10 @@ defmodule Tesla.Mock do
   @moduledoc """
   Mock adapter for better testing.
 
+  > #### Deprecated {: .warning}
+  >
+  > Use a Mox adapter with `Tesla.Test` helpers for new tests.
+
   ## Setup
 
   ```elixir
@@ -102,6 +106,7 @@ defmodule Tesla.Mock do
   **WARNING**: Using global mocks may affect tests with local mock
   (because of fallback to global mock in case local one is not found)
   """
+  @moduledoc deprecated: "Use Mox with Tesla.Test instead"
 
   defmodule Error do
     defexception env: nil, ex: nil, stacktrace: []
