@@ -7,17 +7,18 @@ defmodule Tesla.OpenAPI.CookieParams do
   a static operation specification, prefer defining the collection in a module
   attribute and passing only dynamic values when creating request headers.
 
-      alias Tesla.OpenAPI.{CookieParam, CookieParams}
+      defmodule MyApi.Operation.GetItem.Cookie do
+        alias Tesla.OpenAPI.{CookieParam, CookieParams}
 
-      @cookie_params CookieParams.new!([
-                       CookieParam.new!("session_id"),
-                       CookieParam.new!("theme")
-                     ])
+        @cookie_params CookieParams.new!([
+                         CookieParam.new!("session_id"),
+                         CookieParam.new!("theme")
+                       ])
 
-      CookieParams.to_headers(@cookie_params, %{
-        "session_id" => "abc123",
-        "theme" => "dark"
-      })
+        def to_headers(values) do
+          CookieParams.to_headers(@cookie_params, values)
+        end
+      end
   """
 
   alias Tesla.OpenAPI.CookieParam

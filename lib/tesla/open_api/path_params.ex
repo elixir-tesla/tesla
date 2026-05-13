@@ -8,19 +8,23 @@ defmodule Tesla.OpenAPI.PathParams do
   attribute, storing it in request private data, and passing only the dynamic
   values through `opts[:path_params]`.
 
-      alias Tesla.OpenAPI.{PathParam, PathParams}
+      defmodule MyApi.Operation.GetItem do
+        alias Tesla.OpenAPI.{PathParam, PathParams}
 
-      @path_params PathParams.new!([
-                     PathParam.new!("id"),
-                     PathParam.new!("coords", style: :matrix, explode: true)
-                   ])
+        @path_params PathParams.new!([
+                       PathParam.new!("id"),
+                       PathParam.new!("coords", style: :matrix, explode: true)
+                     ])
 
-      @private PathParams.put_private(@path_params)
+        @private PathParams.put_private(@path_params)
 
-      Tesla.get(client, "/items/{id}{coords}",
-        opts: [path_params: %{"id" => 5, "coords" => ["blue", "black"]}],
-        private: @private
-      )
+        def request(client) do
+          Tesla.get(client, "/items/{id}{coords}",
+            opts: [path_params: %{"id" => 5, "coords" => ["blue", "black"]}],
+            private: @private
+          )
+        end
+      end
   """
 
   alias Tesla.OpenAPI.PathParam
@@ -48,13 +52,17 @@ defmodule Tesla.OpenAPI.PathParams do
   @doc """
   Adds path parameter definitions to Tesla request private data.
 
-      @path_params Tesla.OpenAPI.PathParams.new!([Tesla.OpenAPI.PathParam.new!("id")])
-      @private Tesla.OpenAPI.PathParams.put_private(@path_params)
+      defmodule MyApi.Operation.GetItem do
+        @path_params Tesla.OpenAPI.PathParams.new!([Tesla.OpenAPI.PathParam.new!("id")])
+        @private Tesla.OpenAPI.PathParams.put_private(@path_params)
 
-      Tesla.get(client, "/items/{id}",
-        opts: [path_params: %{"id" => 42}],
-        private: @private
-      )
+        def request(client) do
+          Tesla.get(client, "/items/{id}",
+            opts: [path_params: %{"id" => 42}],
+            private: @private
+          )
+        end
+      end
   """
   @spec put_private(t()) :: Tesla.Env.private()
   def put_private(%__MODULE__{} = path_params) do
