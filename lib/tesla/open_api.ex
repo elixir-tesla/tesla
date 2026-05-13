@@ -38,6 +38,15 @@ defmodule Tesla.OpenAPI do
   cookie parameter collections are applied before the request enters the
   middleware stack and produce raw header tuples.
 
+  ## Response Wrappers
+
+  Generated clients can define a local response module with
+  `Tesla.OpenAPI.Response`:
+
+      defmodule MyApi.Response do
+        use Tesla.OpenAPI.Response
+      end
+
   ## Field Mapping
 
   `in` chooses the Tesla API. It is not passed as an option to the value

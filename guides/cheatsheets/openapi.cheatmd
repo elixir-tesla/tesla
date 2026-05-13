@@ -22,6 +22,14 @@ client =
   ])
 ```
 
+## Response Wrapper
+
+```elixir
+defmodule MyApi.Response do
+  use Tesla.OpenAPI.Response
+end
+```
+
 ## Generated Operation Metadata
 
 ```elixir

@@ -196,32 +196,7 @@ body returned by each operation:
 
 ```elixir
 defmodule MyApi.Response do
-  @moduledoc """
-  HTTP response wrapper with status, headers, and typed body.
-
-  The `ok` field is `true` for 2xx status codes (200-299).
-  """
-
-  @type headers() :: [{String.t(), String.t()}]
-
-  @type t(body_type, header_type) :: %__MODULE__{
-          status: integer(),
-          ok: boolean(),
-          headers: header_type,
-          body: body_type
-        }
-
-  defstruct status: nil, ok: nil, headers: nil, body: nil
-
-  @doc false
-  def new(%Tesla.Env{} = env, body) do
-    %__MODULE__{
-      status: env.status,
-      ok: env.status >= 200 and env.status <= 299,
-      headers: env.headers,
-      body: body
-    }
-  end
+  use Tesla.OpenAPI.Response
 end
 ```
 
@@ -254,7 +229,9 @@ defmodule MyApi.Operation.GetItem do
   @type resp_body_200() :: MyApi.Schemas.GetItemResponse.t()
   @type resp_header_200() :: Response.headers()
   @type resp_200() :: Response.t(resp_body_200(), resp_header_200())
-  @type result() :: {:ok, resp_200()} | {:error, term()}
+  @type resp_401() :: Response.t(nil, Response.headers())
+  @type resp_404() :: Response.t(nil, Response.headers())
+  @type result() :: {:ok, resp_200() | resp_401() | resp_404()} | {:error, term()}
 
   @path_template PathTemplate.new!("/items/{id}{coords}")
 
@@ -299,6 +276,9 @@ defmodule MyApi.Operation.GetItem do
     case Tesla.request(client.client, request_opts) do
       {:ok, %Tesla.Env{status: 200} = env} ->
         {:ok, Response.new(env, MyApi.Schemas.GetItemResponse.new(env.body))}
+
+      {:ok, %Tesla.Env{status: status} = env} when status in [401, 404] ->
+        {:ok, Response.new(env, nil)}
 
       {:ok, env} ->
         {:ok, Response.new(env, env.body)}
