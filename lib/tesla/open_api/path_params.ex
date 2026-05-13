@@ -23,6 +23,7 @@ defmodule Tesla.OpenAPI.PathParams do
   """
 
   alias Tesla.OpenAPI.PathParam
+  alias Tesla.Param
 
   @enforce_keys [:definitions]
   defstruct [:definitions]
@@ -35,7 +36,12 @@ defmodule Tesla.OpenAPI.PathParams do
 
   @spec new!([PathParam.t()]) :: t()
   def new!(definitions) when is_list(definitions) do
-    %__MODULE__{definitions: by_name!(definitions)}
+    definitions =
+      definitions
+      |> Param.validate_definitions!(PathParam, :path)
+      |> Map.new(&definition_by_name/1)
+
+    %__MODULE__{definitions: definitions}
   end
 
   @doc """
@@ -80,22 +86,7 @@ defmodule Tesla.OpenAPI.PathParams do
     Map.fetch(definitions, name)
   end
 
-  defp by_name!(definitions) do
-    Enum.reduce(definitions, %{}, &put_definition_by_name!/2)
-  end
-
-  defp put_definition_by_name!(%PathParam{name: name} = path_param, definitions) do
-    case Map.has_key?(definitions, name) do
-      true ->
-        raise ArgumentError, "duplicate path parameter #{inspect(name)}"
-
-      false ->
-        Map.put(definitions, name, path_param)
-    end
-  end
-
-  defp put_definition_by_name!(value, _definitions) do
-    raise ArgumentError,
-          "expected path parameter definitions to be #{inspect(PathParam)} structs; got #{inspect(value)}"
+  defp definition_by_name(%PathParam{name: name} = definition) do
+    {name, definition}
   end
 end

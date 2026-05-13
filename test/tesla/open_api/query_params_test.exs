@@ -4,33 +4,6 @@ defmodule Tesla.OpenAPI.QueryParamsTest do
   alias Tesla.OpenAPI.QueryParam
   alias Tesla.OpenAPI.QueryParams
 
-  test "keeps query parameter definitions in declaration order" do
-    definitions = [
-      QueryParam.new!("page"),
-      QueryParam.new!("ids", style: :pipe_delimited)
-    ]
-
-    query_params = QueryParams.new!(definitions)
-
-    assert QueryParams.definitions(query_params) == definitions
-  end
-
-  test "indexes query parameter definitions by name" do
-    query_params =
-      QueryParams.new!([
-        QueryParam.new!("page"),
-        QueryParam.new!("ids", style: :pipe_delimited)
-      ])
-
-    assert {:ok, %QueryParam{name: "page", style: :form}} =
-             QueryParams.fetch(query_params, "page")
-
-    assert {:ok, %QueryParam{name: "ids", style: :pipe_delimited}} =
-             QueryParams.fetch(query_params, "ids")
-
-    assert QueryParams.fetch(query_params, "missing") == :error
-  end
-
   test "stores and fetches query params from request private data" do
     query_params = QueryParams.new!([QueryParam.new!("page")])
     private = QueryParams.put_private(%{existing: true}, query_params)

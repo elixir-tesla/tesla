@@ -27,20 +27,20 @@ defmodule Tesla.OpenAPI.QueryParams do
   """
 
   alias Tesla.OpenAPI.QueryParam
+  alias Tesla.Param
 
-  @enforce_keys [:definitions, :by_name]
-  defstruct [:definitions, :by_name]
+  @enforce_keys [:definitions]
+  defstruct [:definitions]
 
   @opaque t :: %__MODULE__{
-            definitions: [QueryParam.t()],
-            by_name: %{String.t() => QueryParam.t()}
+            definitions: [QueryParam.t()]
           }
 
   @private_key :tesla_query_params
 
   @spec new!([QueryParam.t()]) :: t()
   def new!(definitions) when is_list(definitions) do
-    %__MODULE__{definitions: definitions, by_name: by_name!(definitions)}
+    %__MODULE__{definitions: Param.validate_definitions!(definitions, QueryParam, :query)}
   end
 
   @doc """
@@ -83,30 +83,5 @@ defmodule Tesla.OpenAPI.QueryParams do
   @spec definitions(t()) :: [QueryParam.t()]
   def definitions(%__MODULE__{definitions: definitions}) do
     definitions
-  end
-
-  @doc false
-  @spec fetch(t(), String.t()) :: {:ok, %QueryParam{}} | :error
-  def fetch(%__MODULE__{by_name: by_name}, name) when is_binary(name) do
-    Map.fetch(by_name, name)
-  end
-
-  defp by_name!(definitions) do
-    Enum.reduce(definitions, %{}, &put_by_name!/2)
-  end
-
-  defp put_by_name!(%QueryParam{name: name} = query_param, by_name) do
-    case Map.has_key?(by_name, name) do
-      true ->
-        raise ArgumentError, "duplicate query parameter #{inspect(name)}"
-
-      false ->
-        Map.put(by_name, name, query_param)
-    end
-  end
-
-  defp put_by_name!(value, _by_name) do
-    raise ArgumentError,
-          "expected query parameter definitions to be #{inspect(QueryParam)} structs; got #{inspect(value)}"
   end
 end

@@ -17,30 +17,18 @@ defmodule Tesla.OpenAPI.HeaderParams do
   """
 
   alias Tesla.OpenAPI.HeaderParam
+  alias Tesla.Param
 
-  @enforce_keys [:definitions, :by_name]
-  defstruct [:definitions, :by_name]
+  @enforce_keys [:definitions]
+  defstruct [:definitions]
 
   @opaque t :: %__MODULE__{
-            definitions: [HeaderParam.t()],
-            by_name: %{String.t() => HeaderParam.t()}
+            definitions: [HeaderParam.t()]
           }
 
   @spec new!([HeaderParam.t()]) :: t()
   def new!(definitions) when is_list(definitions) do
-    %__MODULE__{definitions: definitions, by_name: by_name!(definitions)}
-  end
-
-  @doc false
-  @spec definitions(t()) :: [HeaderParam.t()]
-  def definitions(%__MODULE__{definitions: definitions}) do
-    definitions
-  end
-
-  @doc false
-  @spec fetch(t(), String.t()) :: {:ok, %HeaderParam{}} | :error
-  def fetch(%__MODULE__{by_name: by_name}, name) when is_binary(name) do
-    Map.fetch(by_name, name)
+    %__MODULE__{definitions: Param.validate_definitions!(definitions, HeaderParam, :header)}
   end
 
   @spec to_headers(t(), map() | nil) :: Tesla.Env.headers()
@@ -66,24 +54,5 @@ defmodule Tesla.OpenAPI.HeaderParams do
       :error ->
         {headers, values}
     end
-  end
-
-  defp by_name!(definitions) do
-    Enum.reduce(definitions, %{}, &put_by_name!/2)
-  end
-
-  defp put_by_name!(%HeaderParam{name: name} = header_param, by_name) do
-    case Map.has_key?(by_name, name) do
-      true ->
-        raise ArgumentError, "duplicate header parameter #{inspect(name)}"
-
-      false ->
-        Map.put(by_name, name, header_param)
-    end
-  end
-
-  defp put_by_name!(value, _by_name) do
-    raise ArgumentError,
-          "expected header parameter definitions to be #{inspect(HeaderParam)} structs; got #{inspect(value)}"
   end
 end

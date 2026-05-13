@@ -8,33 +8,6 @@ defmodule Tesla.OpenAPI.HeaderParamsTest do
     defstruct [:role, :id]
   end
 
-  test "keeps header parameter definitions in declaration order" do
-    definitions = [
-      HeaderParam.new!("X-Request-ID"),
-      HeaderParam.new!("X-Filter", explode: true)
-    ]
-
-    header_params = HeaderParams.new!(definitions)
-
-    assert HeaderParams.definitions(header_params) == definitions
-  end
-
-  test "indexes header parameter definitions by name" do
-    header_params =
-      HeaderParams.new!([
-        HeaderParam.new!("X-Request-ID"),
-        HeaderParam.new!("X-Filter", explode: true)
-      ])
-
-    assert {:ok, %HeaderParam{name: "X-Request-ID", style: :simple}} =
-             HeaderParams.fetch(header_params, "X-Request-ID")
-
-    assert {:ok, %HeaderParam{name: "X-Filter", explode: true}} =
-             HeaderParams.fetch(header_params, "X-Filter")
-
-    assert HeaderParams.fetch(header_params, "missing") == :error
-  end
-
   describe "OpenAPI style examples" do
     test "simple style with explode false" do
       header_params = HeaderParams.new!([HeaderParam.new!("color")])
