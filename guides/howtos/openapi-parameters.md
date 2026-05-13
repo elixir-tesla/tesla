@@ -261,6 +261,7 @@ defmodule MyApi.Operation.GetItem do
   @type resp_404() :: Response.t(nil, Response.headers())
   @type result() :: {:ok, resp_200() | resp_401() | resp_404()} | {:error, term()}
 
+  @request_path Path.path_template().path
   @header_params Header.header_params()
   @cookie_params Cookie.cookie_params()
 
@@ -287,7 +288,7 @@ defmodule MyApi.Operation.GetItem do
 
     request_opts = [
       method: :get,
-      url: Path.path_template().path,
+      url: @request_path,
       query: Query.to_query(operation.query),
       headers: headers,
       opts: Keyword.put(opts, :path_params, Path.to_path_params(operation.path)),
