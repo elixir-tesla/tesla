@@ -18,7 +18,7 @@ defmodule Tesla.OpenAPI.Response do
       The `ok` field is `true` for 2xx status codes (200-299).
       """
 
-      @type headers() :: [{String.t(), String.t()}]
+      @type headers() :: Tesla.Env.headers()
 
       @typedoc """
       HTTP response wrapper with status, headers, and typed body.
