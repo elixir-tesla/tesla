@@ -22,10 +22,13 @@ defmodule Tesla.OpenAPI do
   attributes and pass only request values at runtime:
 
       defmodule MyApi.Operation.GetItem.Path do
+        @path_template Tesla.OpenAPI.PathTemplate.new!("/items/{id}")
+
         @path_params Tesla.OpenAPI.PathParams.new!([
                        Tesla.OpenAPI.PathParam.new!("id")
                      ])
 
+        def path_template, do: @path_template
         def path_params, do: @path_params
       end
 
@@ -40,10 +43,8 @@ defmodule Tesla.OpenAPI do
       defmodule MyApi.Operation.GetItem do
         alias MyApi.Operation.GetItem.{Path, Query}
 
-        @path_template Tesla.OpenAPI.PathTemplate.new!("/items/{id}")
-
         @private Tesla.OpenAPI.merge_private([
-                   Tesla.OpenAPI.PathTemplate.put_private(@path_template),
+                   Tesla.OpenAPI.PathTemplate.put_private(Path.path_template()),
                    Tesla.OpenAPI.PathParams.put_private(Path.path_params()),
                    Tesla.OpenAPI.QueryParams.put_private(Query.query_params())
                  ])

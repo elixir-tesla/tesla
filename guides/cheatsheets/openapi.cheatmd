@@ -34,13 +34,16 @@ end
 
 ```elixir
 defmodule MyApi.Operation.GetItem.Path do
-  alias Tesla.OpenAPI.{PathParam, PathParams}
+  alias Tesla.OpenAPI.{PathParam, PathParams, PathTemplate}
+
+  @path_template PathTemplate.new!("/items/{id}{coords}")
 
   @path_params PathParams.new!([
                  PathParam.new!("id"),
                  PathParam.new!("coords", style: :matrix, explode: true)
                ])
 
+  def path_template, do: @path_template
   def path_params, do: @path_params
 end
 
@@ -60,10 +63,8 @@ defmodule MyApi.Operation.GetItem do
   alias Tesla.OpenAPI
   alias Tesla.OpenAPI.{PathParams, PathTemplate, QueryParams}
 
-  @path_template PathTemplate.new!("/items/{id}{coords}")
-
   @private OpenAPI.merge_private([
-             PathTemplate.put_private(@path_template),
+             PathTemplate.put_private(Path.path_template()),
              PathParams.put_private(Path.path_params()),
              QueryParams.put_private(Query.query_params())
            ])
@@ -78,16 +79,14 @@ defmodule MyApi.Operation.GetItem do
   alias Tesla.OpenAPI
   alias Tesla.OpenAPI.{PathParams, PathTemplate, QueryParams}
 
-  @path_template PathTemplate.new!("/items/{id}{coords}")
-
   @private OpenAPI.merge_private([
-             PathTemplate.put_private(@path_template),
+             PathTemplate.put_private(Path.path_template()),
              PathParams.put_private(Path.path_params()),
              QueryParams.put_private(Query.query_params())
            ])
 
   def request(client) do
-    Tesla.get(client, @path_template.path,
+    Tesla.get(client, Path.path_template().path,
       query: %{
         "color" => ["blue", "black"],
         "filter" => [role: "admin"],
