@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.18.0](https://github.com/elixir-tesla/tesla/compare/v1.17.0...v1.18.0) (2026-05-14)
+
+
+### Features
+
+* **openapi:** add response wrapper macro ([#872](https://github.com/elixir-tesla/tesla/issues/872)) ([f824d67](https://github.com/elixir-tesla/tesla/commit/f824d672ea4524f4bba77ac3a2ea401dc7558b95))
+* **openapi:** split header and cookie params ([#865](https://github.com/elixir-tesla/tesla/issues/865)) ([898bd1a](https://github.com/elixir-tesla/tesla/commit/898bd1adbf6f7067220e9084c23f85c1b2de7695))
+* **path-params:** separate definitions from values ([#860](https://github.com/elixir-tesla/tesla/issues/860)) ([3639c9a](https://github.com/elixir-tesla/tesla/commit/3639c9a5e0b1303bfb305aad1dba45922e01694a))
+* **path-params:** support precompiled path templates ([#859](https://github.com/elixir-tesla/tesla/issues/859)) ([a8878a0](https://github.com/elixir-tesla/tesla/commit/a8878a09d203c6972970155a1696cc6483a2b114))
+* **query-params:** separate definitions from values ([#862](https://github.com/elixir-tesla/tesla/issues/862)) ([08f4d87](https://github.com/elixir-tesla/tesla/commit/08f4d8769bb990bc2dea3e8f9869ee8f62bee705))
+* **query:** support API-specific query serialization ([#843](https://github.com/elixir-tesla/tesla/issues/843)) ([9b95efb](https://github.com/elixir-tesla/tesla/commit/9b95efb0d725b30a57643953f885edc4c9ca28b9))
+* support OpenAPI-friendly cookie params ([#857](https://github.com/elixir-tesla/tesla/issues/857)) ([25bcf3c](https://github.com/elixir-tesla/tesla/commit/25bcf3c2d6f2a0ad6d2f700889ada0fe953b1351))
+* support OpenAPI-friendly header params ([#853](https://github.com/elixir-tesla/tesla/issues/853)) ([2ec5539](https://github.com/elixir-tesla/tesla/commit/2ec5539ddd5838a7a07b3435b8b5808a55506420))
+* support OpenAPI-friendly path params ([#851](https://github.com/elixir-tesla/tesla/issues/851)) ([0837672](https://github.com/elixir-tesla/tesla/commit/083767247780c4fc544c621ae1a14f46d8f8ad9a))
+* support OpenAPI-friendly query params ([#852](https://github.com/elixir-tesla/tesla/issues/852)) ([7a1b582](https://github.com/elixir-tesla/tesla/commit/7a1b5826e6ab736d68824d2c278c57a225bed517))
+* support OpenAPI-friendly query strings ([#858](https://github.com/elixir-tesla/tesla/issues/858)) ([a979142](https://github.com/elixir-tesla/tesla/commit/a979142b52b96822bde15751fa7e6cc916b58d20))
+
+
+### Bug Fixes
+
+* **gun:** keep timeout-wrapped streams readable ([#847](https://github.com/elixir-tesla/tesla/issues/847)) ([8a8ba74](https://github.com/elixir-tesla/tesla/commit/8a8ba747b06ab0f4487de8c584a335e9341e7ab0))
+* **mint:** avoid crashes on HTTP/2 request resets ([#846](https://github.com/elixir-tesla/tesla/issues/846)) ([6a42469](https://github.com/elixir-tesla/tesla/commit/6a424699ab63e7413861cbda2d5824715340d6cc))
+
 ## [1.17.0](https://github.com/elixir-tesla/tesla/compare/v1.16.0...v1.17.0) (2026-04-18)
 
 
