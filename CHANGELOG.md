@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.1](https://github.com/elixir-tesla/tesla/compare/v1.18.0...v1.18.1) (2026-05-14)
+
+
+### Bug Fixes
+
+* **path-params:** raise on missing required path parameter values ([#874](https://github.com/elixir-tesla/tesla/issues/874)) ([a1dd44b](https://github.com/elixir-tesla/tesla/commit/a1dd44b237a91b0510a6ba48f359f32a12b0b02d))
+
 ## [1.18.0](https://github.com/elixir-tesla/tesla/compare/v1.17.0...v1.18.0) (2026-05-14)
 
 
