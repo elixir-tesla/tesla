@@ -100,10 +100,7 @@ defmodule Tesla.Middleware.PathParams.Modern do
   end
 
   defp raise_missing!(name) do
-    raise ArgumentError,
-          "missing value for path parameter #{inspect(name)}; path parameters are required " <>
-            "per the OpenAPI Specification. See " <>
-            "https://spec.openapis.org/oas/latest.html#parameter-required"
+    raise ArgumentError, "missing value for path parameter #{inspect(name)}"
   end
 
   defp serialize_undefined(:simple, _param) do
