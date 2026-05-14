@@ -50,9 +50,10 @@ defmodule Tesla.OpenAPI.PathParam do
 
   Path parameters are required per the OpenAPI Specification
   ([Parameter Object — `required`](https://spec.openapis.org/oas/latest.html#parameter-required)).
-  `Tesla.Middleware.PathParams` raises `ArgumentError` when a placeholder's value
-  is missing or `nil`. Empty arrays and empty objects serialize according to the
-  OpenAPI "undefined" column for the selected style.
+  When `Tesla.Middleware.PathParams` runs in `:modern` mode and request values
+  are supplied via `opts[:path_params]`, it raises `ArgumentError` if a defined
+  placeholder's value is missing or `nil`. Empty arrays and empty objects
+  serialize according to the OpenAPI "undefined" column for the selected style.
   """
 
   alias Tesla.Param
