@@ -481,12 +481,24 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
 
       assert {:ok, env} =
                call(
-                 %Env{url: "/users/{id}/{Id}/{ID}", opts: opts},
+                 %Env{url: "/users/{id}/{Id}", opts: opts},
                  [],
                  mode: :modern
                )
 
-      assert env.url == "/users/lower/upper/{ID}"
+      assert env.url == "/users/lower/upper"
+    end
+
+    test "raises on case-mismatched template name" do
+      opts = [path_params: [path_param("id", "lower")]]
+
+      assert_raise ArgumentError, ~r/missing value for path parameter "ID"/, fn ->
+        call(
+          %Env{url: "/users/{ID}", opts: opts},
+          [],
+          mode: :modern
+        )
+      end
     end
 
     test "replaces repeated template expressions with the same parameter value" do
@@ -554,22 +566,38 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/5;coords=blue;coords=black"
     end
 
-    test "preserves missing and nil template expressions" do
-      template = PathTemplate.new!("/users/{id}/{missing}")
+    test "raises when a template expression value is nil" do
+      template = PathTemplate.new!("/users/{id}")
       opts = [path_params: [path_param(nil)]]
 
-      assert {:ok, env} =
-               call(
-                 %Env{
-                   url: template.path,
-                   private: path_template_private(template),
-                   opts: opts
-                 },
-                 [],
-                 mode: :modern
-               )
+      assert_raise ArgumentError, ~r/missing value for path parameter "id"/, fn ->
+        call(
+          %Env{
+            url: template.path,
+            private: path_template_private(template),
+            opts: opts
+          },
+          [],
+          mode: :modern
+        )
+      end
+    end
 
-      assert env.url == "/users/{id}/{missing}"
+    test "raises when a template expression has no matching path parameter definition" do
+      template = PathTemplate.new!("/users/{id}/{missing}")
+      opts = [path_params: [path_param("id", 42)]]
+
+      assert_raise ArgumentError, ~r/missing value for path parameter "missing"/, fn ->
+        call(
+          %Env{
+            url: template.path,
+            private: path_template_private(template),
+            opts: opts
+          },
+          [],
+          mode: :modern
+        )
+      end
     end
 
     test "falls back when private path template does not match the request path" do
@@ -819,30 +847,28 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/John%20Smith"
     end
 
-    test "leaves placeholder when value is missing" do
+    test "raises when value is missing" do
       opts = [path_params: [path_param("other", 1)]]
 
-      assert {:ok, env} =
-               call(
-                 %Env{url: "/users/{id}", opts: opts},
-                 [],
-                 mode: :modern
-               )
-
-      assert env.url == "/users/{id}"
+      assert_raise ArgumentError, ~r/missing value for path parameter "id"/, fn ->
+        call(
+          %Env{url: "/users/{id}", opts: opts},
+          [],
+          mode: :modern
+        )
+      end
     end
 
-    test "leaves placeholder when request value is nil" do
+    test "raises when request value is nil" do
       opts = [path_params: [path_param(nil)]]
 
-      assert {:ok, env} =
-               call(
-                 %Env{url: "/users/{id}", opts: opts},
-                 [],
-                 mode: :modern
-               )
-
-      assert env.url == "/users/{id}"
+      assert_raise ArgumentError, ~r/missing value for path parameter "id"/, fn ->
+        call(
+          %Env{url: "/users/{id}", opts: opts},
+          [],
+          mode: :modern
+        )
+      end
     end
 
     test "serializes empty array as OpenAPI undefined" do

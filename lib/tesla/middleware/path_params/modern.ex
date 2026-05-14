@@ -58,24 +58,24 @@ defmodule Tesla.Middleware.PathParams.Modern do
     end
   end
 
-  defp render_template_expression(name, expression, {path_params, values}) do
-    replace_param(path_params, values, name, expression)
+  defp render_template_expression(name, _expression, {path_params, values}) do
+    replace_param(path_params, values, name)
   end
 
-  defp replace_placeholder(path_params, values, match, name) do
-    replace_param(path_params, values, name, match)
+  defp replace_placeholder(path_params, values, _match, name) do
+    replace_param(path_params, values, name)
   end
 
-  defp replace_param(path_params, values, name, match) do
+  defp replace_param(path_params, values, name) do
     case fetch_param(path_params, values, name) do
       {:ok, _path_param, nil} ->
-        match
+        raise_missing!(name)
 
       {:ok, path_param, value} ->
         serialize_value(path_param, value)
 
       :error ->
-        match
+        raise_missing!(name)
     end
   end
 
@@ -97,6 +97,10 @@ defmodule Tesla.Middleware.PathParams.Modern do
       :error ->
         :error
     end
+  end
+
+  defp raise_missing!(name) do
+    raise ArgumentError, "missing value for path parameter #{inspect(name)}"
   end
 
   defp serialize_undefined(:simple, _param) do
