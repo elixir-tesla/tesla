@@ -566,11 +566,28 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       assert env.url == "/users/5;coords=blue;coords=black"
     end
 
-    test "raises when template expression value is nil or missing" do
-      template = PathTemplate.new!("/users/{id}/{missing}")
+    test "raises when a template expression value is nil" do
+      template = PathTemplate.new!("/users/{id}")
       opts = [path_params: [path_param(nil)]]
 
       assert_raise ArgumentError, ~r/missing value for path parameter "id"/, fn ->
+        call(
+          %Env{
+            url: template.path,
+            private: path_template_private(template),
+            opts: opts
+          },
+          [],
+          mode: :modern
+        )
+      end
+    end
+
+    test "raises when a template expression has no matching path parameter definition" do
+      template = PathTemplate.new!("/users/{id}/{missing}")
+      opts = [path_params: [path_param("id", 42)]]
+
+      assert_raise ArgumentError, ~r/missing value for path parameter "missing"/, fn ->
         call(
           %Env{
             url: template.path,
