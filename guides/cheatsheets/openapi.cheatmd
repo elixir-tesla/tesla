@@ -63,7 +63,7 @@ defmodule MyApi.Operation.GetItem do
   alias Tesla.OpenAPI
   alias Tesla.OpenAPI.{PathParams, PathTemplate, QueryParams}
 
-  @request_path Path.path_template().path
+  @operation_path Path.path_template().path
 
   @private OpenAPI.merge_private([
              PathTemplate.put_private(Path.path_template()),
@@ -81,7 +81,7 @@ defmodule MyApi.Operation.GetItem do
   alias Tesla.OpenAPI
   alias Tesla.OpenAPI.{PathParams, PathTemplate, QueryParams}
 
-  @request_path Path.path_template().path
+  @operation_path Path.path_template().path
 
   @private OpenAPI.merge_private([
              PathTemplate.put_private(Path.path_template()),
@@ -90,7 +90,7 @@ defmodule MyApi.Operation.GetItem do
            ])
 
   def request(client) do
-    Tesla.get(client, @request_path,
+    Tesla.get(client, @operation_path,
       query: %{
         "color" => ["blue", "black"],
         "filter" => [role: "admin"],
