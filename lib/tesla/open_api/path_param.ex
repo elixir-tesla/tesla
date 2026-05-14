@@ -48,10 +48,11 @@ defmodule Tesla.OpenAPI.PathParam do
 
   ## Missing And Empty Values
 
-  `nil` values and missing path parameters are handled by
-  `Tesla.Middleware.PathParams`, which leaves unmatched placeholders untouched.
-  Empty arrays and empty objects serialize according to the OpenAPI
-  "undefined" column for the selected style.
+  Path parameters are required per the OpenAPI Specification
+  ([Parameter Object — `required`](https://spec.openapis.org/oas/latest.html#parameter-required)).
+  `Tesla.Middleware.PathParams` raises `ArgumentError` when a placeholder's value
+  is missing or `nil`. Empty arrays and empty objects serialize according to the
+  OpenAPI "undefined" column for the selected style.
   """
 
   alias Tesla.Param
@@ -72,6 +73,9 @@ defmodule Tesla.OpenAPI.PathParam do
 
   @doc """
   Creates a path parameter definition.
+
+  Path parameters are always required per the OpenAPI Specification:
+  [Parameter Object — `required`](https://spec.openapis.org/oas/latest.html#parameter-required).
 
   Options use Elixir atoms for hand-written Tesla code:
 
