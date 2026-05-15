@@ -42,6 +42,8 @@ defmodule Tesla.Builder do
               | {:headers, Tesla.Env.headers()}
               | {:body, Tesla.Env.body()}
               | {:opts, Tesla.Env.opts()}
+              | {:assigns, Tesla.Env.assigns()}
+              | {:private, Tesla.Env.private()}
 
       if unquote(docs) do
         @doc """
@@ -58,6 +60,9 @@ defmodule Tesla.Builder do
             - if using e.g. JSON encoding middleware it can be a nested map
             - if adapter supports it it can be a Stream with any of the above
         - `:opts` - custom, per-request middleware or adapter options
+        - `:assigns` - per-request user data, see `t:Tesla.Env.assigns/0`
+        - `:private` - per-request data reserved for libraries and middleware,
+          see `t:Tesla.Env.private/0`
 
         ## Examples
 
