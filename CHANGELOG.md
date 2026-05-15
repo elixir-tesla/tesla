@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.2](https://github.com/elixir-tesla/tesla/compare/v1.18.1...v1.18.2) (2026-05-15)
+
+
+### Bug Fixes
+
+* **builder:** include :assigns and :private in request option type ([#876](https://github.com/elixir-tesla/tesla/issues/876)) ([f5834c1](https://github.com/elixir-tesla/tesla/commit/f5834c1b396ebf38a5412a397e05d538026f7dab))
+
 ## [1.18.1](https://github.com/elixir-tesla/tesla/compare/v1.18.0...v1.18.1) (2026-05-14)
 
 
