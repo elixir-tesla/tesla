@@ -124,6 +124,129 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     assert env.body == "decodedbody"
   end
 
+  describe "encode: :deep_object end-to-end through middleware" do
+    defmodule NestedClient do
+      use Tesla
+
+      plug Tesla.Middleware.FormUrlencoded, encode: :deep_object
+
+      adapter fn env ->
+        {:ok, %{env | status: 201, headers: [{"content-type", "text/html"}], body: env.body}}
+      end
+    end
+
+    test "encodes nested bodies with bracket-indexed lists" do
+      body = %{
+        expand: ["objects"],
+        objects: %{customers: ["cus_123", "cus_456"]},
+        validation_behavior: :fix
+      }
+
+      assert {:ok, env} = NestedClient.post("/post", body)
+
+      assert env.body |> String.split("&") |> MapSet.new() ==
+               MapSet.new([
+                 "expand[0]=objects",
+                 "objects[customers][0]=cus_123",
+                 "objects[customers][1]=cus_456",
+                 "validation_behavior=fix"
+               ])
+    end
+  end
+
+  describe "encode: :deep_object encoder behavior" do
+    defmodule Profile do
+      defstruct [:name, :age]
+    end
+
+    test "indexes flat list items" do
+      assert encode_body(%{ids: ["a", "b"]}, encode: :deep_object) == "ids[0]=a&ids[1]=b"
+    end
+
+    test "brackets nested map keys" do
+      assert encode_body(%{user: %{name: "a"}}, encode: :deep_object) == "user[name]=a"
+    end
+
+    test "indexes lists of objects" do
+      assert encode_body(%{users: [%{name: "a"}, %{name: "b"}]}, encode: :deep_object)
+             |> as_pairs() ==
+               MapSet.new(["users[0][name]=a", "users[1][name]=b"])
+    end
+
+    test "drops nil at the top level" do
+      assert encode_body(%{a: 1, b: nil, c: 2}, encode: :deep_object) |> as_pairs() ==
+               MapSet.new(["a=1", "c=2"])
+    end
+
+    test "drops nil inside nested maps" do
+      assert encode_body(%{user: %{name: "a", email: nil}}, encode: :deep_object) ==
+               "user[name]=a"
+    end
+
+    test "drops nil from lists and renumbers indices" do
+      assert encode_body(%{ids: [1, nil, 2, nil, 3]}, encode: :deep_object) ==
+               "ids[0]=1&ids[1]=2&ids[2]=3"
+    end
+
+    test "encodes booleans as true/false" do
+      assert encode_body(%{a: true, b: false}, encode: :deep_object) |> as_pairs() ==
+               MapSet.new(["a=true", "b=false"])
+    end
+
+    test "encodes atom values via Atom.to_string/1" do
+      assert encode_body(%{state: :active}, encode: :deep_object) == "state=active"
+    end
+
+    test "encodes integers and floats" do
+      assert encode_body(%{count: 42, ratio: 1.5}, encode: :deep_object) |> as_pairs() ==
+               MapSet.new(["count=42", "ratio=1.5"])
+    end
+
+    test "URI-encodes special characters in values" do
+      assert encode_body(%{q: "a&b=c%d e"}, encode: :deep_object) == "q=a%26b%3Dc%25d+e"
+    end
+
+    test "URI-encodes special characters in keys" do
+      assert encode_body(%{"weird key" => "v"}, encode: :deep_object) == "weird+key=v"
+    end
+
+    test "unwraps top-level structs via Map.from_struct/1" do
+      assert encode_body(%Profile{name: "Alice", age: 30}, encode: :deep_object) |> as_pairs() ==
+               MapSet.new(["name=Alice", "age=30"])
+    end
+
+    test "unwraps nested structs" do
+      assert encode_body(%{profile: %Profile{name: "Alice", age: 30}}, encode: :deep_object)
+             |> as_pairs() ==
+               MapSet.new(["profile[name]=Alice", "profile[age]=30"])
+    end
+
+    test "empty map encodes to empty string" do
+      assert encode_body(%{}, encode: :deep_object) == ""
+    end
+
+    test "empty list value emits nothing" do
+      assert encode_body(%{ids: []}, encode: :deep_object) == ""
+    end
+
+    test "keyword list at top level encodes in given order" do
+      assert encode_body([a: 1, b: 2, c: 3], encode: :deep_object) == "a=1&b=2&c=3"
+    end
+
+    test "deeply nested map+list mix" do
+      assert encode_body(%{a: %{b: [%{c: 1}, %{c: 2}]}}, encode: :deep_object) |> as_pairs() ==
+               MapSet.new(["a[b][0][c]=1", "a[b][1][c]=2"])
+    end
+
+    defp encode_body(body, opts) do
+      %Tesla.Env{body: body}
+      |> Tesla.Middleware.FormUrlencoded.encode(opts)
+      |> Map.fetch!(:body)
+    end
+
+    defp as_pairs(encoded), do: encoded |> String.split("&") |> MapSet.new()
+  end
+
   describe "Encode / Decode" do
     defmodule EncodeDecodeFormUrlencodedClient do
       use Tesla

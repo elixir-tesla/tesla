@@ -29,14 +29,20 @@ defmodule Tesla.Middleware.FormUrlencoded do
   ## Options
 
   - `:decode` - decoding function, defaults to `URI.decode_query/1`
-  - `:encode` - encoding function, defaults to `URI.encode_query/1`
+  - `:encode` - controls how the body is encoded. Accepts:
+    - a function (arity 1) for fully custom encoding
+    - `:deep_object` — recursive bracket-notation encoder based on
+      OpenAPI's `deepObject` style (see *Serialization Styles* below)
+    - Defaults to `URI.encode_query/1` when omitted.
 
   ## Nested Maps
 
   Natively, nested maps are not supported in the body, so
   `%{"foo" => %{"bar" => "baz"}}` won't be encoded and raise an error.
-  Support for this specific case is obtained by configuring the middleware to
-  encode (and decode) with `Plug.Conn.Query`
+  Support for this specific case is obtained either by setting
+  `encode: :deep_object` (see *Serialization Styles* below) or by
+  configuring the middleware to encode (and decode) with
+  `Plug.Conn.Query`:
 
   ```elixir
   defmodule Myclient do
@@ -52,6 +58,68 @@ defmodule Tesla.Middleware.FormUrlencoded do
   client = Myclient.client()
   Myclient.post(client, "/url", %{key: %{nested: "value"}})
   ```
+
+  ## Serialization Styles
+
+  The `:encode` option supports built-in serialization styles that mirror
+  OpenAPI's Encoding Object `style` field. OpenAPI defines four values:
+  `form` (default), `spaceDelimited`, `pipeDelimited`, and `deepObject`.
+  The middleware currently implements `:deep_object`; the other styles
+  may be added later.
+
+  ### `encode: :deep_object`
+
+  Recursive bracket-notation encoder for bodies that contain maps,
+  structs, or lists. The flat default behavior is unchanged when `:encode`
+  is not set.
+
+  Output shape:
+
+  - Nested maps and structs: `parent[child]=value`.
+  - Lists: `parent[0]=a&parent[1]=b` (numeric indices).
+  - Lists of objects: `items[0][name]=a&items[1][name]=b`.
+
+  OpenAPI defines `deepObject` for object values only and leaves array
+  serialization unspecified; this middleware extends the style to arrays
+  using numeric bracket indices, the convention used by Stripe, PHP's
+  `http_build_query`, and many code-generated SDKs. Bracket characters in
+  keys are emitted literally; only the segments between them are
+  percent-encoded.
+
+  ```elixir
+  defmodule MyClient do
+    def client do
+      Tesla.client([
+        {Tesla.Middleware.FormUrlencoded, encode: :deep_object}
+      ])
+    end
+  end
+
+  body = %{
+    expand: ["objects"],
+    objects: %{customers: ["cus_123", "cus_456"], charges: nil},
+    validation_behavior: :fix
+  }
+
+  MyClient.post(client, "/url", body)
+  # =>
+  # expand[0]=objects
+  # &objects[customers][0]=cus_123
+  # &objects[customers][1]=cus_456
+  # &validation_behavior=fix
+  ```
+
+  Encoding behavior:
+
+  - Maps and structs recurse via `Map.from_struct/1`.
+  - `nil` is dropped at every level, including inside lists (indices are
+    assigned after filtering).
+  - Booleans encode as `"true"` / `"false"`.
+  - Atoms encode via `Atom.to_string/1`; everything else via `to_string/1`.
+  - Keys and values are escaped with `URI.encode_www_form/1`.
+
+  Decoding remains flat regardless of `:encode`. If you need to decode
+  nested form responses, configure `:decode` with `&Plug.Conn.Query.decode/1`.
   """
 
   @behaviour Tesla.Middleware
@@ -121,14 +189,63 @@ defmodule Tesla.Middleware.FormUrlencoded do
   defp decode_body(body, opts), do: do_decode(body, opts)
 
   defp do_encode(data, opts) do
-    encoder = Keyword.get(opts, :encode, &URI.encode_query/1)
-    encoder.(data)
+    case Keyword.get(opts, :encode) do
+      nil -> URI.encode_query(data)
+      :deep_object -> encode_deep_object(data)
+      fun when is_function(fun, 1) -> fun.(data)
+    end
   end
 
   defp do_decode(data, opts) do
     decoder = Keyword.get(opts, :decode, &URI.decode_query/1)
     decoder.(data)
   end
+
+  defp encode_deep_object(data) when is_struct(data),
+    do: encode_deep_object(Map.from_struct(data))
+
+  defp encode_deep_object(data) do
+    data
+    |> Enum.flat_map(fn {key, value} -> encode_value(value, [key]) end)
+    |> Enum.join("&")
+  end
+
+  defp encode_value(nil, _path), do: []
+
+  defp encode_value(value, path) when is_struct(value),
+    do: encode_value(Map.from_struct(value), path)
+
+  defp encode_value(value, path) when is_map(value) do
+    Enum.flat_map(value, fn {key, nested_value} ->
+      encode_value(nested_value, [key | path])
+    end)
+  end
+
+  defp encode_value(value, path) when is_list(value) do
+    value
+    |> Enum.reject(&is_nil/1)
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {nested_value, index} ->
+      encode_value(nested_value, [index | path])
+    end)
+  end
+
+  defp encode_value(value, path) do
+    ["#{encode_path(path)}=#{encode_part(value)}"]
+  end
+
+  defp encode_path(path) do
+    [root | rest] = Enum.reverse(path)
+
+    Enum.reduce(rest, encode_part(root), fn part, encoded ->
+      "#{encoded}[#{encode_part(part)}]"
+    end)
+  end
+
+  defp encode_part(value) when is_atom(value),
+    do: value |> Atom.to_string() |> URI.encode_www_form()
+
+  defp encode_part(value), do: value |> to_string() |> URI.encode_www_form()
 end
 
 defmodule Tesla.Middleware.DecodeFormUrlencoded do
