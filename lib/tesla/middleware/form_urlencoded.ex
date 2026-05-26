@@ -59,75 +59,31 @@ defmodule Tesla.Middleware.FormUrlencoded do
   Myclient.post(client, "/url", %{key: %{nested: "value"}})
   ```
 
-  ## Serialization Styles
+  ## `encode: :deep_object`
 
-  The `:encode` option supports built-in serialization styles that mirror
-  OpenAPI's Encoding Object `style` field. OpenAPI defines four values:
-  `form` (default), `spaceDelimited`, `pipeDelimited`, and `deepObject`.
-  The middleware currently implements `:deep_object`; the other styles
-  may be added later.
-
-  ### `encode: :deep_object`
-
-  Recursive bracket-notation encoder for bodies that contain maps,
-  structs, or lists. The flat default behavior is unchanged when `:encode`
-  is not set.
-
-  Output shape:
-
-  - Nested maps and structs: `parent[child]=value`.
-  - Lists: `parent[0]=a&parent[1]=b` (numeric indices).
-  - Lists of objects: `items[0][name]=a&items[1][name]=b`.
-
-  OpenAPI defines `deepObject` for object values only and leaves array
-  serialization unspecified; this middleware extends the style to arrays
-  using numeric bracket indices, the convention used by Stripe, PHP's
-  `http_build_query`, and many code-generated SDKs. Bracket characters in
-  keys are emitted literally; only the segments between them are
-  percent-encoded.
+  Recursive bracket-notation encoder for nested maps and lists, modeled
+  on OpenAPI's `deepObject` style and extended to arrays with numeric
+  indices (the convention used by Stripe, `http_build_query`, and most
+  code-generated SDKs).
 
   ```elixir
-  defmodule MyClient do
-    def client do
-      Tesla.client([
-        {Tesla.Middleware.FormUrlencoded, encode: :deep_object}
-      ])
-    end
-  end
-
-  body = %{
+  Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :deep_object}])
+  |> Tesla.post("/url", %{
     expand: ["objects"],
-    objects: %{customers: ["cus_123", "cus_456"], charges: nil},
-    validation_behavior: :fix
-  }
-
-  MyClient.post(client, "/url", body)
-  # =>
-  # expand[0]=objects
-  # &objects[customers][0]=cus_123
-  # &objects[customers][1]=cus_456
-  # &validation_behavior=fix
+    objects: %{customers: ["cus_123", "cus_456"]}
+  })
+  # body: "expand[0]=objects&objects[customers][0]=cus_123&objects[customers][1]=cus_456"
   ```
 
-  Encoding behavior:
+  Behavior worth knowing:
 
-  - Nested maps recurse.
-  - Structs are not supported and raise `ArgumentError`. Convert them
-    explicitly with `Map.from_struct/1`, `to_string/1`, or a
-    domain-specific serializer before passing the body in.
-  - Keyword lists are encoded as nested objects (`parent[key]=value`),
-    not as numerically indexed arrays.
-  - `nil` is dropped at every level, including inside lists (indices are
-    assigned after filtering).
-  - Booleans encode as `"true"` / `"false"`.
-  - Atoms encode via `Atom.to_string/1`; everything else via `to_string/1`.
-  - Keys and values are escaped with `URI.encode_www_form/1`.
-  - Output ordering follows Elixir map traversal order and is not
-    guaranteed across runs; treat the encoded string as a multiset of
-    pairs, not an ordered sequence.
-
-  Decoding remains flat regardless of `:encode`. If you need to decode
-  nested form responses, configure `:decode` with `&Plug.Conn.Query.decode/1`.
+  - `nil` is dropped at every level; list indices are assigned after filtering.
+  - Keyword lists encode as objects (`parent[key]=value`), not arrays.
+  - Structs raise `ArgumentError` — convert them with `Map.from_struct/1`
+    or `to_string/1` first.
+  - Output order is not guaranteed (maps don't preserve insertion order).
+  - Decoding stays flat; pair with `decode: &Plug.Conn.Query.decode/1` for
+    symmetric round-trips.
   """
 
   @behaviour Tesla.Middleware
