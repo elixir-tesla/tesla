@@ -111,12 +111,22 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   Encoding behavior:
 
-  - Maps and structs recurse via `Map.from_struct/1`.
+  - Nested maps recurse.
+  - Nested structs that implement `String.Chars` (e.g. `DateTime`, `Date`,
+    `URI`, `Decimal`) are encoded via `to_string/1`. Structs without a
+    `String.Chars` implementation fall back to `Map.from_struct/1` and
+    recurse like maps. A top-level struct is always unwrapped with
+    `Map.from_struct/1`.
+  - Keyword lists are encoded as nested objects (`parent[key]=value`),
+    not as numerically indexed arrays.
   - `nil` is dropped at every level, including inside lists (indices are
     assigned after filtering).
   - Booleans encode as `"true"` / `"false"`.
   - Atoms encode via `Atom.to_string/1`; everything else via `to_string/1`.
   - Keys and values are escaped with `URI.encode_www_form/1`.
+  - Output ordering follows Elixir map traversal order and is not
+    guaranteed across runs; treat the encoded string as a multiset of
+    pairs, not an ordered sequence.
 
   Decoding remains flat regardless of `:encode`. If you need to decode
   nested form responses, configure `:decode` with `&Plug.Conn.Query.decode/1`.
@@ -190,9 +200,18 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   defp do_encode(data, opts) do
     case Keyword.get(opts, :encode) do
-      nil -> URI.encode_query(data)
-      :deep_object -> encode_deep_object(data)
-      fun when is_function(fun, 1) -> fun.(data)
+      nil ->
+        URI.encode_query(data)
+
+      :deep_object ->
+        encode_deep_object(data)
+
+      fun when is_function(fun, 1) ->
+        fun.(data)
+
+      value ->
+        raise ArgumentError,
+              "unknown :encode option #{inspect(value)}; expected :deep_object or an arity-1 function"
     end
   end
 
@@ -212,8 +231,13 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   defp encode_value(nil, _path), do: []
 
-  defp encode_value(value, path) when is_struct(value),
-    do: encode_value(Map.from_struct(value), path)
+  defp encode_value(value, path) when is_struct(value) do
+    if String.Chars.impl_for(value) do
+      encode_value(to_string(value), path)
+    else
+      encode_value(Map.from_struct(value), path)
+    end
+  end
 
   defp encode_value(value, path) when is_map(value) do
     Enum.flat_map(value, fn {key, nested_value} ->
@@ -222,12 +246,18 @@ defmodule Tesla.Middleware.FormUrlencoded do
   end
 
   defp encode_value(value, path) when is_list(value) do
-    value
-    |> Enum.reject(&is_nil/1)
-    |> Enum.with_index()
-    |> Enum.flat_map(fn {nested_value, index} ->
-      encode_value(nested_value, [index | path])
-    end)
+    if Keyword.keyword?(value) do
+      Enum.flat_map(value, fn {key, nested_value} ->
+        encode_value(nested_value, [key | path])
+      end)
+    else
+      value
+      |> Enum.reject(&is_nil/1)
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {nested_value, index} ->
+        encode_value(nested_value, [index | path])
+      end)
+    end
   end
 
   defp encode_value(value, path) do

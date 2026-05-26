@@ -215,10 +215,26 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
                MapSet.new(["name=Alice", "age=30"])
     end
 
-    test "unwraps nested structs" do
+    test "unwraps nested structs without String.Chars" do
       assert encode_body(%{profile: %Profile{name: "Alice", age: 30}}, encode: :deep_object)
              |> as_pairs() ==
                MapSet.new(["profile[name]=Alice", "profile[age]=30"])
+    end
+
+    test "stringifies nested structs that implement String.Chars" do
+      assert encode_body(%{day: ~D[2024-01-02]}, encode: :deep_object) ==
+               "day=2024-01-02"
+
+      assert encode_body(%{at: ~U[2024-01-02 03:04:05Z]}, encode: :deep_object) ==
+               "at=2024-01-02+03%3A04%3A05Z"
+
+      assert encode_body(%{target: URI.parse("https://example.com/p?x=1")}, encode: :deep_object) ==
+               "target=https%3A%2F%2Fexample.com%2Fp%3Fx%3D1"
+    end
+
+    test "stringifies String.Chars structs inside lists" do
+      assert encode_body(%{days: [~D[2024-01-01], ~D[2024-01-02]]}, encode: :deep_object) ==
+               "days[0]=2024-01-01&days[1]=2024-01-02"
     end
 
     test "empty map encodes to empty string" do
@@ -233,9 +249,27 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       assert encode_body([a: 1, b: 2, c: 3], encode: :deep_object) == "a=1&b=2&c=3"
     end
 
+    test "keyword list inside map encodes as nested object" do
+      assert encode_body(%{filter: [role: "admin", active: true]}, encode: :deep_object)
+             |> as_pairs() ==
+               MapSet.new(["filter[role]=admin", "filter[active]=true"])
+    end
+
+    test "keyword list inside array encodes as nested object" do
+      assert encode_body(%{users: [[name: "a"], [name: "b"]]}, encode: :deep_object)
+             |> as_pairs() ==
+               MapSet.new(["users[0][name]=a", "users[1][name]=b"])
+    end
+
     test "deeply nested map+list mix" do
       assert encode_body(%{a: %{b: [%{c: 1}, %{c: 2}]}}, encode: :deep_object) |> as_pairs() ==
                MapSet.new(["a[b][0][c]=1", "a[b][1][c]=2"])
+    end
+
+    test "raises clear error for unknown encoder option" do
+      assert_raise ArgumentError, ~r/unknown :encode option :unknown/, fn ->
+        encode_body(%{a: 1}, encode: :unknown)
+      end
     end
 
     defp encode_body(body, opts) do
