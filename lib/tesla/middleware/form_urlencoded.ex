@@ -112,11 +112,9 @@ defmodule Tesla.Middleware.FormUrlencoded do
   Encoding behavior:
 
   - Nested maps recurse.
-  - Nested structs that implement `String.Chars` (e.g. `DateTime`, `Date`,
-    `URI`, `Decimal`) are encoded via `to_string/1`. Structs without a
-    `String.Chars` implementation fall back to `Map.from_struct/1` and
-    recurse like maps. A top-level struct is always unwrapped with
-    `Map.from_struct/1`.
+  - Structs are not supported and raise `ArgumentError`. Convert them
+    explicitly with `Map.from_struct/1`, `to_string/1`, or a
+    domain-specific serializer before passing the body in.
   - Keyword lists are encoded as nested objects (`parent[key]=value`),
     not as numerically indexed arrays.
   - `nil` is dropped at every level, including inside lists (indices are
@@ -221,7 +219,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
   end
 
   defp encode_deep_object(data) when is_struct(data) do
-    encode_deep_object(Map.from_struct(data))
+    raise ArgumentError, struct_error_message(data)
   end
 
   defp encode_deep_object(data) do
@@ -238,12 +236,8 @@ defmodule Tesla.Middleware.FormUrlencoded do
     []
   end
 
-  defp encode_value(value, path) when is_struct(value) do
-    if String.Chars.impl_for(value) do
-      encode_value(to_string(value), path)
-    else
-      encode_value(Map.from_struct(value), path)
-    end
+  defp encode_value(value, _path) when is_struct(value) do
+    raise ArgumentError, struct_error_message(value)
   end
 
   defp encode_value(value, path) when is_map(value) do
@@ -289,6 +283,11 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   defp encode_part(value) do
     value |> to_string() |> URI.encode_www_form()
+  end
+
+  defp struct_error_message(%module{}) do
+    "cannot encode #{inspect(module)} struct with :deep_object; " <>
+      "convert it to a map, string, or other primitive before passing it as the body"
   end
 end
 

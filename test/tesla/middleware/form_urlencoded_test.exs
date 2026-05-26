@@ -210,31 +210,22 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       assert encode_body(%{"weird key" => "v"}, encode: :deep_object) == "weird+key=v"
     end
 
-    test "unwraps top-level structs via Map.from_struct/1" do
-      assert encode_body(%Profile{name: "Alice", age: 30}, encode: :deep_object) |> as_pairs() ==
-               MapSet.new(["name=Alice", "age=30"])
+    test "raises on top-level struct" do
+      assert_raise ArgumentError, ~r/cannot encode .*Profile struct/, fn ->
+        encode_body(%Profile{name: "Alice", age: 30}, encode: :deep_object)
+      end
     end
 
-    test "unwraps nested structs without String.Chars" do
-      assert encode_body(%{profile: %Profile{name: "Alice", age: 30}}, encode: :deep_object)
-             |> as_pairs() ==
-               MapSet.new(["profile[name]=Alice", "profile[age]=30"])
+    test "raises on nested struct" do
+      assert_raise ArgumentError, ~r/cannot encode DateTime struct/, fn ->
+        encode_body(%{at: ~U[2024-01-02 03:04:05Z]}, encode: :deep_object)
+      end
     end
 
-    test "stringifies nested structs that implement String.Chars" do
-      assert encode_body(%{day: ~D[2024-01-02]}, encode: :deep_object) ==
-               "day=2024-01-02"
-
-      assert encode_body(%{at: ~U[2024-01-02 03:04:05Z]}, encode: :deep_object) ==
-               "at=2024-01-02+03%3A04%3A05Z"
-
-      assert encode_body(%{target: URI.parse("https://example.com/p?x=1")}, encode: :deep_object) ==
-               "target=https%3A%2F%2Fexample.com%2Fp%3Fx%3D1"
-    end
-
-    test "stringifies String.Chars structs inside lists" do
-      assert encode_body(%{days: [~D[2024-01-01], ~D[2024-01-02]]}, encode: :deep_object) ==
-               "days[0]=2024-01-01&days[1]=2024-01-02"
+    test "raises on struct inside a list" do
+      assert_raise ArgumentError, ~r/cannot encode Date struct/, fn ->
+        encode_body(%{days: [~D[2024-01-01], ~D[2024-01-02]]}, encode: :deep_object)
+      end
     end
 
     test "empty map encodes to empty string" do
