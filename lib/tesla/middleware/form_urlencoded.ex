@@ -206,6 +206,9 @@ defmodule Tesla.Middleware.FormUrlencoded do
   end
 
   defp encode_value(value, path) when is_list(value) do
+    # Keyword.keyword?/1 walks the whole list; accepted because form
+    # payloads are small and the alternative (peeking at the head) would
+    # misclassify mixed lists like [{:a, 1}, 2].
     if Keyword.keyword?(value) do
       Enum.flat_map(value, &encode_keyed_entry(&1, path))
     else
