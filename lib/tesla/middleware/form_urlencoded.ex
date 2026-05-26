@@ -61,10 +61,18 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   ## `encode: :deep_object`
 
-  Recursive bracket-notation encoder for nested maps and lists, modeled
-  on OpenAPI's [`deepObject` style](https://spec.openapis.org/oas/v3.1.0#style-values)
-  and extended to arrays with numeric indices (the convention used by
-  Stripe, `http_build_query`, and most code-generated SDKs).
+  Recursive bracket-notation encoder for nested maps and lists.
+
+  Uses OpenAPI's [`deepObject` style](https://spec.openapis.org/oas/v3.1.0#style-values)
+  for the object case (e.g. `color[R]=100&color[G]=200`). OpenAPI 3.0.4
+  and 3.1.1 explicitly state that *"the representation of array or
+  object properties is not defined"* under `deepObject`, so this encoder
+  follows the convention used by Stripe's official SDKs
+  ([stripe-node](https://github.com/stripe/stripe-node/blob/master/src/utils.ts),
+  [stripe-python](https://github.com/stripe/stripe-python/blob/master/stripe/_encode.py),
+  [stripe-ruby](https://github.com/stripe/stripe-ruby/blob/master/lib/stripe/util.rb))
+  and PHP's `http_build_query`: numeric bracket indices for arrays and
+  recursion for deeper nesting.
 
   ```elixir
   client = Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :deep_object}])
@@ -78,7 +86,9 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   Behavior worth knowing:
 
-  - `nil` is dropped at every level; list indices are assigned after filtering.
+  - `nil` map values are dropped.
+  - `nil` list elements are dropped but the original index is preserved
+    (`[a, nil, b]` → `[0]=a&[2]=b`), matching `stripe-node`.
   - Keyword lists encode as objects (`parent[key]=value`), not arrays.
   - Structs raise `ArgumentError` — convert them with `Map.from_struct/1`
     or `to_string/1` first.
@@ -212,9 +222,11 @@ defmodule Tesla.Middleware.FormUrlencoded do
     if Keyword.keyword?(value) do
       Enum.flat_map(value, &encode_keyed_entry(&1, path))
     else
+      # Index first, then drop nils, so original positions are preserved
+      # (matches stripe-node: `[a, nil, b]` -> `[0]=a&[2]=b`).
       value
-      |> Enum.reject(&is_nil/1)
       |> Enum.with_index()
+      |> Enum.reject(&indexed_nil?/1)
       |> Enum.flat_map(&encode_indexed_entry(&1, path))
     end
   end
@@ -230,6 +242,9 @@ defmodule Tesla.Middleware.FormUrlencoded do
   defp encode_indexed_entry({value, index}, path) do
     encode_value(value, [index | path])
   end
+
+  defp indexed_nil?({nil, _index}), do: true
+  defp indexed_nil?({_value, _index}), do: false
 
   defp encode_path(path) do
     [root | rest] = Enum.reverse(path)

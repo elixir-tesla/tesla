@@ -183,9 +183,9 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
                "user[name]=a"
     end
 
-    test "drops nil from lists and renumbers indices" do
+    test "drops nil from lists and preserves original indices" do
       assert encode_body(%{ids: [1, nil, 2, nil, 3]}, encode: :deep_object) ==
-               "ids[0]=1&ids[1]=2&ids[2]=3"
+               "ids[0]=1&ids[2]=2&ids[4]=3"
     end
 
     test "encodes booleans as true/false" do
