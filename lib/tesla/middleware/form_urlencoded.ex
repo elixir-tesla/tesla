@@ -218,8 +218,10 @@ defmodule Tesla.Middleware.FormUrlencoded do
     decoder.(data)
   end
 
-  defp encode_deep_object(data) when is_struct(data) do
-    raise ArgumentError, struct_error_message(data)
+  defp encode_deep_object(%module{}) do
+    raise ArgumentError,
+          "cannot encode #{inspect(module)} struct with :deep_object; " <>
+            "convert it to a map, string, or other primitive before passing it as the body"
   end
 
   defp encode_deep_object(data) do
@@ -236,8 +238,10 @@ defmodule Tesla.Middleware.FormUrlencoded do
     []
   end
 
-  defp encode_value(value, _path) when is_struct(value) do
-    raise ArgumentError, struct_error_message(value)
+  defp encode_value(%module{}, _path) do
+    raise ArgumentError,
+          "cannot encode #{inspect(module)} struct with :deep_object; " <>
+            "convert it to a map, string, or other primitive before passing it as the body"
   end
 
   defp encode_value(value, path) when is_map(value) do
@@ -283,11 +287,6 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   defp encode_part(value) do
     value |> to_string() |> URI.encode_www_form()
-  end
-
-  defp struct_error_message(%module{}) do
-    "cannot encode #{inspect(module)} struct with :deep_object; " <>
-      "convert it to a map, string, or other primitive before passing it as the body"
   end
 end
 
