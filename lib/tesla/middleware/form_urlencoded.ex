@@ -62,9 +62,9 @@ defmodule Tesla.Middleware.FormUrlencoded do
   ## `encode: :deep_object`
 
   Recursive bracket-notation encoder for nested maps and lists, modeled
-  on OpenAPI's `deepObject` style and extended to arrays with numeric
-  indices (the convention used by Stripe, `http_build_query`, and most
-  code-generated SDKs).
+  on OpenAPI's [`deepObject` style](https://spec.openapis.org/oas/v3.1.0#style-values)
+  and extended to arrays with numeric indices (the convention used by
+  Stripe, `http_build_query`, and most code-generated SDKs).
 
   ```elixir
   Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :deep_object}])
