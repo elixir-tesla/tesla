@@ -225,9 +225,11 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   defp encode_deep_object(data) do
     data
-    |> Enum.flat_map(fn {key, value} -> encode_value(value, [key]) end)
+    |> Enum.flat_map(&encode_root_entry/1)
     |> Enum.join("&")
   end
+
+  defp encode_root_entry({key, value}), do: encode_value(value, [key])
 
   defp encode_value(nil, _path), do: []
 
@@ -240,23 +242,17 @@ defmodule Tesla.Middleware.FormUrlencoded do
   end
 
   defp encode_value(value, path) when is_map(value) do
-    Enum.flat_map(value, fn {key, nested_value} ->
-      encode_value(nested_value, [key | path])
-    end)
+    Enum.flat_map(value, &encode_keyed_entry(&1, path))
   end
 
   defp encode_value(value, path) when is_list(value) do
     if Keyword.keyword?(value) do
-      Enum.flat_map(value, fn {key, nested_value} ->
-        encode_value(nested_value, [key | path])
-      end)
+      Enum.flat_map(value, &encode_keyed_entry(&1, path))
     else
       value
       |> Enum.reject(&is_nil/1)
       |> Enum.with_index()
-      |> Enum.flat_map(fn {nested_value, index} ->
-        encode_value(nested_value, [index | path])
-      end)
+      |> Enum.flat_map(&encode_indexed_entry(&1, path))
     end
   end
 
@@ -264,13 +260,17 @@ defmodule Tesla.Middleware.FormUrlencoded do
     ["#{encode_path(path)}=#{encode_part(value)}"]
   end
 
+  defp encode_keyed_entry({key, value}, path), do: encode_value(value, [key | path])
+
+  defp encode_indexed_entry({value, index}, path), do: encode_value(value, [index | path])
+
   defp encode_path(path) do
     [root | rest] = Enum.reverse(path)
 
-    Enum.reduce(rest, encode_part(root), fn part, encoded ->
-      "#{encoded}[#{encode_part(part)}]"
-    end)
+    Enum.reduce(rest, encode_part(root), &append_bracket/2)
   end
+
+  defp append_bracket(part, encoded), do: "#{encoded}[#{encode_part(part)}]"
 
   defp encode_part(value) when is_atom(value),
     do: value |> Atom.to_string() |> URI.encode_www_form()
