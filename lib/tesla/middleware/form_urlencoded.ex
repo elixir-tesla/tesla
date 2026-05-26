@@ -220,8 +220,9 @@ defmodule Tesla.Middleware.FormUrlencoded do
     decoder.(data)
   end
 
-  defp encode_deep_object(data) when is_struct(data),
-    do: encode_deep_object(Map.from_struct(data))
+  defp encode_deep_object(data) when is_struct(data) do
+    encode_deep_object(Map.from_struct(data))
+  end
 
   defp encode_deep_object(data) do
     data
@@ -229,9 +230,13 @@ defmodule Tesla.Middleware.FormUrlencoded do
     |> Enum.join("&")
   end
 
-  defp encode_root_entry({key, value}), do: encode_value(value, [key])
+  defp encode_root_entry({key, value}) do
+    encode_value(value, [key])
+  end
 
-  defp encode_value(nil, _path), do: []
+  defp encode_value(nil, _path) do
+    []
+  end
 
   defp encode_value(value, path) when is_struct(value) do
     if String.Chars.impl_for(value) do
@@ -260,9 +265,13 @@ defmodule Tesla.Middleware.FormUrlencoded do
     ["#{encode_path(path)}=#{encode_part(value)}"]
   end
 
-  defp encode_keyed_entry({key, value}, path), do: encode_value(value, [key | path])
+  defp encode_keyed_entry({key, value}, path) do
+    encode_value(value, [key | path])
+  end
 
-  defp encode_indexed_entry({value, index}, path), do: encode_value(value, [index | path])
+  defp encode_indexed_entry({value, index}, path) do
+    encode_value(value, [index | path])
+  end
 
   defp encode_path(path) do
     [root | rest] = Enum.reverse(path)
@@ -270,12 +279,17 @@ defmodule Tesla.Middleware.FormUrlencoded do
     Enum.reduce(rest, encode_part(root), &append_bracket/2)
   end
 
-  defp append_bracket(part, encoded), do: "#{encoded}[#{encode_part(part)}]"
+  defp append_bracket(part, encoded) do
+    "#{encoded}[#{encode_part(part)}]"
+  end
 
-  defp encode_part(value) when is_atom(value),
-    do: value |> Atom.to_string() |> URI.encode_www_form()
+  defp encode_part(value) when is_atom(value) do
+    value |> Atom.to_string() |> URI.encode_www_form()
+  end
 
-  defp encode_part(value), do: value |> to_string() |> URI.encode_www_form()
+  defp encode_part(value) do
+    value |> to_string() |> URI.encode_www_form()
+  end
 end
 
 defmodule Tesla.Middleware.DecodeFormUrlencoded do
