@@ -23,7 +23,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
   end
 
   client = Myclient.client()
-  Myclient.post(client, "/url", %{key: :value})
+  Tesla.post(client, "/url", %{key: :value})
   ```
 
   ## Options
@@ -32,7 +32,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
   - `:encode` - controls how the body is encoded. Accepts:
     - a function (arity 1) for fully custom encoding
     - `:deep_object` — recursive bracket-notation encoder based on
-      OpenAPI's `deepObject` style (see *Serialization Styles* below)
+      OpenAPI's `deepObject` style (see `encode: :deep_object` below)
     - Defaults to `URI.encode_query/1` when omitted.
 
   ## Nested Maps
@@ -40,7 +40,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
   Natively, nested maps are not supported in the body, so
   `%{"foo" => %{"bar" => "baz"}}` won't be encoded and raise an error.
   Support for this specific case is obtained either by setting
-  `encode: :deep_object` (see *Serialization Styles* below) or by
+  `encode: :deep_object` (see `encode: :deep_object` below) or by
   configuring the middleware to encode (and decode) with
   `Plug.Conn.Query`:
 
@@ -56,7 +56,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
   end
 
   client = Myclient.client()
-  Myclient.post(client, "/url", %{key: %{nested: "value"}})
+  Tesla.post(client, "/url", %{key: %{nested: "value"}})
   ```
 
   ## `encode: :deep_object`
@@ -67,8 +67,9 @@ defmodule Tesla.Middleware.FormUrlencoded do
   Stripe, `http_build_query`, and most code-generated SDKs).
 
   ```elixir
-  Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :deep_object}])
-  |> Tesla.post("/url", %{
+  client = Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :deep_object}])
+
+  Tesla.post(client, "/url", %{
     expand: ["objects"],
     objects: %{customers: ["cus_123", "cus_456"]}
   })
