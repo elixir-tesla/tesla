@@ -262,6 +262,12 @@ defmodule Tesla.Middleware.FormUrlencoded do
     value |> Atom.to_string() |> URI.encode_www_form()
   end
 
+  defp encode_part(value) when is_tuple(value) do
+    raise ArgumentError,
+          "cannot encode tuple #{inspect(value)} with :brackets; " <>
+            "convert it to a map, string, or other primitive before passing it as the body"
+  end
+
   defp encode_part(value) do
     value |> to_string() |> URI.encode_www_form()
   end

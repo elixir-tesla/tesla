@@ -228,6 +228,12 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       end
     end
 
+    test "raises on tuple value with a clear error" do
+      assert_raise ArgumentError, ~r/cannot encode tuple \{1, 2\}/, fn ->
+        encode_body(%{point: {1, 2}}, encode: :brackets)
+      end
+    end
+
     test "empty map encodes to empty string" do
       assert encode_body(%{}, encode: :brackets) == ""
     end
