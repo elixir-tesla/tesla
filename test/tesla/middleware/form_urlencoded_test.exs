@@ -377,26 +377,118 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       end
     end
 
-    test "boolean true encodes as 'true' (PHP emits '1')" do
+    test "default: boolean true encodes as 'true' (Stripe V2 convention)" do
       assert (%Tesla.Env{body: %{"key" => true}}
               |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
               |> Map.fetch!(:body)) == "key=true"
     end
 
-    test "boolean false encodes as 'false' (PHP emits '0')" do
+    test "default: boolean false encodes as 'false' (Stripe V2 convention)" do
       assert (%Tesla.Env{body: %{"key" => false}}
               |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
               |> Map.fetch!(:body)) == "key=false"
     end
 
-    test "list of booleans uses true/false (PHP emits 1/0)" do
+    test "default: list of booleans uses true/false" do
       assert (%Tesla.Env{body: %{"flags" => [true, false, true]}}
               |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
               |> Map.fetch!(:body)) == "flags[0]=true&flags[1]=false&flags[2]=true"
     end
 
+    test "boolean_as: :string is identical to the default" do
+      assert (%Tesla.Env{body: %{"key" => true}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :string})
+              |> Map.fetch!(:body)) == "key=true"
+    end
+
+    test "boolean_as: :integer opts into PHP http_build_query parity (true → 1)" do
+      assert (%Tesla.Env{body: %{"key" => true}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+              |> Map.fetch!(:body)) == "key=1"
+    end
+
+    test "boolean_as: :integer opts into PHP http_build_query parity (false → 0)" do
+      assert (%Tesla.Env{body: %{"key" => false}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+              |> Map.fetch!(:body)) == "key=0"
+    end
+
+    test "boolean_as: :integer encodes a list of booleans as 1/0 (matches PHP exactly)" do
+      assert (%Tesla.Env{body: %{"flags" => [true, false, true]}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+              |> Map.fetch!(:body)) == "flags[0]=1&flags[1]=0&flags[2]=1"
+    end
+
+    test "boolean_as: :integer recurses into nested maps" do
+      assert (%Tesla.Env{body: %{"user" => %{"active" => true, "verified" => false}}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+              |> Map.fetch!(:body)
+              |> sort_pairs()) == "user[active]=1&user[verified]=0"
+    end
+
+    test "boolean_as: :integer recurses into lists of objects" do
+      assert (%Tesla.Env{body: %{"items" => [%{"flag" => true}, %{"flag" => false}]}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+              |> Map.fetch!(:body)) == "items[0][flag]=1&items[1][flag]=0"
+    end
+
+    test "boolean_as: :integer leaves non-boolean values untouched" do
+      assert (%Tesla.Env{body: %{"name" => "alice", "age" => 30, "score" => 1.5, "tag" => :ok}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+              |> Map.fetch!(:body)
+              |> sort_pairs()) == "age=30&name=alice&score=1.5&tag=ok"
+    end
+
+    test "{:brackets, []} with no sub-options behaves like :brackets" do
+      assert (%Tesla.Env{body: %{"key" => true}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, []})
+              |> Map.fetch!(:body)) == "key=true"
+    end
+
+    test "invalid :boolean_as value raises" do
+      assert_raise ArgumentError, ~r/invalid :boolean_as :nope/, fn ->
+        %Tesla.Env{body: %{"k" => true}}
+        |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :nope})
+      end
+    end
+
+    test "unknown sub-option key raises" do
+      assert_raise ArgumentError, ~r/unknown option\(s\) \[:weird\]/, fn ->
+        %Tesla.Env{body: %{"k" => true}}
+        |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, weird: true})
+      end
+    end
+
     defp sort_pairs(""), do: ""
     defp sort_pairs(encoded), do: encoded |> String.split("&") |> Enum.sort() |> Enum.join("&")
+  end
+
+  describe "encode: {:brackets, boolean_as: :integer} full PHP parity" do
+    # The three cases that diverged from PHP under the default Stripe-flavored
+    # boolean handling. With boolean_as: :integer, output matches PHP
+    # http_build_query byte-for-byte (after the standard %5B/%5D → [/] decode
+    # and top-level pair sort applied in the main parity corpus above).
+    @php_boolean_corpus [
+      {"scalar/bool_true", %{"key" => true}, "key=1"},
+      {"scalar/bool_false", %{"key" => false}, "key=0"},
+      {"list/of_bools", %{"flags" => [true, false, true]}, "flags[0]=1&flags[1]=0&flags[2]=1"}
+    ]
+
+    for {label, input, expected} <- @php_boolean_corpus do
+      @input input
+      @expected expected
+      test "matches PHP http_build_query with boolean_as: :integer: #{label}" do
+        actual =
+          %Tesla.Env{body: @input}
+          |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+          |> Map.fetch!(:body)
+          |> String.split("&")
+          |> Enum.sort()
+          |> Enum.join("&")
+
+        assert actual == @expected
+      end
+    end
   end
 
   describe "Encode / Decode" do
