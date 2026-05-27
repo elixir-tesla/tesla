@@ -46,13 +46,27 @@ if Code.ensure_loaded?(Finch) do
         + `nil` or not specified - Responds without streaming using
           `Finch.request/3`.
 
-    ## [Finch options](https://hexdocs.pm/finch/Finch.html#request/3)
+    ## [Finch build options](https://hexdocs.pm/finch/Finch.html#build/5)
+
+      * `:unix_socket` - Path to a Unix domain socket to connect to instead of the
+        URL host/port. The URL scheme still determines whether HTTP or HTTPS is used.
+
+      * `:pool_tag` - The tag to use when selecting which pool to use for this request.
+        Defaults to `:default`. See [Finch - Pool Tagging](https://hexdocs.pm/finch/Finch.html#module-pool-tagging).
+
+    ## [Finch request options](https://hexdocs.pm/finch/Finch.html#t:request_opt/0)
 
       * `:pool_timeout` - This timeout is applied when a connection is checked
         out from the pool. Default value is `5_000`.
 
-      * `:receive_timeout` - The maximum time to wait for a response before
-        returning an error. Default value is `15_000`.
+      * `:receive_timeout` - The maximum time to wait for each chunk to arrive
+        before returning an error. Default value is `15_000`.
+
+      * `:request_timeout` - The maximum time to wait for a complete response
+        before returning an error. Only applies to HTTP/1. Default value is `:infinity`.
+
+      * `:pool_strategy` - Determines which shard handles the request when the pool
+        has multiple shards (`count > 1`). Default selection is random.
 
     """
     @behaviour Tesla.Adapter
@@ -68,8 +82,9 @@ if Code.ensure_loaded?(Finch) do
 
       name = Keyword.fetch!(opts, :name)
       url = Tesla.build_url(env)
-      req_opts = Keyword.take(opts, [:pool_timeout, :receive_timeout])
-      req = build(env.method, url, env.headers, env.body)
+      req_opts = Keyword.take(opts, [:pool_timeout, :receive_timeout, :request_timeout, :pool_strategy])
+      build_opts = Keyword.take(opts, [:unix_socket, :pool_tag])
+      req = build(env.method, url, env.headers, env.body, build_opts)
 
       case request(req, name, req_opts, opts) do
         {:ok, %Finch.Response{status: status, headers: headers, body: body}} ->
@@ -83,23 +98,23 @@ if Code.ensure_loaded?(Finch) do
       end
     end
 
-    defp build(method, url, headers, %Multipart{} = mp) do
+    defp build(method, url, headers, %Multipart{} = mp, opts) do
       headers = headers ++ Multipart.headers(mp)
       body = Multipart.body(mp)
 
-      build(method, url, headers, body)
+      build(method, url, headers, body, opts)
     end
 
-    defp build(method, url, headers, %Stream{} = body_stream) do
-      build(method, url, headers, {:stream, body_stream})
+    defp build(method, url, headers, %Stream{} = body_stream, opts) do
+      build(method, url, headers, {:stream, body_stream}, opts)
     end
 
-    defp build(method, url, headers, body_stream_fun) when is_function(body_stream_fun) do
-      build(method, url, headers, {:stream, body_stream_fun})
+    defp build(method, url, headers, body_stream_fun, opts) when is_function(body_stream_fun) do
+      build(method, url, headers, {:stream, body_stream_fun}, opts)
     end
 
-    defp build(method, url, headers, body) do
-      Finch.build(method, url, headers, body)
+    defp build(method, url, headers, body, opts) do
+      Finch.build(method, url, headers, body, opts)
     end
 
     defp request(req, name, req_opts, opts) do
