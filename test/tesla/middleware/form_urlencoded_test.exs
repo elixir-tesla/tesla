@@ -378,71 +378,71 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     end
 
     test "default: boolean true encodes as 'true' (Stripe V2 convention)" do
-      assert (%Tesla.Env{body: %{"key" => true}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
-              |> Map.fetch!(:body)) == "key=true"
+      assert %Tesla.Env{body: %{"key" => true}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
+             |> Map.fetch!(:body) == "key=true"
     end
 
     test "default: boolean false encodes as 'false' (Stripe V2 convention)" do
-      assert (%Tesla.Env{body: %{"key" => false}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
-              |> Map.fetch!(:body)) == "key=false"
+      assert %Tesla.Env{body: %{"key" => false}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
+             |> Map.fetch!(:body) == "key=false"
     end
 
     test "default: list of booleans uses true/false" do
-      assert (%Tesla.Env{body: %{"flags" => [true, false, true]}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
-              |> Map.fetch!(:body)) == "flags[0]=true&flags[1]=false&flags[2]=true"
+      assert %Tesla.Env{body: %{"flags" => [true, false, true]}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
+             |> Map.fetch!(:body) == "flags[0]=true&flags[1]=false&flags[2]=true"
     end
 
     test "boolean_as: :string is identical to the default" do
-      assert (%Tesla.Env{body: %{"key" => true}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :string})
-              |> Map.fetch!(:body)) == "key=true"
+      assert %Tesla.Env{body: %{"key" => true}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :string})
+             |> Map.fetch!(:body) == "key=true"
     end
 
     test "boolean_as: :integer opts into PHP http_build_query parity (true → 1)" do
-      assert (%Tesla.Env{body: %{"key" => true}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
-              |> Map.fetch!(:body)) == "key=1"
+      assert %Tesla.Env{body: %{"key" => true}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+             |> Map.fetch!(:body) == "key=1"
     end
 
     test "boolean_as: :integer opts into PHP http_build_query parity (false → 0)" do
-      assert (%Tesla.Env{body: %{"key" => false}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
-              |> Map.fetch!(:body)) == "key=0"
+      assert %Tesla.Env{body: %{"key" => false}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+             |> Map.fetch!(:body) == "key=0"
     end
 
     test "boolean_as: :integer encodes a list of booleans as 1/0 (matches PHP exactly)" do
-      assert (%Tesla.Env{body: %{"flags" => [true, false, true]}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
-              |> Map.fetch!(:body)) == "flags[0]=1&flags[1]=0&flags[2]=1"
+      assert %Tesla.Env{body: %{"flags" => [true, false, true]}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+             |> Map.fetch!(:body) == "flags[0]=1&flags[1]=0&flags[2]=1"
     end
 
     test "boolean_as: :integer recurses into nested maps" do
-      assert (%Tesla.Env{body: %{"user" => %{"active" => true, "verified" => false}}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
-              |> Map.fetch!(:body)
-              |> sort_pairs()) == "user[active]=1&user[verified]=0"
+      assert %Tesla.Env{body: %{"user" => %{"active" => true, "verified" => false}}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+             |> Map.fetch!(:body)
+             |> sort_pairs() == "user[active]=1&user[verified]=0"
     end
 
     test "boolean_as: :integer recurses into lists of objects" do
-      assert (%Tesla.Env{body: %{"items" => [%{"flag" => true}, %{"flag" => false}]}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
-              |> Map.fetch!(:body)) == "items[0][flag]=1&items[1][flag]=0"
+      assert %Tesla.Env{body: %{"items" => [%{"flag" => true}, %{"flag" => false}]}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+             |> Map.fetch!(:body) == "items[0][flag]=1&items[1][flag]=0"
     end
 
     test "boolean_as: :integer leaves non-boolean values untouched" do
-      assert (%Tesla.Env{body: %{"name" => "alice", "age" => 30, "score" => 1.5, "tag" => :ok}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
-              |> Map.fetch!(:body)
-              |> sort_pairs()) == "age=30&name=alice&score=1.5&tag=ok"
+      assert %Tesla.Env{body: %{"name" => "alice", "age" => 30, "score" => 1.5, "tag" => :ok}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
+             |> Map.fetch!(:body)
+             |> sort_pairs() == "age=30&name=alice&score=1.5&tag=ok"
     end
 
     test "{:brackets, []} with no sub-options behaves like :brackets" do
-      assert (%Tesla.Env{body: %{"key" => true}}
-              |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, []})
-              |> Map.fetch!(:body)) == "key=true"
+      assert %Tesla.Env{body: %{"key" => true}}
+             |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, []})
+             |> Map.fetch!(:body) == "key=true"
     end
 
     test "invalid :boolean_as value raises" do
