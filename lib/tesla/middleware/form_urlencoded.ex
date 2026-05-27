@@ -154,7 +154,12 @@ defmodule Tesla.Middleware.FormUrlencoded do
   - Keyword lists encode as objects (`parent[key]=value`), not arrays.
   - Structs raise `ArgumentError` — convert them with `Map.from_struct/1`
     or `to_string/1` first.
-  - Output order is not guaranteed (maps don't preserve insertion order).
+  - Empty lists and empty maps emit nothing, which means the parent key
+    disappears entirely: `%{ids: []}` → `""`, and `%{user: %{tags: []}}`
+    → `""`. This matches PHP `http_build_query`. Send `""` to clear a
+    field on Stripe-style update endpoints.
+  - Map keys are not ordered; keyword lists preserve the order you give
+    them.
   - Decoding stays flat; pair with `decode: &Plug.Conn.Query.decode/1` for
     symmetric round-trips.
   """
@@ -298,16 +303,18 @@ defmodule Tesla.Middleware.FormUrlencoded do
     decoder.(data)
   end
 
-  defp encode_brackets(%module{}) do
-    raise ArgumentError,
-          "cannot encode #{inspect(module)} struct with :brackets; " <>
-            "convert it to a map, string, or other primitive before passing it as the body"
-  end
+  defp encode_brackets(%module{}), do: raise_struct!(module)
 
-  defp encode_brackets(data) do
+  defp encode_brackets(data) when is_map(data) or is_list(data) do
     data
     |> Enum.flat_map(&encode_root_entry/1)
     |> Enum.join("&")
+  end
+
+  defp encode_brackets(data) do
+    raise ArgumentError,
+          "cannot encode #{inspect(data)} with :brackets; " <>
+            "expected a map or keyword list at the root"
   end
 
   defp encode_root_entry({key, value}) do
@@ -318,11 +325,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
     []
   end
 
-  defp encode_value(%module{}, _path) do
-    raise ArgumentError,
-          "cannot encode #{inspect(module)} struct with :brackets; " <>
-            "convert it to a map, string, or other primitive before passing it as the body"
-  end
+  defp encode_value(%module{}, _path), do: raise_struct!(module)
 
   defp encode_value(value, path) when is_map(value) do
     Enum.flat_map(value, &encode_keyed_entry(&1, path))
@@ -381,6 +384,12 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   defp encode_part(value) do
     value |> to_string() |> URI.encode_www_form()
+  end
+
+  defp raise_struct!(module) do
+    raise ArgumentError,
+          "cannot encode #{inspect(module)} struct with :brackets; " <>
+            "convert it to a map, string, or other primitive before passing it as the body"
   end
 end
 

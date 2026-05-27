@@ -242,6 +242,16 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       assert encode_body(%{ids: []}, encode: :brackets) == ""
     end
 
+    test "empty list inside nested map drops the parent key" do
+      assert encode_body(%{user: %{tags: []}}, encode: :brackets) == ""
+    end
+
+    test "raises clear error for non-enumerable root value" do
+      assert_raise ArgumentError, ~r/cannot encode 42 with :brackets/, fn ->
+        encode_body(42, encode: :brackets)
+      end
+    end
+
     test "keyword list at top level encodes in given order" do
       assert encode_body([a: 1, b: 2, c: 3], encode: :brackets) == "a=1&b=2&c=3"
     end
