@@ -278,6 +278,127 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     defp as_pairs(encoded), do: encoded |> String.split("&") |> MapSet.new()
   end
 
+  describe "encode: :brackets PHP http_build_query parity" do
+    # Each tuple: {label, input, expected}.
+    #
+    # Expected outputs were captured from PHP 8.3's http_build_query and
+    # then normalized two ways before comparison:
+    #
+    #   * `%5B`/`%5D` rewritten to literal `[`/`]` — Tesla emits literal
+    #     brackets while PHP percent-encodes them. Both forms URL-decode to
+    #     the same key, so any conformant parser (Rack, Plug.Conn.Query,
+    #     PHP parse_str) treats them as equivalent.
+    #   * Top-level `key=value` pairs sorted alphabetically — Elixir maps
+    #     don't preserve insertion order, so the test normalizes both sides
+    #     by sorting before comparing.
+    #
+    # Booleans are excluded here and tested separately below: PHP emits
+    # `1`/`0`, Tesla emits `true`/`false` (the convention Stripe's API
+    # requires; stripe-php normalizes booleans before calling
+    # http_build_query, so the SDK-level output also uses `true`/`false`).
+    @php_corpus [
+      {"scalar/string", %{"key" => "hello"}, "key=hello"},
+      {"scalar/integer", %{"key" => 42}, "key=42"},
+      {"scalar/zero", %{"key" => 0}, "key=0"},
+      {"scalar/negative", %{"key" => -5}, "key=-5"},
+      {"scalar/float", %{"key" => 1.5}, "key=1.5"},
+      {"scalar/empty_string", %{"key" => ""}, "key="},
+      {"nil/top_level_only_nil", %{"key" => nil}, ""},
+      {"nil/top_level_mixed", %{"a" => 1, "b" => nil, "c" => 2}, "a=1&c=2"},
+      {"nil/all_nil", %{"a" => nil, "b" => nil}, ""},
+      {"nil/in_nested_map", %{"user" => %{"name" => "a", "email" => nil}}, "user[name]=a"},
+      {"nil/in_list_middle", %{"ids" => ["a", nil, "b"]}, "ids[0]=a&ids[2]=b"},
+      {"nil/in_list_leading", %{"ids" => [nil, "a", "b"]}, "ids[1]=a&ids[2]=b"},
+      {"nil/in_list_trailing", %{"ids" => ["a", "b", nil]}, "ids[0]=a&ids[1]=b"},
+      {"nil/in_list_all_nil", %{"ids" => [nil, nil, nil]}, ""},
+      {"nil/multiple_in_list", %{"ids" => [1, nil, 2, nil, 3]}, "ids[0]=1&ids[2]=2&ids[4]=3"},
+      {"nil/in_list_of_objects",
+       %{"users" => [%{"name" => "a", "email" => nil}, %{"name" => "b"}]},
+       "users[0][name]=a&users[1][name]=b"},
+      {"empty/map", %{}, ""},
+      {"empty/empty_list_value", %{"ids" => []}, ""},
+      {"empty/empty_map_value", %{"user" => %{}}, ""},
+      {"list/single", %{"ids" => ["a"]}, "ids[0]=a"},
+      {"list/multi", %{"ids" => ["a", "b", "c"]}, "ids[0]=a&ids[1]=b&ids[2]=c"},
+      {"list/of_ints", %{"nums" => [1, 2, 3]}, "nums[0]=1&nums[1]=2&nums[2]=3"},
+      {"list/of_objects", %{"users" => [%{"name" => "a"}, %{"name" => "b"}]},
+       "users[0][name]=a&users[1][name]=b"},
+      {"list/nested_list", %{"matrix" => [[1, 2], [3, 4]]},
+       "matrix[0][0]=1&matrix[0][1]=2&matrix[1][0]=3&matrix[1][1]=4"},
+      {"nested/one_level", %{"user" => %{"name" => "a"}}, "user[name]=a"},
+      {"nested/two_levels", %{"a" => %{"b" => %{"c" => 1}}}, "a[b][c]=1"},
+      {"nested/three_levels", %{"a" => %{"b" => %{"c" => %{"d" => "x"}}}}, "a[b][c][d]=x"},
+      {"mixed/object_in_list", %{"users" => [%{"name" => "a", "age" => 30}]},
+       "users[0][age]=30&users[0][name]=a"},
+      {"mixed/list_in_object", %{"user" => %{"tags" => ["x", "y"]}},
+       "user[tags][0]=x&user[tags][1]=y"},
+      {"mixed/list_object_list", %{"users" => [%{"tags" => ["x", "y"]}]},
+       "users[0][tags][0]=x&users[0][tags][1]=y"},
+      {"mixed/stripe_expand", %{"expand" => ["customers", "subscriptions"]},
+       "expand[0]=customers&expand[1]=subscriptions"},
+      {"mixed/stripe_complex",
+       %{
+         "expand" => ["objects"],
+         "objects" => %{"customers" => ["cus_123", "cus_456"]},
+         "validation_behavior" => "fix"
+       },
+       "expand[0]=objects&objects[customers][0]=cus_123&objects[customers][1]=cus_456&validation_behavior=fix"},
+      {"encoding/space_in_value", %{"q" => "hello world"}, "q=hello+world"},
+      {"encoding/space_in_key", %{"weird key" => "v"}, "weird+key=v"},
+      {"encoding/ampersand_value", %{"q" => "a&b"}, "q=a%26b"},
+      {"encoding/equals_value", %{"q" => "a=b"}, "q=a%3Db"},
+      {"encoding/percent_value", %{"q" => "a%b"}, "q=a%25b"},
+      {"encoding/plus_value", %{"q" => "a+b"}, "q=a%2Bb"},
+      {"encoding/hash_value", %{"q" => "a#b"}, "q=a%23b"},
+      {"encoding/qmark_value", %{"q" => "a?b"}, "q=a%3Fb"},
+      {"encoding/slash_value", %{"q" => "a/b"}, "q=a%2Fb"},
+      {"encoding/special_combo", %{"q" => "a&b=c%d e"}, "q=a%26b%3Dc%25d+e"},
+      {"encoding/unicode_value", %{"q" => "café"}, "q=caf%C3%A9"},
+      {"encoding/unicode_emoji", %{"q" => "🚀"}, "q=%F0%9F%9A%80"},
+      {"encoding/newline_value", %{"q" => "line1\nline2"}, "q=line1%0Aline2"},
+      {"encoding/tab_value", %{"q" => "a\tb"}, "q=a%09b"},
+      {"encoding/quote_value", %{"q" => "he said \"hi\""}, "q=he+said+%22hi%22"},
+      {"deep/four_levels", %{"a" => %{"b" => %{"c" => %{"d" => 1}}}}, "a[b][c][d]=1"},
+      {"deep/list_of_lists_of_maps", %{"x" => [[%{"k" => 1}], [%{"k" => 2}]]},
+       "x[0][0][k]=1&x[1][0][k]=2"}
+    ]
+
+    for {label, input, expected} <- @php_corpus do
+      @input input
+      @expected expected
+      test "matches PHP http_build_query: #{label}" do
+        actual =
+          %Tesla.Env{body: @input}
+          |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
+          |> Map.fetch!(:body)
+          |> sort_pairs()
+
+        assert actual == @expected
+      end
+    end
+
+    test "boolean true encodes as 'true' (PHP emits '1')" do
+      assert (%Tesla.Env{body: %{"key" => true}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
+              |> Map.fetch!(:body)) == "key=true"
+    end
+
+    test "boolean false encodes as 'false' (PHP emits '0')" do
+      assert (%Tesla.Env{body: %{"key" => false}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
+              |> Map.fetch!(:body)) == "key=false"
+    end
+
+    test "list of booleans uses true/false (PHP emits 1/0)" do
+      assert (%Tesla.Env{body: %{"flags" => [true, false, true]}}
+              |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
+              |> Map.fetch!(:body)) == "flags[0]=true&flags[1]=false&flags[2]=true"
+    end
+
+    defp sort_pairs(""), do: ""
+    defp sort_pairs(encoded), do: encoded |> String.split("&") |> Enum.sort() |> Enum.join("&")
+  end
+
   describe "Encode / Decode" do
     defmodule EncodeDecodeFormUrlencodedClient do
       use Tesla
