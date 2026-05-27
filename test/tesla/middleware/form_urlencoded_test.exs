@@ -124,17 +124,17 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     assert env.body == "decodedbody"
   end
 
-  describe "encode: :brackets end-to-end through middleware" do
-    defmodule NestedClient do
-      use Tesla
+  defmodule NestedClient do
+    use Tesla
 
-      plug Tesla.Middleware.FormUrlencoded, encode: :brackets
+    plug Tesla.Middleware.FormUrlencoded, encode: :brackets
 
-      adapter fn env ->
-        {:ok, %{env | status: 201, headers: [{"content-type", "text/html"}], body: env.body}}
-      end
+    adapter fn env ->
+      {:ok, %{env | status: 201, headers: [{"content-type", "text/html"}], body: env.body}}
     end
+  end
 
+  describe "encode: :brackets end-to-end through middleware" do
     test "encodes nested bodies with bracket-indexed lists" do
       body = %{
         expand: ["objects"],
