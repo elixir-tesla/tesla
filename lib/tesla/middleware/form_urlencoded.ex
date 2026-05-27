@@ -31,8 +31,8 @@ defmodule Tesla.Middleware.FormUrlencoded do
   - `:decode` - decoding function, defaults to `URI.decode_query/1`
   - `:encode` - controls how the body is encoded. Accepts:
     - a function (arity 1) for fully custom encoding
-    - `:deep_object` — recursive bracket-notation encoder based on
-      OpenAPI's `deepObject` style (see `encode: :deep_object` below)
+    - `:brackets` — recursive bracket-notation encoder for nested maps
+      and lists (see `encode: :brackets` below)
     - Defaults to `URI.encode_query/1` when omitted.
 
   ## Nested Maps
@@ -40,7 +40,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
   Natively, nested maps are not supported in the body, so
   `%{"foo" => %{"bar" => "baz"}}` won't be encoded and raise an error.
   Support for this specific case is obtained either by setting
-  `encode: :deep_object` (see `encode: :deep_object` below) or by
+  `encode: :brackets` (see `encode: :brackets` below) or by
   configuring the middleware to encode (and decode) with
   `Plug.Conn.Query`:
 
@@ -59,23 +59,25 @@ defmodule Tesla.Middleware.FormUrlencoded do
   Tesla.post(client, "/url", %{key: %{nested: "value"}})
   ```
 
-  ## `encode: :deep_object`
+  ## `encode: :brackets`
 
   Recursive bracket-notation encoder for nested maps and lists.
 
-  Uses OpenAPI's [`deepObject` style](https://spec.openapis.org/oas/v3.1.0#style-values)
-  for the object case (e.g. `color[R]=100&color[G]=200`). OpenAPI 3.0.4
-  and 3.1.1 explicitly state that *"the representation of array or
-  object properties is not defined"* under `deepObject`, so this encoder
-  follows the convention used by Stripe's official SDKs
+  Output matches Stripe's official SDKs
   ([stripe-node](https://github.com/stripe/stripe-node/blob/master/src/utils.ts),
   [stripe-python](https://github.com/stripe/stripe-python/blob/master/stripe/_encode.py),
   [stripe-ruby](https://github.com/stripe/stripe-ruby/blob/master/lib/stripe/util.rb))
-  and PHP's `http_build_query`: numeric bracket indices for arrays and
-  recursion for deeper nesting.
+  and PHP's `http_build_query`: numeric bracket indices for arrays
+  (`key[0]=a&key[1]=b`) and recursion for deeper nesting
+  (`a[b][c]=1`). This is consistent with OpenAPI's
+  [`deepObject` style](https://spec.openapis.org/oas/v3.1.0#style-values)
+  for the object case (`color[R]=100&color[G]=200`); the OpenAPI 3.0.4
+  and 3.1.1 specs explicitly state that *"the representation of array
+  or object properties is not defined"* under `deepObject`, which this
+  encoder fills in with the conventions above.
 
   ```elixir
-  client = Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :deep_object}])
+  client = Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :brackets}])
 
   Tesla.post(client, "/url", %{
     expand: ["objects"],
@@ -168,15 +170,15 @@ defmodule Tesla.Middleware.FormUrlencoded do
       nil ->
         URI.encode_query(data)
 
-      :deep_object ->
-        encode_deep_object(data)
+      :brackets ->
+        encode_brackets(data)
 
       fun when is_function(fun, 1) ->
         fun.(data)
 
       value ->
         raise ArgumentError,
-              "unknown :encode option #{inspect(value)}; expected :deep_object or an arity-1 function"
+              "unknown :encode option #{inspect(value)}; expected :brackets or an arity-1 function"
     end
   end
 
@@ -185,13 +187,13 @@ defmodule Tesla.Middleware.FormUrlencoded do
     decoder.(data)
   end
 
-  defp encode_deep_object(%module{}) do
+  defp encode_brackets(%module{}) do
     raise ArgumentError,
-          "cannot encode #{inspect(module)} struct with :deep_object; " <>
+          "cannot encode #{inspect(module)} struct with :brackets; " <>
             "convert it to a map, string, or other primitive before passing it as the body"
   end
 
-  defp encode_deep_object(data) do
+  defp encode_brackets(data) do
     data
     |> Enum.flat_map(&encode_root_entry/1)
     |> Enum.join("&")
@@ -207,7 +209,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   defp encode_value(%module{}, _path) do
     raise ArgumentError,
-          "cannot encode #{inspect(module)} struct with :deep_object; " <>
+          "cannot encode #{inspect(module)} struct with :brackets; " <>
             "convert it to a map, string, or other primitive before passing it as the body"
   end
 
