@@ -491,6 +491,28 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     end
   end
 
+  describe "encode: :brackets wire format is parseable" do
+    test "URI.decode_query round-trips bracket-keyed pairs" do
+      body = %{
+        "expand" => ["objects"],
+        "objects" => %{"customers" => ["cus_123", "cus_456"]},
+        "validation_behavior" => "fix"
+      }
+
+      encoded =
+        %Tesla.Env{body: body}
+        |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
+        |> Map.fetch!(:body)
+
+      assert URI.decode_query(encoded) == %{
+               "expand[0]" => "objects",
+               "objects[customers][0]" => "cus_123",
+               "objects[customers][1]" => "cus_456",
+               "validation_behavior" => "fix"
+             }
+    end
+  end
+
   describe "Encode / Decode" do
     defmodule EncodeDecodeFormUrlencodedClient do
       use Tesla

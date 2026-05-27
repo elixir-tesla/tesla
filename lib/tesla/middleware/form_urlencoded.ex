@@ -102,12 +102,15 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   ```elixir
   # default: Stripe-compatible
-  encode_body(%{active: true}, encode: :brackets)
-  # => "active=true"
+  client = Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :brackets}])
+  Tesla.post(client, "/url", %{active: true})
+  # body: "active=true"
 
   # opt in to PHP http_build_query parity
-  encode_body(%{active: true}, encode: {:brackets, boolean_as: :integer})
-  # => "active=1"
+  client =
+    Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: {:brackets, boolean_as: :integer}}])
+  Tesla.post(client, "/url", %{active: true})
+  # body: "active=1"
   ```
 
   With `boolean_as: :integer`, the encoder's output matches PHP
@@ -231,8 +234,8 @@ defmodule Tesla.Middleware.FormUrlencoded do
         encode_brackets(data)
 
       {:brackets, sub_opts} when is_list(sub_opts) ->
-        boolean_as = brackets_boolean_as!(sub_opts)
         validate_brackets_opts!(sub_opts)
+        boolean_as = brackets_boolean_as!(sub_opts)
 
         data
         |> normalize_booleans(boolean_as)
@@ -244,7 +247,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
       value ->
         raise ArgumentError,
               "unknown :encode option #{inspect(value)}; expected :brackets, " <>
-                "{:brackets, opts}, or an arity-1 function"
+                "{:brackets, opts} where opts is a keyword list, or an arity-1 function"
     end
   end
 
