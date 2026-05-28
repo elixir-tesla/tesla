@@ -30,7 +30,8 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   - `:decode` - decoding function, defaults to `URI.decode_query/1`
   - `:encode` - controls how the body is encoded. Accepts:
-    - a function (arity 1) for fully custom encoding
+    - an arity-1 function that receives the body and returns a binary
+      (e.g. `&Plug.Conn.Query.encode/1` or any custom encoder)
     - `:brackets` — recursive bracket-notation encoder for nested maps
       and lists (see `encode: :brackets` below)
     - `{:brackets, opts}` — same encoder with sub-options. Currently
@@ -149,20 +150,39 @@ defmodule Tesla.Middleware.FormUrlencoded do
   (`[a, nil, b]` → `[0]=a&[2]=b`, matching PHP `http_build_query`), and
   `""` elements are emitted as `key[i]=`.
 
+  ### Root containers
+
+  The root accepts any ordered name/value pair-sequence, which matches
+  the `application/x-www-form-urlencoded` wire-level data model:
+
+  - `Map` — most common; iteration order is undefined.
+  - Keyword list (`[a: 1, b: 2]`) — preserves the order you give it.
+  - List of 2-tuples (`[{"tag", "a"}, {"tag", "b"}]`) — preserves order
+    *and* allows duplicate keys and non-atom keys
+    (`[{"tag", "a"}, {"tag", "b"}]` → `tag=a&tag=b`).
+
+  Anything else at the root (`42`, `[1, 2, 3]`, `[{:a, 1}, 2]`, a
+  struct) raises `ArgumentError`.
+
+  ### Nested containers
+
+  Inside the payload the shape is strict, no inference:
+
+  - `Map` is always an object → `parent[key]=value`.
+  - `List` is always an array → `parent[0]=…&parent[1]=…`.
+  - A tuple appearing inside a map or list raises — use a map for
+    object-shaped nesting.
+  - Structs raise `ArgumentError` — convert them with
+    `Map.from_struct/1` or `to_string/1` first.
+
   ### Other behavior worth knowing
 
-  - Keyword lists (atom-keyed) encode as objects (`parent[key]=value`),
-    not arrays. String-keyed proplists like `[{"a", 1}]` are not detected
-    as keyword lists and will raise the tuple error — convert them to a
-    map first.
-  - Structs raise `ArgumentError` — convert them with `Map.from_struct/1`
-    or `to_string/1` first.
   - Empty lists and empty maps emit nothing, which means the parent key
     disappears entirely: `%{ids: []}` → `""`, and `%{user: %{tags: []}}`
     → `""`. This matches PHP `http_build_query`. Send `""` to clear a
     field on Stripe-style update endpoints.
-  - Map keys are not ordered; keyword lists preserve the order you give
-    them.
+  - Map keys are not ordered; keyword lists and lists of 2-tuples
+    preserve the order you give them.
   - Decoding stays flat. `Plug.Conn.Query.decode/1` will parse the
     bracket keys into nested maps, but indexed lists come back as maps
     keyed by string indices (`"0"`, `"1"`, …), not as Elixir lists, so
@@ -241,15 +261,10 @@ defmodule Tesla.Middleware.FormUrlencoded do
         URI.encode_query(data)
 
       :brackets ->
-        encode_brackets(data)
+        encode_brackets(data, :string)
 
       {:brackets, sub_opts} when is_list(sub_opts) ->
-        validate_brackets_opts!(sub_opts)
-        boolean_as = brackets_boolean_as!(sub_opts)
-
-        data
-        |> normalize_booleans(boolean_as)
-        |> encode_brackets()
+        encode_brackets(data, validate_brackets_opts!(sub_opts))
 
       fun when is_function(fun, 1) ->
         fun.(data)
@@ -258,21 +273,6 @@ defmodule Tesla.Middleware.FormUrlencoded do
         raise ArgumentError,
               "unknown :encode option #{inspect(value)}; expected :brackets, " <>
                 "{:brackets, opts} where opts is a keyword list, or an arity-1 function"
-    end
-  end
-
-  defp brackets_boolean_as!(sub_opts) do
-    case Keyword.get(sub_opts, :boolean_as, :string) do
-      :string ->
-        :string
-
-      :integer ->
-        :integer
-
-      other ->
-        raise ArgumentError,
-              "invalid :boolean_as #{inspect(other)} for :brackets encoder; " <>
-                "expected :string or :integer"
     end
   end
 
@@ -286,86 +286,84 @@ defmodule Tesla.Middleware.FormUrlencoded do
               "unknown option(s) #{inspect(unknown)} for :brackets encoder; " <>
                 "expected :boolean_as"
     end
+
+    case Keyword.get(sub_opts, :boolean_as, :string) do
+      mode when mode in [:string, :integer] ->
+        mode
+
+      other ->
+        raise ArgumentError,
+              "invalid :boolean_as #{inspect(other)} for :brackets encoder; " <>
+                "expected :string or :integer"
+    end
   end
-
-  defp normalize_booleans(data, :string), do: data
-  defp normalize_booleans(data, :integer), do: deep_map_booleans(data)
-
-  defp deep_map_booleans(true), do: "1"
-  defp deep_map_booleans(false), do: "0"
-  defp deep_map_booleans(%_{} = struct), do: struct
-
-  defp deep_map_booleans(map) when is_map(map) do
-    Map.new(map, fn {k, v} -> {k, deep_map_booleans(v)} end)
-  end
-
-  defp deep_map_booleans({k, v}) when is_atom(k), do: {k, deep_map_booleans(v)}
-  defp deep_map_booleans(list) when is_list(list), do: Enum.map(list, &deep_map_booleans/1)
-  defp deep_map_booleans(other), do: other
 
   defp do_decode(data, opts) do
     decoder = Keyword.get(opts, :decode, &URI.decode_query/1)
     decoder.(data)
   end
 
-  defp encode_brackets(%module{}), do: raise_struct!(module)
+  defp encode_brackets(%module{}, _boolean_as), do: raise_struct!(module)
 
-  defp encode_brackets(data) when is_map(data) or is_list(data) do
+  defp encode_brackets(data, boolean_as) when is_map(data) do
     data
-    |> Enum.flat_map(&encode_root_entry/1)
+    |> Enum.flat_map(&encode_root_entry(&1, boolean_as))
     |> Enum.join("&")
   end
 
-  defp encode_brackets(data) do
-    raise ArgumentError,
-          "cannot encode #{inspect(data)} with :brackets; " <>
-            "expected a map or keyword list at the root"
-  end
-
-  defp encode_root_entry({key, value}) do
-    encode_value(value, [key])
-  end
-
-  defp encode_value(nil, _path) do
-    []
-  end
-
-  defp encode_value(%module{}, _path), do: raise_struct!(module)
-
-  defp encode_value(value, path) when is_map(value) do
-    Enum.flat_map(value, &encode_keyed_entry(&1, path))
-  end
-
-  defp encode_value(value, path) when is_list(value) do
-    # Keyword.keyword?/1 walks the whole list; accepted because form
-    # payloads are small and the alternative (peeking at the head) would
-    # misclassify mixed lists like [{:a, 1}, 2].
-    if Keyword.keyword?(value) do
-      Enum.flat_map(value, &encode_keyed_entry(&1, path))
+  defp encode_brackets(data, boolean_as) when is_list(data) do
+    if pair_list?(data) do
+      data
+      |> Enum.flat_map(&encode_root_entry(&1, boolean_as))
+      |> Enum.join("&")
     else
-      # Index first, then drop nils, so original positions are preserved
-      # (matches stripe-node: `[a, nil, b]` -> `[0]=a&[2]=b`).
-      value
-      |> Enum.with_index()
-      |> Enum.reject(&indexed_nil?/1)
-      |> Enum.flat_map(&encode_indexed_entry(&1, path))
+      raise_invalid_root!(data)
     end
   end
 
-  defp encode_value(value, path) do
-    ["#{encode_path(path)}=#{encode_part(value)}"]
+  defp encode_brackets(data, _boolean_as), do: raise_invalid_root!(data)
+
+  defp pair_list?(list), do: Enum.all?(list, &match?({_, _}, &1))
+
+  defp encode_root_entry({key, value}, boolean_as) do
+    encode_value(value, [key], boolean_as)
   end
 
-  defp encode_keyed_entry({key, value}, path) do
-    encode_value(value, [key | path])
+  defp encode_value(nil, _path, _boolean_as), do: []
+
+  defp encode_value(%module{}, _path, _boolean_as), do: raise_struct!(module)
+
+  defp encode_value(value, path, boolean_as) when is_map(value) do
+    Enum.flat_map(value, &encode_keyed_entry(&1, path, boolean_as))
   end
 
-  defp encode_indexed_entry({value, index}, path) do
-    encode_value(value, [index | path])
+  defp encode_value(value, path, boolean_as) when is_list(value) do
+    # Index first, then drop nils, so original positions are preserved
+    # (matches stripe-node: `[a, nil, b]` -> `[0]=a&[2]=b`).
+    value
+    |> Enum.with_index()
+    |> Enum.reject(&indexed_nil?/1)
+    |> Enum.flat_map(&encode_indexed_entry(&1, path, boolean_as))
+  end
+
+  defp encode_value(value, path, boolean_as) do
+    ["#{encode_path(path)}=#{encode_leaf(value, boolean_as)}"]
+  end
+
+  defp encode_keyed_entry({key, value}, path, boolean_as) do
+    encode_value(value, [key | path], boolean_as)
+  end
+
+  defp encode_indexed_entry({value, index}, path, boolean_as) do
+    encode_value(value, [index | path], boolean_as)
   end
 
   defp indexed_nil?({nil, _index}), do: true
   defp indexed_nil?({_value, _index}), do: false
+
+  defp encode_leaf(true, :integer), do: "1"
+  defp encode_leaf(false, :integer), do: "0"
+  defp encode_leaf(value, _boolean_as), do: encode_part(value)
 
   defp encode_path(path) do
     [root | rest] = Enum.reverse(path)
@@ -395,6 +393,12 @@ defmodule Tesla.Middleware.FormUrlencoded do
     raise ArgumentError,
           "cannot encode #{inspect(module)} struct with :brackets; " <>
             "convert it to a map, string, or other primitive before passing it as the body"
+  end
+
+  defp raise_invalid_root!(data) do
+    raise ArgumentError,
+          "cannot encode #{inspect(data)} with :brackets; " <>
+            "expected a map or keyword list at the root"
   end
 end
 

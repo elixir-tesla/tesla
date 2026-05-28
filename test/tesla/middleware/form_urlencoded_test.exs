@@ -134,6 +134,10 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     end
   end
 
+  defmodule Profile do
+    defstruct [:name, :age]
+  end
+
   describe "encode: :brackets end-to-end through middleware" do
     test "encodes nested bodies with bracket-indexed lists" do
       body = %{
@@ -155,10 +159,6 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
   end
 
   describe "encode: :brackets encoder behavior" do
-    defmodule Profile do
-      defstruct [:name, :age]
-    end
-
     test "indexes flat list items" do
       assert encode_body(%{ids: ["a", "b"]}, encode: :brackets) == "ids[0]=a&ids[1]=b"
     end
@@ -252,9 +252,27 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       end
     end
 
-    test "string-keyed proplist is not treated as a keyword list and raises tuple error" do
+    test "raises clear error for non-keyword list at the root" do
+      assert_raise ArgumentError, ~r/cannot encode \[1, 2, 3\] with :brackets/, fn ->
+        encode_body([1, 2, 3], encode: :brackets)
+      end
+    end
+
+    test "raises clear error for mixed list at the root" do
+      assert_raise ArgumentError, ~r/cannot encode \[\{:a, 1\}, 2\] with :brackets/, fn ->
+        encode_body([{:a, 1}, 2], encode: :brackets)
+      end
+    end
+
+    test "list of tuples inside a map raises the tuple error (use a map for nesting)" do
       assert_raise ArgumentError, ~r/cannot encode tuple \{"a", 1\}/, fn ->
         encode_body(%{user: [{"a", 1}, {"b", 2}]}, encode: :brackets)
+      end
+    end
+
+    test "keyword list inside a map raises the tuple error (use a map for nesting)" do
+      assert_raise ArgumentError, ~r/cannot encode tuple \{:role, "admin"\}/, fn ->
+        encode_body(%{filter: [role: "admin"]}, encode: :brackets)
       end
     end
 
@@ -264,28 +282,22 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       end
     end
 
-    test "boolean_as: :integer still rewrites booleans inside atom-keyed keyword lists" do
-      assert encode_body(%{filter: [active: true, admin: false]},
-               encode: {:brackets, boolean_as: :integer}
-             )
-             |> as_pairs() ==
-               MapSet.new(["filter[active]=1", "filter[admin]=0"])
-    end
-
     test "keyword list at top level encodes in given order" do
       assert encode_body([a: 1, b: 2, c: 3], encode: :brackets) == "a=1&b=2&c=3"
     end
 
-    test "keyword list inside map encodes as nested object" do
-      assert encode_body(%{filter: [role: "admin", active: true]}, encode: :brackets)
-             |> as_pairs() ==
-               MapSet.new(["filter[role]=admin", "filter[active]=true"])
+    test "list of 2-tuples at top level preserves order" do
+      assert encode_body([{"a", 1}, {"b", 2}, {"c", 3}], encode: :brackets) == "a=1&b=2&c=3"
     end
 
-    test "keyword list inside array encodes as nested object" do
-      assert encode_body(%{users: [[name: "a"], [name: "b"]]}, encode: :brackets)
-             |> as_pairs() ==
-               MapSet.new(["users[0][name]=a", "users[1][name]=b"])
+    test "list of 2-tuples at top level allows duplicate keys" do
+      assert encode_body([{"tag", "a"}, {"tag", "b"}, {"tag", "c"}], encode: :brackets) ==
+               "tag=a&tag=b&tag=c"
+    end
+
+    test "list of 2-tuples at top level allows non-atom keys mixed with values" do
+      assert encode_body([{"a b", "hello world"}, {"c", "d"}], encode: :brackets) ==
+               "a+b=hello+world&c=d"
     end
 
     test "deeply nested map+list mix" do
@@ -394,16 +406,14 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     ]
 
     for {label, input, expected} <- @php_corpus do
-      @input input
-      @expected expected
       test "matches PHP http_build_query: #{label}" do
         actual =
-          %Tesla.Env{body: @input}
+          %Tesla.Env{body: unquote(Macro.escape(input))}
           |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
           |> Map.fetch!(:body)
           |> sort_pairs()
 
-        assert actual == @expected
+        assert actual == unquote(expected)
       end
     end
 
@@ -505,18 +515,16 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     ]
 
     for {label, input, expected} <- @php_boolean_corpus do
-      @input input
-      @expected expected
       test "matches PHP http_build_query with boolean_as: :integer: #{label}" do
         actual =
-          %Tesla.Env{body: @input}
+          %Tesla.Env{body: unquote(Macro.escape(input))}
           |> Tesla.Middleware.FormUrlencoded.encode(encode: {:brackets, boolean_as: :integer})
           |> Map.fetch!(:body)
           |> String.split("&")
           |> Enum.sort()
           |> Enum.join("&")
 
-        assert actual == @expected
+        assert actual == unquote(expected)
       end
     end
   end
