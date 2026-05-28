@@ -252,6 +252,26 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
       end
     end
 
+    test "string-keyed proplist is not treated as a keyword list and raises tuple error" do
+      assert_raise ArgumentError, ~r/cannot encode tuple \{"a", 1\}/, fn ->
+        encode_body(%{user: [{"a", 1}, {"b", 2}]}, encode: :brackets)
+      end
+    end
+
+    test "boolean_as: :integer does not rewrite arbitrary 2-tuple values before erroring" do
+      assert_raise ArgumentError, ~r/cannot encode tuple \{1, true\}/, fn ->
+        encode_body(%{point: {1, true}}, encode: {:brackets, boolean_as: :integer})
+      end
+    end
+
+    test "boolean_as: :integer still rewrites booleans inside atom-keyed keyword lists" do
+      assert encode_body(%{filter: [active: true, admin: false]},
+               encode: {:brackets, boolean_as: :integer}
+             )
+             |> as_pairs() ==
+               MapSet.new(["filter[active]=1", "filter[admin]=0"])
+    end
+
     test "keyword list at top level encodes in given order" do
       assert encode_body([a: 1, b: 2, c: 3], encode: :brackets) == "a=1&b=2&c=3"
     end

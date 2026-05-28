@@ -151,7 +151,10 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   ### Other behavior worth knowing
 
-  - Keyword lists encode as objects (`parent[key]=value`), not arrays.
+  - Keyword lists (atom-keyed) encode as objects (`parent[key]=value`),
+    not arrays. String-keyed proplists like `[{"a", 1}]` are not detected
+    as keyword lists and will raise the tuple error — convert them to a
+    map first.
   - Structs raise `ArgumentError` — convert them with `Map.from_struct/1`
     or `to_string/1` first.
   - Empty lists and empty maps emit nothing, which means the parent key
@@ -160,8 +163,10 @@ defmodule Tesla.Middleware.FormUrlencoded do
     field on Stripe-style update endpoints.
   - Map keys are not ordered; keyword lists preserve the order you give
     them.
-  - Decoding stays flat; pair with `decode: &Plug.Conn.Query.decode/1` for
-    symmetric round-trips.
+  - Decoding stays flat. `Plug.Conn.Query.decode/1` will parse the
+    bracket keys into nested maps, but indexed lists come back as maps
+    keyed by string indices (`"0"`, `"1"`, …), not as Elixir lists, so
+    the round-trip is not symmetric.
   """
 
   @behaviour Tesla.Middleware
@@ -294,7 +299,7 @@ defmodule Tesla.Middleware.FormUrlencoded do
     Map.new(map, fn {k, v} -> {k, deep_map_booleans(v)} end)
   end
 
-  defp deep_map_booleans({k, v}), do: {k, deep_map_booleans(v)}
+  defp deep_map_booleans({k, v}) when is_atom(k), do: {k, deep_map_booleans(v)}
   defp deep_map_booleans(list) when is_list(list), do: Enum.map(list, &deep_map_booleans/1)
   defp deep_map_booleans(other), do: other
 
