@@ -10,10 +10,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - elixir: '1.15.8'
-            otp: '25.3.2.12'
-            experimental: false
-            lint: false
           - elixir: '1.16.3'
             otp: '26.2.5'
             experimental: false
@@ -64,8 +60,8 @@ jobs:
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        elixir-version: '1.15.8'
-        otp-version: '25.3.2.12'
+        elixir-version: '1.16.3'
+        otp-version: '26.2.5'
         version-type: strict
     - name: Restore dependencies cache
       uses: actions/cache@v5
