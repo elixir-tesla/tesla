@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/elixir-tesla/tesla/compare/v1.18.2...v2.0.0) (2026-06-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **hackney:** support hackney 4.x ([#880](https://github.com/elixir-tesla/tesla/issues/880))
+
+### Features
+
+* **hackney:** support hackney 4.x ([#880](https://github.com/elixir-tesla/tesla/issues/880)) ([c91639b](https://github.com/elixir-tesla/tesla/commit/c91639b5c8644f810be1281d229e23c445afaa6a))
+
+
+### Bug Fixes
+
+* **hackney:** restore hackney 1.x support ([#882](https://github.com/elixir-tesla/tesla/issues/882)) ([0a268f0](https://github.com/elixir-tesla/tesla/commit/0a268f0ce12d0401b2bbcf8ac7a93a7e99128e47))
+
 ## [1.18.2](https://github.com/elixir-tesla/tesla/compare/v1.18.1...v1.18.2) (2026-05-15)
 
 
