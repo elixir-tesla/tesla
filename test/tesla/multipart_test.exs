@@ -340,6 +340,59 @@ defmodule Tesla.MultipartTest do
       assert body_content =~ "json"
     end
 
+    test "rejects CRLF in filename" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_file_content(
+          "data",
+          "innocent.txt\"\r\nX-Smuggled: 1\r\nContent-Type: application/x-smuggled"
+        )
+
+      assert_raise ArgumentError, ~r/CR or LF characters/, fn ->
+        Multipart.body(mp) |> Enum.to_list()
+      end
+    end
+
+    test "rejects double-quote in filename" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_file_content("data", ~s(evil".txt))
+
+      assert_raise ArgumentError, ~r/double-quote characters/, fn ->
+        Multipart.body(mp) |> Enum.to_list()
+      end
+    end
+
+    test "rejects CRLF in field name" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_field("upload\r\nX-Smuggled: 1", "data")
+
+      assert_raise ArgumentError, ~r/CR or LF characters/, fn ->
+        Multipart.body(mp) |> Enum.to_list()
+      end
+    end
+
+    test "rejects double-quote in field name" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_field(~s(up"load), "data")
+
+      assert_raise ArgumentError, ~r/double-quote characters/, fn ->
+        Multipart.body(mp) |> Enum.to_list()
+      end
+    end
+
+    test "rejects CRLF in arbitrary disposition opts" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_field("upload", "data", extra: "bad\r\nvalue")
+
+      assert_raise ArgumentError, ~r/CR or LF characters/, fn ->
+        Multipart.body(mp) |> Enum.to_list()
+      end
+    end
+
     test "raw function/2 like Tesla adapter returns" do
       stream_fun = fn
         {:cont, acc} -> {:suspended, "data", acc}

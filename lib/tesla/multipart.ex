@@ -166,10 +166,32 @@ defmodule Tesla.Multipart do
   def part_headers_for_disposition(kvs) do
     ds =
       kvs
-      |> Enum.map(fn {k, v} -> "#{k}=\"#{v}\"" end)
+      |> Enum.map(fn {k, v} ->
+        v_str = to_string(v)
+        :ok = assert_disposition_value!(k, v_str)
+        "#{k}=\"#{v_str}\""
+      end)
       |> Enum.join("; ")
 
     ["content-disposition: form-data; #{ds}\r\n"]
+  end
+
+  @spec assert_disposition_value!(atom | String.t(), String.t()) :: :ok | no_return
+  defp assert_disposition_value!(key, value) do
+    cond do
+      String.contains?(value, ["\r", "\n"]) ->
+        raise ArgumentError,
+              "invalid multipart content-disposition value for #{inspect(key)}: " <>
+                "must not contain CR or LF characters"
+
+      String.contains?(value, "\"") ->
+        raise ArgumentError,
+              "invalid multipart content-disposition value for #{inspect(key)}: " <>
+                "must not contain double-quote characters"
+
+      true ->
+        :ok
+    end
   end
 
   @spec unique_string() :: String.t()
