@@ -58,7 +58,7 @@ defmodule Tesla.Mixfile do
       {:ibrowse, "4.4.2", optional: true},
       # hackney 2.x, 3.x, and 4.0.0 / 4.0.1 are unsupported: they lack exports we rely on
       # (`:hackney.body/1,2`, `:hackney.stream_body/1,2`) or have an incomplete streaming API.
-      {:hackney, "~> 4.0 and >= 4.0.2", optional: true},
+      {:hackney, "~> 1.21 or ~> 4.0 and >= 4.0.2", optional: true},
       {:gun, ">= 1.0.0", optional: true},
       {:finch, "~> 0.13", optional: true},
       {:castore, "~> 0.1 or ~> 1.0", optional: true},

@@ -3,7 +3,7 @@ if Code.ensure_loaded?(:hackney) do
     @moduledoc """
     Adapter for [hackney](https://github.com/benoitc/hackney).
 
-    Remember to add `{:hackney, "~> 4.0"}` to dependencies (and `:hackney` to applications in `mix.exs`)
+    Remember to add `{:hackney, "~> 1.21 or ~> 4.0 and >= 4.0.2"}` to dependencies (and `:hackney` to applications in `mix.exs`)
     Also, you need to recompile tesla after adding `:hackney` dependency:
 
     ```shell
@@ -27,14 +27,16 @@ if Code.ensure_loaded?(:hackney) do
 
     ## Adapter specific options
 
-    - `:max_body` - Max response body size in bytes. Only applied when the
-      response is streamed (`async: true` or streaming request body). For sync
-      requests hackney always reads the full body inline and this option has
-      no effect. Actual response may be bigger because hackney stops after the
-      last chunk that surpasses `:max_body`.
+    - `:max_body` - Max response body size in bytes.
+      Works for hackney 1.x and 4.x when streaming the response.
+      Actual response may be bigger
+      because hackney stops after the last chunk that surpasses `:max_body`.
     """
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
+
+    # Hackney 1.x async/stream responses return a `reference()`, 4.x returns a `pid()`.
+    defguardp is_hackney_ref(ref) when is_reference(ref) or is_pid(ref)
 
     # Hackney 4.1.0's `request_ret/0` typespec lists `{:ok, reference()}` for the async
     # and stream-upload returns, but the implementation actually returns `{:ok, pid()}`.
@@ -68,7 +70,7 @@ if Code.ensure_loaded?(:hackney) do
 
     defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
     defp format_body(data) when is_binary(data), do: data
-    defp format_body(data) when is_pid(data), do: data
+    defp format_body(data) when is_hackney_ref(data), do: data
 
     defp request(env, opts) do
       request(
@@ -123,11 +125,11 @@ if Code.ensure_loaded?(:hackney) do
     defp handle({:error, _} = error, _opts), do: error
     defp handle({:ok, status, headers}, _opts), do: {:ok, status, headers, []}
 
-    defp handle({:ok, ref}, _opts) when is_pid(ref) do
+    defp handle({:ok, ref}, _opts) when is_hackney_ref(ref) do
       handle_async_response({ref, %{status: nil, headers: nil}})
     end
 
-    defp handle({:ok, status, headers, ref}, opts) when is_pid(ref) do
+    defp handle({:ok, status, headers, ref}, opts) when is_hackney_ref(ref) do
       with {:ok, body} <- read_response_body(ref, Keyword.get(opts, :max_body, :infinity)) do
         {:ok, status, headers, body}
       end
