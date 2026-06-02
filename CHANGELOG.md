@@ -2,24 +2,25 @@
 
 ## [1.18.3](https://github.com/elixir-tesla/tesla/compare/v1.18.2...v1.18.3) (2026-06-02)
 
-
-### ⚠ BREAKING CHANGES
-
-* **hackney:** support hackney 4.x ([#880](https://github.com/elixir-tesla/tesla/issues/880))
+> #### Important {: .error}
+>
+> Please be careful using `:hackney` it is recommended to actually test the
+> application before assuming we did not introduce any breaking changes.
+> Also, be aware of the security vulnerabilities we have fixed in this release.
+> Some of them may cause some unexpected behavior from the middleware depending
+> on the assumptions made by the caller.
 
 ### Features
 
 * **hackney:** support hackney 4.x ([#880](https://github.com/elixir-tesla/tesla/issues/880)) ([c91639b](https://github.com/elixir-tesla/tesla/commit/c91639b5c8644f810be1281d229e23c445afaa6a))
 
+### Security CVE
 
-### Bug Fixes
-
-* **hackney:** restore hackney 1.x support ([#882](https://github.com/elixir-tesla/tesla/issues/882)) ([0a268f0](https://github.com/elixir-tesla/tesla/commit/0a268f0ce12d0401b2bbcf8ac7a93a7e99128e47))
-
-
-### Miscellaneous Chores
-
-* release 1.18.3 ([3a369b8](https://github.com/elixir-tesla/tesla/commit/3a369b83e7726dcf09bc6055eede70bbd833d05c))
+- CVE-2026-48598 - Multipart part smuggling via unescaped `content-disposition` values
+- CVE-2026-48597 - Atom exhaustion via untrusted URL scheme
+- CVE-2026-48596 - CRLF injection in request `Content-Type` header via `add_content_type_param`
+- CVE-2026-48595 - Authorization header leaks on cross-origin redirect via case-sensitive filtering
+- CVE-2026-48594 - Decompression bomb on response body
 
 ## [1.18.2](https://github.com/elixir-tesla/tesla/compare/v1.18.1...v1.18.2) (2026-05-15)
 
