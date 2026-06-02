@@ -177,7 +177,10 @@ defmodule Tesla.Middleware.CompressionTest do
            %{
              env
              | status: 200,
-               headers: [{"content-type", "application/octet-stream"}, {"content-encoding", "gzip"}],
+               headers: [
+                 {"content-type", "application/octet-stream"},
+                 {"content-encoding", "gzip"}
+               ],
                body: body
            }}
       end

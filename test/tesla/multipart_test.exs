@@ -111,9 +111,7 @@ defmodule Tesla.MultipartTest do
 
       assert_raise ArgumentError, ~r/header name/, fn ->
         Multipart.new()
-        |> Multipart.add_field("foo", "value",
-          headers: [{"content-id\r\nX-Injected", "1"}]
-        )
+        |> Multipart.add_field("foo", "value", headers: [{"content-id\r\nX-Injected", "1"}])
       end
     end
 
@@ -482,55 +480,40 @@ defmodule Tesla.MultipartTest do
     end
 
     test "rejects CRLF in filename" do
-      mp =
+      assert_raise ArgumentError, ~r/disposition value/, fn ->
         Multipart.new()
         |> Multipart.add_file_content(
           "data",
           "innocent.txt\"\r\nX-Smuggled: 1\r\nContent-Type: application/x-smuggled"
         )
-
-      assert_raise ArgumentError, ~r/CR or LF characters/, fn ->
-        Multipart.body(mp) |> Enum.to_list()
       end
     end
 
     test "rejects double-quote in filename" do
-      mp =
+      assert_raise ArgumentError, ~r/disposition value/, fn ->
         Multipart.new()
         |> Multipart.add_file_content("data", ~s(evil".txt))
-
-      assert_raise ArgumentError, ~r/double-quote characters/, fn ->
-        Multipart.body(mp) |> Enum.to_list()
       end
     end
 
     test "rejects CRLF in field name" do
-      mp =
+      assert_raise ArgumentError, ~r/field name/, fn ->
         Multipart.new()
         |> Multipart.add_field("upload\r\nX-Smuggled: 1", "data")
-
-      assert_raise ArgumentError, ~r/CR or LF characters/, fn ->
-        Multipart.body(mp) |> Enum.to_list()
       end
     end
 
     test "rejects double-quote in field name" do
-      mp =
+      assert_raise ArgumentError, ~r/field name/, fn ->
         Multipart.new()
         |> Multipart.add_field(~s(up"load), "data")
-
-      assert_raise ArgumentError, ~r/double-quote characters/, fn ->
-        Multipart.body(mp) |> Enum.to_list()
       end
     end
 
     test "rejects CRLF in arbitrary disposition opts" do
-      mp =
+      assert_raise ArgumentError, ~r/disposition value/, fn ->
         Multipart.new()
         |> Multipart.add_field("upload", "data", extra: "bad\r\nvalue")
-
-      assert_raise ArgumentError, ~r/CR or LF characters/, fn ->
-        Multipart.body(mp) |> Enum.to_list()
       end
     end
 
