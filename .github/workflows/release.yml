@@ -15,6 +15,7 @@ jobs:
       with:
         elixir-version: '1.19.0'
         otp-version: '28.0'
+        version-type: strict
     - name: Restore dependencies cache
       uses: actions/cache@v5
       with:
