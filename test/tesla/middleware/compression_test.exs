@@ -4,7 +4,7 @@ defmodule Tesla.Middleware.CompressionTest do
   defmodule CompressionGzipRequestClient do
     use Tesla
 
-    plug Tesla.Middleware.Compression
+    plug Tesla.Middleware.Compression, max_body_size: 32 * 1024 * 1024
 
     adapter fn env ->
       {status, headers, body} =
@@ -25,7 +25,7 @@ defmodule Tesla.Middleware.CompressionTest do
   defmodule CompressionDeflateRequestClient do
     use Tesla
 
-    plug Tesla.Middleware.Compression, format: "deflate"
+    plug Tesla.Middleware.Compression, format: "deflate", max_body_size: 32 * 1024 * 1024
 
     adapter fn env ->
       {status, headers, body} =
@@ -46,7 +46,7 @@ defmodule Tesla.Middleware.CompressionTest do
   defmodule CompressionResponseClient do
     use Tesla
 
-    plug Tesla.Middleware.Compression
+    plug Tesla.Middleware.Compression, max_body_size: 32 * 1024 * 1024
 
     adapter fn env ->
       {status, headers, body} =
@@ -59,8 +59,8 @@ defmodule Tesla.Middleware.CompressionTest do
             {200, [{"content-type", "text/plain"}, {"content-encoding", "deflate"}],
              :zlib.zip("decompressed deflate")}
 
-          "/multiple-encodings" ->
-            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip, zstd, gzip"}],
+          "/single-known-with-unknown" ->
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "zstd, gzip"}],
              :zlib.gzip("decompressed gzip")}
 
           "/response-identity" ->
@@ -86,6 +86,14 @@ defmodule Tesla.Middleware.CompressionTest do
                {"content-encoding", "gzip"},
                {"content-length", "4194304"}
              ], ""}
+
+          "/stacked-gzip" ->
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip, gzip"}],
+             :zlib.gzip(:zlib.gzip("inner"))}
+
+          "/stacked-mixed" ->
+            {200, [{"content-type", "text/plain"}, {"content-encoding", "gzip, deflate"}],
+             "irrelevant - never reached"}
         end
 
       {:ok, %{env | status: status, headers: headers, body: body}}
@@ -104,9 +112,9 @@ defmodule Tesla.Middleware.CompressionTest do
   end
 
   test "stops decompressing on first unsupported content-encoding" do
-    assert {:ok, env} = CompressionResponseClient.get("/multiple-encodings")
+    assert {:ok, env} = CompressionResponseClient.get("/single-known-with-unknown")
     assert env.body == "decompressed gzip"
-    assert env.headers == [{"content-type", "text/plain"}, {"content-encoding", "gzip, zstd"}]
+    assert env.headers == [{"content-type", "text/plain"}, {"content-encoding", "zstd"}]
   end
 
   test "return unchanged response for unsupported content-encoding" do
@@ -116,9 +124,9 @@ defmodule Tesla.Middleware.CompressionTest do
   end
 
   test "raises on invalid empty-body response (gzip)" do
-    assert_raise(ErlangError, "Erlang error: :data_error", fn ->
+    assert_raise Tesla.Middleware.Compression.Error, fn ->
       CompressionResponseClient.get("/response-empty")
-    end)
+    end
   end
 
   test "updates existing content-length header" do
@@ -143,11 +151,93 @@ defmodule Tesla.Middleware.CompressionTest do
            ]
   end
 
+  test "rejects responses advertising stacked gzip codecs (zip-bomb pattern)" do
+    assert_raise Tesla.Middleware.Compression.Error, ~r/more than one supported/, fn ->
+      CompressionResponseClient.get("/stacked-gzip")
+    end
+  end
+
+  test "rejects responses advertising mixed stacked codecs" do
+    assert_raise Tesla.Middleware.Compression.Error, ~r/more than one supported/, fn ->
+      CompressionResponseClient.get("/stacked-mixed")
+    end
+  end
+
+  defmodule BombClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression, max_body_size: 1024
+
+    adapter fn env ->
+      case env.url do
+        "/bomb" ->
+          body = :zlib.gzip(:binary.copy(<<0>>, 4 * 1024 * 1024))
+
+          {:ok,
+           %{
+             env
+             | status: 200,
+               headers: [{"content-type", "application/octet-stream"}, {"content-encoding", "gzip"}],
+               body: body
+           }}
+      end
+    end
+  end
+
+  test "aborts decompression when output exceeds :max_body_size" do
+    assert_raise Tesla.Middleware.Compression.Error, ~r/max_body_size/, fn ->
+      BombClient.get("/bomb")
+    end
+  end
+
+  defmodule MissingLimitClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression
+
+    adapter fn env ->
+      {:ok,
+       %{
+         env
+         | status: 200,
+           headers: [{"content-type", "text/plain"}, {"content-encoding", "gzip"}],
+           body: :zlib.gzip("hello")
+       }}
+    end
+  end
+
+  test "requires :max_body_size to be set" do
+    assert_raise ArgumentError, ~r/:max_body_size/, fn ->
+      MissingLimitClient.get("/")
+    end
+  end
+
+  defmodule InfinityLimitClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression, max_body_size: :infinity
+
+    adapter fn env ->
+      {:ok,
+       %{
+         env
+         | status: 200,
+           headers: [{"content-type", "text/plain"}, {"content-encoding", "gzip"}],
+           body: :zlib.gzip("hello")
+       }}
+    end
+  end
+
+  test "accepts :infinity as an explicit opt-out of the cap" do
+    assert {:ok, env} = InfinityLimitClient.get("/")
+    assert env.body == "hello"
+  end
+
   defmodule CompressRequestDecompressResponseClient do
     use Tesla
 
     plug Tesla.Middleware.CompressRequest
-    plug Tesla.Middleware.DecompressResponse
+    plug Tesla.Middleware.DecompressResponse, max_body_size: 32 * 1024 * 1024
 
     adapter fn env ->
       {status, headers, body} =
@@ -169,7 +259,7 @@ defmodule Tesla.Middleware.CompressionTest do
   defmodule CompressionHeadersClient do
     use Tesla
 
-    plug Tesla.Middleware.Compression
+    plug Tesla.Middleware.Compression, max_body_size: 32 * 1024 * 1024
 
     adapter fn env ->
       {status, headers, body} =
@@ -191,7 +281,7 @@ defmodule Tesla.Middleware.CompressionTest do
   defmodule DecompressResponseHeadersClient do
     use Tesla
 
-    plug Tesla.Middleware.DecompressResponse
+    plug Tesla.Middleware.DecompressResponse, max_body_size: 32 * 1024 * 1024
 
     adapter fn env ->
       {status, headers, body} =
