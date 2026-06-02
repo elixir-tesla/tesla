@@ -150,25 +150,31 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     defp open_conn(uri, opts) do
-      opts =
-        with "https" <- uri.scheme,
-             global_cacertfile when not is_nil(global_cacertfile) <-
-               Application.get_env(:tesla, Tesla.Adapter.Mint)[:cacert] do
-          Map.update(opts, :transport_opts, [cacertfile: global_cacertfile], fn tr_opts ->
-            Keyword.put_new(tr_opts, :cacertfile, global_cacertfile)
-          end)
-        else
-          _ -> opts
+      with {:ok, scheme} <- parse_scheme(uri.scheme) do
+        opts =
+          with :https <- scheme,
+               global_cacertfile when not is_nil(global_cacertfile) <-
+                 Application.get_env(:tesla, Tesla.Adapter.Mint)[:cacert] do
+            Map.update(opts, :transport_opts, [cacertfile: global_cacertfile], fn tr_opts ->
+              Keyword.put_new(tr_opts, :cacertfile, global_cacertfile)
+            end)
+          else
+            _ -> opts
+          end
+
+        opts = Map.put_new(opts, :mode, :passive)
+
+        with {:ok, conn} <-
+               HTTP.connect(scheme, uri.host, uri.port, Enum.into(opts, [])) do
+          # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.
+          {:ok, conn, Map.put(opts, :close_conn, true)}
         end
-
-      opts = Map.put_new(opts, :mode, :passive)
-
-      with {:ok, conn} <-
-             HTTP.connect(String.to_atom(uri.scheme), uri.host, uri.port, Enum.into(opts, [])) do
-        # If there were redirects, and passed `closed_conn: false`, we need to close opened connections to these intermediate hosts.
-        {:ok, conn, Map.put(opts, :close_conn, true)}
       end
     end
+
+    defp parse_scheme("http"), do: {:ok, :http}
+    defp parse_scheme("https"), do: {:ok, :https}
+    defp parse_scheme(_), do: {:error, :unsupported_scheme}
 
     defp make_request(conn, method, path, headers, body) when is_function(body) do
       with {:ok, conn, ref} <-

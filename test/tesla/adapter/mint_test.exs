@@ -63,6 +63,19 @@ defmodule Tesla.Adapter.MintTest do
     assert conn.state == :closed
   end
 
+  test "unsupported scheme does not mint atoms" do
+    request = %Env{
+      method: :get,
+      url: "atk-#{:erlang.unique_integer([:positive])}://127.0.0.1/"
+    }
+
+    before_count = :erlang.system_info(:atom_count)
+    assert {:error, :unsupported_scheme} = call(request)
+    after_count = :erlang.system_info(:atom_count)
+
+    assert after_count == before_count
+  end
+
   test "certificates_verification" do
     request = %Env{
       method: :get,
