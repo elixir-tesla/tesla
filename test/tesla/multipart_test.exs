@@ -111,9 +111,7 @@ defmodule Tesla.MultipartTest do
 
       assert_raise ArgumentError, ~r/header name/, fn ->
         Multipart.new()
-        |> Multipart.add_field("foo", "value",
-          headers: [{"content-id\r\nX-Injected", "1"}]
-        )
+        |> Multipart.add_field("foo", "value", headers: [{"content-id\r\nX-Injected", "1"}])
       end
     end
 
