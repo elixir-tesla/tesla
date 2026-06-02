@@ -35,6 +35,19 @@ defmodule Tesla.Multipart do
   @type part_stream :: Enum.t()
   @type part_value :: iodata | part_stream | function()
 
+  @token_specials ~c"!#$%&'*+-.^_`|~"
+
+  defguardp is_tchar(c)
+            when c in ?A..?Z or
+                   c in ?a..?z or
+                   c in ?0..?9 or
+                   c in @token_specials
+
+  defguardp is_field_vchar(c) when c == ?\t or (c >= 32 and c != 127)
+
+  defguardp is_qdtext(c)
+            when (c == ?\t or (c >= 32 and c != 127)) and c != ?" and c != ?\\
+
   defstruct parts: [],
             boundary: nil,
             content_type_params: []
@@ -55,9 +68,14 @@ defmodule Tesla.Multipart do
 
   @doc """
   Add a parameter to the multipart content-type.
+
+  Raises `ArgumentError` if `param` contains characters that are not
+  allowed in an HTTP `Content-Type` parameter per RFC 7231 §3.1.1.1,
+  preventing header injection into the outgoing `Content-Type` header.
   """
   @spec add_content_type_param(t, String.t()) :: t
   def add_content_type_param(%__MODULE__{} = mp, param) do
+    :ok = assert_content_type_param!(param)
     %{mp | content_type_params: mp.content_type_params ++ [param]}
   end
 
@@ -67,7 +85,10 @@ defmodule Tesla.Multipart do
   @spec add_field(t, String.t(), part_value, Keyword.t()) :: t | no_return
   def add_field(%__MODULE__{} = mp, name, value, opts \\ []) do
     :ok = assert_part_value!(value)
+    :ok = assert_quoted_string_safe!("field name", name)
     {headers, opts} = Keyword.pop_first(opts, :headers, [])
+    :ok = assert_part_headers!(headers)
+    :ok = assert_dispositions!(opts)
 
     part = %Part{
       body: value,
@@ -214,6 +235,105 @@ defmodule Tesla.Multipart do
 
   defp assert_part_value!(val) do
     raise(ArgumentError, "#{inspect(val)} is not a supported multipart value.")
+  end
+
+  @spec assert_part_headers!(Tesla.Env.headers()) :: :ok | no_return
+  defp assert_part_headers!(headers) when is_list(headers) do
+    Enum.each(headers, &assert_part_header!/1)
+  end
+
+  defp assert_part_header!({name, value}) do
+    :ok = assert_token!("header name", to_string(name))
+    :ok = assert_field_value!("header value", to_string(value))
+  end
+
+  @spec assert_dispositions!(Keyword.t()) :: :ok | no_return
+  defp assert_dispositions!(dispositions) when is_list(dispositions) do
+    Enum.each(dispositions, &assert_disposition!/1)
+  end
+
+  defp assert_disposition!({_key, value}) do
+    assert_quoted_string_safe!("disposition value", to_string(value))
+  end
+
+  @spec assert_token!(String.t(), any) :: :ok | no_return
+  defp assert_token!(label, <<c, _::binary>> = value) when is_tchar(c) do
+    do_assert_token!(label, value, value)
+  end
+
+  defp assert_token!(label, value) do
+    raise ArgumentError,
+          "#{label} must be a non-empty RFC 7230 token, got: #{inspect(value)}"
+  end
+
+  defp do_assert_token!(_label, _orig, <<>>), do: :ok
+
+  defp do_assert_token!(label, orig, <<c, rest::binary>>) when is_tchar(c) do
+    do_assert_token!(label, orig, rest)
+  end
+
+  defp do_assert_token!(label, orig, <<c, _::binary>>) do
+    raise ArgumentError,
+          "#{label} must be an RFC 7230 token, got: #{inspect(orig)} " <>
+            "(invalid character: #{inspect(<<c>>)})"
+  end
+
+  @spec assert_field_value!(String.t(), any) :: :ok | no_return
+  defp assert_field_value!(label, value) when is_binary(value) do
+    do_assert_field_value!(label, value, value)
+  end
+
+  defp do_assert_field_value!(_label, _orig, <<>>), do: :ok
+
+  defp do_assert_field_value!(label, orig, <<c, rest::binary>>) when is_field_vchar(c) do
+    do_assert_field_value!(label, orig, rest)
+  end
+
+  defp do_assert_field_value!(label, orig, <<c, _::binary>>) do
+    raise ArgumentError,
+          "#{label} must contain only printable characters per RFC 7230 " <>
+            "(no CTLs other than HTAB, no DEL), got: #{inspect(orig)} " <>
+            "(invalid character: #{inspect(<<c>>)})"
+  end
+
+  @spec assert_quoted_string_safe!(String.t(), any) :: :ok | no_return
+  defp assert_quoted_string_safe!(label, value) when is_binary(value) do
+    do_assert_quoted_string_safe!(label, value, value)
+  end
+
+  defp do_assert_quoted_string_safe!(_label, _orig, <<>>), do: :ok
+
+  defp do_assert_quoted_string_safe!(label, orig, <<c, rest::binary>>) when is_qdtext(c) do
+    do_assert_quoted_string_safe!(label, orig, rest)
+  end
+
+  defp do_assert_quoted_string_safe!(label, orig, <<c, _::binary>>) do
+    raise ArgumentError,
+          "#{label} must be safe for an HTTP quoted-string per RFC 7230 " <>
+            "(no CTLs other than HTAB, no DEL, no `\"`, no `\\`), got: " <>
+            "#{inspect(orig)} (invalid character: #{inspect(<<c>>)})"
+  end
+
+  @spec assert_content_type_param!(any) :: :ok | no_return
+  defp assert_content_type_param!(value) when is_binary(value) and byte_size(value) > 0 do
+    do_assert_ctp!(value, value)
+  end
+
+  defp assert_content_type_param!(value) do
+    raise ArgumentError,
+          "content-type param must be a non-empty string, got: #{inspect(value)}"
+  end
+
+  defp do_assert_ctp!(_orig, <<>>), do: :ok
+
+  defp do_assert_ctp!(orig, <<c, rest::binary>>) when is_field_vchar(c) and c != ?; do
+    do_assert_ctp!(orig, rest)
+  end
+
+  defp do_assert_ctp!(orig, <<c, _::binary>>) do
+    raise ArgumentError,
+          "content-type param must not contain CTLs, DEL, or `;` per RFC 7231, " <>
+            "got: #{inspect(orig)} (invalid character: #{inspect(<<c>>)})"
   end
 
   if Version.compare(System.version(), "1.16.0") in [:gt, :eq] do

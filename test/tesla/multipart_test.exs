@@ -37,6 +37,147 @@ defmodule Tesla.MultipartTest do
            ]
   end
 
+  describe "RFC 7230 / 7231 input validation" do
+    test "add_content_type_param rejects CR" do
+      assert_raise ArgumentError, ~r/content-type param/, fn ->
+        Multipart.new()
+        |> Multipart.add_content_type_param("charset=utf-8\rX-Injected: pwned")
+      end
+    end
+
+    test "add_content_type_param rejects LF" do
+      assert_raise ArgumentError, ~r/content-type param/, fn ->
+        Multipart.new()
+        |> Multipart.add_content_type_param("charset=utf-8\nX-Injected: pwned")
+      end
+    end
+
+    test "add_content_type_param rejects CRLF" do
+      assert_raise ArgumentError, ~r/content-type param/, fn ->
+        Multipart.new()
+        |> Multipart.add_content_type_param(
+          "charset=utf-8\r\nX-Injected: pwned\r\nX-Smuggled: yes"
+        )
+      end
+    end
+
+    test "add_content_type_param rejects NUL" do
+      assert_raise ArgumentError, ~r/content-type param/, fn ->
+        Multipart.new()
+        |> Multipart.add_content_type_param("charset=utf-8\0")
+      end
+    end
+
+    test "add_content_type_param rejects DEL" do
+      assert_raise ArgumentError, ~r/content-type param/, fn ->
+        Multipart.new()
+        |> Multipart.add_content_type_param("charset=utf-8\x7f")
+      end
+    end
+
+    test "add_content_type_param rejects `;` (param smuggling)" do
+      assert_raise ArgumentError, ~r/content-type param/, fn ->
+        Multipart.new()
+        |> Multipart.add_content_type_param("charset=utf-8; boundary=evil")
+      end
+    end
+
+    test "add_content_type_param rejects empty string" do
+      assert_raise ArgumentError, ~r/non-empty/, fn ->
+        Multipart.new()
+        |> Multipart.add_content_type_param("")
+      end
+    end
+
+    test "add_field rejects CRLF in name" do
+      assert_raise ArgumentError, ~r/field name/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo\r\nX-Injected: pwned", "value")
+      end
+    end
+
+    test "add_field rejects `\"` in name (quoted-string break)" do
+      assert_raise ArgumentError, ~r/field name/, fn ->
+        Multipart.new()
+        |> Multipart.add_field(~s(foo"; injected="bar), "value")
+      end
+    end
+
+    test "add_field rejects non-token header name" do
+      assert_raise ArgumentError, ~r/header name/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", "value", headers: [{"content id", "1"}])
+      end
+
+      assert_raise ArgumentError, ~r/header name/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", "value",
+          headers: [{"content-id\r\nX-Injected", "1"}]
+        )
+      end
+    end
+
+    test "add_field rejects CTL in header value" do
+      assert_raise ArgumentError, ~r/header value/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", "value",
+          headers: [{"content-id", "1\r\nX-Injected: pwned"}]
+        )
+      end
+
+      assert_raise ArgumentError, ~r/header value/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", "value", headers: [{"content-id", "1\0"}])
+      end
+    end
+
+    test "add_field allows HTAB and obs-text in header value" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_field("foo", "value",
+          headers: [{"x-tab", "a\tb"}, {"x-obs", <<0xC3, 0xA9>>}]
+        )
+
+      assert %Multipart{} = mp
+    end
+
+    test "add_field rejects CRLF in disposition value" do
+      assert_raise ArgumentError, ~r/disposition value/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", "value", filename: "evil\r\nX-Injected: pwned")
+      end
+    end
+
+    test "add_field rejects `\"` in disposition value" do
+      assert_raise ArgumentError, ~r/disposition value/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", "value", filename: ~s(evil"; x="y))
+      end
+    end
+
+    test "add_field rejects `\\` in disposition value" do
+      assert_raise ArgumentError, ~r/disposition value/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", "value", filename: "evil\\path")
+      end
+    end
+
+    test "add_field allows filenames with spaces and unicode" do
+      mp =
+        Multipart.new()
+        |> Multipart.add_field("foo", "value", filename: "My Photo é.png")
+
+      assert %Multipart{} = mp
+    end
+
+    test "add_file_content rejects CRLF in filename" do
+      assert_raise ArgumentError, ~r/disposition value/, fn ->
+        Multipart.new()
+        |> Multipart.add_file_content("data", "evil\r\nX-Injected: pwned")
+      end
+    end
+  end
+
   test "add_field" do
     mp =
       Multipart.new()
