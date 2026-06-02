@@ -205,6 +205,12 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
           {:ok,
            %{env | status: 301, headers: [{"location", "http://example.net/next"}], body: ""}}
 
+        %{url: "http://example.com/see-other-same", headers: headers} = env ->
+          send(self(), headers)
+
+          {:ok,
+           %{env | status: 303, headers: [{"location", "http://example.com/next"}], body: ""}}
+
         %{url: "http://example.com/next", headers: headers} = env ->
           send(self(), headers)
           {:ok, %{env | status: 200, headers: [], body: "ok com"}}
@@ -296,6 +302,178 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
 
       # Next request does not receive host header
       assert_receive []
+    end
+
+    test "Strip Authorization header (canonical casing) on redirect to a different domain", %{
+      client: client
+    } do
+      assert {:ok, _env} =
+               Tesla.post(client, "http://example.com/drop", "",
+                 headers: [
+                   {"content-type", "text/plain"},
+                   {"Authorization", "Basic Zm9vOmJhcg=="}
+                 ]
+               )
+
+      assert_receive [
+        {"content-type", "text/plain"},
+        {"Authorization", "Basic Zm9vOmJhcg=="}
+      ]
+
+      assert_receive [
+        {"content-type", "text/plain"}
+      ]
+    end
+
+    test "Strip Host header (canonical casing) on redirect to a different domain", %{
+      client: client
+    } do
+      assert {:ok, _env} =
+               Tesla.post(client, "http://example.com/drop", "",
+                 headers: [
+                   {"Host", "example.xyz"}
+                 ]
+               )
+
+      assert_receive [
+        {"Host", "example.xyz"}
+      ]
+
+      assert_receive []
+    end
+
+    test "Strip resource- and origin-specific headers on cross-origin redirect", %{
+      client: client
+    } do
+      assert {:ok, _env} =
+               Tesla.post(client, "http://example.com/drop", "",
+                 headers: [
+                   {"Authorization", "Bearer token"},
+                   {"Cookie", "session=abc"},
+                   {"Proxy-Authorization", "Basic xyz"},
+                   {"Referer", "http://example.com/start"},
+                   {"Origin", "http://example.com"},
+                   {"x-custom", "keep"}
+                 ]
+               )
+
+      assert_receive [
+        {"Authorization", "Bearer token"},
+        {"Cookie", "session=abc"},
+        {"Proxy-Authorization", "Basic xyz"},
+        {"Referer", "http://example.com/start"},
+        {"Origin", "http://example.com"},
+        {"x-custom", "keep"}
+      ]
+
+      assert_receive [{"x-custom", "keep"}]
+    end
+
+    test "Keep resource-specific headers on same-origin redirect", %{client: client} do
+      assert {:ok, _env} =
+               Tesla.post(client, "http://example.com/keep", "",
+                 headers: [
+                   {"Cookie", "session=abc"},
+                   {"Referer", "http://example.com/start"}
+                 ]
+               )
+
+      assert_receive [
+        {"Cookie", "session=abc"},
+        {"Referer", "http://example.com/start"}
+      ]
+
+      assert_receive [
+        {"Cookie", "session=abc"},
+        {"Referer", "http://example.com/start"}
+      ]
+    end
+
+    test "Strip hop-by-hop headers on any redirect", %{client: client} do
+      assert {:ok, _env} =
+               Tesla.post(client, "http://example.com/keep", "",
+                 headers: [
+                   {"Connection", "close"},
+                   {"Keep-Alive", "timeout=5"},
+                   {"TE", "trailers"},
+                   {"x-custom", "keep"}
+                 ]
+               )
+
+      assert_receive [
+        {"Connection", "close"},
+        {"Keep-Alive", "timeout=5"},
+        {"TE", "trailers"},
+        {"x-custom", "keep"}
+      ]
+
+      assert_receive [{"x-custom", "keep"}]
+    end
+
+    test "Strip cache validator headers on any redirect", %{client: client} do
+      assert {:ok, _env} =
+               Tesla.post(client, "http://example.com/keep", "",
+                 headers: [
+                   {"If-None-Match", "\"etag\""},
+                   {"If-Modified-Since", "Tue, 01 Jan 2030 00:00:00 GMT"},
+                   {"If-Match", "\"etag\""},
+                   {"If-Unmodified-Since", "Tue, 01 Jan 2030 00:00:00 GMT"},
+                   {"If-Range", "\"etag\""},
+                   {"x-custom", "keep"}
+                 ]
+               )
+
+      assert_receive [
+        {"If-None-Match", "\"etag\""},
+        {"If-Modified-Since", "Tue, 01 Jan 2030 00:00:00 GMT"},
+        {"If-Match", "\"etag\""},
+        {"If-Unmodified-Since", "Tue, 01 Jan 2030 00:00:00 GMT"},
+        {"If-Range", "\"etag\""},
+        {"x-custom", "keep"}
+      ]
+
+      assert_receive [{"x-custom", "keep"}]
+    end
+
+    test "Strip representation metadata when 303 changes method to GET", %{client: client} do
+      assert {:ok, _env} =
+               Tesla.post(client, "http://example.com/see-other-same", "body",
+                 headers: [
+                   {"Content-Type", "application/json"},
+                   {"Content-Length", "4"},
+                   {"Content-Encoding", "gzip"},
+                   {"Content-Language", "en"},
+                   {"Content-Location", "/orig"},
+                   {"Digest", "sha-256=abc"},
+                   {"Last-Modified", "Tue, 01 Jan 2030 00:00:00 GMT"},
+                   {"x-custom", "keep"}
+                 ]
+               )
+
+      assert_receive [
+        {"Content-Type", "application/json"},
+        {"Content-Length", "4"},
+        {"Content-Encoding", "gzip"},
+        {"Content-Language", "en"},
+        {"Content-Location", "/orig"},
+        {"Digest", "sha-256=abc"},
+        {"Last-Modified", "Tue, 01 Jan 2030 00:00:00 GMT"},
+        {"x-custom", "keep"}
+      ]
+
+      assert_receive [{"x-custom", "keep"}]
+    end
+
+    test "Keep representation metadata when method is preserved (301)", %{client: client} do
+      assert {:ok, _env} =
+               Tesla.post(client, "http://example.com/keep", "body",
+                 headers: [
+                   {"Content-Type", "application/json"}
+                 ]
+               )
+
+      assert_receive [{"Content-Type", "application/json"}]
+      assert_receive [{"Content-Type", "application/json"}]
     end
   end
 end
