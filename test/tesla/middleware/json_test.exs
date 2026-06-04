@@ -231,6 +231,24 @@ defmodule Tesla.Middleware.JsonTest do
     end
   end
 
+  describe "tagged {:form, data} tuples" do
+    test "{:form_urlencoded, map} bodies are NOT JSON-encoded" do
+      {:ok, env} =
+        Tesla.Middleware.JSON.encode(%Tesla.Env{body: {:form_urlencoded, %{name: "Alice"}}}, [])
+
+      assert env.body == {:form_urlencoded, %{name: "Alice"}}
+      refute Tesla.get_header(env, "content-type") == "application/json"
+    end
+
+    test "plain map bodies still JSON-encode as before" do
+      {:ok, env} =
+        Tesla.Middleware.JSON.encode(%Tesla.Env{body: %{"name" => "Alice"}}, [])
+
+      assert env.body == ~s({"name":"Alice"})
+      assert Tesla.get_header(env, "content-type") == "application/json"
+    end
+  end
+
   describe "Engine: poison" do
     defmodule PoisonClient do
       use Tesla

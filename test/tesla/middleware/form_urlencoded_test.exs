@@ -551,6 +551,35 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     end
   end
 
+  describe "tagged {:form, data} tuples" do
+    test "{:form_urlencoded, map} is encoded with default URI.encode_query/1" do
+      env =
+        %Tesla.Env{body: {:form_urlencoded, %{"foo" => "bar"}}}
+        |> Tesla.Middleware.FormUrlencoded.encode([])
+
+      assert env.body == "foo=bar"
+      assert Tesla.get_header(env, "content-type") == "application/x-www-form-urlencoded"
+    end
+
+    test "{:form_urlencoded, map} is encoded with bracket notation when encode: :brackets" do
+      env =
+        %Tesla.Env{body: {:form_urlencoded, %{name: "Alice"}}}
+        |> Tesla.Middleware.FormUrlencoded.encode(encode: :brackets)
+
+      assert env.body == "name=Alice"
+      assert Tesla.get_header(env, "content-type") == "application/x-www-form-urlencoded"
+    end
+
+    test "plain map bodies still work as before (backward compatible)" do
+      env =
+        %Tesla.Env{body: %{"foo" => "bar"}}
+        |> Tesla.Middleware.FormUrlencoded.encode([])
+
+      assert env.body == "foo=bar"
+      assert Tesla.get_header(env, "content-type") == "application/x-www-form-urlencoded"
+    end
+  end
+
   describe "Encode / Decode" do
     defmodule EncodeDecodeFormUrlencodedClient do
       use Tesla
