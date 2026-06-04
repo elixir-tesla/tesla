@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.19.0](https://github.com/elixir-tesla/tesla/compare/v1.18.3...v1.19.0) (2026-06-04)
+
+
+### Features
+
+* **finch-adapter:** Finch adapter will pass through all supported options ([#879](https://github.com/elixir-tesla/tesla/issues/879)) ([7609328](https://github.com/elixir-tesla/tesla/commit/7609328373b4e6da81c403fad4b8c68d615b6373))
+* **form-urlencoded:** support nested bodies via :brackets option ([#878](https://github.com/elixir-tesla/tesla/issues/878)) ([f7142e8](https://github.com/elixir-tesla/tesla/commit/f7142e87b9287db63c187b567cad7bdf5c9e6fbe))
+
 ## [1.18.3](https://github.com/elixir-tesla/tesla/compare/v1.18.2...v1.18.3) (2026-06-02)
 
 > #### Important {: .error}
