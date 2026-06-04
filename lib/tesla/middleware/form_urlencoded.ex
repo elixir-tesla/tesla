@@ -23,20 +23,30 @@ defmodule Tesla.Middleware.FormUrlencoded do
   end
 
   client = Myclient.client()
-  Myclient.post(client, "/url", %{key: :value})
+  Tesla.post(client, "/url", %{key: :value})
   ```
 
   ## Options
 
   - `:decode` - decoding function, defaults to `URI.decode_query/1`
-  - `:encode` - encoding function, defaults to `URI.encode_query/1`
+  - `:encode` - controls how the body is encoded. Accepts:
+    - an arity-1 function that receives the body and returns a binary
+      (e.g. `&Plug.Conn.Query.encode/1` or any custom encoder)
+    - `:brackets` — recursive bracket-notation encoder for nested maps
+      and lists (see `encode: :brackets` below)
+    - `{:brackets, opts}` — same encoder with sub-options. Currently
+      supports `boolean_as: :string | :integer` (see `encode: :brackets`
+      below).
+    - Defaults to `URI.encode_query/1` when omitted.
 
   ## Nested Maps
 
   Natively, nested maps are not supported in the body, so
   `%{"foo" => %{"bar" => "baz"}}` won't be encoded and raise an error.
-  Support for this specific case is obtained by configuring the middleware to
-  encode (and decode) with `Plug.Conn.Query`
+  Support for this specific case is obtained either by setting
+  `encode: :brackets` (see `encode: :brackets` below) or by
+  configuring the middleware to encode (and decode) with
+  `Plug.Conn.Query`:
 
   ```elixir
   defmodule Myclient do
@@ -50,8 +60,133 @@ defmodule Tesla.Middleware.FormUrlencoded do
   end
 
   client = Myclient.client()
-  Myclient.post(client, "/url", %{key: %{nested: "value"}})
+  Tesla.post(client, "/url", %{key: %{nested: "value"}})
   ```
+
+  ## `encode: :brackets`
+
+  Recursive indexed-bracket form encoder for nested maps and lists.
+
+  The output shape — `key[0]=a&key[1]=b` for arrays, `a[b][c]=1` for
+  nested objects — is the de-facto convention used by Stripe, Rack,
+  PHP's `http_build_query`, qs (with `arrayFormat: 'indices'`), and
+  ASP.NET model binding. It is not defined by any RFC. The OpenAPI 3.0.4
+  and 3.1.1 specs cover the object case under [`deepObject`
+  style](https://spec.openapis.org/oas/v3.1.0#style-values) but
+  explicitly state that *"the representation of array or object
+  properties is not defined"*, which this encoder fills in with the
+  conventions above.
+
+  Percent-encoding of keys and values follows
+  `application/x-www-form-urlencoded` (WHATWG URL Standard / PHP's
+  default `PHP_QUERY_RFC1738`): spaces become `+`, reserved characters
+  become `%XX`.
+
+  ```elixir
+  client = Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :brackets}])
+
+  Tesla.post(client, "/url", %{
+    expand: ["objects"],
+    objects: %{customers: ["cus_123", "cus_456"]}
+  })
+  # body: "expand[0]=objects&objects[customers][0]=cus_123&objects[customers][1]=cus_456"
+  ```
+
+  ### Booleans (`boolean_as`)
+
+  Booleans default to the lowercase strings `true` / `false`, which is
+  the wire format required by Stripe's V2 API (see [stripe-python PR
+  #1499](https://github.com/stripe/stripe-python/pull/1499)) and used by
+  every official Stripe SDK. PHP's `http_build_query` would instead emit
+  `1` for `true` and `0` for `false`; opt in to that behavior with
+  `boolean_as: :integer`:
+
+  ```elixir
+  # default: Stripe-compatible
+  client = Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: :brackets}])
+  Tesla.post(client, "/url", %{active: true})
+  # body: "active=true"
+
+  # opt in to PHP http_build_query parity
+  client =
+    Tesla.client([{Tesla.Middleware.FormUrlencoded, encode: {:brackets, boolean_as: :integer}}])
+  Tesla.post(client, "/url", %{active: true})
+  # body: "active=1"
+  ```
+
+  With `boolean_as: :integer`, the encoder's output matches PHP
+  `http_build_query` byte-for-byte (after URL-decoding `%5B`/`%5D` to
+  literal `[`/`]`) across the verified test corpus. Use `:string`
+  (default) for Stripe and most modern APIs; use `:integer` only when
+  targeting a server that specifically requires the PHP-native form.
+
+  ### `nil` vs empty string
+
+  The encoder distinguishes "don't include this field" from "include the
+  field with an empty value". This matches the three-state semantics
+  exposed by Stripe's update endpoints (and PHP's `http_build_query`):
+
+  | Input value | Wire output | Typical API meaning on update |
+  | --- | --- | --- |
+  | `nil` | (nothing emitted) | Field is absent from the request — the server leaves the existing value untouched. |
+  | `""` (empty string) | `key=` | Field is present with an empty value — the server clears or unsets it. |
+  | any other value | `key=value` | Field is set to the given value. |
+
+  Use `nil` to mean "leave this field alone" and `""` to mean "clear this
+  field". For example, on `POST /v1/customers/cus_X`:
+
+  ```elixir
+  # Leaves customer.metadata.foo untouched (field not in request):
+  %{metadata: %{plan: "pro"}}
+  # → metadata[plan]=pro
+
+  # Deletes the foo key from customer.metadata (sent with empty value):
+  %{metadata: %{foo: ""}}
+  # → metadata[foo]=
+  ```
+
+  Inside lists the same rule applies element-by-element: `nil` elements
+  are dropped while the index of remaining elements is preserved
+  (`[a, nil, b]` → `[0]=a&[2]=b`, matching PHP `http_build_query`), and
+  `""` elements are emitted as `key[i]=`.
+
+  ### Root containers
+
+  The root accepts any ordered name/value pair-sequence, which matches
+  the `application/x-www-form-urlencoded` wire-level data model:
+
+  - `Map` — most common; iteration order is undefined.
+  - Keyword list (`[a: 1, b: 2]`) — preserves the order you give it.
+  - List of 2-tuples (`[{"tag", "a"}, {"tag", "b"}]`) — preserves order
+    *and* allows duplicate keys and non-atom keys
+    (`[{"tag", "a"}, {"tag", "b"}]` → `tag=a&tag=b`).
+
+  Anything else at the root (`42`, `[1, 2, 3]`, `[{:a, 1}, 2]`, a
+  struct) raises `ArgumentError`.
+
+  ### Nested containers
+
+  Inside the payload the shape is strict, no inference:
+
+  - `Map` is always an object → `parent[key]=value`.
+  - `List` is always an array → `parent[0]=…&parent[1]=…`.
+  - A tuple appearing inside a map or list raises — use a map for
+    object-shaped nesting.
+  - Structs raise `ArgumentError` — convert them with
+    `Map.from_struct/1` or `to_string/1` first.
+
+  ### Other behavior worth knowing
+
+  - Empty lists and empty maps emit nothing, which means the parent key
+    disappears entirely: `%{ids: []}` → `""`, and `%{user: %{tags: []}}`
+    → `""`. This matches PHP `http_build_query`. Send `""` to clear a
+    field on Stripe-style update endpoints.
+  - Map keys are not ordered; keyword lists and lists of 2-tuples
+    preserve the order you give them.
+  - Decoding stays flat. `Plug.Conn.Query.decode/1` will parse the
+    bracket keys into nested maps, but indexed lists come back as maps
+    keyed by string indices (`"0"`, `"1"`, …), not as Elixir lists, so
+    the round-trip is not symmetric.
   """
 
   @behaviour Tesla.Middleware
@@ -121,13 +256,149 @@ defmodule Tesla.Middleware.FormUrlencoded do
   defp decode_body(body, opts), do: do_decode(body, opts)
 
   defp do_encode(data, opts) do
-    encoder = Keyword.get(opts, :encode, &URI.encode_query/1)
-    encoder.(data)
+    case Keyword.get(opts, :encode) do
+      nil ->
+        URI.encode_query(data)
+
+      :brackets ->
+        encode_brackets(data, :string)
+
+      {:brackets, sub_opts} when is_list(sub_opts) ->
+        encode_brackets(data, validate_brackets_opts!(sub_opts))
+
+      fun when is_function(fun, 1) ->
+        fun.(data)
+
+      value ->
+        raise ArgumentError,
+              "unknown :encode option #{inspect(value)}; expected :brackets, " <>
+                "{:brackets, opts} where opts is a keyword list, or an arity-1 function"
+    end
+  end
+
+  defp validate_brackets_opts!(sub_opts) do
+    case Keyword.keys(sub_opts) -- [:boolean_as] do
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError,
+              "unknown option(s) #{inspect(unknown)} for :brackets encoder; " <>
+                "expected :boolean_as"
+    end
+
+    case Keyword.get(sub_opts, :boolean_as, :string) do
+      mode when mode in [:string, :integer] ->
+        mode
+
+      other ->
+        raise ArgumentError,
+              "invalid :boolean_as #{inspect(other)} for :brackets encoder; " <>
+                "expected :string or :integer"
+    end
   end
 
   defp do_decode(data, opts) do
     decoder = Keyword.get(opts, :decode, &URI.decode_query/1)
     decoder.(data)
+  end
+
+  defp encode_brackets(%module{}, _boolean_as), do: raise_struct!(module)
+
+  defp encode_brackets(data, boolean_as) when is_map(data) do
+    data
+    |> Enum.flat_map(&encode_root_entry(&1, boolean_as))
+    |> Enum.join("&")
+  end
+
+  defp encode_brackets(data, boolean_as) when is_list(data) do
+    if pair_list?(data) do
+      data
+      |> Enum.flat_map(&encode_root_entry(&1, boolean_as))
+      |> Enum.join("&")
+    else
+      raise_invalid_root!(data)
+    end
+  end
+
+  defp encode_brackets(data, _boolean_as), do: raise_invalid_root!(data)
+
+  defp pair_list?(list), do: Enum.all?(list, &match?({_, _}, &1))
+
+  defp encode_root_entry({key, value}, boolean_as) do
+    encode_value(value, [key], boolean_as)
+  end
+
+  defp encode_value(nil, _path, _boolean_as), do: []
+
+  defp encode_value(%module{}, _path, _boolean_as), do: raise_struct!(module)
+
+  defp encode_value(value, path, boolean_as) when is_map(value) do
+    Enum.flat_map(value, &encode_keyed_entry(&1, path, boolean_as))
+  end
+
+  defp encode_value(value, path, boolean_as) when is_list(value) do
+    # Index first, then drop nils, so original positions are preserved
+    # (matches stripe-node: `[a, nil, b]` -> `[0]=a&[2]=b`).
+    value
+    |> Enum.with_index()
+    |> Enum.reject(&indexed_nil?/1)
+    |> Enum.flat_map(&encode_indexed_entry(&1, path, boolean_as))
+  end
+
+  defp encode_value(value, path, boolean_as) do
+    ["#{encode_path(path)}=#{encode_leaf(value, boolean_as)}"]
+  end
+
+  defp encode_keyed_entry({key, value}, path, boolean_as) do
+    encode_value(value, [key | path], boolean_as)
+  end
+
+  defp encode_indexed_entry({value, index}, path, boolean_as) do
+    encode_value(value, [index | path], boolean_as)
+  end
+
+  defp indexed_nil?({nil, _index}), do: true
+  defp indexed_nil?({_value, _index}), do: false
+
+  defp encode_leaf(true, :integer), do: "1"
+  defp encode_leaf(false, :integer), do: "0"
+  defp encode_leaf(value, _boolean_as), do: encode_part(value)
+
+  defp encode_path(path) do
+    [root | rest] = Enum.reverse(path)
+
+    Enum.reduce(rest, encode_part(root), &append_bracket/2)
+  end
+
+  defp append_bracket(part, encoded) do
+    "#{encoded}[#{encode_part(part)}]"
+  end
+
+  defp encode_part(value) when is_atom(value) do
+    value |> Atom.to_string() |> URI.encode_www_form()
+  end
+
+  defp encode_part(value) when is_tuple(value) do
+    raise ArgumentError,
+          "cannot encode tuple #{inspect(value)} with :brackets; " <>
+            "convert it to a map, string, or other primitive before passing it as the body"
+  end
+
+  defp encode_part(value) do
+    value |> to_string() |> URI.encode_www_form()
+  end
+
+  defp raise_struct!(module) do
+    raise ArgumentError,
+          "cannot encode #{inspect(module)} struct with :brackets; " <>
+            "convert it to a map, string, or other primitive before passing it as the body"
+  end
+
+  defp raise_invalid_root!(data) do
+    raise ArgumentError,
+          "cannot encode #{inspect(data)} with :brackets; " <>
+            "expected a map or keyword list at the root"
   end
 end
 
