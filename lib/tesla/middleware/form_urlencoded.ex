@@ -219,11 +219,13 @@ defmodule Tesla.Middleware.FormUrlencoded do
     end
   end
 
+  defp encodable?(%{body: {:form_urlencoded, _}}), do: true
   defp encodable?(%{body: nil}), do: false
   defp encodable?(%{body: %Tesla.Multipart{}}), do: false
   defp encodable?(_), do: true
 
   defp encode_body(body, _opts) when is_binary(body), do: body
+  defp encode_body({:form_urlencoded, data}, opts), do: do_encode(data, opts)
   defp encode_body(body, opts), do: do_encode(body, opts)
 
   @doc """

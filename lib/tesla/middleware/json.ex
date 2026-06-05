@@ -106,6 +106,7 @@ defmodule Tesla.Middleware.JSON do
     end)
   end
 
+  defp encodable?(%{body: {:form_urlencoded, _}}), do: false
   defp encodable?(%{body: nil}), do: false
   defp encodable?(%{body: body}) when is_binary(body), do: false
   defp encodable?(%{body: %Tesla.Multipart{}}), do: false
