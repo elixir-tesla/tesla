@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.0](https://github.com/elixir-tesla/tesla/compare/v1.19.0...v1.20.0) (2026-06-05)
+
+
+### Features
+
+* support {:form,data} tagged body tuples ([#886](https://github.com/elixir-tesla/tesla/issues/886)) ([b1b3b80](https://github.com/elixir-tesla/tesla/commit/b1b3b800136a46821746c6897580d171fa2ea2f1))
+
 ## [1.19.0](https://github.com/elixir-tesla/tesla/compare/v1.18.3...v1.19.0) (2026-06-04)
 
 
