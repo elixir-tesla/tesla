@@ -527,6 +527,25 @@ if Code.ensure_loaded?(:gun) do
             end
         end
       end
+
+      defp next_reply_state(_state, {:gun_response, _pid, _stream, :nofin, _status, _headers}),
+        do: :streaming
+
+      defp next_reply_state(state, _message), do: state
+
+      defp terminal_reply_message?({:gun_response, _pid, _stream, :fin, _status, _headers}),
+        do: true
+
+      defp terminal_reply_message?({:gun_data, _pid, _stream, :fin, _data}), do: true
+      defp terminal_reply_message?({:gun_error, _pid, _stream, _reason}), do: true
+      defp terminal_reply_message?({:gun_error, _pid, _reason}), do: true
+
+      defp terminal_reply_message?(
+             {:gun_down, _pid, _protocol, _reason, _killed_streams, _unprocessed}
+           ),
+           do: true
+
+      defp terminal_reply_message?(_message), do: false
     end
 
     defp route_reply_message(request_owner, stream_owner, original_reply_to, message) do
@@ -546,25 +565,6 @@ if Code.ensure_loaded?(:gun) do
           notify_reply_to(original_reply_to, request_owner, message)
       end
     end
-
-    defp next_reply_state(_state, {:gun_response, _pid, _stream, :nofin, _status, _headers}),
-      do: :streaming
-
-    defp next_reply_state(state, _message), do: state
-
-    defp terminal_reply_message?({:gun_response, _pid, _stream, :fin, _status, _headers}),
-      do: true
-
-    defp terminal_reply_message?({:gun_data, _pid, _stream, :fin, _data}), do: true
-    defp terminal_reply_message?({:gun_error, _pid, _stream, _reason}), do: true
-    defp terminal_reply_message?({:gun_error, _pid, _reason}), do: true
-
-    defp terminal_reply_message?(
-           {:gun_down, _pid, _protocol, _reason, _killed_streams, _unprocessed}
-         ),
-         do: true
-
-    defp terminal_reply_message?(_message), do: false
 
     defp notify_reply_to(reply_to, request_owner, _message)
          when is_pid(reply_to) and reply_to == request_owner,
