@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.20.1](https://github.com/elixir-tesla/tesla/compare/v1.20.0...v1.20.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* **ci:** bump release workflow to OTP 28.5 ([#888](https://github.com/elixir-tesla/tesla/issues/888)) ([aa22331](https://github.com/elixir-tesla/tesla/commit/aa22331ce3ffc5d326d36dbe83b8b37828fea75f))
+* silence compiler warnings on Elixir 1.20.1 ([#892](https://github.com/elixir-tesla/tesla/issues/892)) ([863d836](https://github.com/elixir-tesla/tesla/commit/863d8363f8613c4be7ae1f21b131c3d936177f79))
+
 ## [1.20.0](https://github.com/elixir-tesla/tesla/compare/v1.19.0...v1.20.0) (2026-06-05)
 
 
