@@ -295,29 +295,6 @@ defmodule Tesla.Middleware.JsonTest do
     end
   end
 
-  describe "Engine: exjsx" do
-    defmodule JsxClient do
-      use Tesla
-
-      plug Tesla.Middleware.JSON, engine: JSX
-
-      adapter fn env ->
-        {:ok,
-         %{
-           env
-           | status: 200,
-             headers: [{"content-type", "application/json"}],
-             body: ~s|{"value": 123}|
-         }}
-      end
-    end
-
-    test "decode with custom engine options" do
-      assert {:ok, env} = JsxClient.get("/decode")
-      assert env.body == %{"value" => 123}
-    end
-  end
-
   if Code.ensure_loaded?(JSON) do
     describe "Engine: JSON" do
       defmodule JSONClient do

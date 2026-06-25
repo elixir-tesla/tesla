@@ -67,7 +67,6 @@ defmodule Tesla.Mixfile do
       # json parsers
       {:jason, ">= 1.0.0", optional: true},
       {:poison, ">= 1.0.0", optional: true},
-      {:exjsx, ">= 3.0.0", optional: true},
 
       # messagepack parsers
       {:msgpax, "~> 2.3", optional: true},

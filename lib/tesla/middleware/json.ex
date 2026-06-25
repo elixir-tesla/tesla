@@ -35,11 +35,9 @@ defmodule Tesla.Middleware.JSON do
         # or
         {Tesla.Middleware.JSON, engine: JSON}
         # or
-        {Tesla.Middleware.JSON, engine: JSX, engine_opts: [strict: [:comments]]},
-        # or
         {Tesla.Middleware.JSON, engine: Poison, engine_opts: [keys: :atoms]},
         # or
-        {Tesla.Middleware.JSON, decode: &JSX.decode/1, encode: &JSX.encode/1}
+        {Tesla.Middleware.JSON, decode: &Jason.decode/1, encode: &Jason.encode/1}
       ])
     end
   end
@@ -50,7 +48,7 @@ defmodule Tesla.Middleware.JSON do
   - `:decode` - decoding function
   - `:encode` - encoding function
   - `:encode_content_type` - content-type to be used in request header
-  - `:engine` - encode/decode engine, e.g `JSON`, `Jason`, `Poison` or `JSX`  (defaults to Jason)
+  - `:engine` - encode/decode engine, e.g `JSON`, `Jason` or `Poison`  (defaults to Jason)
   - `:engine_opts` - optional engine options
   - `:decode_content_types` - list of additional decodable content-types
   """
