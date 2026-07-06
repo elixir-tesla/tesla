@@ -22,6 +22,9 @@ Tesla.post("https://httpbin.org/post", "body")
 Tesla.put("https://httpbin.org/put", "body")
 Tesla.patch("https://httpbin.org/patch", "body")
 Tesla.delete("https://httpbin.org/anything")
+
+# QUERY (RFC 10008) - not supported by the httpc and ibrowse adapters
+Tesla.query("https://httpbin.org/anything", "select=name&limit=10")
 ```
 
 ### Query Params

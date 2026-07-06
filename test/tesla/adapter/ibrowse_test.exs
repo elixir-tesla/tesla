@@ -17,4 +17,17 @@ defmodule Tesla.Adapter.IbrowseTest do
   #     verify: :verify_peer,
   #     cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
   #   ]
+
+  # ibrowse supports only a fixed set of method atoms and would crash its
+  # connection process on QUERY (RFC 10008), so the adapter rejects it upfront.
+  test "QUERY request returns method_not_supported_by_adapter" do
+    env = %Env{
+      method: :query,
+      url: "#{@http}/post",
+      body: "select=surname,givenname&limit=10",
+      headers: [{"content-type", "application/x-www-form-urlencoded"}]
+    }
+
+    assert {:error, :method_not_supported_by_adapter} = call(env)
+  end
 end

@@ -203,6 +203,13 @@ defmodule TeslaTest do
       assert response.body == "some-data"
     end
 
+    test "query shortcut function (RFC 10008)" do
+      assert {:ok, response} = SimpleClient.query("/orders", "select=surname&limit=10")
+      assert response.method == :query
+      assert response.url == "/orders"
+      assert response.body == "select=surname&limit=10"
+    end
+
     test "better errors when given nil opts" do
       assert_raise FunctionClauseError, fn ->
         SimpleClient.get("/", nil)

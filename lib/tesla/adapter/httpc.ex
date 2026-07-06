@@ -6,6 +6,10 @@ defmodule Tesla.Adapter.Httpc do
 
   **NOTE** Tesla overrides default autoredirect value with false to ensure
   consistency between adapters
+
+  **NOTE** `:httpc` accepts only a fixed set of HTTP methods and does not
+  support QUERY (RFC 10008) - such requests return `{:error, :invalid_method}`.
+  Use the Hackney, Gun, Mint, or Finch adapter instead.
   """
 
   @behaviour Tesla.Adapter

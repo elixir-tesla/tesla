@@ -9,6 +9,7 @@ defmodule Tesla.Adapter.FinchTest do
   use Tesla.AdapterCase.StreamRequestBody
   use Tesla.AdapterCase.StreamResponseBody
   use Tesla.AdapterCase.SSL
+  use Tesla.AdapterCase.Query
 
   setup do
     opts = [
