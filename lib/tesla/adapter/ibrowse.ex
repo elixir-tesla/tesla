@@ -60,7 +60,8 @@ if Code.ensure_loaded?(:ibrowse) do
     defp format_body(data) when is_list(data), do: IO.iodata_to_binary(data)
     defp format_body(data) when is_binary(data), do: data
 
-    defp request(%{method: :query}, _opts), do: {:error, :method_not_supported_by_adapter}
+    defp request(%Tesla.Env{method: :query}, _opts),
+      do: {:error, :method_not_supported_by_adapter}
 
     defp request(env, opts) do
       body = env.body || []

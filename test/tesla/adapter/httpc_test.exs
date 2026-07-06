@@ -12,10 +12,11 @@ defmodule Tesla.Adapter.HttpcTest do
       cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
     ]
 
-  # :httpc accepts only a fixed set of method atoms and does not support
-  # QUERY (RFC 10008) - the error is passed through from :httpc, so QUERY
-  # starts working automatically once OTP adds support for it.
-  test "QUERY request returns an error" do
+  # :httpc accepts only a fixed set of method atoms, which as of OTP 29 does
+  # not include QUERY (RFC 10008). The error is passed through from :httpc,
+  # so QUERY starts working automatically once OTP adds support for it -
+  # accept both outcomes to stay green across OTP versions.
+  test "QUERY request" do
     env = %Env{
       method: :query,
       url: "#{@http}/post",
@@ -23,7 +24,10 @@ defmodule Tesla.Adapter.HttpcTest do
       headers: [{"content-type", "application/x-www-form-urlencoded"}]
     }
 
-    assert {:error, :invalid_method} = call(env)
+    case call(env) do
+      {:error, reason} -> assert reason == :invalid_method
+      {:ok, %Env{} = response} -> assert response.status in 100..599
+    end
   end
 
   # see https://github.com/teamon/tesla/issues/147

@@ -7,9 +7,11 @@ defmodule Tesla.Adapter.Httpc do
   **NOTE** Tesla overrides default autoredirect value with false to ensure
   consistency between adapters
 
-  **NOTE** `:httpc` accepts only a fixed set of HTTP methods and does not
-  support QUERY (RFC 10008) - such requests return `{:error, :invalid_method}`.
-  Use the Hackney, Gun, Mint, or Finch adapter instead.
+  **NOTE** `:httpc` accepts only a fixed set of HTTP methods, which as of
+  OTP 29 does not include QUERY (RFC 10008) - such requests return
+  `{:error, :invalid_method}`. The error comes from `:httpc` itself, so QUERY
+  starts working automatically on OTP versions that add support for it. Until
+  then, use the Hackney, Gun, Mint, or Finch adapter for QUERY requests.
   """
 
   @behaviour Tesla.Adapter
