@@ -70,6 +70,7 @@ if Code.ensure_loaded?(Finch) do
 
     """
     @behaviour Tesla.Adapter
+    import Tesla.Adapter.Shared, only: [format_method: 1]
     alias Tesla.Multipart
 
     @defaults [
@@ -87,7 +88,7 @@ if Code.ensure_loaded?(Finch) do
         Keyword.take(opts, [:pool_timeout, :receive_timeout, :request_timeout, :pool_strategy])
 
       build_opts = Keyword.take(opts, [:unix_socket, :pool_tag])
-      req = build(env.method, url, env.headers, env.body, build_opts)
+      req = build(format_method(env.method), url, env.headers, env.body, build_opts)
 
       case request(req, name, req_opts, opts) do
         {:ok, %Finch.Response{status: status, headers: headers, body: body}} ->

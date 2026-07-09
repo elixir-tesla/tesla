@@ -117,6 +117,16 @@ defmodule Tesla.BuilderTest do
       assert function_exported?(TestClient, :post!, 3)
       assert function_exported?(TestClient, :post!, 4)
     end
+
+    test "generate functions for the QUERY method (RFC 10008)" do
+      assert function_exported?(TestClient, :query, 2)
+      assert function_exported?(TestClient, :query, 3)
+      assert function_exported?(TestClient, :query, 4)
+
+      assert function_exported?(TestClient, :query!, 2)
+      assert function_exported?(TestClient, :query!, 3)
+      assert function_exported?(TestClient, :query!, 4)
+    end
   end
 
   describe ":only/:except options" do
@@ -128,7 +138,7 @@ defmodule Tesla.BuilderTest do
       use Tesla.Builder, except: ~w(delete)a
     end
 
-    @http_verbs ~w(head get delete trace options post put patch)a
+    @http_verbs ~w(head get delete trace options post put patch query)a
 
     test "limit generated functions (only)" do
       functions = OnlyGetClient.__info__(:functions) |> Keyword.keys() |> Enum.uniq()

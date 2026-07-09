@@ -1,8 +1,8 @@
 defmodule Tesla.Builder do
   @moduledoc false
 
-  @http_verbs ~w(head get delete trace options post put patch)a
-  @body ~w(post put patch)a
+  @http_verbs ~w(head get delete trace options post put patch query)a
+  @body ~w(post put patch query)a
 
   defmacro __using__(opts \\ []) do
     caller_module = __CALLER__.module
@@ -51,7 +51,7 @@ defmodule Tesla.Builder do
 
         ## Options
 
-        - `:method` - the request method, one of [`:head`, `:get`, `:delete`, `:trace`, `:options`, `:post`, `:put`, `:patch`]
+        - `:method` - the request method, one of [`:head`, `:get`, `:delete`, `:trace`, `:options`, `:post`, `:put`, `:patch`, `:query`]
         - `:url` - either full url e.g. "http://example.com/some/path" or just "/some/path" if using `Tesla.Middleware.BaseUrl`
         - `:query` - a keyword list or nested map of query params, e.g. `[page: 1, per_page: 100]`
         - `:headers` - a keyword list of headers, e.g. `[{"content-type", "text/plain"}]`
@@ -268,7 +268,7 @@ defmodule Tesla.Builder do
       Perform a #{unquote(method |> to_string |> String.upcase())} request.
 
       See `#{unquote(request)}/1` or `#{unquote(request)}/2` for options definition.
-
+      #{unquote(method_note(method))}
           #{unquote(name)}("/users"#{unquote(body)})
           #{unquote(name)}("/users"#{unquote(body)}, query: [scope: "admin"])
           #{unquote(name)}(client, "/users"#{unquote(body)})
@@ -283,6 +283,19 @@ defmodule Tesla.Builder do
       @doc false
     end
   end
+
+  # QUERY shares its name with the `:query` request option - point out the
+  # difference in the generated docs.
+  defp method_note(:query) do
+    """
+
+    QUERY (RFC 10008) is a safe and idempotent method that carries the query
+    in the request body. It is not related to the `:query` option, which sets
+    URL query parameters.
+    """
+  end
+
+  defp method_note(_method), do: ""
 
   defp gen_spec(method, safe, client, opts) do
     quote location: :keep do

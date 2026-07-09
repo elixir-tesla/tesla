@@ -5,6 +5,7 @@ defmodule Tesla.Adapter.GunTest do
   use Tesla.AdapterCase.Basic
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
+  use Tesla.AdapterCase.Query
 
   use Tesla.AdapterCase.SSL,
     certificates_verification: true,

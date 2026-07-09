@@ -4,7 +4,7 @@ defmodule Tesla.Env do
   """
 
   @type client :: Tesla.Client.t()
-  @type method :: :head | :get | :delete | :trace | :options | :post | :put | :patch
+  @type method :: :head | :get | :delete | :trace | :options | :post | :put | :patch | :query
 
   @typedoc """
   Request URL or request target.
