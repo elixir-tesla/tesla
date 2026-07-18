@@ -142,7 +142,7 @@ defmodule Tesla.Middleware.FollowRedirects do
     %{env | headers: Enum.reject(env.headers, &dropped?(&1, drop))}
   end
 
-  defp dropped?({key, _value}, drop), do: String.downcase(key) in drop
+  defp dropped?({key, _value}, drop), do: String.downcase(to_string(key)) in drop
 
   defp add_if(list, true, extra), do: list ++ extra
   defp add_if(list, false, _extra), do: list

@@ -325,6 +325,27 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
       ]
     end
 
+    test "Strip authorization header given as an atom key on cross-origin redirect", %{
+      client: client
+    } do
+      assert {:ok, _env} =
+               Tesla.post(client, "http://example.com/drop", "",
+                 headers: [
+                   {"content-type", "text/plain"},
+                   {:Authorization, "Basic Zm9vOmJhcg=="}
+                 ]
+               )
+
+      assert_receive [
+        {"content-type", "text/plain"},
+        {:Authorization, "Basic Zm9vOmJhcg=="}
+      ]
+
+      assert_receive [
+        {"content-type", "text/plain"}
+      ]
+    end
+
     test "Strip Host header (canonical casing) on redirect to a different domain", %{
       client: client
     } do
