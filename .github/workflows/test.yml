@@ -15,7 +15,7 @@ jobs:
             experimental: false
             lint: false
           - elixir: '1.19.0'
-            otp: '28.0'
+            otp: '28.5'
             experimental: false
             lint: false
           - elixir: '1.20.0'
