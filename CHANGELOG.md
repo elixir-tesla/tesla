@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.21.0](https://github.com/elixir-tesla/tesla/compare/v1.20.0...v1.21.0) (2026-07-18)
+
+
+### Features
+
+* add support for the HTTP QUERY method (RFC 10008) ([#896](https://github.com/elixir-tesla/tesla/issues/896)) ([c3b7bf5](https://github.com/elixir-tesla/tesla/commit/c3b7bf5a21c0e4d6cff6320d4b2498fe8d1d9e68))
+
+
+### Bug Fixes
+
+* **ci:** bump release workflow to OTP 28.5 ([#888](https://github.com/elixir-tesla/tesla/issues/888)) ([aa22331](https://github.com/elixir-tesla/tesla/commit/aa22331ce3ffc5d326d36dbe83b8b37828fea75f))
+* **ci:** bump test matrix to OTP 28.5 ([#899](https://github.com/elixir-tesla/tesla/issues/899)) ([279f8bc](https://github.com/elixir-tesla/tesla/commit/279f8bc055ce66e8c3c00a0c927b1a915ab960c0))
+* handle atom header keys in FollowRedirects header filtering ([#898](https://github.com/elixir-tesla/tesla/issues/898)) ([a3d6c94](https://github.com/elixir-tesla/tesla/commit/a3d6c94625bc7feb91af0842ab74067d54b13a50))
+* silence compiler warnings on Elixir 1.20.1 ([#892](https://github.com/elixir-tesla/tesla/issues/892)) ([863d836](https://github.com/elixir-tesla/tesla/commit/863d8363f8613c4be7ae1f21b131c3d936177f79))
+
 ## [1.20.0](https://github.com/elixir-tesla/tesla/compare/v1.19.0...v1.20.0) (2026-06-05)
 
 
