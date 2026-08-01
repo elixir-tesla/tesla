@@ -58,7 +58,7 @@ defmodule Tesla.Mixfile do
       {:mime, "~> 1.0 or ~> 2.0"},
 
       # http clients
-      {:ibrowse, "4.4.2", optional: true},
+      {:ibrowse, "4.5.0", optional: true},
       # hackney 2.x, 3.x, and 4.0.0 / 4.0.1 are unsupported: they lack exports we rely on
       # (`:hackney.body/1,2`, `:hackney.stream_body/1,2`) or have an incomplete streaming API.
       {:hackney, "~> 1.21 or ~> 4.0 and >= 4.0.2", optional: true},
