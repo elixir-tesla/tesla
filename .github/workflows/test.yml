@@ -1,6 +1,20 @@
 name: Test
 
-on: [pull_request]
+on:
+  merge_group:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: Test ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   Test:
@@ -8,6 +22,7 @@ jobs:
     name: OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
     continue-on-error: ${{ matrix.experimental }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - elixir: '1.17.1'
@@ -23,15 +38,16 @@ jobs:
             experimental: false
             lint: true
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Set up Elixir
-      uses: erlef/setup-beam@v1
+      id: beam
+      uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
       with:
         elixir-version: ${{ matrix.elixir }}
         otp-version: ${{ matrix.otp }}
         version-type: strict
     - name: Restore dependencies cache
-      uses: actions/cache@v6
+      uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
       id: cache
       with:
         path: deps
@@ -45,6 +61,10 @@ jobs:
         mix local.rebar --force
         mix local.hex --force
         mix deps.get
+    - name: Compile
+      env:
+        MIX_ENV: test
+      run: mix compile --warnings-as-errors
     - name: Run Tests
       run: mix test --trace
     - if: ${{ matrix.lint }}
@@ -56,15 +76,16 @@ jobs:
     runs-on: ubuntu-latest
     name: Gun 1
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Set up Elixir
-      uses: erlef/setup-beam@v1
+      id: beam
+      uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
       with:
         elixir-version: '1.17.1'
         otp-version: '27.0'
         version-type: strict
     - name: Restore dependencies cache
-      uses: actions/cache@v6
+      uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
       id: cache
       with:
         path: deps
@@ -87,15 +108,16 @@ jobs:
     runs-on: ubuntu-latest
     name: Dialyzer
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Set up Elixir
-      uses: erlef/setup-beam@v1
+      id: beam
+      uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
       with:
         elixir-version: '1.17.1'
         otp-version: '27.0'
         version-type: strict
     - name: Restore dependencies cache
-      uses: actions/cache@v6
+      uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
       id: cache
       with:
         path: |
@@ -116,7 +138,7 @@ jobs:
     # Doesn't cache PLTs based on mix.lock hash, as Dialyzer can incrementally update even old ones
     # Cache key based on Elixir & Erlang version.
     - name: Restore PLT cache
-      uses: actions/cache@v6
+      uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
       id: plt_cache
       with:
         key: |

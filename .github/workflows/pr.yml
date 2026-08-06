@@ -2,6 +2,7 @@
 name: PR
 
 on:
+  merge_group:
   pull_request:
     types:
       - edited
@@ -13,13 +14,15 @@ jobs:
   title:
     name: Conventional Commits
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: webiny/action-conventional-commits@v1.4.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: webiny/action-conventional-commits@7f91b1595ca1951cdb671ddc9f07a49081ec5b69 # v1.4.2
 
   semantic-pr-title:
     name: Semantic PR Title
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
     permissions:
       pull-requests: read
       statuses: write
@@ -40,3 +43,34 @@ jobs:
             does not start with an uppercase character.
           wip: true
           validateSingleCommit: false
+
+  Labels:
+    name: Assign Labels
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: mauroalderete/action-assign-labels@671a4ca2da0f900464c58b8b5540a1e07133e915 # v1
+        with:
+          pull-request-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          conventional-commits: |
+            conventional-commits:
+              - type: 'fix'
+                nouns: ['FIX', 'Fix', 'fix']
+                labels: ['bug']
+              - type: 'feature'
+                nouns: ['FEAT', 'Feat', 'feat']
+                labels: ['feature :sparkles:']
+              - type: 'chore'
+                nouns: ['CHORE', 'Chore', 'chore']
+                labels: ['chore']
+              - type: 'docs'
+                nouns: ['DOCS', 'Docs', 'docs']
+                labels: ['docs']

@@ -4,11 +4,19 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
+    commit-message:
+      prefix: "chore(deps)"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: mix
     directory: "/"
     schedule:
       interval: monthly
+    commit-message:
+      prefix: "chore(deps)"
+    cooldown:
+      default-days: 7
     groups:
       prod:
         dependency-type: production
