@@ -1,0 +1,34 @@
+name: Production
+
+on:
+  release:
+    types:
+      - released
+      - prereleased
+  workflow_dispatch:
+
+concurrency:
+  group: Production
+
+jobs:
+  Hex:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.19.0"
+          otp-version: "28.5"
+          version-type: strict
+
+      - run: mix deps.get
+
+      - name: Publish
+        run: mix hex.publish --yes
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}

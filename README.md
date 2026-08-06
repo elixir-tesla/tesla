@@ -1,6 +1,6 @@
 # Tesla
 
-[![Test](https://github.com/elixir-tesla/tesla/actions/workflows/test.yml/badge.svg)](https://github.com/elixir-tesla/tesla/actions/workflows/test.yml)
+[![CI](https://github.com/elixir-tesla/tesla/actions/workflows/ci.yaml/badge.svg)](https://github.com/elixir-tesla/tesla/actions/workflows/ci.yaml)
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hexdocs.pm](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/tesla/)
 [![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)

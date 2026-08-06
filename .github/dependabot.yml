@@ -3,7 +3,7 @@ updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: monthly
+      interval: weekly
     commit-message:
       prefix: "chore(deps)"
     cooldown:
@@ -12,7 +12,7 @@ updates:
   - package-ecosystem: mix
     directory: "/"
     schedule:
-      interval: monthly
+      interval: weekly
     commit-message:
       prefix: "chore(deps)"
     cooldown:
