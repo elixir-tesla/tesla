@@ -89,6 +89,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
     @doc """
     Closes mint connection.
     """
+    # Mint connection structs are opaque, so Dialyzer cannot verify this delegation
+    # against `HTTP.t()`.
+    @dialyzer {:nowarn_function, close: 1}
     @spec close(HTTP.t()) :: {:ok, HTTP.t()}
     defdelegate close(conn), to: HTTP
 

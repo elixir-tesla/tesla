@@ -94,13 +94,17 @@ if Code.ensure_loaded?(Finch) do
         {:ok, %Finch.Response{status: status, headers: headers, body: body}} ->
           {:ok, %Tesla.Env{env | status: status, headers: headers, body: body}}
 
-        {:error, %Mint.TransportError{reason: reason}} ->
-          {:error, reason}
-
         {:error, reason} ->
-          {:error, reason}
+          {:error, unwrap_error(reason)}
       end
     end
+
+    # Finch v0.22 started wrapping every failure in `Finch.error()`. Unwrap it back to
+    # the reasons callers matched on before, so the adapter behaves the same on both.
+    defp unwrap_error(error) when is_struct(error, Finch.TransportError), do: error.reason
+    defp unwrap_error(error) when is_struct(error, Finch.HTTPError), do: error.source || error
+    defp unwrap_error(%Mint.TransportError{reason: reason}), do: reason
+    defp unwrap_error(error), do: error
 
     defp build(method, url, headers, %Multipart{} = mp, opts) do
       headers = headers ++ Multipart.headers(mp)
