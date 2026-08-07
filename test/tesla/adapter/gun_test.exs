@@ -222,30 +222,45 @@ defmodule Tesla.Adapter.GunTest do
   end
 
   test "preserves explicit function reply_to when stream ownership is handed off" do
+    test_pid = self()
+
+    # The requesting process owns the gun connection, so it has to outlive the
+    # stream. Keeping it in the test process and spawning the stream owner
+    # instead avoids racing the connection teardown against the last chunk.
+    stream_owner = spawn(fn -> forward_messages(test_pid) end)
+    on_exit(fn -> Process.exit(stream_owner, :kill) end)
+
     request = %Env{
       method: :get,
       url: "#{@http}/stream-bytes/10",
-      private: %{tesla_gun_stream_owner: self()}
+      private: %{tesla_gun_stream_owner: stream_owner}
     }
 
-    test_pid = self()
     reply_to = fn message -> send(test_pid, {:gun_reply_to, message}) end
 
-    task =
-      Task.async(fn ->
-        Tesla.Adapter.Gun.call(request, body_as: :chunks, reply_to: reply_to, timeout: 5_000)
-      end)
-
     assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream}}} =
-             Task.await(task)
+             Tesla.Adapter.Gun.call(request,
+               body_as: :chunks,
+               reply_to: reply_to,
+               timeout: 5_000
+             )
 
     assert_receive {:gun_reply_to, {:gun_response, ^pid, ^stream, :nofin, 200, _headers}}
     assert is_pid(pid)
     assert is_reference(stream)
     assert_receive {:gun_reply_to, {:gun_data, ^pid, ^stream, _, _}}
+    assert_receive {:stream_owner, {:gun_data, ^pid, ^stream, _, _}}
     assert_receive {:gun_data, ^pid, ^stream, _, _}
 
     Gun.close(pid)
+  end
+
+  defp forward_messages(test_pid) do
+    receive do
+      message ->
+        send(test_pid, {:stream_owner, message})
+        forward_messages(test_pid)
+    end
   end
 
   test "on TLS errors get timeout error from await_up method" do
