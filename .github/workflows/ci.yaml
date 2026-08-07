@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  merge_group:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: CI ${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Dependencies:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.19.0"
+          otp-version: "28.5"
+          version-type: strict
+
+      - run: mix deps.get
+
+      - name: Unused
+        run: mix deps.unlock --check-unused
+
+  Dialyzer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Elixir
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.17.1"
+          otp-version: "27.0"
+          version-type: strict
+
+      # mix.exs leaves plt_local_path unset, so dialyxir writes the PLT into
+      # _build. The restore-keys prefix hands back the previous _build when
+      # mix.lock moves, which is what lets dialyxir update the PLT incrementally
+      # instead of rebuilding it.
+      - name: Restore dependencies cache
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-dialyzer-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-dialyzer-
+
+      - run: mix deps.get
+
+      - name: Dialyzer
+        run: mix dialyzer --format github
+
+  Format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.19.0"
+          otp-version: "28.5"
+          version-type: strict
+
+      - run: mix deps.get
+
+      - name: Format
+        run: mix format --check-formatted
+
+  Test:
+    name: Test (Elixir ${{ matrix.versions.elixir }} OTP ${{ matrix.versions.otp }})
+    runs-on: ubuntu-latest
+
+    env:
+      MIX_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Elixir
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: ${{ matrix.versions.elixir }}
+          otp-version: ${{ matrix.versions.otp }}
+          version-type: strict
+
+      - name: Restore dependencies cache
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        with:
+          path: deps
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-mix-
+
+      - run: mix deps.get
+
+      - name: Compile
+        run: mix compile --warnings-as-errors
+
+      - name: Test
+        run: mix test
+
+    strategy:
+      fail-fast: false
+      matrix:
+        versions:
+          - elixir: "1.17.1"
+            otp: "27.0"
+          - elixir: "1.19.0"
+            otp: "28.5"
+          - elixir: "1.20.0"
+            otp: "29.0.1"
+
+  # Covers Gun 1, whereas the Test job covers Gun 2.
+  Test-gun1:
+    name: Test (Gun 1)
+    runs-on: ubuntu-latest
+
+    env:
+      MIX_ENV: test
+      LOCKFILE: gun1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Elixir
+        id: beam
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.17.1"
+          otp-version: "27.0"
+          version-type: strict
+
+      - name: Restore dependencies cache
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        with:
+          path: deps
+          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-gun-mix-${{ hashFiles('test/lockfiles/gun1.lock') }}
+          restore-keys: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-gun-mix-
+
+      - run: mix deps.get
+
+      - name: Test
+        run: mix test test/tesla/adapter/gun_test.exs

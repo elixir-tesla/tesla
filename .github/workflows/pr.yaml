@@ -1,0 +1,87 @@
+name: PR
+
+on:
+  merge_group:
+  pull_request:
+    types:
+      - edited
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  Commits:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6
+        with:
+          configFile: .commitlintrc.yml
+
+  Title:
+    name: Semantic PR Title
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+
+    permissions:
+      pull-requests: read
+      statuses: write
+
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            did not match the configured pattern. Please ensure that the subject
+            does not start with an uppercase character.
+          wip: true
+          validateSingleCommit: false
+
+  Labels:
+    name: Assign Labels
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: mauroalderete/action-assign-labels@671a4ca2da0f900464c58b8b5540a1e07133e915 # v1
+        with:
+          pull-request-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          conventional-commits: |
+            conventional-commits:
+              - type: 'fix'
+                nouns: ['FIX', 'Fix', 'fix']
+                labels: ['bug']
+              - type: 'feature'
+                nouns: ['FEAT', 'Feat', 'feat']
+                labels: ['feature :sparkles:']
+              - type: 'chore'
+                nouns: ['CHORE', 'Chore', 'chore']
+                labels: ['chore']
+              - type: 'docs'
+                nouns: ['DOCS', 'Docs', 'docs']
+                labels: ['docs']

@@ -1,6 +1,6 @@
 # Tesla
 
-[![Test](https://github.com/elixir-tesla/tesla/actions/workflows/test.yml/badge.svg)](https://github.com/elixir-tesla/tesla/actions/workflows/test.yml)
+[![CI](https://github.com/elixir-tesla/tesla/actions/workflows/ci.yaml/badge.svg)](https://github.com/elixir-tesla/tesla/actions/workflows/ci.yaml)
 [![Hex.pm](https://img.shields.io/hexpm/v/tesla.svg)](https://hex.pm/packages/tesla)
 [![Hexdocs.pm](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/tesla/)
 [![Hex.pm](https://img.shields.io/hexpm/dt/tesla.svg)](https://hex.pm/packages/tesla)
@@ -27,11 +27,11 @@ Inspired by [Faraday](https://github.com/lostisland/faraday) from Ruby.
 
 Add `:tesla` as dependency in `mix.exs`:
 
+<!-- {x-release-please-start-version} -->
 ```elixir
 defp deps do
   [
-     # or latest version
-    {:tesla, "~> 1.11"},
+    {:tesla, "~> 1.21.0"},
     # optional, required by JSON middleware
     {:jason, "~> 1.4"},
     # optional, required by Mint adapter, recommended
@@ -39,6 +39,7 @@ defp deps do
   ]
 end
 ```
+<!-- {x-release-please-end} -->
 
 > #### :httpc as default Adapter {: .error}
 > The default adapter is erlang's built-in `httpc`, primarily to avoid
