@@ -51,33 +51,21 @@ jobs:
           otp-version: "27.0"
           version-type: strict
 
+      # mix.exs leaves plt_local_path unset, so dialyxir writes the PLT into
+      # _build. The restore-keys prefix hands back the previous _build when
+      # mix.lock moves, which is what lets dialyxir update the PLT incrementally
+      # instead of rebuilding it.
       - name: Restore dependencies cache
         uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: |
             deps
             _build
-            dialyzer
           key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-dialyzer-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-dialyzer-
 
       - run: mix deps.get
-
-      # PLTs are not keyed on mix.lock, as Dialyzer incrementally updates even stale ones.
-      - name: Restore PLT cache
-        id: plt_cache
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
-        with:
-          path: |
-            priv/plts
-          key: ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
-
-      - name: Create PLTs
-        if: steps.plt_cache.outputs.cache-hit != 'true'
-        run: mix dialyzer --plt
 
       - name: Dialyzer
         run: mix dialyzer --format github
