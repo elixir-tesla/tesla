@@ -1,0 +1,40 @@
+name: PR Labels
+
+# Runs on `pull_request_target` so that labels can be applied to pull requests
+# opened from forks, which only get a read-only token on `pull_request`.
+# Nothing from the head branch is checked out or executed here.
+on:
+  pull_request_target:
+    types:
+      - edited
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  Labels:
+    name: Assign Labels
+    runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: mauroalderete/action-assign-labels@671a4ca2da0f900464c58b8b5540a1e07133e915 # v1
+        with:
+          pull-request-number: ${{ github.event.pull_request.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          conventional-commits: |
+            conventional-commits:
+              - type: 'fix'
+                nouns: ['FIX', 'Fix', 'fix']
+                labels: ['bug']
+              - type: 'feature'
+                nouns: ['FEAT', 'Feat', 'feat']
+                labels: ['feature :sparkles:']
+              - type: 'chore'
+                nouns: ['CHORE', 'Chore', 'chore']
+                labels: ['chore']
+              - type: 'docs'
+                nouns: ['DOCS', 'Docs', 'docs']
+                labels: ['docs']
