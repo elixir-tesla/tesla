@@ -18,6 +18,37 @@ defmodule Tesla.Middleware.FollowRedirects do
   ## Options
 
   - `:max_redirects` - limit number of redirects (default: `5`)
+
+  ## Middleware order matters for credentials
+
+  On a redirect that crosses origins this middleware strips `authorization`,
+  `proxy-authorization`, `cookie` and other origin-bound headers, so they are not
+  sent to the new host. It can only strip headers that are already on the request
+  when it runs, which means **any middleware that sets credentials must be listed
+  before `Tesla.Middleware.FollowRedirects`.**
+
+  Middleware listed after it runs on every hop, including the redirected one, and
+  re-adds its headers to a request this middleware has already filtered. A static
+  credential set that way is sent to whatever host the `location` header names.
+
+  ```elixir
+  # Safe: the token is on the request before the redirect is followed, so it is
+  # stripped when the redirect crosses origins.
+  Tesla.client([
+    {Tesla.Middleware.BearerAuth, token: token},
+    Tesla.Middleware.FollowRedirects
+  ])
+
+  # Unsafe: BearerAuth runs again on the redirected request and re-adds the
+  # token after the stripping has happened.
+  Tesla.client([
+    Tesla.Middleware.FollowRedirects,
+    {Tesla.Middleware.BearerAuth, token: token}
+  ])
+  ```
+
+  The same applies to `Tesla.Middleware.BasicAuth`, `Tesla.Middleware.DigestAuth`
+  and to a `Tesla.Middleware.Headers` carrying a static credential.
   """
 
   @behaviour Tesla.Middleware
@@ -112,6 +143,11 @@ defmodule Tesla.Middleware.FollowRedirects do
   # Resource-, origin-, and proxy-specific headers are stripped on cross-origin
   # redirects to avoid leaking credentials or sending values bound to the
   # previous origin.
+  #
+  # Only headers present when this middleware runs can be stripped. A middleware
+  # listed after FollowRedirects re-adds its headers on the redirected hop, after
+  # this list has been applied. See the "Middleware order matters for
+  # credentials" section of the moduledoc.
   @cross_origin_strip ~w(
     authorization
     cookie
