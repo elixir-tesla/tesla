@@ -46,6 +46,28 @@ if Code.ensure_loaded?(Finch) do
         + `nil` or not specified - Responds without streaming using
           `Finch.request/3`.
 
+    ## Streamed response failures
+
+    When `response: :stream` is used, failures that happen after the response
+    headers arrived cannot be returned as `{:error, reason}`, because the
+    request already succeeded from the caller point of view. Such failures raise
+    `Tesla.Error` while the body stream is being consumed, so that a truncated
+    response is never mistaken for a complete one:
+
+    ```elixir
+    try do
+      Enum.each(env.body, &handle_chunk/1)
+    rescue
+      e in Tesla.Error ->
+        # e.reason is, for example, :closed or :timeout
+        {:error, e.reason}
+    end
+    ```
+
+    Waiting longer than `:receive_timeout` for the next chunk raises with reason
+    `:timeout`. A server that ends the response early without failing the
+    connection is not an error, and the stream simply ends.
+
     ## [Finch build options](https://hexdocs.pm/finch/Finch.html#build/5)
 
       * `:unix_socket` - Path to a Unix domain socket to connect to instead of the
@@ -90,7 +112,7 @@ if Code.ensure_loaded?(Finch) do
       build_opts = Keyword.take(opts, [:unix_socket, :pool_tag])
       req = build(format_method(env.method), url, env.headers, env.body, build_opts)
 
-      case request(req, name, req_opts, opts) do
+      case request(req, name, req_opts, opts, env) do
         {:ok, %Finch.Response{status: status, headers: headers, body: body}} ->
           {:ok, %Tesla.Env{env | status: status, headers: headers, body: body}}
 
@@ -125,15 +147,15 @@ if Code.ensure_loaded?(Finch) do
       Finch.build(method, url, headers, body, opts)
     end
 
-    defp request(req, name, req_opts, opts) do
+    defp request(req, name, req_opts, opts, env) do
       case opts[:response] do
-        :stream -> stream(req, name, req_opts)
+        :stream -> stream(req, name, req_opts, env)
         nil -> Finch.request(req, name, req_opts)
         other -> raise "Unknown response option: #{inspect(other)}"
       end
     end
 
-    defp stream(req, name, opts) do
+    defp stream(req, name, opts, env) do
       owner = self()
       ref = make_ref()
 
@@ -166,13 +188,13 @@ if Code.ensure_loaded?(Finch) do
                   Task.await(task)
                   nil
 
-                {^ref, {:error, _error}} ->
+                {^ref, {:error, error}} ->
                   Task.shutdown(task, :brutal_kill)
-                  nil
+                  raise Tesla.Error, env: env, reason: unwrap_error(error)
               after
                 opts[:receive_timeout] ->
                   Task.shutdown(task, :brutal_kill)
-                  nil
+                  raise Tesla.Error, env: env, reason: :timeout
               end
             end)
 
