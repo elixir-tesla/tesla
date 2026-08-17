@@ -64,4 +64,66 @@ defmodule Tesla.Adapter.FinchTest do
                receive_timeout: 1000
              )
   end
+
+  describe "streamed response failures" do
+    test "raises with the transport reason when the connection drops mid stream" do
+      url = start_chunked_server(fn socket -> :gen_tcp.close(socket) end)
+
+      assert {:ok, env} =
+               call(%Env{method: :get, url: url}, response: :stream, receive_timeout: 200)
+
+      assert_raise Tesla.Error, ~r/^:closed /, fn -> Enum.to_list(env.body) end
+    end
+
+    test "raises with :timeout when the next chunk takes longer than :receive_timeout" do
+      url = start_chunked_server(fn _socket -> Process.sleep(1_000) end)
+
+      assert {:ok, env} =
+               call(%Env{method: :get, url: url}, response: :stream, receive_timeout: 200)
+
+      assert_raise Tesla.Error, ~r/^:timeout /, fn -> Enum.to_list(env.body) end
+    end
+
+    test "ends the stream without raising when the response completes" do
+      url = start_chunked_server(fn socket -> :gen_tcp.send(socket, "0\r\n\r\n") end)
+
+      assert {:ok, env} =
+               call(%Env{method: :get, url: url}, response: :stream, receive_timeout: 200)
+
+      assert Enum.to_list(env.body) == ["hello"]
+    end
+  end
+
+  # Sends a chunked response with a single "hello" chunk, then hands the socket
+  # over to `after_chunk` to decide how the response ends.
+  defp start_chunked_server(after_chunk) do
+    {:ok, listen} =
+      :gen_tcp.listen(0,
+        ip: {127, 0, 0, 1},
+        mode: :binary,
+        packet: :raw,
+        active: false,
+        reuseaddr: true
+      )
+
+    {:ok, port} = :inet.port(listen)
+
+    spawn_link(fn ->
+      {:ok, socket} = :gen_tcp.accept(listen, 5_000)
+      {:ok, _request} = :gen_tcp.recv(socket, 0, 5_000)
+
+      :gen_tcp.send(socket, [
+        "HTTP/1.1 200 OK\r\n",
+        "content-type: text/event-stream\r\n",
+        "transfer-encoding: chunked\r\n\r\n",
+        "5\r\nhello\r\n"
+      ])
+
+      after_chunk.(socket)
+      # Keep the socket owner alive so the last bytes are not lost on exit.
+      Process.sleep(500)
+    end)
+
+    "http://127.0.0.1:#{port}/"
+  end
 end
