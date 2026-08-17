@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.21.1](https://github.com/elixir-tesla/tesla/compare/v1.21.0...v1.21.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* **finch-adapter:** Surface the reason a streamed response stopped ([#913](https://github.com/elixir-tesla/tesla/issues/913)) ([e1f6051](https://github.com/elixir-tesla/tesla/commit/e1f6051c759b4265cbb719dcd571b0a158ec0d39))
+* **finch:** Unwrap error structs introduced by finch 0.22 ([#902](https://github.com/elixir-tesla/tesla/issues/902)) ([a833717](https://github.com/elixir-tesla/tesla/commit/a8337175a67d23962ceaec92ecb0cfd17356206b))
+
 ## [1.21.0](https://github.com/elixir-tesla/tesla/compare/v1.20.0...v1.21.0) (2026-08-01)
 
 
