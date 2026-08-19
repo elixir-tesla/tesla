@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.21.2](https://github.com/elixir-tesla/tesla/compare/v1.21.1...v1.21.2) (2026-08-19)
+
+
+### Bug Fixes
+
+* **form-urlencoded:** Do not claim a content-type it did not encode ([#914](https://github.com/elixir-tesla/tesla/issues/914)) ([b250b50](https://github.com/elixir-tesla/tesla/commit/b250b501372233194b7894c61c30d3d2d8bfb8ef))
+
 ## [1.21.1](https://github.com/elixir-tesla/tesla/compare/v1.21.0...v1.21.1) (2026-08-17)
 
 
