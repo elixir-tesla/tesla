@@ -39,9 +39,43 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     assert env.body == "application/x-www-form-urlencoded"
   end
 
+  test "no content-type is set if body is binary" do
+    assert {:ok, env} = Client.post("/check_incoming_content_type", "data")
+    assert env.body == nil
+  end
+
   test "decode response" do
     assert {:ok, env} = Client.get("/decode_response")
     assert env.body == %{"x" => "1", "y" => "2"}
+  end
+
+  defmodule JsonStackClient do
+    use Tesla
+
+    plug Tesla.Middleware.JSON
+    plug Tesla.Middleware.FormUrlencoded
+
+    adapter fn env ->
+      {:ok,
+       %{
+         env
+         | status: 200,
+           headers: [{"content-type", "text/html"}],
+           body: Tesla.get_headers(env, "content-type")
+       }}
+    end
+  end
+
+  describe "sharing a stack with Tesla.Middleware.JSON" do
+    test "a json body is left with a single application/json content-type" do
+      assert {:ok, env} = JsonStackClient.post("/post", %{"foo" => "bar"})
+      assert env.body == ["application/json"]
+    end
+
+    test "a tagged form body is left with a single form content-type" do
+      assert {:ok, env} = JsonStackClient.post("/post", {:form_urlencoded, %{"foo" => "bar"}})
+      assert env.body == ["application/x-www-form-urlencoded"]
+    end
   end
 
   defmodule MultipartClient do
