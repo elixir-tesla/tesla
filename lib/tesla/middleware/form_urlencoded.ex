@@ -183,6 +183,12 @@ defmodule Tesla.Middleware.FormUrlencoded do
     field on Stripe-style update endpoints.
   - Map keys are not ordered; keyword lists and lists of 2-tuples
     preserve the order you give them.
+  - A body that is already a binary is left untouched and no
+    `content-type` header is added, matching `Tesla.Middleware.JSON`. This
+    is what lets both middlewares share one stack: `JSON` encodes the body
+    and claims `application/json`, and this middleware then sees a binary
+    and stays out of the way rather than appending a second `content-type`.
+    Encode the body yourself and you own its `content-type` too.
   - Decoding stays flat. `Plug.Conn.Query.decode/1` will parse the
     bracket keys into nested maps, but indexed lists come back as maps
     keyed by string indices (`"0"`, `"1"`, …), not as Elixir lists, so
@@ -221,10 +227,10 @@ defmodule Tesla.Middleware.FormUrlencoded do
 
   defp encodable?(%{body: {:form_urlencoded, _}}), do: true
   defp encodable?(%{body: nil}), do: false
+  defp encodable?(%{body: body}) when is_binary(body), do: false
   defp encodable?(%{body: %Tesla.Multipart{}}), do: false
   defp encodable?(_), do: true
 
-  defp encode_body(body, _opts) when is_binary(body), do: body
   defp encode_body({:form_urlencoded, data}, opts), do: do_encode(data, opts)
   defp encode_body(body, opts), do: do_encode(body, opts)
 
