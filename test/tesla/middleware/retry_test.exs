@@ -139,6 +139,12 @@ defmodule Tesla.Middleware.RetryTest do
 
             "/retry_after_invalid_time" ->
               {:ok, %{env | status: 200}}
+
+            "/retry_after_negative" when retries < 5 ->
+              {:ok, %{env | status: 429, headers: [{"retry-after", "-1"} | env.headers]}}
+
+            "/retry_after_negative" ->
+              {:ok, %{env | status: 200}}
           end
 
         {response, %{state | retries: retries + 1}}
@@ -294,6 +300,13 @@ defmodule Tesla.Middleware.RetryTest do
   test "ignore Retry-After header if it has an invalid time" do
     assert {:ok, %Tesla.Env{url: "/retry_after_invalid_time", method: :get, status: 200}} =
              ClientUsingRetryAfterHeader.get("/retry_after_invalid_time")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
+  end
+
+  test "clamp a negative Retry-After integer to zero instead of crashing" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_negative", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_negative")
 
     assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
   end
