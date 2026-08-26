@@ -139,7 +139,7 @@ defmodule Tesla.Middleware.Retry do
   defp retry_delay_in_ms(delay_value) do
     case Integer.parse(delay_value) do
       {seconds, ""} ->
-        {:ok, :timer.seconds(seconds)}
+        {:ok, seconds |> :timer.seconds() |> max(0)}
 
       :error ->
         case parse_http_datetime(delay_value) do
