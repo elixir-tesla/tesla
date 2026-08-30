@@ -48,6 +48,17 @@ defmodule Tesla.Adapter.MintTest do
     assert Enum.join(response.body) |> byte_size() == 2245
   end
 
+  test "response body as stream is empty when the response has no body" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/status/204"
+    }
+
+    assert {:ok, %Env{} = response} = call(request, body_as: :stream)
+    assert response.status == 204
+    assert Enum.to_list(response.body) == []
+  end
+
   test "response body as chunks with closing body with default" do
     request = %Env{
       method: :get,

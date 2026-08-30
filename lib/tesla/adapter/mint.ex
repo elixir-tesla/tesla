@@ -76,12 +76,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     def read_chunk(conn, ref, opts) do
       with {:ok, conn, acc} <- receive_packet(conn, ref, Enum.into(opts, %{})),
            {state, data} <- response_state(acc) do
-        {:ok, conn} =
-          if state == :fin and opts[:close_conn] do
-            close(conn)
-          else
-            {:ok, conn}
-          end
+        conn = if state == :fin, do: maybe_close(conn, opts), else: conn
 
         {state, conn, data}
       end
@@ -181,14 +176,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp parse_scheme(_), do: {:error, :unsupported_scheme}
 
     defp make_request(conn, method, path, headers, body, opts) when is_function(body) do
-      case HTTP.request(conn, method, path, headers, :stream) do
-        {:ok, conn, ref} ->
-          with {:ok, conn, response} <- stream_request(conn, ref, body, opts) do
-            {:ok, conn, ref, response}
-          end
-
-        {:error, conn, error} ->
-          close_on_error(conn, error, opts)
+      with {:ok, conn, ref} <- open_stream_request(conn, method, path, headers, opts),
+           {:ok, conn, response} <- stream_request(conn, ref, body, opts) do
+        {:ok, conn, ref, response}
       end
     end
 
@@ -201,23 +191,25 @@ if Code.ensure_loaded?(Mint.HTTP) do
         body = IO.iodata_to_binary(body)
         make_request(conn, method, path, headers, stream_to_fun([body]), opts)
       else
-        case HTTP.request(conn, method, path, headers, body) do
-          {:ok, conn, ref} ->
-            {:ok, conn, ref, %{}}
-
-          {:error, conn, error} ->
-            close_on_error(conn, error, opts)
-        end
+        send_request(conn, method, path, headers, body, opts)
       end
     end
 
     defp make_request(conn, method, path, headers, body, opts) do
-      case HTTP.request(conn, method, path, headers, body) do
-        {:ok, conn, ref} ->
-          {:ok, conn, ref, %{}}
+      send_request(conn, method, path, headers, body, opts)
+    end
 
-        {:error, conn, error} ->
-          close_on_error(conn, error, opts)
+    defp open_stream_request(conn, method, path, headers, opts) do
+      case HTTP.request(conn, method, path, headers, :stream) do
+        {:ok, conn, ref} -> {:ok, conn, ref}
+        {:error, conn, error} -> close_on_error(conn, error, opts)
+      end
+    end
+
+    defp send_request(conn, method, path, headers, body, opts) do
+      case HTTP.request(conn, method, path, headers, body) do
+        {:ok, conn, ref} -> {:ok, conn, ref, %{}}
+        {:error, conn, error} -> close_on_error(conn, error, opts)
       end
     end
 
@@ -233,10 +225,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
           end
 
         :eof ->
-          case HTTP.stream_request_body(conn, ref, :eof) do
-            {:ok, conn} -> {:ok, conn, acc}
-            {:error, conn, error} -> close_on_error(conn, error, opts)
-          end
+          send_body_chunk(conn, ref, :eof, opts, acc)
       end
     end
 
@@ -251,12 +240,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
              receive_headers_and_status(conn, ref, opts, response),
            {state, data} <-
              response_state(acc) do
-        {:ok, conn} =
-          if state == :fin and opts[:close_conn] do
-            close(conn)
-          else
-            {:ok, conn}
-          end
+        conn = if state == :fin, do: maybe_close(conn, opts), else: conn
 
         {:ok, status, headers, %{conn: conn, ref: ref, opts: opts, body: {state, data}}}
       end
@@ -270,8 +254,11 @@ if Code.ensure_loaded?(Mint.HTTP) do
           Stream.resource(
             fn -> %{conn: conn, data: acc[:data], done: acc[:done]} end,
             fn
-              %{conn: conn, data: data, done: true} ->
+              %{conn: conn, data: data, done: true} when is_binary(data) ->
                 {[data], %{conn: conn, is_fin: true}}
+
+              %{conn: conn, done: true} ->
+                {[], %{conn: conn, is_fin: true}}
 
               %{conn: conn, data: data} when is_binary(data) ->
                 {[data], %{conn: conn}}
@@ -297,7 +284,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
                     raise_stream_error(error)
                 end
             end,
-            fn %{conn: conn} -> if opts[:close_conn], do: {:ok, _conn} = close(conn) end
+            fn %{conn: conn} -> maybe_close(conn, opts) end
           )
 
         {:ok, status, headers, body_as_stream}
@@ -307,7 +294,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp receive_responses(conn, ref, opts, acc) do
       with :ok <- check_data_size(acc, conn, opts) do
         if acc[:done] do
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
+          maybe_close(conn, opts)
           {:ok, acc}
         else
           with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
@@ -322,7 +309,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
       if max_body - byte_size(data) >= 0 do
         :ok
       else
-        if opts[:close_conn], do: {:ok, _conn} = close(conn)
+        maybe_close(conn, opts)
         {:error, :body_too_large}
       end
     end
@@ -347,26 +334,25 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp response_state(_), do: {:nofin, ""}
 
     defp receive_packet(conn, ref, opts, acc \\ %{}) do
-      with {:ok, conn, responses} <- receive_message(conn, opts),
-           {:ok, acc} <- reduce_responses(responses, ref, acc) do
-        {:ok, conn, acc}
-      else
-        {:error, error} ->
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
-          {:error, error}
+      case receive_message(conn, opts) do
+        {:ok, conn, responses} ->
+          case reduce_responses(responses, ref, acc) do
+            {:ok, acc} -> {:ok, conn, acc}
+            {:error, error} -> close_on_error(conn, error, opts)
+          end
 
-        {:error, conn, %Mint.TransportError{reason: :timeout}, _res} ->
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
-          {:error, :timeout}
+        {:error, :timeout} ->
+          close_on_error(conn, :timeout, opts)
 
-        {:error, conn, error, _res} ->
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
+        {:error, conn, %Mint.TransportError{reason: :timeout}, _responses} ->
+          close_on_error(conn, :timeout, opts)
+
+        {:error, conn, error, _responses} ->
           # TODO: (breaking change) fix typo in error message, "Encounter" => "Encountered"
-          {:error, "Encounter Mint error #{inspect(error)}"}
+          close_on_error(conn, "Encounter Mint error #{inspect(error)}", opts)
 
         :unknown ->
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
-          {:error, :unknown}
+          close_on_error(conn, :unknown, opts)
       end
     end
 
@@ -423,10 +409,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
           |> then(&stream_request_body_chunk(conn, ref, &1, opts, acc))
 
         _ ->
-          case HTTP.stream_request_body(conn, ref, chunk) do
-            {:ok, conn} -> {:ok, conn, acc}
-            {:error, conn, error} -> close_on_error(conn, error, opts)
-          end
+          send_body_chunk(conn, ref, chunk, opts, acc)
       end
     end
 
@@ -445,10 +428,14 @@ if Code.ensure_loaded?(Mint.HTTP) do
           )
 
         _ ->
-          case HTTP.stream_request_body(conn, ref, chunk) do
-            {:ok, conn} -> {:ok, conn, acc}
-            {:error, conn, error} -> close_on_error(conn, error, opts)
-          end
+          send_body_chunk(conn, ref, chunk, opts, acc)
+      end
+    end
+
+    defp send_body_chunk(conn, ref, chunk, opts, acc) do
+      case HTTP.stream_request_body(conn, ref, chunk) do
+        {:ok, conn} -> {:ok, conn, acc}
+        {:error, conn, error} -> close_on_error(conn, error, opts)
       end
     end
 
@@ -481,8 +468,17 @@ if Code.ensure_loaded?(Mint.HTTP) do
       end
     end
 
+    defp maybe_close(conn, opts) do
+      if opts[:close_conn] do
+        {:ok, conn} = close(conn)
+        conn
+      else
+        conn
+      end
+    end
+
     defp close_on_error(conn, error, opts) do
-      if opts[:close_conn], do: {:ok, _conn} = close(conn)
+      maybe_close(conn, opts)
       {:error, error}
     end
 
