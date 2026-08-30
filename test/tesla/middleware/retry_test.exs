@@ -68,6 +68,18 @@ defmodule Tesla.Middleware.RetryTest do
             "/retry_after_invalid_format" ->
               {:ok, %{env | status: 200}}
 
+            "/retry_after_negative_seconds" when retries < 5 ->
+              {:ok, %{env | status: 429, headers: [{"retry-after", "-1"} | env.headers]}}
+
+            "/retry_after_negative_seconds" ->
+              {:ok, %{env | status: 200}}
+
+            "/retry_after_trailing_garbage" when retries < 5 ->
+              {:ok, %{env | status: 429, headers: [{"retry-after", "2 seconds"} | env.headers]}}
+
+            "/retry_after_trailing_garbage" ->
+              {:ok, %{env | status: 200}}
+
             "/retry_after_invalid_month" when retries < 5 ->
               {:ok,
                %{
@@ -266,6 +278,20 @@ defmodule Tesla.Middleware.RetryTest do
   test "ignore Retry-After header if it is not in an expected format" do
     assert {:ok, %Tesla.Env{url: "/retry_after_invalid_format", method: :get, status: 200}} =
              ClientUsingRetryAfterHeader.get("/retry_after_invalid_format")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
+  end
+
+  test "ignore Retry-After header if it is a negative number of seconds" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_negative_seconds", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_negative_seconds")
+
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
+  end
+
+  test "ignore Retry-After header if it has trailing garbage after the number" do
+    assert {:ok, %Tesla.Env{url: "/retry_after_trailing_garbage", method: :get, status: 200}} =
+             ClientUsingRetryAfterHeader.get("/retry_after_trailing_garbage")
 
     assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 6
   end

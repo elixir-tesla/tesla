@@ -54,7 +54,8 @@ defmodule Tesla.Middleware.Retry do
       (float between 0 and 1, defaults to 0.2)
   - `:use_retry_after_header` - whether to use the Retry-After header to determine the minimum
       delay before the next retry.  If the delay from the header exceeds max_delay, no further
-      retries are attempted.  Invalid Retry-After headers are ignored.
+      retries are attempted.  A valid header is either a non-negative number of seconds or an
+      HTTP-date; invalid headers are ignored and exponential backoff is used instead.
       (boolean, defaults to false)
   """
 
@@ -135,13 +136,24 @@ defmodule Tesla.Middleware.Retry do
     nil
   end
 
+  @typep invalid_retry_after ::
+           {:invalid_delay_seconds, integer()}
+           | {:invalid_month, String.t()}
+           | {:invalid_http_date, atom()}
+           | :unrecognized_format
+
   # Credits to @wojtekmach
+  @spec retry_delay_in_ms(String.t()) ::
+          {:ok, non_neg_integer()} | {:error, invalid_retry_after()}
   defp retry_delay_in_ms(delay_value) do
     case Integer.parse(delay_value) do
-      {seconds, ""} ->
+      {seconds, ""} when seconds >= 0 ->
         {:ok, :timer.seconds(seconds)}
 
-      :error ->
+      {seconds, ""} ->
+        {:error, {:invalid_delay_seconds, seconds}}
+
+      _ ->
         case parse_http_datetime(delay_value) do
           {:ok, date_time} ->
             {:ok,
@@ -170,13 +182,14 @@ defmodule Tesla.Middleware.Retry do
     "Dec" => "12"
   }
 
+  @spec parse_http_datetime(String.t()) ::
+          {:ok, DateTime.t()} | {:error, invalid_retry_after()}
   defp parse_http_datetime(datetime) do
     case String.split(datetime, " ") do
       [_day_of_week, day, month, year, time, "GMT"] ->
         case @month_numbers[month] do
           nil ->
-            {:error,
-             "cannot parse \"retry-after\" header value #{inspect(datetime)} as datetime, reason: invalid month"}
+            {:error, {:invalid_month, month}}
 
           month_number ->
             date = year <> "-" <> month_number <> "-" <> day
@@ -186,14 +199,12 @@ defmodule Tesla.Middleware.Retry do
                 {:ok, valid_datetime}
 
               {:error, reason} ->
-                {:error,
-                 "cannot parse \"retry-after\" header value #{inspect(datetime)} as datetime, reason: #{reason}"}
+                {:error, {:invalid_http_date, reason}}
             end
         end
 
       _ ->
-        {:error,
-         "cannot parse \"retry-after\" header value #{inspect(datetime)} as datetime, reason: header is not in HTTP-date or integer format"}
+        {:error, :unrecognized_format}
     end
   end
 
