@@ -54,7 +54,8 @@ defmodule Tesla.Middleware.Retry do
       (float between 0 and 1, defaults to 0.2)
   - `:use_retry_after_header` - whether to use the Retry-After header to determine the minimum
       delay before the next retry.  If the delay from the header exceeds max_delay, no further
-      retries are attempted.  Invalid Retry-After headers are ignored.
+      retries are attempted.  A valid header is either a non-negative number of seconds or an
+      HTTP-date; invalid headers are ignored and exponential backoff is used instead.
       (boolean, defaults to false)
   """
 
