@@ -138,10 +138,14 @@ defmodule Tesla.Middleware.Retry do
   # Credits to @wojtekmach
   defp retry_delay_in_ms(delay_value) do
     case Integer.parse(delay_value) do
-      {seconds, ""} ->
+      {seconds, ""} when seconds >= 0 ->
         {:ok, :timer.seconds(seconds)}
 
-      :error ->
+      {_negative_seconds, ""} ->
+        {:error,
+         "cannot parse \"retry-after\" header value #{inspect(delay_value)} as delay, reason: delay-seconds must be non-negative"}
+
+      _ ->
         case parse_http_datetime(delay_value) do
           {:ok, date_time} ->
             {:ok,
