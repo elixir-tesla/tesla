@@ -11,6 +11,8 @@ defmodule Tesla.Adapter.MintTest do
   use Tesla.AdapterCase.StreamRequestBody
   use Tesla.AdapterCase.Query
 
+  @large_http2_request_size 70_000
+
   use Tesla.AdapterCase.SSL,
     transport_opts: [
       cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
@@ -75,6 +77,24 @@ defmodule Tesla.Adapter.MintTest do
     after_count = :erlang.system_info(:atom_count)
 
     assert after_count == before_count
+  end
+
+  test "streamed request that Mint rejects returns a two-tuple error" do
+    request = %Env{
+      method: :post,
+      url: "#{@http}/post",
+      headers: [{"bad header", "value"}],
+      body: Stream.map(["a"], & &1)
+    }
+
+    before_ports = owned_port_count()
+
+    for _ <- 1..20 do
+      assert {:error, %Mint.HTTPError{reason: {:invalid_header_name, "bad header"}}} =
+               call(request, protocols: [:http1])
+    end
+
+    assert owned_port_count() == before_ports
   end
 
   test "certificates_verification" do
@@ -262,6 +282,189 @@ defmodule Tesla.Adapter.MintTest do
 
     test "don't reuse connection if original does not match", %{conn: conn} do
       assert_nonmatching_original_opens_new_conn(conn, mode: :passive)
+    end
+  end
+
+  describe "issue #394 - handle HTTP/2 request flow control" do
+    test "preserves automatic content-length for non-empty HTTP/2 request bodies" do
+      body = "hello"
+
+      request = %Env{
+        method: :post,
+        url: "#{@https}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: body
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: httparrot_cacertfile()]
+               )
+
+      assert response.status == 200
+      assert posted_data(response.body) == body
+      assert posted_headers(response.body)["content-length"] == Integer.to_string(byte_size(body))
+    end
+
+    test "handles request bodies larger than the flow control window" do
+      body = String.duplicate("a", @large_http2_request_size)
+
+      request = %Env{
+        method: :post,
+        url: "#{@https}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: body
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: httparrot_cacertfile()]
+               )
+
+      assert response.status == 200
+      assert posted_data(response.body) == body
+    end
+
+    for size <- [65_535, 65_536, 1_000_000] do
+      @flow_control_size size
+
+      test "uploads #{size} bytes across the HTTP/2 flow control window" do
+        body = String.duplicate("a", @flow_control_size)
+
+        request = %Env{
+          method: :post,
+          url: "#{@https}/post",
+          headers: [{"content-type", "text/plain"}],
+          body: body
+        }
+
+        assert {:ok, %Env{} = response} =
+                 call(request,
+                   protocols: [:http2],
+                   transport_opts: [cacertfile: httparrot_cacertfile()]
+                 )
+
+        assert response.status == 200
+        assert byte_size(posted_data(response.body)) == @flow_control_size
+      end
+    end
+
+    test "handles streamed request bodies larger than the flow control window" do
+      body = large_streamed_http2_body()
+      expected = String.duplicate("a", @large_http2_request_size)
+
+      request = %Env{
+        method: :post,
+        url: "#{@https}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: body
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: httparrot_cacertfile()]
+               )
+
+      assert response.status == 200
+      assert posted_data(response.body) == expected
+    end
+  end
+
+  describe "issue #394 - handle early HTTP/2 responses during upload" do
+    setup do
+      listener_ref = :"mint-early-response-#{System.unique_integer([:positive])}"
+      dispatch = early_response_dispatch()
+      priv_dir = :code.priv_dir(:httparrot)
+
+      {:ok, _pid} =
+        :cowboy.start_tls(
+          listener_ref,
+          [
+            port: 0,
+            certfile: priv_dir ++ ~c"/ssl/server.crt",
+            keyfile: priv_dir ++ ~c"/ssl/server.key"
+          ],
+          %{env: %{dispatch: dispatch}}
+        )
+
+      on_exit(fn -> :cowboy.stop_listener(listener_ref) end)
+
+      {_, port} = :ranch.get_addr(listener_ref)
+
+      {:ok,
+       early_response_url: "https://localhost:#{port}",
+       early_response_cacertfile: Path.join([to_string(priv_dir), "ssl/server-ca.crt"])}
+    end
+
+    test "returns the response body without waiting for another packet", %{
+      early_response_url: early_response_url,
+      early_response_cacertfile: early_response_cacertfile
+    } do
+      request = %Env{
+        method: :post,
+        url: "#{early_response_url}/early-response",
+        headers: [{"content-type", "text/plain"}],
+        body: String.duplicate("a", @large_http2_request_size)
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 timeout: 200,
+                 transport_opts: [cacertfile: early_response_cacertfile]
+               )
+
+      assert response.status == 200
+      assert response.body == "early response"
+    end
+
+    test "returns chunked responses that already finished during upload", %{
+      early_response_url: early_response_url,
+      early_response_cacertfile: early_response_cacertfile
+    } do
+      request = %Env{
+        method: :post,
+        url: "#{early_response_url}/early-response",
+        headers: [{"content-type", "text/plain"}],
+        body: String.duplicate("a", @large_http2_request_size)
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 body_as: :chunks,
+                 protocols: [:http2],
+                 timeout: 200,
+                 transport_opts: [cacertfile: early_response_cacertfile]
+               )
+
+      assert response.status == 200
+      assert %{body: {:fin, "early response"}} = response.body
+    end
+
+    test "returns streamed responses that already finished during upload", %{
+      early_response_url: early_response_url,
+      early_response_cacertfile: early_response_cacertfile
+    } do
+      request = %Env{
+        method: :post,
+        url: "#{early_response_url}/early-response",
+        headers: [{"content-type", "text/plain"}],
+        body: String.duplicate("a", @large_http2_request_size)
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 body_as: :stream,
+                 protocols: [:http2],
+                 timeout: 200,
+                 transport_opts: [cacertfile: early_response_cacertfile]
+               )
+
+      assert response.status == 200
+      assert Enum.join(response.body) == "early response"
     end
   end
 
@@ -530,6 +733,39 @@ defmodule Tesla.Adapter.MintTest do
     end
   end
 
+  defp large_streamed_http2_body do
+    chunks =
+      List.duplicate(String.duplicate("a", 8_192), div(@large_http2_request_size, 8_192))
+
+    chunks =
+      case rem(@large_http2_request_size, 8_192) do
+        0 -> chunks
+        remainder -> chunks ++ [String.duplicate("a", remainder)]
+      end
+
+    Stream.map(chunks, & &1)
+  end
+
+  defp posted_data(body) do
+    body
+    |> posted_response()
+    |> Map.fetch!("data")
+  end
+
+  defp posted_headers(body) do
+    body
+    |> posted_response()
+    |> Map.fetch!("headers")
+  end
+
+  defp posted_response(body) do
+    Jason.decode!(body)
+  end
+
+  defp httparrot_cacertfile do
+    Path.join([to_string(:code.priv_dir(:httparrot)), "ssl/server-ca.crt"])
+  end
+
   describe "issue #450 - handle missing Mint response types" do
     setup do
       listener_ref = @push_promise_listener_ref
@@ -684,5 +920,17 @@ defmodule Tesla.Adapter.MintTest do
     else
       recv_until_response(conn, match?, timeout, attempts - 1, responses)
     end
+  end
+
+  defp owned_port_count do
+    Enum.count(:erlang.ports(), fn port ->
+      :erlang.port_info(port, :connected) == {:connected, self()}
+    end)
+  end
+
+  defp early_response_dispatch do
+    :cowboy_router.compile([
+      {:_, [{"/early-response", Tesla.TestSupport.MintEarlyResponseHandler, []}]}
+    ])
   end
 end
