@@ -53,6 +53,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     alias Mint.HTTP
 
     @default timeout: 2_000, body_as: :plain, close_conn: true
+    @http2_request_chunk_size 16_384
 
     @tags [:tcp_error, :ssl_error, :tcp_closed, :ssl_closed, :tcp, :ssl]
 
@@ -75,12 +76,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     def read_chunk(conn, ref, opts) do
       with {:ok, conn, acc} <- receive_packet(conn, ref, Enum.into(opts, %{})),
            {state, data} <- response_state(acc) do
-        {:ok, conn} =
-          if state == :fin and opts[:close_conn] do
-            close(conn)
-          else
-            {:ok, conn}
-          end
+        conn = if state == :fin, do: maybe_close(conn, opts), else: conn
 
         {state, conn, data}
       end
@@ -124,8 +120,8 @@ if Code.ensure_loaded?(Mint.HTTP) do
            path <- prepare_path(uri.path, uri.query),
            opts <- check_original(uri, opts),
            {:ok, conn, opts} <- open_conn(uri, opts),
-           {:ok, conn, ref} <- make_request(conn, method, path, headers, body) do
-        format_response(conn, ref, opts)
+           {:ok, conn, ref, response} <- make_request(conn, method, path, headers, body, opts) do
+        format_response(conn, ref, opts, response)
       end
     end
 
@@ -179,78 +175,90 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp parse_scheme("https"), do: {:ok, :https}
     defp parse_scheme(_), do: {:error, :unsupported_scheme}
 
-    defp make_request(conn, method, path, headers, body) when is_function(body) do
-      with {:ok, conn, ref} <-
-             HTTP.request(
-               conn,
-               method,
-               path,
-               headers,
-               :stream
-             ),
-           {:ok, conn} <- stream_request(conn, ref, body) do
-        {:ok, conn, ref}
+    defp make_request(conn, method, path, headers, body, opts) when is_function(body) do
+      with {:ok, conn, ref} <- open_stream_request(conn, method, path, headers, opts),
+           {:ok, conn, response} <- stream_request(conn, ref, body, opts) do
+        {:ok, conn, ref, response}
       end
     end
 
-    defp make_request(conn, method, path, headers, body) do
+    defp make_request(conn, method, path, headers, body, opts)
+         when is_binary(body) or is_list(body) do
+      body_length = IO.iodata_length(body)
+
+      if HTTP.protocol(conn) == :http2 and body_length > 0 do
+        headers = put_default_content_length_header(headers, body_length)
+        body = IO.iodata_to_binary(body)
+        make_request(conn, method, path, headers, stream_to_fun([body]), opts)
+      else
+        send_request(conn, method, path, headers, body, opts)
+      end
+    end
+
+    defp make_request(conn, method, path, headers, body, opts) do
+      send_request(conn, method, path, headers, body, opts)
+    end
+
+    defp open_stream_request(conn, method, path, headers, opts) do
+      case HTTP.request(conn, method, path, headers, :stream) do
+        {:ok, conn, ref} -> {:ok, conn, ref}
+        {:error, conn, error} -> close_on_error(conn, error, opts)
+      end
+    end
+
+    defp send_request(conn, method, path, headers, body, opts) do
       case HTTP.request(conn, method, path, headers, body) do
-        {:ok, conn, ref} ->
-          {:ok, conn, ref}
-
-        {:error, _conn, error} ->
-          {:error, error}
+        {:ok, conn, ref} -> {:ok, conn, ref, %{}}
+        {:error, conn, error} -> close_on_error(conn, error, opts)
       end
     end
 
-    defp stream_request(conn, ref, fun) do
-      case next_chunk(fun) do
-        {:ok, item, fun} when is_list(item) ->
-          chunk = List.to_string(item)
-          {:ok, conn} = HTTP.stream_request_body(conn, ref, chunk)
-          stream_request(conn, ref, fun)
+    defp stream_request(conn, ref, fun, opts, acc \\ %{})
 
+    defp stream_request(conn, _ref, _fun, _opts, %{done: true} = acc), do: {:ok, conn, acc}
+
+    defp stream_request(conn, ref, fun, opts, acc) do
+      case next_chunk(fun) do
         {:ok, item, fun} ->
-          {:ok, conn} = HTTP.stream_request_body(conn, ref, item)
-          stream_request(conn, ref, fun)
+          with {:ok, conn, acc} <- stream_request_body(conn, ref, item, opts, acc) do
+            stream_request(conn, ref, fun, opts, acc)
+          end
 
         :eof ->
-          HTTP.stream_request_body(conn, ref, :eof)
+          send_body_chunk(conn, ref, :eof, opts, acc)
       end
     end
 
-    defp format_response(conn, ref, %{body_as: :plain} = opts) do
-      with {:ok, response} <- receive_responses(conn, ref, opts) do
+    defp format_response(conn, ref, %{body_as: :plain} = opts, response) do
+      with {:ok, response} <- receive_responses(conn, ref, opts, response) do
         {:ok, response[:status], response[:headers], response[:data]}
       end
     end
 
-    defp format_response(conn, ref, %{body_as: :chunks} = opts) do
+    defp format_response(conn, ref, %{body_as: :chunks} = opts, response) do
       with {:ok, conn, %{status: status, headers: headers} = acc} <-
-             receive_headers_and_status(conn, ref, opts),
+             receive_headers_and_status(conn, ref, opts, response),
            {state, data} <-
              response_state(acc) do
-        {:ok, conn} =
-          if state == :fin and opts[:close_conn] do
-            close(conn)
-          else
-            {:ok, conn}
-          end
+        conn = if state == :fin, do: maybe_close(conn, opts), else: conn
 
         {:ok, status, headers, %{conn: conn, ref: ref, opts: opts, body: {state, data}}}
       end
     end
 
-    defp format_response(conn, ref, %{body_as: :stream} = opts) do
+    defp format_response(conn, ref, %{body_as: :stream} = opts, response) do
       # there can be some data already
       with {:ok, conn, %{status: status, headers: headers} = acc} <-
-             receive_headers_and_status(conn, ref, opts) do
+             receive_headers_and_status(conn, ref, opts, response) do
         body_as_stream =
           Stream.resource(
             fn -> %{conn: conn, data: acc[:data], done: acc[:done]} end,
             fn
-              %{conn: conn, data: data, done: true} ->
+              %{conn: conn, data: data, done: true} when is_binary(data) ->
                 {[data], %{conn: conn, is_fin: true}}
+
+              %{conn: conn, done: true} ->
+                {[], %{conn: conn, is_fin: true}}
 
               %{conn: conn, data: data} when is_binary(data) ->
                 {[data], %{conn: conn}}
@@ -276,21 +284,22 @@ if Code.ensure_loaded?(Mint.HTTP) do
                     raise_stream_error(error)
                 end
             end,
-            fn %{conn: conn} -> if opts[:close_conn], do: {:ok, _conn} = close(conn) end
+            fn %{conn: conn} -> maybe_close(conn, opts) end
           )
 
         {:ok, status, headers, body_as_stream}
       end
     end
 
-    defp receive_responses(conn, ref, opts, acc \\ %{}) do
-      with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc),
-           :ok <- check_data_size(acc, conn, opts) do
+    defp receive_responses(conn, ref, opts, acc) do
+      with :ok <- check_data_size(acc, conn, opts) do
         if acc[:done] do
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
+          maybe_close(conn, opts)
           {:ok, acc}
         else
-          receive_responses(conn, ref, opts, acc)
+          with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
+            receive_responses(conn, ref, opts, acc)
+          end
         end
       end
     end
@@ -300,20 +309,22 @@ if Code.ensure_loaded?(Mint.HTTP) do
       if max_body - byte_size(data) >= 0 do
         :ok
       else
-        if opts[:close_conn], do: {:ok, _conn} = close(conn)
+        maybe_close(conn, opts)
         {:error, :body_too_large}
       end
     end
 
     defp check_data_size(_, _, _), do: :ok
 
-    defp receive_headers_and_status(conn, ref, opts, acc \\ %{}) do
-      with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
-        case acc do
-          %{status: _status, headers: _headers} -> {:ok, conn, acc}
-          # if we don't have status or headers we try to get them in next packet
-          _ -> receive_headers_and_status(conn, ref, opts, acc)
-        end
+    defp receive_headers_and_status(conn, ref, opts, acc) do
+      case acc do
+        %{status: _status, headers: _headers} ->
+          {:ok, conn, acc}
+
+        _ ->
+          with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
+            receive_headers_and_status(conn, ref, opts, acc)
+          end
       end
     end
 
@@ -323,26 +334,25 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp response_state(_), do: {:nofin, ""}
 
     defp receive_packet(conn, ref, opts, acc \\ %{}) do
-      with {:ok, conn, responses} <- receive_message(conn, opts),
-           {:ok, acc} <- reduce_responses(responses, ref, acc) do
-        {:ok, conn, acc}
-      else
-        {:error, error} ->
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
-          {:error, error}
+      case receive_message(conn, opts) do
+        {:ok, conn, responses} ->
+          case reduce_responses(responses, ref, acc) do
+            {:ok, acc} -> {:ok, conn, acc}
+            {:error, error} -> close_on_error(conn, error, opts)
+          end
 
-        {:error, conn, %Mint.TransportError{reason: :timeout}, _res} ->
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
-          {:error, :timeout}
+        {:error, :timeout} ->
+          close_on_error(conn, :timeout, opts)
 
-        {:error, conn, error, _res} ->
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
+        {:error, conn, %Mint.TransportError{reason: :timeout}, _responses} ->
+          close_on_error(conn, :timeout, opts)
+
+        {:error, conn, error, _responses} ->
           # TODO: (breaking change) fix typo in error message, "Encounter" => "Encountered"
-          {:error, "Encounter Mint error #{inspect(error)}"}
+          close_on_error(conn, "Encounter Mint error #{inspect(error)}", opts)
 
         :unknown ->
-          if opts[:close_conn], do: {:ok, _conn} = close(conn)
-          {:error, :unknown}
+          close_on_error(conn, :unknown, opts)
       end
     end
 
@@ -361,6 +371,115 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp raise_stream_error(error) when Kernel.is_exception(error), do: raise(error)
     defp raise_stream_error(error) when is_binary(error), do: raise(RuntimeError, message: error)
     defp raise_stream_error(error), do: raise(RuntimeError, message: inspect(error))
+
+    defp put_default_content_length_header(headers, body_length) do
+      if Enum.any?(headers, &content_length?/1) do
+        headers
+      else
+        [{"content-length", Integer.to_string(body_length)} | headers]
+      end
+    end
+
+    defp content_length?({name, _value}), do: String.downcase(name) == "content-length"
+
+    defp stream_request_body(conn, ref, chunk, opts, acc) when is_binary(chunk) do
+      stream_request_body_chunk(conn, ref, chunk, opts, acc)
+    end
+
+    defp stream_request_body(conn, ref, chunk, opts, acc)
+         when is_integer(chunk) and chunk >= 0 and chunk <= 255 do
+      stream_request_body(conn, ref, <<chunk>>, opts, acc)
+    end
+
+    defp stream_request_body(conn, ref, chunk, opts, acc) when is_list(chunk) do
+      stream_request_body(conn, ref, IO.iodata_to_binary(chunk), opts, acc)
+    end
+
+    defp stream_request_body(conn, ref, chunk, opts, acc) do
+      case HTTP.protocol(conn) do
+        :http2 -> stream_request_body(conn, ref, IO.iodata_to_binary(chunk), opts, acc)
+        _ -> send_body_chunk(conn, ref, chunk, opts, acc)
+      end
+    end
+
+    defp stream_request_body_chunk(conn, _ref, "", _opts, acc), do: {:ok, conn, acc}
+
+    defp stream_request_body_chunk(conn, ref, chunk, opts, acc) do
+      case HTTP.protocol(conn) do
+        :http2 ->
+          stream_http2_body_chunk(
+            conn,
+            ref,
+            chunk,
+            opts,
+            acc,
+            min(byte_size(chunk), @http2_request_chunk_size)
+          )
+
+        _ ->
+          send_body_chunk(conn, ref, chunk, opts, acc)
+      end
+    end
+
+    defp send_body_chunk(conn, ref, chunk, opts, acc) do
+      case HTTP.stream_request_body(conn, ref, chunk) do
+        {:ok, conn} -> {:ok, conn, acc}
+        {:error, conn, error} -> close_on_error(conn, error, opts)
+      end
+    end
+
+    defp stream_http2_body_chunk(conn, _ref, "", _opts, acc, _chunk_size), do: {:ok, conn, acc}
+
+    defp stream_http2_body_chunk(conn, ref, chunk, opts, acc, chunk_size) do
+      chunk_size = min(byte_size(chunk), chunk_size)
+      body_chunk = binary_part(chunk, 0, chunk_size)
+      rest = binary_part(chunk, chunk_size, byte_size(chunk) - chunk_size)
+
+      case HTTP.stream_request_body(conn, ref, body_chunk) do
+        {:ok, conn} ->
+          stream_http2_body_chunk(
+            conn,
+            ref,
+            rest,
+            opts,
+            acc,
+            min(byte_size(rest), @http2_request_chunk_size)
+          )
+
+        {:error, conn, %Mint.HTTPError{reason: {:exceeds_window_size, _, 0}}} ->
+          await_request_window(conn, ref, chunk, opts, acc, chunk_size)
+
+        {:error, conn, %Mint.HTTPError{reason: {:exceeds_window_size, _, window_size}}} ->
+          stream_http2_body_chunk(conn, ref, chunk, opts, acc, window_size)
+
+        {:error, conn, error} ->
+          close_on_error(conn, error, opts)
+      end
+    end
+
+    defp maybe_close(conn, opts) do
+      if opts[:close_conn] do
+        {:ok, conn} = close(conn)
+        conn
+      else
+        conn
+      end
+    end
+
+    defp close_on_error(conn, error, opts) do
+      maybe_close(conn, opts)
+      {:error, error}
+    end
+
+    defp await_request_window(conn, ref, chunk, opts, acc, chunk_size) do
+      with {:ok, conn, acc} <- receive_packet(conn, ref, opts, acc) do
+        if acc[:done] do
+          {:ok, conn, acc}
+        else
+          stream_http2_body_chunk(conn, ref, chunk, opts, acc, chunk_size)
+        end
+      end
+    end
 
     defp reduce_responses(responses, ref, acc) do
       case Enum.reduce_while(responses, acc, &reduce_response(&1, ref, &2)) do
