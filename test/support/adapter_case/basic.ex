@@ -1,7 +1,14 @@
 defmodule Tesla.AdapterCase.Basic do
-  defmacro __using__(_) do
+  defmacro __using__(opts \\ []) do
     quote do
       alias Tesla.Env
+
+      @connection_refused_reason Keyword.get(
+                                   unquote(opts),
+                                   :connection_refused_reason,
+                                   :econnrefused
+                                 )
+      @empty_response_body Keyword.get(unquote(opts), :empty_response_body, "")
 
       describe "Basic" do
         test "HEAD request" do
@@ -12,6 +19,7 @@ defmodule Tesla.AdapterCase.Basic do
 
           assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
+          assert response.body == @empty_response_body
         end
 
         test "GET request" do
@@ -35,7 +43,7 @@ defmodule Tesla.AdapterCase.Basic do
           assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
           assert Tesla.get_header(response, "content-type") == "application/json"
-          assert Regex.match?(~r/some-post-data/, response.body)
+          assert echoed_request_body(response.body) == "some-post-data"
         end
 
         test "unicode" do
@@ -49,7 +57,23 @@ defmodule Tesla.AdapterCase.Basic do
           assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
           assert Tesla.get_header(response, "content-type") == "application/json"
-          assert Regex.match?(~r/1 ø 2 đ 1 ø 2 đ/, response.body)
+          assert echoed_request_body(response.body) == "1 \u00F8 2 \u0111 1 \u00F8 2 \u0111"
+        end
+
+        test "POST request with control bytes" do
+          body = for byte <- 0..127, into: "", do: <<byte>>
+
+          request = %Env{
+            method: :post,
+            url: "#{@http}/post",
+            body: body,
+            headers: [{"content-type", "application/octet-stream"}]
+          }
+
+          assert {:ok, %Env{} = response} = call(request)
+          assert response.status == 200
+          assert echoed_request_body(response.body) == body
+          assert echoed_request_header(response.body, "content-length") == "128"
         end
 
         test "passing query params" do
@@ -121,9 +145,22 @@ defmodule Tesla.AdapterCase.Basic do
             url: "http://localhost:1234"
           }
 
-          assert {:error, _} = call(request)
+          assert {:error, reason} = call(request)
+          assert unwrap_reason(reason) == @connection_refused_reason
         end
       end
+
+      defp echoed_request_body(response_body) do
+        response_body |> to_string() |> Jason.decode!() |> Map.fetch!("data")
+      end
+
+      defp echoed_request_header(response_body, name) do
+        response_body |> to_string() |> Jason.decode!() |> get_in(["headers", name])
+      end
+
+      defp unwrap_reason(%{reason: reason}), do: unwrap_reason(reason)
+      defp unwrap_reason({:error, reason}), do: unwrap_reason(reason)
+      defp unwrap_reason(reason), do: reason
     end
   end
 end
