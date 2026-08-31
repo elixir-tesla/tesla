@@ -535,6 +535,58 @@ defmodule Tesla.Middleware.LoggerTest do
       refute log =~ "url.template="
     end
 
+    test "status is omitted when the adapter did not set one" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, env} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "https://api.example.com/x") end)
+
+      assert log =~ "http.request.method=GET"
+      refute log =~ "http.response.status_code="
+      refute log =~ "error.type="
+    end
+
+    test "server.port falls back to 80 for a scheme with no default port" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "custom://host.example/path") end)
+
+      assert log =~ "url.scheme=custom"
+      assert log =~ "server.address=host.example"
+      assert log =~ "server.port=80"
+    end
+
+    test "string error reason is used as error.type verbatim" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn _env -> {:error, "adapter exploded"} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "/err") end)
+
+      assert log =~ "error.type=adapter exploded"
+    end
+
+    test "unrecognised error reason falls back to the generic error type" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn _env -> {:error, {:closed, :during_body}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, "/err") end)
+
+      assert log =~ "error.type=_OTHER"
+    end
+
     test "default metadata is keyword list passthrough" do
       client =
         Tesla.client(
