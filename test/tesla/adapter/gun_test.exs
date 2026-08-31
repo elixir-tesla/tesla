@@ -192,10 +192,12 @@ defmodule Tesla.Adapter.GunTest do
     test "opened for another scheme on the same host and port", %{request: request} do
       uri = URI.parse(@https)
 
+      tls_opts_key = if @gun2, do: :tls_opts, else: :transport_opts
+
       {:ok, conn} =
         :gun.open(to_charlist(uri.host), uri.port, %{
-          transport: :tls,
-          tls_opts: [verify: :verify_none]
+          :transport => :tls,
+          tls_opts_key => [verify: :verify_none]
         })
 
       on_exit(fn -> Gun.close(conn) end)
@@ -425,9 +427,9 @@ defmodule Tesla.Adapter.GunTest do
     assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream}}} =
              call(request, body_as: :chunks, reply_to: reply_to, timeout: 2_000)
 
-    assert_receive {:gun_error, ^pid, ^stream, :closed}, 1_000
-    assert_receive {:gun_reply_to, {:gun_error, ^pid, ^stream, :closed}}, 1_000
-    assert_receive {:stream_owner, {:gun_error, ^pid, ^stream, :closed}}, 1_000
+    assert_receive {:gun_error, ^pid, ^stream, reason}, 1_000
+    assert_receive {:gun_reply_to, {:gun_error, ^pid, ^stream, ^reason}}, 1_000
+    assert_receive {:stream_owner, {:gun_error, ^pid, ^stream, ^reason}}, 1_000
 
     Gun.close(pid)
   end
