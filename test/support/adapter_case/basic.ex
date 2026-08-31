@@ -8,6 +8,7 @@ defmodule Tesla.AdapterCase.Basic do
                                    :connection_refused_reason,
                                    :econnrefused
                                  )
+      @empty_response_body Keyword.get(unquote(opts), :empty_response_body, "")
 
       describe "Basic" do
         test "HEAD request" do
@@ -18,7 +19,7 @@ defmodule Tesla.AdapterCase.Basic do
 
           assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
-          assert to_string(response.body) == ""
+          assert response.body == @empty_response_body
         end
 
         test "GET request" do

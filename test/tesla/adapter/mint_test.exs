@@ -6,7 +6,7 @@ defmodule Tesla.Adapter.MintTest do
   @push_promise_listener_ref :"mint-push-promise"
 
   use Tesla.AdapterCase, adapter: Tesla.Adapter.Mint
-  use Tesla.AdapterCase.Basic
+  use Tesla.AdapterCase.Basic, empty_response_body: nil
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
   use Tesla.AdapterCase.Query
