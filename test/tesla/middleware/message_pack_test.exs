@@ -108,6 +108,66 @@ defmodule Tesla.Middleware.MessagePackTest do
     end
   end
 
+  describe "encode/2" do
+    test "packs the body and announces the default content type" do
+      assert {:ok, env} =
+               Tesla.Middleware.MessagePack.encode(%Tesla.Env{body: %{"foo" => "bar"}}, [])
+
+      assert Msgpax.unpack!(env.body) == %{"foo" => "bar"}
+      assert Tesla.get_header(env, "content-type") == "application/msgpack"
+    end
+
+    test "honours the :encode_content_type option" do
+      assert {:ok, env} =
+               Tesla.Middleware.MessagePack.encode(%Tesla.Env{body: %{"foo" => "bar"}},
+                 encode_content_type: "application/x-msgpack"
+               )
+
+      assert Tesla.get_header(env, "content-type") == "application/x-msgpack"
+    end
+
+    test "leaves a multipart body alone" do
+      multipart = Tesla.Multipart.new() |> Tesla.Multipart.add_field("foo", "bar")
+
+      assert {:ok, env} = Tesla.Middleware.MessagePack.encode(%Tesla.Env{body: multipart}, [])
+
+      assert env.body == multipart
+      assert Tesla.get_header(env, "content-type") == nil
+    end
+
+    test "uses the :encode option instead of the engine" do
+      assert {:ok, env} =
+               Tesla.Middleware.MessagePack.encode(%Tesla.Env{body: %{"foo" => "bar"}},
+                 encode: fn _body -> {:ok, "packed by hand"} end
+               )
+
+      assert env.body == "packed by hand"
+    end
+
+    test "reports a body the engine has no implementation for" do
+      assert {:error, {Tesla.Middleware.MessagePack, :encode, %Protocol.UndefinedError{}}} =
+               Tesla.Middleware.MessagePack.encode(%Tesla.Env{body: %Tesla.Env{}}, [])
+    end
+
+    test "rescues a Protocol.UndefinedError raised by a bang encoder" do
+      assert {:error, {Tesla.Middleware.MessagePack, :encode, %Protocol.UndefinedError{}}} =
+               Tesla.Middleware.MessagePack.encode(%Tesla.Env{body: %Tesla.Env{}},
+                 encode: fn body -> {:ok, Msgpax.pack!(body)} end
+               )
+    end
+  end
+
+  describe "decode/2" do
+    test "reports a three element error tuple from the :decode option" do
+      env = %Tesla.Env{headers: [{"content-type", "application/msgpack"}], body: "bad"}
+
+      assert {:error, {Tesla.Middleware.MessagePack, :decode, :unexpected_byte}} =
+               Tesla.Middleware.MessagePack.decode(env,
+                 decode: fn _body -> {:error, :unexpected_byte, 0} end
+               )
+    end
+  end
+
   describe "EncodeMessagePack / DecodeMessagePack" do
     defmodule EncodeDecodeMessagePackClient do
       use Tesla

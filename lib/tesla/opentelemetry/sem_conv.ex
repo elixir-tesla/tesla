@@ -105,7 +105,6 @@ if Code.ensure_loaded?(OpenTelemetry.SemConv.HTTPAttributes) do
     end
 
     defp extract_port(%URI{port: port}) when is_integer(port), do: port
-    defp extract_port(%URI{scheme: "https"}), do: 443
     defp extract_port(_), do: 80
 
     defp error_type_string(%{__struct__: struct}), do: inspect(struct)

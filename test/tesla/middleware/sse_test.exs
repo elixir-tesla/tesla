@@ -165,4 +165,26 @@ defmodule Tesla.Middleware.SSETest do
       assert Enum.to_list(env.body) == [%{data: "data1"}, %{data: "data2"}, %{data: "data3"}]
     end
   end
+
+  describe "fields without a dedicated test" do
+    test "decode id and retry" do
+      body = """
+      id: 42
+
+      retry: 3000
+      """
+
+      adapter = fn _env -> {:ok, %{@env | body: body}} end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert env.body == [%{id: "42"}, %{retry: "3000"}]
+    end
+
+    test "ignore response without a content-type" do
+      adapter = fn _env -> {:ok, %Tesla.Env{headers: [], body: "test"}} end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert env.body == "test"
+    end
+  end
 end

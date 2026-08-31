@@ -65,6 +65,19 @@ defmodule Tesla.Adapter.FinchTest do
              )
   end
 
+  test "raises on an unknown :response option" do
+    assert_raise RuntimeError, ~r/Unknown response option: :bogus/, fn ->
+      call(%Env{method: :get, url: "#{@http}/ip"}, response: :bogus)
+    end
+  end
+
+  test "surfaces the protocol error hidden behind the Finch wrapper" do
+    url = start_raw_server(fn socket -> :gen_tcp.send(socket, "NOT-HTTP garbage\r\n\r\n") end)
+
+    assert {:error, %Mint.HTTPError{reason: :invalid_status_line}} =
+             call(%Env{method: :get, url: url}, receive_timeout: 500)
+  end
+
   describe "streamed response failures" do
     test "raises with the transport reason when the connection drops mid stream" do
       url = start_chunked_server(fn socket -> :gen_tcp.close(socket) end)
@@ -84,6 +97,18 @@ defmodule Tesla.Adapter.FinchTest do
       assert_raise Tesla.Error, ~r/^:timeout /, fn -> Enum.to_list(env.body) end
     end
 
+    test "ends the stream without raising when the response carries trailers" do
+      url =
+        start_chunked_server(fn socket ->
+          :gen_tcp.send(socket, "0\r\nx-checksum: abc123\r\n\r\n")
+        end)
+
+      assert {:ok, env} =
+               call(%Env{method: :get, url: url}, response: :stream, receive_timeout: 200)
+
+      assert Enum.to_list(env.body) == ["hello"]
+    end
+
     test "ends the stream without raising when the response completes" do
       url = start_chunked_server(fn socket -> :gen_tcp.send(socket, "0\r\n\r\n") end)
 
@@ -92,6 +117,29 @@ defmodule Tesla.Adapter.FinchTest do
 
       assert Enum.to_list(env.body) == ["hello"]
     end
+  end
+
+  defp start_raw_server(respond) do
+    {:ok, listen} =
+      :gen_tcp.listen(0,
+        ip: {127, 0, 0, 1},
+        mode: :binary,
+        packet: :raw,
+        active: false,
+        reuseaddr: true
+      )
+
+    {:ok, port} = :inet.port(listen)
+
+    spawn_link(fn ->
+      {:ok, socket} = :gen_tcp.accept(listen, 5_000)
+      {:ok, _request} = :gen_tcp.recv(socket, 0, 5_000)
+
+      respond.(socket)
+      Process.sleep(500)
+    end)
+
+    "http://127.0.0.1:#{port}/"
   end
 
   # Sends a chunked response with a single "hello" chunk, then hands the socket

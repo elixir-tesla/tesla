@@ -614,6 +614,33 @@ defmodule Tesla.Middleware.FormUrlencodedTest do
     end
   end
 
+  describe "responses the middleware leaves alone" do
+    defmodule ErrorClient do
+      use Tesla
+
+      plug Tesla.Middleware.FormUrlencoded
+
+      adapter fn _env -> {:error, :econnrefused} end
+    end
+
+    defmodule NoContentTypeClient do
+      use Tesla
+
+      plug Tesla.Middleware.FormUrlencoded
+
+      adapter fn env -> {:ok, %{env | status: 200, headers: [], body: "x=1&y=2"}} end
+    end
+
+    test "passes an adapter error through untouched" do
+      assert {:error, :econnrefused} = ErrorClient.get("/")
+    end
+
+    test "leaves the body alone when the response has no content-type" do
+      assert {:ok, env} = NoContentTypeClient.get("/")
+      assert env.body == "x=1&y=2"
+    end
+  end
+
   describe "Encode / Decode" do
     defmodule EncodeDecodeFormUrlencodedClient do
       use Tesla

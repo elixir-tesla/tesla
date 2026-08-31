@@ -63,4 +63,16 @@ defmodule Tesla.Middleware.DecodeRelsTest do
 
     assert env.opts[:rels] == nil
   end
+
+  defmodule ErrorClient do
+    use Tesla
+
+    plug Tesla.Middleware.DecodeRels
+
+    adapter fn _env -> {:error, :econnrefused} end
+  end
+
+  test "passes an adapter error through untouched" do
+    assert {:error, :econnrefused} = ErrorClient.get("/rels")
+  end
 end

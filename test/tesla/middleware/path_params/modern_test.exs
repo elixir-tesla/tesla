@@ -600,6 +600,22 @@ defmodule Tesla.Middleware.PathParams.ModernTest do
       end
     end
 
+    test "raises when a defined path parameter is absent from the request values" do
+      definitions = PathParams.new!([PathParam.new!("id")])
+
+      assert_raise ArgumentError, ~r/missing value for path parameter "id"/, fn ->
+        @middleware.call(
+          %Env{
+            url: "/users/{id}",
+            private: PathParams.put_private(%{}, definitions),
+            opts: [path_params: %{}]
+          },
+          [],
+          mode: :modern
+        )
+      end
+    end
+
     test "falls back when private path template does not match the request path" do
       template = PathTemplate.new!("/other/{id}")
       opts = [path_params: [path_param(42)]]

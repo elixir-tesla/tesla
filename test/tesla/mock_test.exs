@@ -171,6 +171,25 @@ defmodule Tesla.MockTest do
 
       {:ok, _pid} = MyAgent.start_link([])
     end
+
+    # A process started by a registered parent gets the parent's name, not its
+    # pid, in `$ancestors`.
+    test "allows mocking in a registered ancestor" do
+      Process.register(self(), :tesla_mock_registered_ancestor)
+
+      mock(fn
+        %{url: "/registered-ancestor-test"} ->
+          {:ok, %Tesla.Env{status: 200, body: "registered ancestor works"}}
+      end)
+
+      {:ok, pid} = Agent.start_link(fn -> Client.get!("/registered-ancestor-test") end)
+
+      assert Process.info(pid, :dictionary)
+             |> elem(1)
+             |> Keyword.fetch!(:"$ancestors") == [:tesla_mock_registered_ancestor]
+
+      assert Agent.get(pid, & &1).body == "registered ancestor works"
+    end
   end
 
   describe "without mock" do

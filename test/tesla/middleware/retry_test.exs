@@ -169,6 +169,14 @@ defmodule Tesla.Middleware.RetryTest do
     adapter LaggyAdapter
   end
 
+  defmodule ClientWithoutRetries do
+    use Tesla
+
+    plug Tesla.Middleware.Retry, max_retries: 0
+
+    adapter LaggyAdapter
+  end
+
   defmodule ClientWithShouldRetryFunction do
     use Tesla
 
@@ -241,6 +249,14 @@ defmodule Tesla.Middleware.RetryTest do
 
   test "raise if max_retries is exceeded" do
     assert {:error, :econnrefused} = Client.get("/nope")
+  end
+
+  test "does not retry when max_retries is zero" do
+    assert {:error, :econnrefused} = ClientWithoutRetries.get("/nope")
+    assert Agent.get(LaggyAdapter, fn %{retries: retries} -> retries end) == 1
+
+    assert {:ok, env} = ClientWithoutRetries.get("/ok")
+    assert env.opts[:retry_count] == nil
   end
 
   test "use default retry determination function" do

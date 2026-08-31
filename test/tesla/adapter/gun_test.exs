@@ -181,6 +181,31 @@ defmodule Tesla.Adapter.GunTest do
       new_url = "http://127.0.0.1:#{Application.get_env(:httparrot, :http_port)}/stream-bytes/10"
       assert {:error, :invalid_conn} = call(Map.put(request, :url, new_url), conn: conn)
     end
+
+    test "opened to another port", %{request: request, conn: conn} do
+      uri = URI.parse(@https)
+      new_url = "http://#{uri.host}:#{uri.port}/stream-bytes/10"
+
+      assert {:error, :invalid_conn} = call(Map.put(request, :url, new_url), conn: conn)
+    end
+
+    test "opened for another scheme on the same host and port", %{request: request} do
+      uri = URI.parse(@https)
+
+      tls_opts_key = if @gun2, do: :tls_opts, else: :transport_opts
+
+      {:ok, conn} =
+        :gun.open(to_charlist(uri.host), uri.port, %{
+          :transport => :tls,
+          tls_opts_key => [verify: :verify_none]
+        })
+
+      on_exit(fn -> Gun.close(conn) end)
+
+      new_url = "http://#{uri.host}:#{uri.port}/stream-bytes/10"
+
+      assert {:error, :invalid_conn} = call(Map.put(request, :url, new_url), conn: conn)
+    end
   end
 
   test "error response" do
@@ -376,6 +401,91 @@ defmodule Tesla.Adapter.GunTest do
     refute_receive {:stream_owner, {:gun_data, ^pid, ^stream, :fin, _}}
 
     Gun.close(pid)
+  end
+
+  test "relays a stream error to the request owner, the reply_to and the stream owner" do
+    test_pid = self()
+
+    url =
+      start_raw_server(fn socket ->
+        :gen_tcp.send(socket, "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")
+        Process.sleep(50)
+        :gen_tcp.close(socket)
+      end)
+
+    stream_owner = spawn_forwarder(test_pid, :stream_owner)
+    on_exit(fn -> Process.exit(stream_owner, :kill) end)
+
+    request = %Env{
+      method: :get,
+      url: url,
+      private: %{tesla_gun_stream_owner: stream_owner}
+    }
+
+    reply_to = fn message -> send(test_pid, {:gun_reply_to, message}) end
+
+    assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream}}} =
+             call(request, body_as: :chunks, reply_to: reply_to, timeout: 2_000)
+
+    assert_receive {:gun_error, ^pid, ^stream, reason}, 1_000
+    assert_receive {:gun_reply_to, {:gun_error, ^pid, ^stream, ^reason}}, 1_000
+    assert_receive {:stream_owner, {:gun_error, ^pid, ^stream, ^reason}}, 1_000
+
+    Gun.close(pid)
+  end
+
+  test "reports the monitor reason when a process goes down while the body is read" do
+    victim = spawn(fn -> Process.sleep(:infinity) end)
+    Process.monitor(victim)
+
+    url =
+      start_raw_server(fn socket ->
+        :gen_tcp.send(socket, "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")
+        Process.sleep(150)
+        Process.exit(victim, :kill)
+        Process.sleep(2_000)
+      end)
+
+    request = %Env{method: :get, url: url}
+
+    assert {:error, :killed} == call(request, timeout: 2_000)
+  end
+
+  test "keeps waiting for the response while the connection goes down and back up" do
+    url = start_raw_server(fn socket -> :gen_tcp.close(socket) end, accept: :forever)
+
+    request = %Env{method: :get, url: url}
+
+    assert {:error, :recv_response_timeout} ==
+             call(request, timeout: 1_500, retry: 5, retry_timeout: 50)
+  end
+
+  defp start_raw_server(on_request, opts \\ []) do
+    {:ok, listen_socket} =
+      :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+
+    {:ok, port} = :inet.port(listen_socket)
+
+    server =
+      spawn(fn ->
+        accept = fn accept ->
+          with {:ok, socket} <- :gen_tcp.accept(listen_socket),
+               {:ok, _request} <- :gen_tcp.recv(socket, 0, 5_000) do
+            on_request.(socket)
+          end
+
+          if opts[:accept] == :forever, do: accept.(accept)
+        end
+
+        accept.(accept)
+      end)
+
+    on_exit(fn ->
+      Process.exit(server, :kill)
+      :gen_tcp.close(listen_socket)
+    end)
+
+    "http://127.0.0.1:#{port}/raw"
   end
 
   defp spawn_forwarder(test_pid, tag) do

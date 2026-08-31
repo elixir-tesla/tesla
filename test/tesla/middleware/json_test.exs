@@ -186,6 +186,35 @@ defmodule Tesla.Middleware.JsonTest do
       Tesla.Middleware.JSON.call(%Tesla.Env{body: stream}, [{:fn, adapter}], [])
     end
 
+    test "encode a stream given as a function" do
+      adapter = fn env ->
+        assert IO.iodata_to_binary(Enum.to_list(env.body)) == ~s|{"id":1}\n{"id":2}\n{"id":3}\n|
+      end
+
+      stream =
+        Stream.unfold(1, fn
+          n when n <= 3 -> {%{id: n}, n + 1}
+          _n -> nil
+        end)
+
+      assert is_function(stream)
+
+      Tesla.Middleware.JSON.call(%Tesla.Env{body: stream}, [{:fn, adapter}], [])
+    end
+
+    test "leave a stream chunk alone when it is not valid JSON" do
+      adapter = fn _env ->
+        {:ok,
+         %Tesla.Env{
+           headers: [{"content-type", "application/json"}],
+           body: Stream.map([~s|{"id": 1}|, "not json"], & &1)
+         }}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.JSON.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert Enum.to_list(env.body) == [%{"id" => 1}, "not json"]
+    end
+
     test "decode stream" do
       adapter = fn _env ->
         stream = Stream.map(1..3, fn i -> ~s|{"id": #{i}}\n| end)
@@ -199,6 +228,38 @@ defmodule Tesla.Middleware.JsonTest do
 
       assert {:ok, env} = Tesla.Middleware.JSON.call(%Tesla.Env{}, [{:fn, adapter}], [])
       assert Enum.to_list(env.body) == [%{"id" => 1}, %{"id" => 2}, %{"id" => 3}]
+    end
+  end
+
+  describe "processing errors" do
+    test "reports a body the engine has no implementation for" do
+      assert {:error, {Tesla.Middleware.JSON, :encode, %Protocol.UndefinedError{}}} =
+               Tesla.Middleware.JSON.encode(%Tesla.Env{body: %Tesla.Env{}}, [])
+    end
+
+    test "rescues a Protocol.UndefinedError raised by a bang encoder" do
+      assert {:error, {Tesla.Middleware.JSON, :encode, %Protocol.UndefinedError{}}} =
+               Tesla.Middleware.JSON.encode(%Tesla.Env{body: %Tesla.Env{}},
+                 encode: fn body -> {:ok, Jason.encode!(body)} end
+               )
+    end
+
+    test "uses the :encode option instead of the engine" do
+      assert {:ok, env} =
+               Tesla.Middleware.JSON.encode(%Tesla.Env{body: %{"foo" => "bar"}},
+                 encode: fn _body -> {:ok, "encoded by hand"} end
+               )
+
+      assert env.body == "encoded by hand"
+    end
+
+    test "reports a three element error tuple from the :decode option" do
+      env = %Tesla.Env{headers: [{"content-type", "application/json"}], body: "bad"}
+
+      assert {:error, {Tesla.Middleware.JSON, :decode, :unexpected_byte}} =
+               Tesla.Middleware.JSON.decode(env,
+                 decode: fn _body -> {:error, :unexpected_byte, 0} end
+               )
     end
   end
 

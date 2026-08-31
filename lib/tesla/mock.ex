@@ -273,9 +273,6 @@ defmodule Tesla.Mock do
 
       {:error, {:already_started, pid}} ->
         Agent.update(pid, fn _ -> fun end)
-
-      other ->
-        raise other
     end
   end
 

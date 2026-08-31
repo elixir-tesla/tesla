@@ -80,6 +80,40 @@ defmodule Tesla.Middleware.QueryTest do
                  end
   end
 
+  test "uses query string defaults when request query is an empty map" do
+    query_string = QueryString.raw!("foo=a+%2B+b&bar=true")
+
+    assert {:ok, env} = @middleware.call(%Env{query: %{}}, [], query_string)
+    assert env.query == query_string
+  end
+
+  test "keeps existing query string when map defaults are empty" do
+    query_string = QueryString.raw!("foo=a+%2B+b&bar=true")
+
+    assert {:ok, env} = @middleware.call(%Env{query: query_string}, [], %{})
+    assert env.query == query_string
+  end
+
+  test "rejects merging a non-empty map request query with query string defaults" do
+    query_string = QueryString.raw!("foo=a+%2B+b&bar=true")
+
+    assert_raise QueryStringError,
+                 ~r/cannot merge Tesla.OpenAPI.QueryString with normal query params/,
+                 fn ->
+                   @middleware.call(%Env{query: %{page: 1}}, [], query_string)
+                 end
+  end
+
+  test "rejects merging existing query string with non-empty map defaults" do
+    query_string = QueryString.raw!("foo=a+%2B+b&bar=true")
+
+    assert_raise QueryStringError,
+                 ~r/cannot merge Tesla.OpenAPI.QueryString with normal query params/,
+                 fn ->
+                   @middleware.call(%Env{query: query_string}, [], %{page: 1})
+                 end
+  end
+
   test "rejects merging normal request query with query string defaults" do
     query_string = QueryString.raw!("foo=a+%2B+b&bar=true")
 

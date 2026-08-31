@@ -30,4 +30,12 @@ defmodule Tesla.Adapter.IbrowseTest do
 
     assert {:error, :method_not_supported_by_adapter} = call(env)
   end
+
+  test "binary response format is passed through untouched" do
+    env = %Env{method: :get, url: "#{@http}/base64/dGVzbGE"}
+
+    assert {:ok, %Env{} = response} = call(env, response_format: :binary)
+    assert response.status == 200
+    assert response.body == "tesla"
+  end
 end
