@@ -611,6 +611,33 @@ defmodule Tesla.Adapter.GunTest do
                  call(request, proxy: proxy, retry: 0, connect_timeout: 500, timeout: 500)
       end
 
+      test "offers username password authentication with the proxy credentials" do
+        proxy = start_socks5_server()
+        request = %Env{method: :get, url: "#{@http}/ip"}
+
+        assert {:error, :recv_response_timeout} ==
+                 call(request,
+                   proxy: proxy,
+                   proxy_auth: {"user", "pass"},
+                   retry: 0,
+                   connect_timeout: 1_000,
+                   timeout: 1_000
+                 )
+
+        assert_receive {:socks5_methods, <<0x02>>}
+        assert_receive {:socks5_credentials, "user", "pass"}
+      end
+
+      test "offers no authentication without proxy credentials" do
+        proxy = start_socks5_server()
+        request = %Env{method: :get, url: "#{@http}/ip"}
+
+        assert {:error, :recv_response_timeout} ==
+                 call(request, proxy: proxy, retry: 0, connect_timeout: 1_000, timeout: 1_000)
+
+        assert_receive {:socks5_methods, <<0x00>>}
+      end
+
       test "merges the socks options it was given over the tunnel defaults" do
         request = %Env{method: :get, url: "#{@http}/ip"}
         proxy = {:socks5, ~c"localhost", Application.get_env(:httparrot, :http_port)}
@@ -625,6 +652,49 @@ defmodule Tesla.Adapter.GunTest do
                  )
       end
     end
+  end
+
+  # Speaks just enough of RFC 1928 and RFC 1929 to report back what the adapter
+  # negotiated, then leaves the tunnel hanging so the request times out.
+  defp start_socks5_server do
+    test_pid = self()
+
+    {:ok, listen_socket} =
+      :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+
+    {:ok, port} = :inet.port(listen_socket)
+
+    server =
+      spawn(fn ->
+        {:ok, socket} = :gen_tcp.accept(listen_socket)
+
+        {:ok, <<0x05, count>>} = :gen_tcp.recv(socket, 2, 5_000)
+        {:ok, methods} = :gen_tcp.recv(socket, count, 5_000)
+        send(test_pid, {:socks5_methods, methods})
+
+        if methods == <<0x02>> do
+          :gen_tcp.send(socket, <<0x05, 0x02>>)
+
+          {:ok, <<0x01, username_length>>} = :gen_tcp.recv(socket, 2, 5_000)
+          {:ok, username} = :gen_tcp.recv(socket, username_length, 5_000)
+          {:ok, <<password_length>>} = :gen_tcp.recv(socket, 1, 5_000)
+          {:ok, password} = :gen_tcp.recv(socket, password_length, 5_000)
+          send(test_pid, {:socks5_credentials, username, password})
+
+          :gen_tcp.send(socket, <<0x01, 0x00>>)
+        else
+          :gen_tcp.send(socket, <<0x05, 0x00>>)
+        end
+
+        Process.sleep(:infinity)
+      end)
+
+    on_exit(fn ->
+      Process.exit(server, :kill)
+      :gen_tcp.close(listen_socket)
+    end)
+
+    {:socks5, ~c"127.0.0.1", port}
   end
 
   defp start_tcp_proxy(on_connect) do

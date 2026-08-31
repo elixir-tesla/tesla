@@ -437,7 +437,7 @@ if Code.ensure_loaded?(:gun) do
 
     defp add_socks_proxy_auth_credentials(opts, %{proxy_auth: {username, password}})
          when is_binary(username) and is_binary(password),
-         do: Map.put(opts, :auth, {:username_password, username, password})
+         do: Map.put(opts, :auth, [{:username_password, username, password}])
 
     defp add_socks_proxy_auth_credentials(opts, _), do: opts
 
