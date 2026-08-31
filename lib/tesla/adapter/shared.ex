@@ -2,16 +2,20 @@ defmodule Tesla.Adapter.Shared do
   @moduledoc false
 
   def stream_to_fun(stream) do
-    reductor = fn item, _acc -> {:suspend, item} end
-    {_, _, fun} = Enumerable.reduce(stream, {:suspend, nil}, reductor)
+    {_, _, fun} = Enumerable.reduce(stream, {:suspend, :start}, &suspend_chunk/2)
 
     fun
   end
 
-  def next_chunk(fun), do: parse_chunk(fun.({:cont, nil}))
+  defp suspend_chunk(item, _acc), do: {:suspend, {:chunk, item}}
 
-  defp parse_chunk({:suspended, item, fun}), do: {:ok, item, fun}
+  def next_chunk(fun), do: parse_chunk(fun.({:cont, :start}))
+
+  defp parse_chunk({:suspended, {:chunk, item}, fun}), do: {:ok, item, fun}
+  defp parse_chunk({:halted, {:chunk, item}}), do: {:ok, item, &no_chunk/1}
   defp parse_chunk(_), do: :eof
+
+  defp no_chunk({_command, acc}), do: {:done, acc}
 
   @spec prepare_path(String.t() | nil, String.t() | nil) :: String.t()
   def prepare_path(nil, nil), do: "/"
