@@ -30,6 +30,45 @@ defmodule Tesla.Adapter.HttpcTest do
     end
   end
 
+  test "Multipart content-type wins over a request supplied content-type" do
+    mp = Multipart.new() |> Multipart.add_field("field1", "foo")
+
+    env = %Env{
+      method: :post,
+      url: "#{@http}/post",
+      headers: [{"content-type", "application/json"}],
+      body: mp
+    }
+
+    assert {:ok, %Env{} = response} = call(env)
+    assert response.status == 200
+
+    {:ok, data} = Jason.decode(response.body)
+
+    assert data["headers"]["content-type"] == "multipart/form-data; boundary=#{mp.boundary}"
+    assert data["form"] == %{"field1" => "foo"}
+  end
+
+  test "Multipart content-type wins regardless of the request header casing" do
+    mp = Multipart.new() |> Multipart.add_field("field1", "foo")
+
+    env = %Env{
+      method: :post,
+      url: "#{@http}/post",
+      headers: [{"Content-Type", "application/json"}, {"x-keep", "yes"}],
+      body: mp
+    }
+
+    assert {:ok, %Env{} = response} = call(env)
+    assert response.status == 200
+
+    {:ok, data} = Jason.decode(response.body)
+
+    assert data["headers"]["content-type"] == "multipart/form-data; boundary=#{mp.boundary}"
+    assert data["headers"]["x-keep"] == "yes"
+    assert data["form"] == %{"field1" => "foo"}
+  end
+
   # see https://github.com/teamon/tesla/issues/147
   test "Set content-type for DELETE requests" do
     env = %Env{

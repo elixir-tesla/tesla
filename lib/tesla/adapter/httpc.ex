@@ -82,14 +82,10 @@ defmodule Tesla.Adapter.Httpc do
   end
 
   defp request(method, url, headers, _content_type, %Multipart{} = mp, opts) do
-    headers = headers ++ Multipart.headers(mp)
+    headers = Multipart.headers(mp) ++ headers
     headers = for {key, value} <- headers, do: {to_charlist(key), to_charlist(value)}
 
-    {content_type, headers} =
-      case List.keytake(headers, ~c"content-type", 0) do
-        nil -> {~c"text/plain", headers}
-        {{_, ct}, headers} -> {ct, headers}
-      end
+    {{_, content_type}, headers} = List.keytake(headers, ~c"content-type", 0)
 
     body = stream_to_fun(Multipart.body(mp))
 
