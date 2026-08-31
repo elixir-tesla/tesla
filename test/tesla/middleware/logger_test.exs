@@ -382,8 +382,9 @@ defmodule Tesla.Middleware.LoggerTest do
           fn env -> {:ok, %{env | status: 200}} end
         )
 
-      log = capture_log(@capture_opts, fn -> Tesla.get(client, nil) end)
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, ~c"/charlist") end)
 
+      assert log =~ "GET /charlist -> 200"
       assert log =~ "http.request.method=GET"
       assert log =~ "http.response.status_code=200"
       refute log =~ "url.full="
