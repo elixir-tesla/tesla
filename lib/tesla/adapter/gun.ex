@@ -240,18 +240,7 @@ if Code.ensure_loaded?(:gun) do
          when is_pid(conn) do
       info = :gun.info(conn)
 
-      conn_scheme =
-        case info do
-          # gun master branch support, which has `origin_scheme` in connection info
-          %{origin_scheme: scheme} ->
-            scheme
-
-          %{transport: :tls} ->
-            "https"
-
-          _ ->
-            "http"
-        end
+      conn_scheme = conn_scheme(info)
 
       conn_host =
         case :inet.ntoa(info.origin_host) do
@@ -368,11 +357,7 @@ if Code.ensure_loaded?(:gun) do
            {:ok, _} <- :gun.await_up(pid) do
         {:ok, pid}
       else
-        {:error, {:options, {:protocols, [:socks]}}} ->
-          {:error, "socks protocol is not supported"}
-
-        error ->
-          error
+        error -> socks_open_error(error)
       end
     end
 
@@ -390,11 +375,7 @@ if Code.ensure_loaded?(:gun) do
       with {:ok, pid} <- gun_open(host, uri.port, opts_with_master_keys, opts) do
         {:ok, pid}
       else
-        {:error, {:options, {key, _}}} when key in [:tcp_opts, :tls_opts] ->
-          gun_open(host, uri.port, Map.put(gun_opts, :transport_opts, tls_opts), opts)
-
-        error ->
-          error
+        error -> retry_open_conn(error, host, uri.port, gun_opts, tls_opts, opts)
       end
     end
 
@@ -462,12 +443,35 @@ if Code.ensure_loaded?(:gun) do
     defp reply_to(opts), do: opts[:reply_to] || self()
 
     if Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0") do
+      defp conn_scheme(%{origin_scheme: scheme}), do: scheme
+
+      defp socks_open_error(error), do: error
+
+      defp retry_open_conn(error, _host, _port, _gun_opts, _tls_opts, _opts), do: error
+
       defp wrap_reply_to(request_owner, stream_owner, original_reply_to) do
         fn message ->
           route_reply_message(request_owner, stream_owner, original_reply_to, message)
         end
       end
     else
+      # Gun 1 reports the scheme through the transport, it has no origin_scheme.
+      defp conn_scheme(%{transport: :tls}), do: "https"
+      defp conn_scheme(_info), do: "http"
+
+      defp socks_open_error({:error, {:options, {:protocols, [:socks]}}}),
+        do: {:error, "socks protocol is not supported"}
+
+      defp socks_open_error(error), do: error
+
+      # Gun 1 has no tcp_opts or tls_opts, it takes both as transport_opts.
+      defp retry_open_conn({:error, {:options, {key, _}}}, host, port, gun_opts, tls_opts, opts)
+           when key in [:tcp_opts, :tls_opts] do
+        gun_open(host, port, Map.put(gun_opts, :transport_opts, tls_opts), opts)
+      end
+
+      defp retry_open_conn(error, _host, _port, _gun_opts, _tls_opts, _opts), do: error
+
       defp wrap_reply_to(request_owner, stream_owner, original_reply_to) do
         spawn(fn ->
           request_owner_ref = Process.monitor(request_owner)
@@ -623,9 +627,13 @@ if Code.ensure_loaded?(:gun) do
         {:gun_error, ^pid, reason} ->
           {:error, reason}
 
+        # Gun 1 only. Gun 2 sends gun_down with five elements, so this never matches
+        # there. The Gun 1 CI job exercises it, and that job runs without coverage.
+        # coveralls-ignore-start
         {:gun_down, ^pid, _, _, _, _} when receive? ->
           read_response(pid, stream, opts)
 
+        # coveralls-ignore-stop
         {:DOWN, _, _, _, reason} ->
           {:error, reason}
       after

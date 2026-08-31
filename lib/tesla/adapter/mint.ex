@@ -391,15 +391,8 @@ if Code.ensure_loaded?(Mint.HTTP) do
       stream_request_body(conn, ref, <<chunk>>, opts, acc)
     end
 
-    defp stream_request_body(conn, ref, chunk, opts, acc) when is_list(chunk) do
-      stream_request_body(conn, ref, IO.iodata_to_binary(chunk), opts, acc)
-    end
-
     defp stream_request_body(conn, ref, chunk, opts, acc) do
-      case HTTP.protocol(conn) do
-        :http2 -> stream_request_body(conn, ref, IO.iodata_to_binary(chunk), opts, acc)
-        _ -> send_body_chunk(conn, ref, chunk, opts, acc)
-      end
+      stream_request_body(conn, ref, IO.iodata_to_binary(chunk), opts, acc)
     end
 
     defp stream_request_body_chunk(conn, _ref, "", _opts, acc), do: {:ok, conn, acc}
@@ -502,9 +495,6 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     defp reduce_response({:error, response_ref, error}, ref, _acc) when response_ref == ref,
       do: {:halt, {:error, error}}
-
-    defp reduce_response({:pong, response_ref}, ref, acc) when response_ref == ref,
-      do: {:cont, acc}
 
     defp reduce_response({:status, _other_ref, _code}, _ref, acc), do: {:cont, acc}
     defp reduce_response({:headers, _other_ref, _headers}, _ref, acc), do: {:cont, acc}
