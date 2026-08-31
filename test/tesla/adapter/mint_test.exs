@@ -12,6 +12,8 @@ defmodule Tesla.Adapter.MintTest do
   use Tesla.AdapterCase.Query
 
   @large_http2_request_size 70_000
+  @default_connection_window_size 65_535
+  @wide_stream_window_size 1_048_576
 
   use Tesla.AdapterCase.SSL,
     transport_opts: [
@@ -479,6 +481,85 @@ defmodule Tesla.Adapter.MintTest do
     end
   end
 
+  describe "issue #394 - handle HTTP/2 connection window exhaustion" do
+    setup do
+      listener_ref = :"mint-connection-window-#{System.unique_integer([:positive])}"
+      priv_dir = :code.priv_dir(:httparrot)
+
+      {:ok, _pid} =
+        :cowboy.start_tls(
+          listener_ref,
+          [
+            port: 0,
+            certfile: priv_dir ++ ~c"/ssl/server.crt",
+            keyfile: priv_dir ++ ~c"/ssl/server.key"
+          ],
+          %{
+            env: %{dispatch: upload_echo_dispatch()},
+            initial_stream_window_size: @wide_stream_window_size,
+            max_stream_window_size: @wide_stream_window_size,
+            max_connection_window_size: @default_connection_window_size
+          }
+        )
+
+      on_exit(fn -> :cowboy.stop_listener(listener_ref) end)
+
+      {_, port} = :ranch.get_addr(listener_ref)
+
+      {:ok,
+       upload_url: "https://localhost:#{port}",
+       upload_cacertfile: Path.join([to_string(priv_dir), "ssl/server-ca.crt"])}
+    end
+
+    test "uploads a body that exhausts the connection window before the stream window", %{
+      upload_url: upload_url,
+      upload_cacertfile: upload_cacertfile
+    } do
+      body_length = @default_connection_window_size * 3
+
+      request = %Env{
+        method: :post,
+        url: "#{upload_url}/upload",
+        headers: [{"content-type", "text/plain"}],
+        body: String.duplicate("a", body_length)
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: upload_cacertfile]
+               )
+
+      assert response.status == 200
+      assert response.body == Integer.to_string(body_length)
+    end
+
+    test "uploads a streamed body that exhausts the connection window", %{
+      upload_url: upload_url,
+      upload_cacertfile: upload_cacertfile
+    } do
+      body_length = @default_connection_window_size * 3
+      chunk = String.duplicate("a", 8_192)
+      chunk_count = div(body_length, 8_192)
+
+      request = %Env{
+        method: :post,
+        url: "#{upload_url}/upload",
+        headers: [{"content-type", "text/plain"}],
+        body: Stream.map(1..chunk_count, fn _ -> chunk end)
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: upload_cacertfile]
+               )
+
+      assert response.status == 200
+      assert response.body == Integer.to_string(chunk_count * 8_192)
+    end
+  end
+
   def read_body(conn, _ref, _opts, {:fin, body}), do: {:ok, conn, body}
 
   def read_body(conn, ref, opts, {:nofin, acc}),
@@ -942,6 +1023,12 @@ defmodule Tesla.Adapter.MintTest do
   defp early_response_dispatch do
     :cowboy_router.compile([
       {:_, [{"/early-response", Tesla.TestSupport.MintEarlyResponseHandler, []}]}
+    ])
+  end
+
+  defp upload_echo_dispatch do
+    :cowboy_router.compile([
+      {:_, [{"/upload", Tesla.TestSupport.MintUploadEchoHandler, []}]}
     ])
   end
 end
