@@ -92,6 +92,12 @@ defmodule Tesla.OpenAPI.PathTemplateTest do
     end
   end
 
+  test "rejects an empty path" do
+    assert_raise ArgumentError, ~r/start with \//, fn ->
+      PathTemplate.new!("")
+    end
+  end
+
   test "rejects query strings" do
     assert_raise ArgumentError, ~r/not to include query or fragment/, fn ->
       PathTemplate.new!("/items/{id}?x=1")
