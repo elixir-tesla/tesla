@@ -70,6 +70,7 @@ defmodule Tesla.OpenAPI.PathTemplateTest do
 
   test "fetch_private ignores invalid private data" do
     assert PathTemplate.fetch_private(%{tesla_path_template: :invalid}) == :error
+    assert PathTemplate.fetch_private(%{}) == :error
   end
 
   test "render returns rendered path" do
