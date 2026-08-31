@@ -99,6 +99,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Coverage reporting reads the commit message of the pull request head,
+          # which is a parent of the merge commit checked out here.
+          fetch-depth: 2
 
       - name: Setup Elixir
         id: beam
@@ -122,6 +126,17 @@ jobs:
 
       - name: Test
         run: mix test
+
+      # One entry reports, so the matrix does not post three times for one commit.
+      # Reporting never gates the job: excoveralls raises when the upload fails, and
+      # a Coveralls outage or a fork PR without secret access must not redden a build
+      # whose tests passed.
+      - name: Report coverage
+        if: matrix.versions.elixir == '1.19.0'
+        continue-on-error: true
+        run: mix coveralls.github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     strategy:
       fail-fast: false
