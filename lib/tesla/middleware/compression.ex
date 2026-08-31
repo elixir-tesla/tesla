@@ -205,9 +205,8 @@ defmodule Tesla.Middleware.Compression do
       :zlib.inflateEnd(z)
       result
     catch
-      :error, reason
-      when reason == :data_error or (is_tuple(reason) and elem(reason, 0) == :data_error) ->
-        reraise Error, [reason: {:zlib, reason}], __STACKTRACE__
+      :error, :data_error ->
+        reraise Error, [reason: {:zlib, :data_error}], __STACKTRACE__
     after
       :zlib.close(z)
     end
