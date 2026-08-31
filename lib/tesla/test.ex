@@ -239,7 +239,6 @@ defmodule Tesla.Test do
 
   defp encode!(body, "application/json") when is_binary(body), do: body
   defp encode!(body, "application/json"), do: Jason.encode!(body)
-  defp encode!(body, _), do: body
 
   defp read_body!(%Tesla.Env{} = env) do
     case Tesla.get_headers(env, "content-type") do
