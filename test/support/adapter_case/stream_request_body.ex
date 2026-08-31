@@ -1,6 +1,7 @@
 defmodule Tesla.AdapterCase.StreamRequestBody do
   defmacro __using__(_) do
     quote do
+      alias Tesla.AdapterCase.Echo
       alias Tesla.Env
 
       describe "Stream Request" do
@@ -48,14 +49,7 @@ defmodule Tesla.AdapterCase.StreamRequestBody do
 
         assert {:ok, %Env{} = response} = call(request)
         assert response.status == 200
-        assert echoed_request_body(response.body) == Enum.join(body)
-      end
-
-      defp echoed_request_body(response_body) do
-        response_body
-        |> to_string()
-        |> Jason.decode!()
-        |> Map.fetch!("data")
+        assert Echo.request_body(response.body) == Enum.join(body)
       end
     end
   end

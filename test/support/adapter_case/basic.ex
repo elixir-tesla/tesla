@@ -1,6 +1,7 @@
 defmodule Tesla.AdapterCase.Basic do
   defmacro __using__(opts \\ []) do
     quote do
+      alias Tesla.AdapterCase.Echo
       alias Tesla.Env
 
       @connection_refused_reason Keyword.get(
@@ -43,7 +44,7 @@ defmodule Tesla.AdapterCase.Basic do
           assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
           assert Tesla.get_header(response, "content-type") == "application/json"
-          assert echoed_request_body(response.body) == "some-post-data"
+          assert Echo.request_body(response.body) == "some-post-data"
         end
 
         test "unicode" do
@@ -57,7 +58,7 @@ defmodule Tesla.AdapterCase.Basic do
           assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
           assert Tesla.get_header(response, "content-type") == "application/json"
-          assert echoed_request_body(response.body) == "1 \u00F8 2 \u0111 1 \u00F8 2 \u0111"
+          assert Echo.request_body(response.body) == "1 \u00F8 2 \u0111 1 \u00F8 2 \u0111"
         end
 
         test "POST request with control bytes" do
@@ -72,8 +73,8 @@ defmodule Tesla.AdapterCase.Basic do
 
           assert {:ok, %Env{} = response} = call(request)
           assert response.status == 200
-          assert echoed_request_body(response.body) == body
-          assert echoed_request_header(response.body, "content-length") == "128"
+          assert Echo.request_body(response.body) == body
+          assert Echo.request_header(response.body, "content-length") == "128"
         end
 
         test "passing query params" do
@@ -148,14 +149,6 @@ defmodule Tesla.AdapterCase.Basic do
           assert {:error, reason} = call(request)
           assert unwrap_reason(reason) == @connection_refused_reason
         end
-      end
-
-      defp echoed_request_body(response_body) do
-        response_body |> to_string() |> Jason.decode!() |> Map.fetch!("data")
-      end
-
-      defp echoed_request_header(response_body, name) do
-        response_body |> to_string() |> Jason.decode!() |> get_in(["headers", name])
       end
 
       defp unwrap_reason(%{reason: reason}), do: unwrap_reason(reason)

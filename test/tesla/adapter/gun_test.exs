@@ -1,3 +1,7 @@
+defmodule ReplyToCollector do
+  def collect(message, pid), do: send(pid, {:collected, message})
+end
+
 defmodule Tesla.Adapter.GunTest do
   use ExUnit.Case
 
@@ -16,6 +20,8 @@ defmodule Tesla.Adapter.GunTest do
   alias Tesla.Adapter.Gun
 
   import ExUnit.CaptureLog
+
+  @gun2 Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0")
 
   test "fallback adapter timeout option" do
     request = %Env{
@@ -255,6 +261,135 @@ defmodule Tesla.Adapter.GunTest do
     Gun.close(pid)
   end
 
+  test "keeps the reply_to untouched when the stream owner is the request owner" do
+    test_pid = self()
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10",
+      private: %{tesla_gun_stream_owner: test_pid}
+    }
+
+    reply_to = spawn_forwarder(test_pid, :reply_to)
+    on_exit(fn -> Process.exit(reply_to, :kill) end)
+
+    assert {:error, :recv_response_timeout} =
+             call(request, body_as: :chunks, reply_to: reply_to, timeout: 100)
+
+    assert_receive {:reply_to, {:gun_response, pid, stream, :nofin, 200, _headers}}
+    assert_receive {:reply_to, {:gun_data, ^pid, ^stream, _, _}}
+    refute_received {:gun_response, ^pid, ^stream, :nofin, 200, _headers}
+
+    Gun.close(pid)
+  end
+
+  test "routes to a pid reply_to when stream ownership is handed off" do
+    test_pid = self()
+
+    stream_owner = spawn_forwarder(test_pid, :stream_owner)
+    reply_to = spawn_forwarder(test_pid, :reply_to)
+    on_exit(fn -> Enum.each([stream_owner, reply_to], &Process.exit(&1, :kill)) end)
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10",
+      private: %{tesla_gun_stream_owner: stream_owner}
+    }
+
+    assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream}}} =
+             call(request, body_as: :chunks, reply_to: reply_to, timeout: 5_000)
+
+    assert_receive {:reply_to, {:gun_response, ^pid, ^stream, :nofin, 200, _headers}}
+    assert_receive {:reply_to, {:gun_data, ^pid, ^stream, _, _}}
+    assert_receive {:stream_owner, {:gun_data, ^pid, ^stream, _, _}}
+    assert_receive {:gun_data, ^pid, ^stream, _, _}
+
+    Gun.close(pid)
+  end
+
+  test "routes to a module function reply_to when stream ownership is handed off" do
+    test_pid = self()
+
+    stream_owner = spawn_forwarder(test_pid, :stream_owner)
+    on_exit(fn -> Process.exit(stream_owner, :kill) end)
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10",
+      private: %{tesla_gun_stream_owner: stream_owner}
+    }
+
+    assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream}}} =
+             call(request,
+               body_as: :chunks,
+               reply_to: {ReplyToCollector, :collect, [test_pid]},
+               timeout: 5_000
+             )
+
+    assert_receive {:collected, {:gun_response, ^pid, ^stream, :nofin, 200, _headers}}
+    assert_receive {:collected, {:gun_data, ^pid, ^stream, _, _}}
+
+    Gun.close(pid)
+  end
+
+  test "routes to a function reply_to carrying extra arguments" do
+    test_pid = self()
+
+    stream_owner = spawn_forwarder(test_pid, :stream_owner)
+    on_exit(fn -> Process.exit(stream_owner, :kill) end)
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10",
+      private: %{tesla_gun_stream_owner: stream_owner}
+    }
+
+    collect = fn message, pid -> send(pid, {:collected, message}) end
+
+    assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream}}} =
+             call(request, body_as: :chunks, reply_to: {collect, [test_pid]}, timeout: 5_000)
+
+    assert_receive {:collected, {:gun_response, ^pid, ^stream, :nofin, 200, _headers}}
+    assert_receive {:collected, {:gun_data, ^pid, ^stream, _, _}}
+
+    Gun.close(pid)
+  end
+
+  test "delivers once when the reply_to is also the stream owner" do
+    test_pid = self()
+
+    stream_owner = spawn_forwarder(test_pid, :stream_owner)
+    on_exit(fn -> Process.exit(stream_owner, :kill) end)
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10",
+      private: %{tesla_gun_stream_owner: stream_owner}
+    }
+
+    assert {:ok, %Env{status: 200, body: %{pid: pid, stream: stream}}} =
+             call(request, body_as: :chunks, reply_to: stream_owner, timeout: 5_000)
+
+    assert_receive {:stream_owner, {:gun_response, ^pid, ^stream, :nofin, 200, _headers}}
+    assert_receive {:stream_owner, {:gun_data, ^pid, ^stream, :fin, _}}
+
+    refute_receive {:stream_owner, {:gun_data, ^pid, ^stream, :fin, _}}
+
+    Gun.close(pid)
+  end
+
+  defp spawn_forwarder(test_pid, tag) do
+    spawn(fn -> forward_messages(test_pid, tag) end)
+  end
+
+  defp forward_messages(test_pid, tag) do
+    receive do
+      message ->
+        send(test_pid, {tag, message})
+        forward_messages(test_pid, tag)
+    end
+  end
+
   defp forward_messages(test_pid) do
     receive do
       message ->
@@ -288,7 +423,7 @@ defmodule Tesla.Adapter.GunTest do
   end
 
   # Gun 1.0 backwards compatibility tests
-  if not (Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0")) do
+  if not @gun2 do
     test "error on socks proxy" do
       request = %Env{
         method: :get,
@@ -298,6 +433,207 @@ defmodule Tesla.Adapter.GunTest do
       assert {:error, "socks protocol is not supported"} ==
                call(request, proxy: {:socks5, ~c"localhost", 1234})
     end
+  end
+
+  describe "read_chunk/3" do
+    test "returns the error gun reported for the stream" do
+      stream = make_ref()
+      send(self(), {:gun_error, self(), stream, :closed})
+
+      assert {:error, :closed} == Gun.read_chunk(self(), stream, close_conn: false)
+    end
+
+    test "returns the reason the connection went down" do
+      stream = make_ref()
+      send(self(), {:DOWN, make_ref(), :process, self(), :killed})
+
+      assert {:error, :killed} == Gun.read_chunk(self(), stream, close_conn: false)
+    end
+  end
+
+  test "returns the option error gun rejected the connection with" do
+    request = %Env{
+      method: :get,
+      url: "#{@http}/ip"
+    }
+
+    assert {:error, {:options, {:protocols, [:bogus]}}} == call(request, protocols: [:bogus])
+  end
+
+  test "raises when the response stream stops receiving chunks" do
+    uri = URI.parse(@http)
+    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+    {:ok, _} = :gun.await_up(conn)
+    on_exit(fn -> Gun.close(conn) end)
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{status: 200, body: stream}} =
+             call(request, body_as: :stream, conn: conn, close_conn: false, timeout: 100)
+
+    Process.sleep(200)
+    :ok = :gun.flush(conn)
+
+    assert_raise RuntimeError, ":recv_chunk_timeout", fn -> Enum.join(stream) end
+  end
+
+  test "reuses a connection opened to an ip address" do
+    {:ok, conn} = :gun.open({127, 0, 0, 1}, Application.get_env(:httparrot, :http_port))
+    {:ok, _} = :gun.await_up(conn)
+    on_exit(fn -> Gun.close(conn) end)
+
+    request = %Env{
+      method: :get,
+      url: "http://127.0.0.1:#{Application.get_env(:httparrot, :http_port)}/ip"
+    }
+
+    assert {:ok, %Env{status: 200}} = call(request, conn: conn, close_conn: false)
+    assert Process.alive?(conn)
+  end
+
+  test "streams a request body given as a bare enumerable function" do
+    body =
+      Stream.unfold(5, fn
+        0 -> nil
+        n -> {to_string(n), n - 1}
+      end)
+
+    assert is_function(body)
+
+    request = %Env{
+      method: :post,
+      url: "#{@http}/post",
+      headers: [{"content-type", "text/plain"}],
+      body: body
+    }
+
+    assert {:ok, %Env{status: 200} = response} = call(request)
+    assert response.body |> Jason.decode!() |> Map.fetch!("data") == "54321"
+  end
+
+  test "reads the tls options from the tls_opts key" do
+    request = %Env{
+      method: :get,
+      url: "#{@https}"
+    }
+
+    assert {:ok, %Env{status: 200}} =
+             call(request,
+               tls_opts: [
+                 verify: :verify_peer,
+                 cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
+               ]
+             )
+  end
+
+  test "returns the connection error gun reported while reading the response" do
+    uri = URI.parse(@http)
+    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+    {:ok, _} = :gun.await_up(conn)
+    on_exit(fn -> Gun.close(conn) end)
+
+    request = %Env{method: :get, url: "#{@http}/ip"}
+
+    send(self(), {:gun_error, conn, :boom})
+
+    assert {:error, :boom} == call(request, conn: conn, close_conn: false)
+  end
+
+  test "returns the reason the connection went down while reading the response" do
+    uri = URI.parse(@http)
+    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+    {:ok, _} = :gun.await_up(conn)
+    on_exit(fn -> Gun.close(conn) end)
+
+    request = %Env{method: :get, url: "#{@http}/ip"}
+
+    send(self(), {:DOWN, make_ref(), :process, conn, :killed})
+
+    assert {:error, :killed} == call(request, conn: conn, close_conn: false)
+  end
+
+  describe "proxy" do
+    setup do
+      {:ok, http_port: Application.get_env(:httparrot, :http_port)}
+    end
+
+    test "returns unauthorized when the proxy forbids the tunnel", %{http_port: http_port} do
+      proxy = start_tcp_proxy({:reject, 403, "Forbidden"})
+      request = %Env{method: :get, url: "#{@http}/ip"}
+
+      assert {:error, :unauthorized} == call(request, proxy: proxy, timeout: 2_000)
+
+      assert_receive {:tcp_proxy_request, connect}
+      assert connect =~ "CONNECT localhost:#{http_port} HTTP/1.1"
+      refute connect =~ "proxy-authorization"
+    end
+
+    test "sends the tunnel credentials it was given" do
+      proxy = start_tcp_proxy({:reject, 407, "Proxy Authentication Required"})
+      request = %Env{method: :get, url: "#{@http}/ip"}
+
+      assert {:error, :proxy_auth_failed} ==
+               call(request, proxy: proxy, proxy_auth: {"user", "pass"}, timeout: 2_000)
+
+      credentials = Base.encode64("user:pass")
+
+      assert_receive {:tcp_proxy_request, connect}
+      assert connect =~ "proxy-authorization: Basic #{credentials}"
+    end
+
+    test "asks the proxy to tunnel the https target" do
+      proxy = start_tcp_proxy({:reject, 500, "Internal Server Error"})
+      request = %Env{method: :get, url: "#{@https}/ip"}
+
+      assert {:response, :nofin, 500, _headers} = call(request, proxy: proxy, timeout: 2_000)
+
+      assert_receive {:tcp_proxy_request, connect}
+      assert connect =~ "CONNECT localhost:#{Application.get_env(:httparrot, :https_port)}"
+    end
+
+    if @gun2 do
+      test "surfaces the socks version gun rejected" do
+        request = %Env{method: :get, url: "#{@http}/ip"}
+        proxy = {:socks4, ~c"localhost", Application.get_env(:httparrot, :http_port)}
+
+        assert {:error, {:options, {:socks, {:version, 4}}}} ==
+                 call(request, proxy: proxy, retry: 0, connect_timeout: 500, timeout: 1_000)
+      end
+
+      test "opens a socks5 tunnel" do
+        request = %Env{method: :get, url: "#{@http}/ip"}
+        proxy = {:socks5, ~c"localhost", Application.get_env(:httparrot, :http_port)}
+
+        assert {:error, :recv_response_timeout} ==
+                 call(request, proxy: proxy, retry: 0, connect_timeout: 500, timeout: 500)
+      end
+
+      test "merges the socks options it was given over the tunnel defaults" do
+        request = %Env{method: :get, url: "#{@http}/ip"}
+        proxy = {:socks5, ~c"localhost", Application.get_env(:httparrot, :http_port)}
+
+        assert {:error, {:options, {:socks, {:version, 4}}}} ==
+                 call(request,
+                   proxy: proxy,
+                   socks_opts: %{version: 4},
+                   retry: 0,
+                   connect_timeout: 500,
+                   timeout: 500
+                 )
+      end
+    end
+  end
+
+  defp start_tcp_proxy(on_connect) do
+    {:ok, pid, port} =
+      Tesla.TestSupport.TcpProxy.start(report_to: self(), on_connect: on_connect)
+
+    on_exit(fn -> Process.exit(pid, :kill) end)
+
+    {~c"127.0.0.1", port}
   end
 
   defp read_body(pid, stream, opts, acc \\ "") do
