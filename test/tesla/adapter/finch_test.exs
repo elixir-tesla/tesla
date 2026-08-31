@@ -71,6 +71,13 @@ defmodule Tesla.Adapter.FinchTest do
     end
   end
 
+  test "surfaces the protocol error hidden behind the Finch wrapper" do
+    url = start_raw_server(fn socket -> :gen_tcp.send(socket, "NOT-HTTP garbage\r\n\r\n") end)
+
+    assert {:error, %Mint.HTTPError{reason: :invalid_status_line}} =
+             call(%Env{method: :get, url: url}, receive_timeout: 500)
+  end
+
   describe "streamed response failures" do
     test "raises with the transport reason when the connection drops mid stream" do
       url = start_chunked_server(fn socket -> :gen_tcp.close(socket) end)
@@ -110,6 +117,29 @@ defmodule Tesla.Adapter.FinchTest do
 
       assert Enum.to_list(env.body) == ["hello"]
     end
+  end
+
+  defp start_raw_server(respond) do
+    {:ok, listen} =
+      :gen_tcp.listen(0,
+        ip: {127, 0, 0, 1},
+        mode: :binary,
+        packet: :raw,
+        active: false,
+        reuseaddr: true
+      )
+
+    {:ok, port} = :inet.port(listen)
+
+    spawn_link(fn ->
+      {:ok, socket} = :gen_tcp.accept(listen, 5_000)
+      {:ok, _request} = :gen_tcp.recv(socket, 0, 5_000)
+
+      respond.(socket)
+      Process.sleep(500)
+    end)
+
+    "http://127.0.0.1:#{port}/"
   end
 
   # Sends a chunked response with a single "hello" chunk, then hands the socket
