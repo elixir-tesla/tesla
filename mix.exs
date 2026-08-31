@@ -25,7 +25,14 @@ defmodule Tesla.Mixfile do
   end
 
   def cli do
-    [preferred_envs: [coveralls: :test, "coveralls.html": :test]]
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test,
+        "coveralls.github": :test
+      ]
+    ]
   end
 
   def application do
