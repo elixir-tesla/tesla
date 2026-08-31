@@ -497,4 +497,32 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
       assert_receive [{"Content-Type", "application/json"}]
     end
   end
+
+  describe "responses that are not followed" do
+    defmodule NoRedirectsErrorClient do
+      use Tesla
+
+      plug Tesla.Middleware.FollowRedirects, max_redirects: 0
+
+      adapter fn _env -> {:error, :econnrefused} end
+    end
+
+    defmodule MissingLocationClient do
+      use Tesla
+
+      plug Tesla.Middleware.FollowRedirects
+
+      adapter fn env -> {:ok, %{env | status: 301, headers: [], body: "no location"}} end
+    end
+
+    test "passes an adapter error through untouched when no redirects are left" do
+      assert {:error, :econnrefused} = NoRedirectsErrorClient.get("http://example.com/")
+    end
+
+    test "returns the response when a redirect has no location header" do
+      assert {:ok, env} = MissingLocationClient.get("http://example.com/")
+      assert env.status == 301
+      assert env.body == "no location"
+    end
+  end
 end

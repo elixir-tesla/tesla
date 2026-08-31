@@ -237,6 +237,13 @@ defmodule Tesla.Middleware.Query.ModernTest do
       assert env.query == []
     end
 
+    test "leaves URL untouched when query is an empty map" do
+      assert {:ok, env} = Query.call(%Env{url: "/colors", query: %{}}, [], mode: :modern)
+
+      assert env.url == "/colors"
+      assert env.query == []
+    end
+
     test "leaves URL untouched when query is nil" do
       assert {:ok, env} = Query.call(%Env{url: "/colors", query: nil}, [], mode: :modern)
 
