@@ -99,6 +99,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Coverage reporting reads the commit message of the pull request head,
+          # which is a parent of the merge commit checked out here.
+          fetch-depth: 2
 
       - name: Setup Elixir
         id: beam
