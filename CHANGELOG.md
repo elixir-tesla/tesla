@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.21.3](https://github.com/elixir-tesla/tesla/compare/v1.21.2...v1.21.3) (2026-08-31)
+
+
+### Bug Fixes
+
+* **adapter:** Send the final chunk of a request body stream that halts ([#923](https://github.com/elixir-tesla/tesla/issues/923)) ([1758793](https://github.com/elixir-tesla/tesla/commit/17587932fa99ef3a59fbb2603217acbbc22da5b6))
+* **gun-adapter:** Send socks proxy credentials gun can accept ([#934](https://github.com/elixir-tesla/tesla/issues/934)) ([4c3ec65](https://github.com/elixir-tesla/tesla/commit/4c3ec65412e391ce7a8545890917d288d57c426c))
+* **httpc-adapter:** Let the multipart content type win over the request one ([#935](https://github.com/elixir-tesla/tesla/issues/935)) ([813dfee](https://github.com/elixir-tesla/tesla/commit/813dfee27a46c44a4293b71450aa4a8b8c458495))
+* **mint:** Avoid failing large HTTP/2 uploads ([#842](https://github.com/elixir-tesla/tesla/issues/842)) ([b9d31ab](https://github.com/elixir-tesla/tesla/commit/b9d31ab577fec5de54db49a82b84fbc0b1296618))
+* **retry:** Ignore Retry-After values that are not valid delay-seconds ([#920](https://github.com/elixir-tesla/tesla/issues/920)) ([d2e255d](https://github.com/elixir-tesla/tesla/commit/d2e255d5af17d72351f1e55fdec2f2f549da8de5))
+
 ## [1.21.2](https://github.com/elixir-tesla/tesla/compare/v1.21.1...v1.21.2) (2026-08-19)
 
 

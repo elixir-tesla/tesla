@@ -31,7 +31,7 @@ Add `:tesla` as dependency in `mix.exs`:
 ```elixir
 defp deps do
   [
-    {:tesla, "~> 1.21.2"},
+    {:tesla, "~> 1.21.3"},
     # optional, required by JSON middleware
     {:jason, "~> 1.4"},
     # optional, required by Mint adapter, recommended
