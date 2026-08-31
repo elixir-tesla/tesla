@@ -2,7 +2,7 @@ defmodule Tesla.Adapter.GunTest do
   use ExUnit.Case
 
   use Tesla.AdapterCase, adapter: Tesla.Adapter.Gun
-  use Tesla.AdapterCase.Basic
+  use Tesla.AdapterCase.Basic, connection_refused_reason: :timeout
   use Tesla.AdapterCase.Multipart
   use Tesla.AdapterCase.StreamRequestBody
   use Tesla.AdapterCase.Query
