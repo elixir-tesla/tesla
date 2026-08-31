@@ -179,6 +179,21 @@ defmodule Tesla.OpenAPI.CookieParamsTest do
            }) == [{"cookie", "empty_array=; empty_object="}]
   end
 
+  test "cookie style serializes empty arrays and objects as empty cookie values" do
+    for explode <- [false, true] do
+      cookie_params =
+        CookieParams.new!([
+          CookieParam.new!("empty_array", style: :cookie, explode: explode),
+          CookieParam.new!("empty_object", style: :cookie, explode: explode)
+        ])
+
+      assert CookieParams.to_headers(cookie_params, %{
+               "empty_array" => [],
+               "empty_object" => %{}
+             }) == [{"cookie", "empty_array=; empty_object="}]
+    end
+  end
+
   test "raises on duplicate cookie parameter definitions" do
     assert_raise ArgumentError, ~r/duplicate cookie parameter "session_id"/, fn ->
       CookieParams.new!([

@@ -68,6 +68,12 @@ defmodule Tesla.OpenAPI.QueryStringTest do
              "https://api.example.com/search"
   end
 
+  test "empty query strings leave URLs with a fragment unchanged" do
+    assert QueryString.raw!("")
+           |> QueryString.append_to_url("https://api.example.com/search#section") ==
+             "https://api.example.com/search#section"
+  end
+
   test "empty query strings still reject URLs with existing query params" do
     query_string = QueryString.raw!("")
 
