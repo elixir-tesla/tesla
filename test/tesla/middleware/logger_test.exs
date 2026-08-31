@@ -348,6 +348,23 @@ defmodule Tesla.Middleware.LoggerTest do
       refute log =~ "server.address="
     end
 
+    test "non-binary URL skips the url attributes instead of crashing" do
+      client =
+        Tesla.client(
+          [{Tesla.Middleware.Logger, metadata: {:otel, []}}],
+          fn env -> {:ok, %{env | status: 200}} end
+        )
+
+      log = capture_log(@capture_opts, fn -> Tesla.get(client, nil) end)
+
+      assert log =~ "http.request.method=GET"
+      assert log =~ "http.response.status_code=200"
+      refute log =~ "url.full="
+      refute log =~ "url.scheme="
+      refute log =~ "server.address="
+      refute log =~ "server.port="
+    end
+
     test "connection error includes error.type" do
       client =
         Tesla.client(
