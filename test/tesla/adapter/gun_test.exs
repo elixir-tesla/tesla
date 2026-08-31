@@ -21,6 +21,8 @@ defmodule Tesla.Adapter.GunTest do
 
   import ExUnit.CaptureLog
 
+  @gun2 Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0")
+
   test "fallback adapter timeout option" do
     request = %Env{
       method: :get,
@@ -421,7 +423,7 @@ defmodule Tesla.Adapter.GunTest do
   end
 
   # Gun 1.0 backwards compatibility tests
-  if not (Application.spec(:gun, :vsn) |> List.to_string() |> Version.match?("~> 2.0")) do
+  if not @gun2 do
     test "error on socks proxy" do
       request = %Env{
         method: :get,
@@ -592,34 +594,36 @@ defmodule Tesla.Adapter.GunTest do
       assert connect =~ "CONNECT localhost:#{Application.get_env(:httparrot, :https_port)}"
     end
 
-    test "surfaces the socks version gun rejected" do
-      request = %Env{method: :get, url: "#{@http}/ip"}
-      proxy = {:socks4, ~c"localhost", Application.get_env(:httparrot, :http_port)}
+    if @gun2 do
+      test "surfaces the socks version gun rejected" do
+        request = %Env{method: :get, url: "#{@http}/ip"}
+        proxy = {:socks4, ~c"localhost", Application.get_env(:httparrot, :http_port)}
 
-      assert {:error, {:options, {:socks, {:version, 4}}}} ==
-               call(request, proxy: proxy, retry: 0, connect_timeout: 500, timeout: 1_000)
-    end
+        assert {:error, {:options, {:socks, {:version, 4}}}} ==
+                 call(request, proxy: proxy, retry: 0, connect_timeout: 500, timeout: 1_000)
+      end
 
-    test "opens a socks5 tunnel" do
-      request = %Env{method: :get, url: "#{@http}/ip"}
-      proxy = {:socks5, ~c"localhost", Application.get_env(:httparrot, :http_port)}
+      test "opens a socks5 tunnel" do
+        request = %Env{method: :get, url: "#{@http}/ip"}
+        proxy = {:socks5, ~c"localhost", Application.get_env(:httparrot, :http_port)}
 
-      assert {:error, :recv_response_timeout} ==
-               call(request, proxy: proxy, retry: 0, connect_timeout: 500, timeout: 500)
-    end
+        assert {:error, :recv_response_timeout} ==
+                 call(request, proxy: proxy, retry: 0, connect_timeout: 500, timeout: 500)
+      end
 
-    test "merges the socks options it was given over the tunnel defaults" do
-      request = %Env{method: :get, url: "#{@http}/ip"}
-      proxy = {:socks5, ~c"localhost", Application.get_env(:httparrot, :http_port)}
+      test "merges the socks options it was given over the tunnel defaults" do
+        request = %Env{method: :get, url: "#{@http}/ip"}
+        proxy = {:socks5, ~c"localhost", Application.get_env(:httparrot, :http_port)}
 
-      assert {:error, {:options, {:socks, {:version, 4}}}} ==
-               call(request,
-                 proxy: proxy,
-                 socks_opts: %{version: 4},
-                 retry: 0,
-                 connect_timeout: 500,
-                 timeout: 500
-               )
+        assert {:error, {:options, {:socks, {:version, 4}}}} ==
+                 call(request,
+                   proxy: proxy,
+                   socks_opts: %{version: 4},
+                   retry: 0,
+                   connect_timeout: 500,
+                   timeout: 500
+                 )
+      end
     end
   end
 
