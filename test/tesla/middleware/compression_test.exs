@@ -323,4 +323,96 @@ defmodule Tesla.Middleware.CompressionTest do
     assert {:ok, env} = CompressRequestHeadersClient.get("/")
     assert env.body == []
   end
+
+  defmodule FailingAdapterClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression, max_body_size: 32 * 1024 * 1024
+
+    adapter fn _env -> {:error, :econnrefused} end
+  end
+
+  test "passes an adapter error through untouched" do
+    assert {:error, :econnrefused} = FailingAdapterClient.get("/")
+  end
+
+  defmodule NoBodyClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression, max_body_size: 32 * 1024 * 1024
+
+    adapter fn env ->
+      {:ok, %{env | status: 204, headers: [{"content-length", "0"}], body: nil}}
+    end
+  end
+
+  test "leaves the content-length alone when there is no body to measure" do
+    assert {:ok, env} = NoBodyClient.get("/")
+    assert env.body == nil
+    assert env.headers == [{"content-length", "0"}]
+  end
+
+  defmodule InvalidLimitClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression, max_body_size: "32 megabytes"
+
+    adapter fn env -> {:ok, %{env | status: 200, headers: [], body: ""}} end
+  end
+
+  test "rejects a :max_body_size that is neither a positive integer nor :infinity" do
+    assert_raise ArgumentError, ~r/must be a positive integer or :infinity/, fn ->
+      InvalidLimitClient.get("/")
+    end
+  end
+
+  defmodule ZeroLimitClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression, max_body_size: 0
+
+    adapter fn env -> {:ok, %{env | status: 200, headers: [], body: ""}} end
+  end
+
+  test "rejects a :max_body_size of zero" do
+    assert_raise ArgumentError, ~r/must be a positive integer or :infinity/, fn ->
+      ZeroLimitClient.get("/")
+    end
+  end
+
+  # `:zlib.safeInflate/2` hands back at most 16 KiB per call, so a body that
+  # inflates past that is the only way to exercise more than one inflate step.
+  @multi_chunk_body String.duplicate("multi chunk body ", 6_000)
+
+  defmodule MultiChunkClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression, max_body_size: 32 * 1024 * 1024
+
+    adapter fn env ->
+      {:ok, %{env | status: 200, headers: [{"content-encoding", "gzip"}], body: env.body}}
+    end
+  end
+
+  test "inflates a body that spans several inflate steps" do
+    assert byte_size(@multi_chunk_body) > 16 * 1024
+    assert {:ok, env} = MultiChunkClient.post("/", @multi_chunk_body)
+    assert env.body == @multi_chunk_body
+  end
+
+  defmodule LateBombClient do
+    use Tesla
+
+    plug Tesla.Middleware.Compression, max_body_size: 20 * 1024
+
+    adapter fn env ->
+      {:ok, %{env | status: 200, headers: [{"content-encoding", "gzip"}], body: env.body}}
+    end
+  end
+
+  test "aborts once a later inflate step pushes the body past :max_body_size" do
+    assert_raise Tesla.Middleware.Compression.Error, ~r/max_body_size/, fn ->
+      LateBombClient.post("/", @multi_chunk_body)
+    end
+  end
 end
