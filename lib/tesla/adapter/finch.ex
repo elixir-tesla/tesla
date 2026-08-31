@@ -99,6 +99,8 @@ if Code.ensure_loaded?(Finch) do
       receive_timeout: 15_000
     ]
 
+    @finch_version :finch |> Application.spec(:vsn) |> to_string()
+
     @impl Tesla.Adapter
     def call(%Tesla.Env{} = env, opts) do
       opts = Tesla.Adapter.opts(@defaults, env, opts)
@@ -125,7 +127,11 @@ if Code.ensure_loaded?(Finch) do
     # the reasons callers matched on before, so the adapter behaves the same on both.
     defp unwrap_error(error) when is_struct(error, Finch.TransportError), do: error.reason
     defp unwrap_error(error) when is_struct(error, Finch.HTTPError), do: error.source || error
-    defp unwrap_error(%Mint.TransportError{reason: reason}), do: reason
+
+    if Version.match?(@finch_version, "< 0.22.0") do
+      defp unwrap_error(%Mint.TransportError{reason: reason}), do: reason
+    end
+
     defp unwrap_error(error), do: error
 
     defp build(method, url, headers, %Multipart{} = mp, opts) do
@@ -164,8 +170,12 @@ if Code.ensure_loaded?(Finch) do
         {:headers, headers}, status -> send(owner, {ref, {:status, status, headers}})
         {:data, data}, _acc -> send(owner, {ref, {:data, data}})
         {:trailers, trailers}, _acc -> trailers
-        # Handle errors passed to callback (e.g., proxy errors like {:proxy, {:unexpected_status, 403}})
+        # No released Finch hands an error to this callback, it reports one through the
+        # return value instead. Without these clauses such an entry would raise inside
+        # the task and the caller would see a timeout rather than the error.
+        # coveralls-ignore-next-line
         {:error, error}, _acc -> send(owner, {ref, {:error, error}})
+        # coveralls-ignore-next-line
         {:error, error, _}, _acc -> send(owner, {ref, {:error, error}})
       end
 
@@ -214,7 +224,6 @@ if Code.ensure_loaded?(Finch) do
       send(owner, {ref, :eof})
     end
 
-    @finch_version :finch |> Application.spec(:vsn) |> to_string()
     if Version.match?(@finch_version, ">= 0.20.0") do
       defp handle_stream_response({:error, error, _acc}, ref, owner) do
         send(owner, {ref, {:error, error}})

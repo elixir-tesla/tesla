@@ -207,9 +207,6 @@ defmodule Tesla.Middleware.Compression do
     catch
       :error, :data_error ->
         reraise Error, [reason: {:zlib, :data_error}], __STACKTRACE__
-
-      :error, {:data_error, _} = reason ->
-        reraise Error, [reason: {:zlib, reason}], __STACKTRACE__
     after
       :zlib.close(z)
     end

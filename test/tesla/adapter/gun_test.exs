@@ -460,6 +460,28 @@ defmodule Tesla.Adapter.GunTest do
              call(request, timeout: 1_500, retry: 5, retry_timeout: 50)
   end
 
+  # Leaves the caller holding a response stream with nothing left to read and an
+  # empty mailbox, so a test can decide what the next chunk read finds there.
+  defp drained_response_stream do
+    uri = URI.parse(@http)
+    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
+    {:ok, _} = :gun.await_up(conn)
+    on_exit(fn -> Gun.close(conn) end)
+
+    request = %Env{
+      method: :get,
+      url: "#{@http}/stream-bytes/10"
+    }
+
+    assert {:ok, %Env{status: 200, body: stream}} =
+             call(request, body_as: :stream, conn: conn, close_conn: false, timeout: 100)
+
+    Process.sleep(200)
+    :ok = :gun.flush(conn)
+
+    stream
+  end
+
   defp start_raw_server(on_request, opts \\ []) do
     {:ok, listen_socket} =
       :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
@@ -571,23 +593,23 @@ defmodule Tesla.Adapter.GunTest do
   end
 
   test "raises when the response stream stops receiving chunks" do
-    uri = URI.parse(@http)
-    {:ok, conn} = :gun.open(to_charlist(uri.host), uri.port)
-    {:ok, _} = :gun.await_up(conn)
-    on_exit(fn -> Gun.close(conn) end)
-
-    request = %Env{
-      method: :get,
-      url: "#{@http}/stream-bytes/10"
-    }
-
-    assert {:ok, %Env{status: 200, body: stream}} =
-             call(request, body_as: :stream, conn: conn, close_conn: false, timeout: 100)
-
-    Process.sleep(200)
-    :ok = :gun.flush(conn)
+    stream = drained_response_stream()
 
     assert_raise RuntimeError, ":recv_chunk_timeout", fn -> Enum.join(stream) end
+  end
+
+  test "reraises the exception the response stream failed with" do
+    stream = drained_response_stream()
+    send(self(), {:DOWN, make_ref(), :process, self(), %RuntimeError{message: "connection died"}})
+
+    assert_raise RuntimeError, "connection died", fn -> Enum.join(stream) end
+  end
+
+  test "raises the message the response stream failed with" do
+    stream = drained_response_stream()
+    send(self(), {:DOWN, make_ref(), :process, self(), "connection died"})
+
+    assert_raise RuntimeError, "connection died", fn -> Enum.join(stream) end
   end
 
   test "reuses a connection opened to an ip address" do

@@ -129,6 +129,57 @@ defmodule Tesla.Middleware.CompressionTest do
     end
   end
 
+  describe "zlib error contract" do
+    # The middleware catches :data_error as a bare atom. These pin that shape so a
+    # future OTP raising something else fails here instead of escaping the middleware.
+    test "empty gzip stream raises the bare atom" do
+      assert catch_zlib_error("", 47) == :data_error
+    end
+
+    test "garbage gzip stream raises the bare atom" do
+      assert catch_zlib_error("not gzip at all", 47) == :data_error
+    end
+
+    test "truncated gzip stream raises the bare atom" do
+      complete = :zlib.gzip("some body worth truncating")
+
+      assert catch_zlib_error(binary_part(complete, 0, byte_size(complete) - 5), 47) ==
+               :data_error
+    end
+
+    test "empty deflate stream raises the bare atom" do
+      assert catch_zlib_error("", 15) == :data_error
+    end
+
+    test "garbage deflate stream raises the bare atom" do
+      assert catch_zlib_error("not deflate at all", 15) == :data_error
+    end
+  end
+
+  test "surfaces the zlib reason on an undecompressable response" do
+    error =
+      assert_raise Tesla.Middleware.Compression.Error, fn ->
+        CompressionResponseClient.get("/response-empty")
+      end
+
+    assert error.reason == {:zlib, :data_error}
+  end
+
+  defp catch_zlib_error(body, window_bits) do
+    z = :zlib.open()
+
+    try do
+      :zlib.inflateInit(z, window_bits)
+      _ = :zlib.safeInflate(z, body)
+      :zlib.inflateEnd(z)
+      :no_error
+    catch
+      :error, reason -> reason
+    after
+      :zlib.close(z)
+    end
+  end
+
   test "updates existing content-length header" do
     expected_body = "decompressed gzip"
     assert {:ok, env} = CompressionResponseClient.get("/response-with-content-length")

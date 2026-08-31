@@ -35,6 +35,8 @@ if Code.ensure_loaded?(:hackney) do
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
 
+    @hackney_version :hackney |> Application.spec(:vsn) |> to_string()
+
     # Hackney 1.x async/stream responses return a `reference()`, 4.x returns a `pid()`.
     defguardp is_hackney_ref(ref) when is_reference(ref) or is_pid(ref)
 
@@ -121,7 +123,10 @@ if Code.ensure_loaded?(:hackney) do
       end)
     end
 
-    defp handle({:connect_error, {:error, reason}}, _opts), do: {:error, reason}
+    if Version.match?(@hackney_version, "< 4.0.0") do
+      defp handle({:connect_error, {:error, reason}}, _opts), do: {:error, reason}
+    end
+
     defp handle({:error, _} = error, _opts), do: error
     defp handle({:ok, status, headers}, _opts), do: {:ok, status, headers, []}
 
