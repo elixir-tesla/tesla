@@ -12,6 +12,11 @@ on:
       - master
   workflow_dispatch:
 
+# Coverage reporting forwards this token to a third party, so cap it here rather
+# than inheriting whatever the organisation default happens to be.
+permissions:
+  contents: read
+
 concurrency:
   group: CI ${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -125,7 +130,13 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Test
+        if: matrix.versions.elixir != '1.19.0'
         run: mix test
+
+      # Enforces :minimum_coverage, which the reporting task below does not check.
+      - name: Test and enforce coverage
+        if: matrix.versions.elixir == '1.19.0'
+        run: mix coveralls
 
       # One entry reports, so the matrix does not post three times for one commit.
       # Reporting never gates the job: excoveralls raises when the upload fails, and
