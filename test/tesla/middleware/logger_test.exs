@@ -147,6 +147,33 @@ defmodule Tesla.Middleware.LoggerTest do
       assert log =~ "Stream"
     end
 
+    test "connection error dumps the request and the reason" do
+      log = capture_log(fn -> Client.get("/connection-error", query: %{"test" => "true"}) end)
+
+      assert log =~ ">>> REQUEST >>>"
+      assert log =~ "Query: test: true"
+      assert log =~ ~r/<<< RESPONSE ERROR <<<\n:econnrefused/
+    end
+
+    test "empty list body" do
+      log = capture_log(fn -> Client.post("/ok", []) end)
+      assert log =~ "(no body)"
+    end
+
+    test "stream given as a function" do
+      stream =
+        Stream.unfold(1, fn
+          n when n <= 3 -> {"chunk: #{n}", n + 1}
+          _n -> nil
+        end)
+
+      assert is_function(stream)
+
+      log = capture_log(fn -> Client.post("/ok", stream) end)
+      assert log =~ "/ok -> 200"
+      assert log =~ "[Elixir.Stream]"
+    end
+
     test "config at runtime" do
       client =
         Tesla.client([{Tesla.Middleware.Logger, debug: false}], fn env ->
@@ -704,6 +731,53 @@ defmodule Tesla.Middleware.LoggerTest do
     test "always logs at the specified level" do
       log = capture_log(fn -> ClientWithFixedLevel.get("/any-request") end)
       assert log =~ "[warning] GET /any-request -> 200"
+    end
+  end
+
+  describe "with level as a non-warning atom" do
+    defmodule ClientWithInfoLevel do
+      use Tesla
+
+      plug Tesla.Middleware.Logger, level: :info
+
+      adapter fn env -> {:ok, %{env | status: 500, body: "error"}} end
+    end
+
+    test "logs at the given level even for a failing response" do
+      Logger.configure(level: :info)
+      log = capture_log(fn -> ClientWithInfoLevel.get("/server-error") end)
+      assert log =~ "[info] GET /server-error -> 500"
+    end
+  end
+
+  describe "with level returning :default" do
+    defmodule ClientWithDeferredLevel do
+      use Tesla
+
+      plug Tesla.Middleware.Logger, level: &level/1
+
+      defp level(_response), do: :default
+
+      adapter fn env ->
+        case env.url do
+          "/ok" -> {:ok, %{env | status: 200, body: "ok"}}
+          "/redirect" -> {:ok, %{env | status: 301, body: "moved"}}
+          "/server-error" -> {:ok, %{env | status: 500, body: "error"}}
+        end
+      end
+    end
+
+    test ":default falls back to the status based level" do
+      Logger.configure(level: :info)
+
+      assert capture_log(fn -> ClientWithDeferredLevel.get("/ok") end) =~
+               "[info] GET /ok -> 200"
+
+      assert capture_log(fn -> ClientWithDeferredLevel.get("/redirect") end) =~
+               "[warning] GET /redirect -> 301"
+
+      assert capture_log(fn -> ClientWithDeferredLevel.get("/server-error") end) =~
+               "[error] GET /server-error -> 500"
     end
   end
 

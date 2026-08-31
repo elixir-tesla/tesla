@@ -47,6 +47,8 @@ defmodule TeslaTest do
       # clean config
       Application.delete_env(:tesla, EmptyClient)
       Application.delete_env(:tesla, ModuleAdapterClient)
+      Application.delete_env(:tesla, :adapter)
+      on_exit(fn -> Application.delete_env(:tesla, :adapter) end)
       :ok
     end
 
@@ -57,6 +59,21 @@ defmodule TeslaTest do
     test "use adapter override from config" do
       Application.put_env(:tesla, EmptyClient, adapter: Tesla.Mock)
       assert Tesla.effective_adapter(EmptyClient) == {Tesla.Mock, :call, [[]]}
+    end
+
+    test "use adapter override with options from config" do
+      Application.put_env(:tesla, EmptyClient, adapter: {Tesla.Mock, with: "someopt"})
+      assert Tesla.effective_adapter(EmptyClient) == {Tesla.Mock, :call, [[with: "someopt"]]}
+    end
+
+    test "fall back to the adapter configured for the application" do
+      Application.put_env(:tesla, :adapter, Tesla.Mock)
+      assert Tesla.effective_adapter(EmptyClient) == {Tesla.Mock, :call, [[]]}
+    end
+
+    test "fall back to the adapter with options configured for the application" do
+      Application.put_env(:tesla, :adapter, {Tesla.Mock, with: "someopt"})
+      assert Tesla.effective_adapter(EmptyClient) == {Tesla.Mock, :call, [[with: "someopt"]]}
     end
 
     test "prefer config over module setting" do
@@ -135,6 +152,27 @@ defmodule TeslaTest do
     test "execute middleware top down" do
       assert {:ok, response} = AppendClient.get("one")
       assert response.url == "one/1/MB1/MB2/MA2/MA1"
+    end
+
+    test "run an anonymous function middleware followed by the rest of the stack" do
+      middleware = fn env, next -> Tesla.run(%{env | url: env.url <> "/mw"}, next) end
+      adapter = fn env -> {:ok, %{env | url: env.url <> "/adapter"}} end
+
+      assert {:ok, env} =
+               Tesla.run(%Tesla.Env{url: "one"}, [{:fn, middleware}, {:fn, adapter}])
+
+      assert env.url == "one/mw/adapter"
+    end
+  end
+
+  describe "deprecated builders" do
+    test "build_adapter wraps a function into a client" do
+      adapter = fn env -> {:ok, %{env | body: "from adapter"}} end
+
+      client = apply(Tesla, :build_adapter, [adapter])
+
+      assert {:ok, env} = Tesla.get(client, "/")
+      assert env.body == "from adapter"
     end
   end
 

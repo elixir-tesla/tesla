@@ -206,3 +206,37 @@ defmodule Tesla.BuilderTest do
     end
   end
 end
+
+defmodule Tesla.BuilderDeprecationTest do
+  use ExUnit.Case, async: false
+
+  import ExUnit.CaptureIO
+
+  setup do
+    previous = Application.get_env(:tesla, :disable_deprecated_builder_warning)
+    Application.put_env(:tesla, :disable_deprecated_builder_warning, false)
+
+    on_exit(fn ->
+      case previous do
+        nil -> Application.delete_env(:tesla, :disable_deprecated_builder_warning)
+        value -> Application.put_env(:tesla, :disable_deprecated_builder_warning, value)
+      end
+    end)
+
+    :ok
+  end
+
+  test "use Tesla warns that the builder is soft-deprecated" do
+    output =
+      capture_io(:stderr, fn ->
+        Code.eval_string("""
+        defmodule Tesla.BuilderDeprecationTest.WarnedClient do
+          use Tesla
+        end
+        """)
+      end)
+
+    assert output =~ "are soft-deprecated"
+    assert output =~ "disable_deprecated_builder_warning: true"
+  end
+end

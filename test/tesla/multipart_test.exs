@@ -113,6 +113,16 @@ defmodule Tesla.MultipartTest do
         Multipart.new()
         |> Multipart.add_field("foo", "value", headers: [{"content-id\r\nX-Injected", "1"}])
       end
+
+      assert_raise ArgumentError, ~r/header name/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", "value", headers: [{"", "1"}])
+      end
+
+      assert_raise ArgumentError, ~r/header name/, fn ->
+        Multipart.new()
+        |> Multipart.add_field("foo", "value", headers: [{" content-id", "1"}])
+      end
     end
 
     test "add_field rejects CTL in header value" do
@@ -172,6 +182,22 @@ defmodule Tesla.MultipartTest do
       assert_raise ArgumentError, ~r/disposition value/, fn ->
         Multipart.new()
         |> Multipart.add_file_content("data", "evil\r\nX-Injected: pwned")
+      end
+    end
+
+    test "part_headers_for_disposition emits nothing without dispositions" do
+      assert Multipart.part_headers_for_disposition([]) == []
+    end
+
+    test "part_headers_for_disposition rejects CR or LF in a disposition value" do
+      assert_raise ArgumentError, ~r/must not contain CR or LF characters/, fn ->
+        Multipart.part_headers_for_disposition(name: "evil\r\nX-Injected: pwned")
+      end
+    end
+
+    test "part_headers_for_disposition rejects a double-quote in a disposition value" do
+      assert_raise ArgumentError, ~r/must not contain double-quote characters/, fn ->
+        Multipart.part_headers_for_disposition(name: ~s(ev"il))
       end
     end
   end
