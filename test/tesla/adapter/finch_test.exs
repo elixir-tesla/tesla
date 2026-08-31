@@ -65,6 +65,12 @@ defmodule Tesla.Adapter.FinchTest do
              )
   end
 
+  test "raises on an unknown :response option" do
+    assert_raise RuntimeError, ~r/Unknown response option: :bogus/, fn ->
+      call(%Env{method: :get, url: "#{@http}/ip"}, response: :bogus)
+    end
+  end
+
   describe "streamed response failures" do
     test "raises with the transport reason when the connection drops mid stream" do
       url = start_chunked_server(fn socket -> :gen_tcp.close(socket) end)
@@ -82,6 +88,18 @@ defmodule Tesla.Adapter.FinchTest do
                call(%Env{method: :get, url: url}, response: :stream, receive_timeout: 200)
 
       assert_raise Tesla.Error, ~r/^:timeout /, fn -> Enum.to_list(env.body) end
+    end
+
+    test "ends the stream without raising when the response carries trailers" do
+      url =
+        start_chunked_server(fn socket ->
+          :gen_tcp.send(socket, "0\r\nx-checksum: abc123\r\n\r\n")
+        end)
+
+      assert {:ok, env} =
+               call(%Env{method: :get, url: url}, response: :stream, receive_timeout: 200)
+
+      assert Enum.to_list(env.body) == ["hello"]
     end
 
     test "ends the stream without raising when the response completes" do

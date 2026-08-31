@@ -102,4 +102,12 @@ defmodule Tesla.Adapter.HttpcTest do
 
     assert data["headers"]["content-type"] == "text/plain"
   end
+
+  test "binary body format is passed through untouched" do
+    env = %Env{method: :get, url: "#{@http}/base64/dGVzbGE"}
+
+    assert {:ok, %Env{} = response} = call(env, body_format: :binary)
+    assert response.status == 200
+    assert response.body == "tesla"
+  end
 end
