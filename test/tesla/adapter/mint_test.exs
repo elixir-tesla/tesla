@@ -320,6 +320,30 @@ defmodule Tesla.Adapter.MintTest do
       assert posted_headers(response.body)["content-length"] == Integer.to_string(byte_size(body))
     end
 
+    test "keeps the content-length the request already carries" do
+      body = "hello"
+
+      request = %Env{
+        method: :post,
+        url: "#{@https}/post",
+        headers: [
+          {"content-type", "text/plain"},
+          {"content-length", Integer.to_string(byte_size(body))}
+        ],
+        body: body
+      }
+
+      assert {:ok, %Env{} = response} =
+               call(request,
+                 protocols: [:http2],
+                 transport_opts: [cacertfile: httparrot_cacertfile()]
+               )
+
+      assert response.status == 200
+      assert posted_data(response.body) == body
+      assert posted_headers(response.body)["content-length"] == Integer.to_string(byte_size(body))
+    end
+
     test "handles request bodies larger than the flow control window" do
       body = String.duplicate("a", @large_http2_request_size)
 
@@ -1018,6 +1042,445 @@ defmodule Tesla.Adapter.MintTest do
     Enum.count(:erlang.ports(), fn port ->
       :erlang.port_info(port, :connected) == {:connected, self()}
     end)
+  end
+
+  describe "HTTP/2 connection shared with another request" do
+    setup do
+      listener_ref = :"mint-shared-http2-#{System.unique_integer([:positive])}"
+      priv_dir = :code.priv_dir(:httparrot)
+
+      dispatch =
+        :cowboy_router.compile([
+          {:_,
+           [
+             {"/stream-reset", Tesla.TestSupport.MintInternalErrorRequestHandler, []},
+             {"/upload", Tesla.TestSupport.MintUploadEchoHandler, []}
+           ]}
+        ])
+
+      {:ok, _pid} =
+        :cowboy.start_tls(
+          listener_ref,
+          [
+            port: 0,
+            certfile: priv_dir ++ ~c"/ssl/server.crt",
+            keyfile: priv_dir ++ ~c"/ssl/server.key"
+          ],
+          %{
+            env: %{dispatch: dispatch},
+            stream_handlers: [Tesla.TestSupport.MintInternalErrorStreamHandler, :cowboy_stream_h]
+          }
+        )
+
+      on_exit(fn -> :cowboy.stop_listener(listener_ref) end)
+
+      {_, port} = :ranch.get_addr(listener_ref)
+
+      {:ok, conn} =
+        Mint.HTTP.connect(:https, "localhost", port,
+          protocols: [:http2],
+          transport_opts: [cacertfile: httparrot_cacertfile()],
+          mode: :passive
+        )
+
+      on_exit(fn -> Mint.HTTP.close(conn) end)
+
+      {:ok, conn: conn, port: port, original: "localhost:#{port}"}
+    end
+
+    test "skips the reset of another request", %{conn: conn, port: port, original: original} do
+      {:ok, conn, _reset_ref} = Mint.HTTP.request(conn, "GET", "/stream-reset", [], nil)
+      Process.sleep(100)
+
+      request = %Env{
+        method: :post,
+        url: "https://localhost:#{port}/upload",
+        headers: [{"content-type", "text/plain"}],
+        body: "hello"
+      }
+
+      assert {:ok, %Env{status: 200, body: "5"}} =
+               call(request,
+                 conn: conn,
+                 original: original,
+                 mode: :passive,
+                 close_conn: false,
+                 protocols: [:http2]
+               )
+    end
+
+    test "skips the pong of another request", %{conn: conn, port: port, original: original} do
+      {:ok, conn, _ping_ref} = Mint.HTTP2.ping(conn)
+
+      request = %Env{
+        method: :post,
+        url: "https://localhost:#{port}/upload",
+        headers: [{"content-type", "text/plain"}],
+        body: "hello"
+      }
+
+      assert {:ok, %Env{status: 200, body: "5"}} =
+               call(request,
+                 conn: conn,
+                 original: original,
+                 mode: :passive,
+                 close_conn: false,
+                 protocols: [:http2]
+               )
+    end
+
+    test "surfaces the error mint reported while sending an HTTP/2 body chunk", %{
+      conn: conn,
+      port: port,
+      original: original
+    } do
+      socket = Mint.HTTP.get_socket(conn)
+
+      body =
+        Stream.map([:sent, :after_close], fn
+          :sent ->
+            String.duplicate("a", 100)
+
+          :after_close ->
+            :ssl.close(socket)
+            String.duplicate("b", 100)
+        end)
+
+      request = %Env{
+        method: :post,
+        url: "https://localhost:#{port}/upload",
+        headers: [{"content-type", "text/plain"}],
+        body: body
+      }
+
+      assert {:error, %Mint.TransportError{reason: :closed}} ==
+               call(request,
+                 conn: conn,
+                 original: original,
+                 mode: :passive,
+                 close_conn: false,
+                 protocols: [:http2]
+               )
+    end
+  end
+
+  describe "cacert configured for the adapter" do
+    setup do
+      on_exit(fn -> Application.delete_env(:tesla, Tesla.Adapter.Mint) end)
+      :ok
+    end
+
+    test "verifies the peer with the configured cacertfile" do
+      Application.put_env(:tesla, Tesla.Adapter.Mint, cacert: httparrot_cacertfile())
+
+      request = %Env{method: :get, url: "#{@https}/ip"}
+
+      assert {:ok, %Env{status: 200}} = call(request)
+    end
+
+    test "adds the configured cacertfile to the transport options it was given" do
+      Application.put_env(:tesla, Tesla.Adapter.Mint, cacert: httparrot_cacertfile())
+
+      request = %Env{method: :get, url: "#{@https}/ip"}
+
+      assert {:ok, %Env{status: 200}} = call(request, transport_opts: [depth: 3])
+    end
+
+    test "keeps the cacertfile the caller passed in transport options" do
+      Application.put_env(:tesla, Tesla.Adapter.Mint, cacert: "/nonexistent/ca.crt")
+
+      request = %Env{method: :get, url: "#{@https}/ip"}
+
+      assert {:ok, %Env{status: 200}} =
+               call(request, transport_opts: [cacertfile: httparrot_cacertfile()])
+    end
+  end
+
+  describe "errors while receiving the response" do
+    setup do
+      uri = URI.parse(@http)
+      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port, mode: :active)
+      on_exit(fn -> Mint.HTTP.close(conn) end)
+      {:ok, conn: conn, original: "#{uri.host}:#{uri.port}", uri: uri}
+    end
+
+    test "gives up once no message arrives in time", %{conn: conn, original: original} do
+      request = %Env{method: :get, url: "#{@http}/delay/2"}
+
+      assert {:error, :timeout} ==
+               call(request, conn: conn, original: original, close_conn: false, timeout: 100)
+    end
+
+    test "reports a message that belongs to another connection as unknown", %{
+      conn: conn,
+      original: original,
+      uri: uri
+    } do
+      {:ok, other} = Mint.HTTP.connect(:http, uri.host, uri.port, mode: :active)
+      on_exit(fn -> Mint.HTTP.close(other) end)
+
+      send(self(), {:tcp, Mint.HTTP.get_socket(other), "not for this connection"})
+
+      request = %Env{method: :get, url: "#{@http}/ip"}
+
+      assert {:error, :unknown} ==
+               call(request, conn: conn, original: original, close_conn: false)
+    end
+
+    test "surfaces the transport error mint reported", %{conn: conn, original: original} do
+      send(self(), {:tcp_error, Mint.HTTP.get_socket(conn), :econnreset})
+
+      request = %Env{method: :get, url: "#{@http}/ip"}
+
+      assert {:error, "Encounter Mint error %Mint.TransportError{reason: :econnreset}"} ==
+               call(request, conn: conn, original: original, close_conn: false)
+    end
+
+    test "skips the responses of another request on the same connection", %{uri: uri} do
+      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port, mode: :passive)
+      on_exit(fn -> Mint.HTTP.close(conn) end)
+
+      {:ok, conn, _pipelined_ref} = Mint.HTTP.request(conn, "GET", "/stream/100", [], nil)
+
+      request = %Env{method: :get, url: "#{@http}/status/204"}
+
+      assert {:ok, %Env{status: 204, body: nil} = response} =
+               call(request,
+                 conn: conn,
+                 original: "#{uri.host}:#{uri.port}",
+                 mode: :passive,
+                 close_conn: false
+               )
+
+      refute Tesla.get_header(response, "transfer-encoding")
+    end
+  end
+
+  describe "errors while sending the request" do
+    setup do
+      uri = URI.parse(@http)
+      {:ok, uri: uri, original: "#{uri.host}:#{uri.port}"}
+    end
+
+    test "surfaces the error mint reported when opening a streamed request", %{
+      uri: uri,
+      original: original
+    } do
+      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port, mode: :active)
+      {:ok, conn, _in_flight_ref} = Mint.HTTP.request(conn, "POST", "/post", [], :stream)
+      on_exit(fn -> Mint.HTTP.close(conn) end)
+
+      request = %Env{
+        method: :post,
+        url: "#{@http}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: Stream.map(["ab"], & &1)
+      }
+
+      assert {:error, %Mint.HTTPError{reason: :request_body_is_streaming, module: Mint.HTTP1}} ==
+               call(request, conn: conn, original: original, close_conn: false)
+    end
+
+    test "surfaces the error mint reported when sending the request", %{
+      uri: uri,
+      original: original
+    } do
+      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port, mode: :active)
+      {:ok, conn, _in_flight_ref} = Mint.HTTP.request(conn, "POST", "/post", [], :stream)
+      on_exit(fn -> Mint.HTTP.close(conn) end)
+
+      request = %Env{
+        method: :post,
+        url: "#{@http}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: "ab"
+      }
+
+      assert {:error, %Mint.HTTPError{reason: :request_body_is_streaming, module: Mint.HTTP1}} ==
+               call(request, conn: conn, original: original, close_conn: false)
+    end
+
+    test "surfaces the error mint reported while sending a body chunk", %{
+      uri: uri,
+      original: original
+    } do
+      {:ok, conn} = Mint.HTTP.connect(:http, uri.host, uri.port, mode: :passive)
+      socket = Mint.HTTP.get_socket(conn)
+
+      body =
+        Stream.map([:sent, :after_close], fn
+          :sent ->
+            "ab"
+
+          :after_close ->
+            :gen_tcp.close(socket)
+            "cd"
+        end)
+
+      request = %Env{
+        method: :post,
+        url: "#{@http}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: body
+      }
+
+      assert {:error, %Mint.TransportError{reason: :closed}} ==
+               call(request,
+                 conn: conn,
+                 original: original,
+                 mode: :passive,
+                 close_conn: false
+               )
+    end
+  end
+
+  describe "request bodies streamed chunk by chunk" do
+    test "skips the empty chunks the stream yields" do
+      request = %Env{
+        method: :post,
+        url: "#{@http}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: Stream.map(["", "ab", "", "cd"], & &1)
+      }
+
+      assert {:ok, %Env{} = response} = call(request)
+      assert posted_data(response.body) == "abcd"
+    end
+
+    test "sends the bytes a stream of integers yields" do
+      request = %Env{
+        method: :post,
+        url: "#{@http}/post",
+        headers: [{"content-type", "text/plain"}],
+        body: Stream.map(~c"abc", & &1)
+      }
+
+      assert {:ok, %Env{} = response} = call(request)
+      assert posted_data(response.body) == "abc"
+    end
+  end
+
+  describe "responses streamed over HTTP/1" do
+    setup do
+      listener_ref = :"mint-streamed-response-#{System.unique_integer([:positive])}"
+
+      {:ok, _pid} =
+        :cowboy.start_clear(listener_ref, [port: 0], %{env: %{dispatch: streamed_dispatch()}})
+
+      on_exit(fn -> :cowboy.stop_listener(listener_ref) end)
+
+      {_, port} = :ranch.get_addr(listener_ref)
+
+      {:ok, port: port, url: "http://localhost:#{port}", original: "localhost:#{port}"}
+    end
+
+    test "appends the trailers to the response headers", %{url: url} do
+      request = %Env{method: :get, url: "#{url}/trailers", headers: [{"te", "trailers"}]}
+
+      assert {:ok, %Env{} = response} = call(request)
+      assert response.body == "hello"
+      assert Tesla.get_header(response, "content-type") == "text/plain"
+      assert Tesla.get_header(response, "x-checksum") == "abc"
+    end
+
+    test "reports an empty chunk while the body is still pending", %{url: url} do
+      request = %Env{method: :get, url: "#{url}/stalled"}
+
+      assert {:ok, %Env{status: 200, body: %{body: {:nofin, ""}}}} =
+               call(request, body_as: :chunks, close_conn: false)
+    end
+
+    test "emits every chunk a response delivered across packets", %{url: url} do
+      request = %Env{method: :get, url: "#{url}/chunked"}
+
+      assert {:ok, %Env{body: body}} = call(request, body_as: :stream)
+      assert IO.iodata_to_binary(Enum.to_list(body)) == String.duplicate("chunk", 200)
+    end
+
+    test "waits for a packet that does not complete a chunk", %{
+      url: url,
+      port: port,
+      original: original
+    } do
+      {:ok, conn} = Mint.HTTP.connect(:http, "localhost", port, mode: :active)
+      on_exit(fn -> Mint.HTTP.close(conn) end)
+
+      socket = Mint.HTTP.get_socket(conn)
+      request = %Env{method: :get, url: "#{url}/stalled"}
+
+      assert {:ok, %Env{body: body}} =
+               call(request,
+                 conn: conn,
+                 original: original,
+                 body_as: :stream,
+                 close_conn: false
+               )
+
+      send(self(), {:tcp, socket, "5"})
+      send(self(), {:tcp, socket, "\r\nhello\r\n"})
+      send(self(), {:tcp, socket, "0\r\n\r\n"})
+
+      assert Enum.to_list(body) == ["hello"]
+    end
+
+    test "raises the timeout the body stream waited on", %{
+      url: url,
+      port: port,
+      original: original
+    } do
+      {:ok, conn} = Mint.HTTP.connect(:http, "localhost", port, mode: :active)
+      on_exit(fn -> Mint.HTTP.close(conn) end)
+
+      request = %Env{method: :get, url: "#{url}/stalled"}
+
+      assert {:ok, %Env{body: body}} =
+               call(request,
+                 conn: conn,
+                 original: original,
+                 body_as: :stream,
+                 close_conn: false,
+                 timeout: 200
+               )
+
+      assert_raise RuntimeError, ":timeout", fn -> Enum.to_list(body) end
+    end
+
+    test "raises the transport error the body stream hit", %{
+      url: url,
+      port: port,
+      original: original
+    } do
+      {:ok, conn} = Mint.HTTP.connect(:http, "localhost", port, mode: :active)
+      on_exit(fn -> Mint.HTTP.close(conn) end)
+
+      socket = Mint.HTTP.get_socket(conn)
+      request = %Env{method: :get, url: "#{url}/stalled"}
+
+      assert {:ok, %Env{body: body}} =
+               call(request,
+                 conn: conn,
+                 original: original,
+                 body_as: :stream,
+                 close_conn: false
+               )
+
+      send(self(), {:tcp_error, socket, :econnreset})
+
+      assert_raise RuntimeError,
+                   "Encounter Mint error %Mint.TransportError{reason: :econnreset}",
+                   fn -> Enum.to_list(body) end
+    end
+  end
+
+  defp streamed_dispatch do
+    :cowboy_router.compile([
+      {:_,
+       [
+         {"/chunked", Tesla.TestSupport.MintChunkedBodyHandler, []},
+         {"/stalled", Tesla.TestSupport.MintStalledBodyHandler, []},
+         {"/trailers", Tesla.TestSupport.MintTrailersHandler, []}
+       ]}
+    ])
   end
 
   defp early_response_dispatch do
