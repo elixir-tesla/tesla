@@ -138,6 +138,26 @@ defmodule Tesla.OpenAPI.CookieParamsTest do
            ]
   end
 
+  test "form style percent-encodes exploded object keys even when allow_reserved is true" do
+    for {allow_reserved, expected} <- [
+          {false, "a%2Fb%20name=x%2Fy%20z"},
+          {true, "a%2Fb%20name=x/y%20z"}
+        ] do
+      cookie_params =
+        CookieParams.new!([
+          CookieParam.new!("filter",
+            style: :form,
+            explode: true,
+            allow_reserved: allow_reserved
+          )
+        ])
+
+      assert CookieParams.to_headers(cookie_params, %{
+               "filter" => %{"a/b name" => "x/y z"}
+             }) == [{"cookie", expected}]
+    end
+  end
+
   test "form style preserves reserved values and percent triples when allow_reserved is true" do
     cookie_params =
       CookieParams.new!([
