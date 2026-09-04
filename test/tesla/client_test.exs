@@ -340,9 +340,10 @@ defmodule Tesla.ClientTest do
       try do
         fun.()
       after
-        if previous,
-          do: Application.put_env(:tesla, :inspect, previous),
-          else: Application.delete_env(:tesla, :inspect)
+        case previous do
+          nil -> Application.delete_env(:tesla, :inspect)
+          value -> Application.put_env(:tesla, :inspect, value)
+        end
       end
     end
 
