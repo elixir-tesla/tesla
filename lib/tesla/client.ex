@@ -1,4 +1,31 @@
 defmodule Tesla.Client do
+  @moduledoc ~S"""
+  A client is the middleware stack and adapter a request runs through.
+
+  ## Inspecting a client
+
+  Middleware options routinely hold secrets: an `Authorization` header given
+  to `Tesla.Middleware.Headers`, an API key in `Tesla.Middleware.Query`, a
+  token in a custom middleware. Because `%Tesla.Env{}` embeds the client as
+  `__client__`, those values would otherwise appear whenever an env or a
+  client is passed to `inspect/1` — which is exactly what happens in the
+  common `Logger.error("request failed: #{inspect(env)}")` pattern.
+
+  For that reason `inspect/1` shows middleware and adapter *modules* but
+  redacts their options by default:
+
+      iex> client = Tesla.client([{Tesla.Middleware.Headers, [{"authorization", "Bearer s3cret"}]}, Tesla.Middleware.JSON])
+      iex> inspect(client)
+      "#Tesla.Client<adapter: nil, middleware: [{Tesla.Middleware.Headers, :redacted}, Tesla.Middleware.JSON]>"
+
+  To see the full options while debugging, opt in:
+
+      config :tesla, inspect: :full
+
+  The rendering is for humans; use `Tesla.Client.middleware/1` and
+  `Tesla.Client.adapter/1` to read a client's configuration from code.
+  """
+
   @type adapter :: module | {module, any} | (Tesla.Env.t() -> Tesla.Env.result())
   @type middleware :: module | {module, any}
 
@@ -156,4 +183,41 @@ defmodule Tesla.Client do
   defp unruntime({module, :call, [[]]}) when is_atom(module), do: module
   defp unruntime({module, :call, [opts]}) when is_atom(module), do: {module, opts}
   defp unruntime({:fn, fun}) when is_function(fun), do: fun
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    # Renders from the public user-form (`adapter/1`, `middleware/1`) rather
+    # than the runtime stack, so this stays correct if the internal
+    # representation changes.
+    def inspect(%Tesla.Client{} = client, opts) do
+      mode = Application.get_env(:tesla, :inspect, :redacted)
+
+      fields =
+        [
+          adapter: render(Tesla.Client.adapter(client), mode),
+          middleware: render_stack(Tesla.Client.middleware(client), mode)
+        ] ++ post_entries(client, mode)
+
+      container_doc("#Tesla.Client<", fields, ">", opts, &field_doc/2,
+        separator: ",",
+        break: :strict
+      )
+    end
+
+    defp field_doc({key, value}, opts),
+      do: concat([Atom.to_string(key), ": ", to_doc(value, opts)])
+
+    defp post_entries(%Tesla.Client{post: []}, _mode), do: []
+
+    defp post_entries(%Tesla.Client{post: post}, mode),
+      do: [post: render_stack(Tesla.Client.middleware(%Tesla.Client{pre: post}), mode)]
+
+    defp render_stack(entries, mode), do: Enum.map(entries, &render(&1, mode))
+
+    defp render(entry, :full), do: entry
+    defp render({module, _opts}, _redacted) when is_atom(module), do: {module, :redacted}
+    defp render(module, _redacted) when is_atom(module), do: module
+    defp render(fun, _redacted) when is_function(fun), do: :fn
+  end
 end
