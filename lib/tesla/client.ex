@@ -187,12 +187,17 @@ defmodule Tesla.Client do
   defimpl Inspect do
     import Inspect.Algebra
 
+    # Renders from the public user-form (`adapter/1`, `middleware/1`) rather
+    # than the runtime stack, so this stays correct if the internal
+    # representation changes.
     def inspect(%Tesla.Client{} = client, opts) do
       mode = Application.get_env(:tesla, :inspect, :redacted)
 
       fields =
-        [adapter: adapter_entry(client, mode), middleware: middleware_entries(client.pre, mode)] ++
-          post_entries(client.post, mode)
+        [
+          adapter: render(Tesla.Client.adapter(client), mode),
+          middleware: render_stack(Tesla.Client.middleware(client), mode)
+        ] ++ post_entries(client, mode)
 
       container_doc("#Tesla.Client<", fields, ">", opts, &field_doc/2,
         separator: ",",
@@ -203,24 +208,16 @@ defmodule Tesla.Client do
     defp field_doc({key, value}, opts),
       do: concat([Atom.to_string(key), ": ", to_doc(value, opts)])
 
-    defp adapter_entry(%{adapter: nil}, _mode), do: nil
-    defp adapter_entry(client, :full), do: Tesla.Client.adapter(client)
-    defp adapter_entry(%{adapter: adapter}, _redacted), do: redact(adapter)
+    defp post_entries(%Tesla.Client{post: []}, _mode), do: []
 
-    defp middleware_entries(stack, :full), do: unruntime(stack)
-    defp middleware_entries(stack, _redacted), do: Enum.map(stack, &redact/1)
+    defp post_entries(%Tesla.Client{post: post}, mode),
+      do: [post: render_stack(Tesla.Client.middleware(%Tesla.Client{pre: post}), mode)]
 
-    defp post_entries([], _mode), do: []
-    defp post_entries(stack, mode), do: [post: middleware_entries(stack, mode)]
+    defp render_stack(entries, mode), do: Enum.map(entries, &render(&1, mode))
 
-    defp redact({module, :call, [[]]}) when is_atom(module), do: module
-    defp redact({module, :call, [_opts]}) when is_atom(module), do: {module, :redacted}
-    defp redact({:fn, fun}) when is_function(fun), do: :fn
-    defp redact(_other), do: :redacted
-
-    defp unruntime(stack) when is_list(stack), do: Enum.map(stack, &unruntime/1)
-    defp unruntime({module, :call, [[]]}) when is_atom(module), do: module
-    defp unruntime({module, :call, [opts]}) when is_atom(module), do: {module, opts}
-    defp unruntime({:fn, fun}) when is_function(fun), do: fun
+    defp render(entry, :full), do: entry
+    defp render({module, _opts}, _redacted) when is_atom(module), do: {module, :redacted}
+    defp render(module, _redacted) when is_atom(module), do: module
+    defp render(fun, _redacted) when is_function(fun), do: :fn
   end
 end
