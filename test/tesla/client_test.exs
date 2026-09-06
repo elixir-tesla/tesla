@@ -317,4 +317,87 @@ defmodule Tesla.ClientTest do
       assert middlewares == Client.middleware(client)
     end
   end
+
+  describe "Inspect" do
+    @secret "Bearer s3cret-token"
+
+    defp secret_client do
+      Tesla.client(
+        [
+          {Tesla.Middleware.BaseUrl, "https://api.example.com"},
+          {Tesla.Middleware.Headers, [{"authorization", @secret}]},
+          Tesla.Middleware.JSON,
+          fn env, next -> Tesla.run(env, next) end
+        ],
+        {Tesla.Adapter.Httpc, [recv_timeout: 30_000]}
+      )
+    end
+
+    defp with_inspect_mode(mode, fun) do
+      previous = Application.get_env(:tesla, :inspect)
+      Application.put_env(:tesla, :inspect, mode)
+
+      try do
+        fun.()
+      after
+        case previous do
+          nil -> Application.delete_env(:tesla, :inspect)
+          value -> Application.put_env(:tesla, :inspect, value)
+        end
+      end
+    end
+
+    test "redacts middleware and adapter options by default, keeping module names" do
+      printed = inspect(secret_client())
+
+      refute printed =~ @secret
+      refute printed =~ "api.example.com"
+      refute printed =~ "recv_timeout"
+      assert printed =~ "#Tesla.Client<"
+      assert printed =~ "{Tesla.Middleware.BaseUrl, :redacted}"
+      assert printed =~ "{Tesla.Middleware.Headers, :redacted}"
+      assert printed =~ "Tesla.Middleware.JSON"
+      assert printed =~ ":fn"
+      assert printed =~ "adapter: {Tesla.Adapter.Httpc, :redacted}"
+    end
+
+    test "an env that embeds the client does not print the client's secrets" do
+      client = Tesla.client([{Tesla.Middleware.Headers, [{"authorization", @secret}]}])
+
+      env = %Tesla.Env{
+        method: :get,
+        url: "https://api.example.com/",
+        status: 500,
+        __client__: client
+      }
+
+      printed = inspect(env)
+
+      refute printed =~ @secret
+      assert printed =~ "__client__: #Tesla.Client<"
+    end
+
+    test "config :tesla, inspect: :full shows the options in their original form" do
+      with_inspect_mode(:full, fn ->
+        printed = inspect(secret_client())
+
+        assert printed =~ @secret
+        assert printed =~ ~s({Tesla.Middleware.BaseUrl, "https://api.example.com"})
+        assert printed =~ "adapter: {Tesla.Adapter.Httpc, [recv_timeout: 30000]}"
+      end)
+    end
+
+    test "renders an empty client" do
+      assert inspect(%Tesla.Client{}) == "#Tesla.Client<adapter: nil, middleware: []>"
+    end
+
+    test "shows post middleware only when present" do
+      client = %Tesla.Client{
+        secret_client()
+        | post: [{Tesla.Middleware.Logger, :call, [[level: :debug]]}]
+      }
+
+      assert inspect(client) =~ "post: [{Tesla.Middleware.Logger, :redacted}]"
+    end
+  end
 end
