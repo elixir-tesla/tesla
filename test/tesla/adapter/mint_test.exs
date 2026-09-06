@@ -1027,14 +1027,18 @@ defmodule Tesla.Adapter.MintTest do
   end
 
   defp recv_until_response(conn, match?, timeout, attempts, responses) do
-    assert {:ok, conn, new_responses} = Mint.HTTP.recv(conn, 0, timeout)
+    case Mint.HTTP.recv(conn, 0, timeout) do
+      {:ok, conn, new_responses} ->
+        responses = responses ++ new_responses
 
-    responses = responses ++ new_responses
+        if Enum.any?(responses, match?) do
+          {conn, responses}
+        else
+          recv_until_response(conn, match?, timeout, attempts - 1, responses)
+        end
 
-    if Enum.any?(responses, match?) do
-      {conn, responses}
-    else
-      recv_until_response(conn, match?, timeout, attempts - 1, responses)
+      {:error, conn, %Mint.TransportError{reason: :timeout}, []} ->
+        recv_until_response(conn, match?, timeout, attempts - 1, responses)
     end
   end
 
