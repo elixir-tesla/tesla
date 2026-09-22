@@ -76,4 +76,11 @@ defmodule Tesla.Middleware.BasicAuthTest do
 
     assert auth_header == "Basic #{base_64_encoded}"
   end
+
+  test "accepts a Tesla.SecretString password" do
+    opts = %{username: "u", password: Tesla.SecretString.new("s3cret")}
+
+    assert {:ok, env} = Tesla.Middleware.BasicAuth.call(%Tesla.Env{}, [], opts)
+    assert Tesla.get_header(env, "authorization") == "Basic " <> Base.encode64("u:s3cret")
+  end
 end
