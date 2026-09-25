@@ -18,7 +18,8 @@ defmodule Tesla.Middleware.BearerAuth do
 
   ## Options
 
-  - `:token` - token (defaults to `""`)
+  - `:token` - token (defaults to `""`). Wrap it in `Tesla.SecretString` to keep it
+    out of `inspect/1` output of the client.
   """
 
   @behaviour Tesla.Middleware
