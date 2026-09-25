@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.0](https://github.com/elixir-tesla/tesla/compare/v1.21.3...v1.22.0) (2026-09-25)
+
+
+### Features
+
+* Add Tesla.SecretString to keep secrets out of inspect output ([#939](https://github.com/elixir-tesla/tesla/issues/939)) ([258d378](https://github.com/elixir-tesla/tesla/commit/258d37844c4fdb2efb22893f5ff9c07105cfa487))
+
 ## [1.21.3](https://github.com/elixir-tesla/tesla/compare/v1.21.2...v1.21.3) (2026-08-31)
 
 
