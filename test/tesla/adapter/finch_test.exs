@@ -51,17 +51,21 @@ defmodule Tesla.Adapter.FinchTest do
     # Before the fix, an error during streaming would cause:
     #   (CaseClauseError) no case clause matching: {:error, error, nil}
 
-    assert {:error, _} =
+    {:ok, listen} = :gen_tcp.listen(0, ip: {127, 0, 0, 1})
+    {:ok, port} = :inet.port(listen)
+    :ok = :gen_tcp.close(listen)
+
+    assert {:error, :econnrefused} =
              Tesla.Adapter.Finch.call(
                %Tesla.Env{
                  method: :get,
-                 url: "http://nonexistent.invalid",
+                 url: "http://127.0.0.1:#{port}",
                  body: nil,
                  headers: []
                },
                name: @finch_name,
                response: :stream,
-               receive_timeout: 1000
+               receive_timeout: 5_000
              )
   end
 

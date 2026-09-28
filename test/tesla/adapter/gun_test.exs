@@ -504,6 +504,25 @@ defmodule Tesla.Adapter.GunTest do
     assert Enum.join(stream) == "firstsecond"
   end
 
+  test "joins a plain body that arrives in more than one part" do
+    url =
+      start_raw_server(fn socket ->
+        :gen_tcp.send(socket, "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")
+        Process.sleep(50)
+        :gen_tcp.send(socket, "5\r\nfirst\r\n")
+        Process.sleep(50)
+        :gen_tcp.send(socket, "6\r\nsecond\r\n")
+        Process.sleep(50)
+        :gen_tcp.send(socket, "0\r\n\r\n")
+        Process.sleep(50)
+        :gen_tcp.close(socket)
+      end)
+
+    request = %Env{method: :get, url: url}
+
+    assert {:ok, %Env{status: 200, body: "firstsecond"}} = call(request, timeout: 2_000)
+  end
+
   defp start_raw_server(on_request, opts \\ []) do
     {:ok, listen_socket} =
       :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
