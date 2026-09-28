@@ -14,7 +14,7 @@ defmodule Tesla.Adapter.GunTest do
   use Tesla.AdapterCase.SSL,
     certificates_verification: true,
     transport_opts: [
-      cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
+      cacertfile: Tesla.TestSupport.TLS.cacertfile()
     ]
 
   alias Tesla.Adapter.Gun
@@ -119,7 +119,7 @@ defmodule Tesla.Adapter.GunTest do
              call(request,
                certificates_verification: true,
                transport_opts: [
-                 cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
+                 cacertfile: Tesla.TestSupport.TLS.cacertfile()
                ]
              )
   end
@@ -678,7 +678,7 @@ defmodule Tesla.Adapter.GunTest do
              call(request,
                tls_opts: [
                  verify: :verify_peer,
-                 cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"
+                 cacertfile: Tesla.TestSupport.TLS.cacertfile()
                ]
              )
   end

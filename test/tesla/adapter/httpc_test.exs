@@ -9,7 +9,7 @@ defmodule Tesla.Adapter.HttpcTest do
   use Tesla.AdapterCase.SSL,
     ssl: [
       verify: :verify_peer,
-      cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
+      cacertfile: Tesla.TestSupport.TLS.cacertfile()
     ]
 
   # :httpc accepts only a fixed set of method atoms, which as of OTP 29 does

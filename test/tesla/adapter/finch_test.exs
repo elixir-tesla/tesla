@@ -17,7 +17,7 @@ defmodule Tesla.Adapter.FinchTest do
       pools: %{
         @https => [
           conn_opts: [
-            transport_opts: [cacertfile: "#{:code.priv_dir(:httparrot)}/ssl/server-ca.crt"]
+            transport_opts: [cacertfile: Tesla.TestSupport.TLS.cacertfile()]
           ]
         ]
       }
