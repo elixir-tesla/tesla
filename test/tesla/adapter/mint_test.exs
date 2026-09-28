@@ -14,6 +14,8 @@ defmodule Tesla.Adapter.MintTest do
   @large_http2_request_size 70_000
   @default_connection_window_size 65_535
   @wide_stream_window_size 1_048_576
+  @chunked_head "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n"
+  @empty_head "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n"
 
   use Tesla.AdapterCase.SSL,
     transport_opts: [
@@ -1464,6 +1466,103 @@ defmodule Tesla.Adapter.MintTest do
                    "Encounter Mint error %Mint.TransportError{reason: :econnreset}",
                    fn -> Enum.to_list(body) end
     end
+  end
+
+  describe "responses split into scripted packets" do
+    setup do
+      {:ok, listen_socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+      {:ok, port} = :inet.port(listen_socket)
+      {:ok, conn} = Mint.HTTP.connect(:http, "localhost", port, mode: :active)
+
+      on_exit(fn ->
+        Mint.HTTP.close(conn)
+        :gen_tcp.close(listen_socket)
+      end)
+
+      {:ok, conn: conn, url: "http://localhost:#{port}", original: "localhost:#{port}"}
+    end
+
+    test "streams a body that arrived whole with the headers", context do
+      assert {:ok, %Env{body: body}} =
+               call_with_packets(context, [@chunked_head <> "5\r\nhello\r\n0\r\n\r\n"],
+                 body_as: :stream
+               )
+
+      assert Enum.to_list(body) == ["hello"]
+    end
+
+    test "streams nothing when the headers finish the response", context do
+      assert {:ok, %Env{body: body}} =
+               call_with_packets(context, [@empty_head], body_as: :stream)
+
+      assert Enum.to_list(body) == []
+    end
+
+    test "streams data that came with the headers before the final packet", context do
+      assert {:ok, %Env{body: body}} =
+               call_with_packets(context, [@chunked_head <> "5\r\nhello\r\n", "0\r\n\r\n"],
+                 body_as: :stream
+               )
+
+      assert Enum.to_list(body) == ["hello"]
+    end
+
+    test "streams data from packets that follow the headers", context do
+      packets = [@chunked_head, "5", "\r\nhello\r\n", "5\r\nworld\r\n0\r\n\r\n"]
+
+      assert {:ok, %Env{body: body}} = call_with_packets(context, packets, body_as: :stream)
+
+      assert Enum.to_list(body) == ["hello", "world"]
+    end
+
+    test "returns the first chunk the headers packet finished", context do
+      assert {:ok, %Env{body: %{body: {:fin, "hello"}}}} =
+               call_with_packets(context, [@chunked_head <> "5\r\nhello\r\n0\r\n\r\n"],
+                 body_as: :chunks
+               )
+    end
+
+    test "returns the first chunk the headers packet left open", context do
+      assert {:ok, %Env{body: %{body: {:nofin, "hello"}}}} =
+               call_with_packets(context, [@chunked_head <> "5\r\nhello\r\n"], body_as: :chunks)
+    end
+
+    test "returns an empty final chunk when the headers finish the response", context do
+      assert {:ok, %Env{body: %{body: {:fin, ""}}}} =
+               call_with_packets(context, [@empty_head], body_as: :chunks)
+    end
+
+    test "reads the chunks of packets that follow the headers", context do
+      packets = [@chunked_head, "5\r\nhello\r\n", "0\r\n\r\n"]
+
+      assert {:ok, %Env{body: %{conn: conn, ref: ref, opts: opts, body: {:nofin, ""}}}} =
+               call_with_packets(context, packets, body_as: :chunks)
+
+      assert {:nofin, conn, "hello"} = Tesla.Adapter.Mint.read_chunk(conn, ref, opts)
+      assert {:fin, _conn, ""} = Tesla.Adapter.Mint.read_chunk(conn, ref, opts)
+    end
+
+    test "joins a plain body delivered across packets", context do
+      packets = [@chunked_head, "5\r\nhello\r\n", "5\r\nworld\r\n", "0\r\n\r\n"]
+
+      assert {:ok, %Env{body: "helloworld"}} = call_with_packets(context, packets, max_body: 10)
+    end
+
+    test "rejects a plain body that outgrows max_body across packets", context do
+      packets = [@chunked_head, "5\r\nhello\r\n", "5\r\nworld\r\n", "0\r\n\r\n"]
+
+      assert {:error, :body_too_large} = call_with_packets(context, packets, max_body: 7)
+    end
+  end
+
+  defp call_with_packets(%{conn: conn, url: url, original: original}, packets, opts) do
+    socket = Mint.HTTP.get_socket(conn)
+    Enum.each(packets, &send(self(), {:tcp, socket, &1}))
+
+    call(
+      %Env{method: :get, url: url},
+      [conn: conn, original: original, mode: :active, close_conn: false] ++ opts
+    )
   end
 
   defp streamed_dispatch do
