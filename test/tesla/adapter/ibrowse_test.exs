@@ -15,7 +15,7 @@ defmodule Tesla.Adapter.IbrowseTest do
   # use Tesla.AdapterCase.SSL,
   #   ssl_options: [
   #     verify: :verify_peer,
-  #     cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
+  #     cacertfile: Tesla.TestSupport.TLS.cacertfile()
   #   ]
 
   # ibrowse supports only a fixed set of method atoms and would crash its

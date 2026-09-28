@@ -17,7 +17,7 @@ defmodule Tesla.Adapter.MintTest do
 
   use Tesla.AdapterCase.SSL,
     transport_opts: [
-      cacertfile: Path.join([to_string(:code.priv_dir(:httparrot)), "/ssl/server-ca.crt"])
+      cacertfile: Tesla.TestSupport.TLS.cacertfile()
     ]
 
   test "timeout request" do
@@ -312,7 +312,7 @@ defmodule Tesla.Adapter.MintTest do
       assert {:ok, %Env{} = response} =
                call(request,
                  protocols: [:http2],
-                 transport_opts: [cacertfile: httparrot_cacertfile()]
+                 transport_opts: [cacertfile: Tesla.TestSupport.TLS.cacertfile()]
                )
 
       assert response.status == 200
@@ -336,7 +336,7 @@ defmodule Tesla.Adapter.MintTest do
       assert {:ok, %Env{} = response} =
                call(request,
                  protocols: [:http2],
-                 transport_opts: [cacertfile: httparrot_cacertfile()]
+                 transport_opts: [cacertfile: Tesla.TestSupport.TLS.cacertfile()]
                )
 
       assert response.status == 200
@@ -357,7 +357,7 @@ defmodule Tesla.Adapter.MintTest do
       assert {:ok, %Env{} = response} =
                call(request,
                  protocols: [:http2],
-                 transport_opts: [cacertfile: httparrot_cacertfile()]
+                 transport_opts: [cacertfile: Tesla.TestSupport.TLS.cacertfile()]
                )
 
       assert response.status == 200
@@ -380,7 +380,7 @@ defmodule Tesla.Adapter.MintTest do
         assert {:ok, %Env{} = response} =
                  call(request,
                    protocols: [:http2],
-                   transport_opts: [cacertfile: httparrot_cacertfile()]
+                   transport_opts: [cacertfile: Tesla.TestSupport.TLS.cacertfile()]
                  )
 
         assert response.status == 200
@@ -402,7 +402,7 @@ defmodule Tesla.Adapter.MintTest do
       assert {:ok, %Env{} = response} =
                call(request,
                  protocols: [:http2],
-                 transport_opts: [cacertfile: httparrot_cacertfile()]
+                 transport_opts: [cacertfile: Tesla.TestSupport.TLS.cacertfile()]
                )
 
       assert response.status == 200
@@ -414,15 +414,14 @@ defmodule Tesla.Adapter.MintTest do
     setup do
       listener_ref = :"mint-early-response-#{System.unique_integer([:positive])}"
       dispatch = early_response_dispatch()
-      priv_dir = :code.priv_dir(:httparrot)
 
       {:ok, _pid} =
         :cowboy.start_tls(
           listener_ref,
           [
             port: 0,
-            certfile: priv_dir ++ ~c"/ssl/server.crt",
-            keyfile: priv_dir ++ ~c"/ssl/server.key"
+            certfile: Tesla.TestSupport.TLS.certfile(),
+            keyfile: Tesla.TestSupport.TLS.keyfile()
           ],
           %{env: %{dispatch: dispatch}}
         )
@@ -433,7 +432,7 @@ defmodule Tesla.Adapter.MintTest do
 
       {:ok,
        early_response_url: "https://localhost:#{port}",
-       early_response_cacertfile: Path.join([to_string(priv_dir), "ssl/server-ca.crt"])}
+       early_response_cacertfile: Tesla.TestSupport.TLS.cacertfile()}
     end
 
     test "returns the response body without waiting for another packet", %{
@@ -508,15 +507,14 @@ defmodule Tesla.Adapter.MintTest do
   describe "issue #394 - handle HTTP/2 connection window exhaustion" do
     setup do
       listener_ref = :"mint-connection-window-#{System.unique_integer([:positive])}"
-      priv_dir = :code.priv_dir(:httparrot)
 
       {:ok, _pid} =
         :cowboy.start_tls(
           listener_ref,
           [
             port: 0,
-            certfile: priv_dir ++ ~c"/ssl/server.crt",
-            keyfile: priv_dir ++ ~c"/ssl/server.key"
+            certfile: Tesla.TestSupport.TLS.certfile(),
+            keyfile: Tesla.TestSupport.TLS.keyfile()
           ],
           %{
             env: %{dispatch: upload_echo_dispatch()},
@@ -532,7 +530,7 @@ defmodule Tesla.Adapter.MintTest do
 
       {:ok,
        upload_url: "https://localhost:#{port}",
-       upload_cacertfile: Path.join([to_string(priv_dir), "ssl/server-ca.crt"])}
+       upload_cacertfile: Tesla.TestSupport.TLS.cacertfile()}
     end
 
     test "uploads a body that exhausts the connection window before the stream window", %{
@@ -712,15 +710,14 @@ defmodule Tesla.Adapter.MintTest do
     setup do
       listener_ref = @internal_error_listener_ref
       dispatch = internal_error_dispatch()
-      priv_dir = :code.priv_dir(:httparrot)
 
       {:ok, _pid} =
         :cowboy.start_tls(
           listener_ref,
           [
             port: 0,
-            certfile: priv_dir ++ ~c"/ssl/server.crt",
-            keyfile: priv_dir ++ ~c"/ssl/server.key"
+            certfile: Tesla.TestSupport.TLS.certfile(),
+            keyfile: Tesla.TestSupport.TLS.keyfile()
           ],
           %{
             env: %{dispatch: dispatch},
@@ -734,7 +731,7 @@ defmodule Tesla.Adapter.MintTest do
 
       {:ok,
        reset_url: "https://localhost:#{port}",
-       reset_cacertfile: Path.join([to_string(priv_dir), "ssl/server-ca.crt"])}
+       reset_cacertfile: Tesla.TestSupport.TLS.cacertfile()}
     end
 
     test "Mint emits server_closed_request from a live HTTP/2 peer", %{
@@ -878,23 +875,18 @@ defmodule Tesla.Adapter.MintTest do
     Jason.decode!(body)
   end
 
-  defp httparrot_cacertfile do
-    Path.join([to_string(:code.priv_dir(:httparrot)), "ssl/server-ca.crt"])
-  end
-
   describe "issue #450 - handle missing Mint response types" do
     setup do
       listener_ref = @push_promise_listener_ref
       dispatch = push_promise_dispatch()
-      priv_dir = :code.priv_dir(:httparrot)
 
       {:ok, _pid} =
         :cowboy.start_tls(
           listener_ref,
           [
             port: 0,
-            certfile: priv_dir ++ ~c"/ssl/server.crt",
-            keyfile: priv_dir ++ ~c"/ssl/server.key"
+            certfile: Tesla.TestSupport.TLS.certfile(),
+            keyfile: Tesla.TestSupport.TLS.keyfile()
           ],
           %{env: %{dispatch: dispatch}}
         )
@@ -904,8 +896,7 @@ defmodule Tesla.Adapter.MintTest do
       {_, port} = :ranch.get_addr(listener_ref)
 
       {:ok,
-       push_url: "https://localhost:#{port}",
-       push_cacertfile: Path.join([to_string(priv_dir), "ssl/server-ca.crt"])}
+       push_url: "https://localhost:#{port}", push_cacertfile: Tesla.TestSupport.TLS.cacertfile()}
     end
 
     test "handles connection errors gracefully" do
@@ -1051,7 +1042,6 @@ defmodule Tesla.Adapter.MintTest do
   describe "HTTP/2 connection shared with another request" do
     setup do
       listener_ref = :"mint-shared-http2-#{System.unique_integer([:positive])}"
-      priv_dir = :code.priv_dir(:httparrot)
 
       dispatch =
         :cowboy_router.compile([
@@ -1067,8 +1057,8 @@ defmodule Tesla.Adapter.MintTest do
           listener_ref,
           [
             port: 0,
-            certfile: priv_dir ++ ~c"/ssl/server.crt",
-            keyfile: priv_dir ++ ~c"/ssl/server.key"
+            certfile: Tesla.TestSupport.TLS.certfile(),
+            keyfile: Tesla.TestSupport.TLS.keyfile()
           ],
           %{
             env: %{dispatch: dispatch},
@@ -1083,7 +1073,7 @@ defmodule Tesla.Adapter.MintTest do
       {:ok, conn} =
         Mint.HTTP.connect(:https, "localhost", port,
           protocols: [:http2],
-          transport_opts: [cacertfile: httparrot_cacertfile()],
+          transport_opts: [cacertfile: Tesla.TestSupport.TLS.cacertfile()],
           mode: :passive
         )
 
@@ -1175,7 +1165,7 @@ defmodule Tesla.Adapter.MintTest do
     end
 
     test "verifies the peer with the configured cacertfile" do
-      Application.put_env(:tesla, Tesla.Adapter.Mint, cacert: httparrot_cacertfile())
+      Application.put_env(:tesla, Tesla.Adapter.Mint, cacert: Tesla.TestSupport.TLS.cacertfile())
 
       request = %Env{method: :get, url: "#{@https}/ip"}
 
@@ -1183,7 +1173,7 @@ defmodule Tesla.Adapter.MintTest do
     end
 
     test "adds the configured cacertfile to the transport options it was given" do
-      Application.put_env(:tesla, Tesla.Adapter.Mint, cacert: httparrot_cacertfile())
+      Application.put_env(:tesla, Tesla.Adapter.Mint, cacert: Tesla.TestSupport.TLS.cacertfile())
 
       request = %Env{method: :get, url: "#{@https}/ip"}
 
@@ -1196,7 +1186,7 @@ defmodule Tesla.Adapter.MintTest do
       request = %Env{method: :get, url: "#{@https}/ip"}
 
       assert {:ok, %Env{status: 200}} =
-               call(request, transport_opts: [cacertfile: httparrot_cacertfile()])
+               call(request, transport_opts: [cacertfile: Tesla.TestSupport.TLS.cacertfile()])
     end
   end
 
