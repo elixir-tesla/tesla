@@ -504,23 +504,34 @@ defmodule Tesla.Adapter.GunTest do
     assert Enum.join(stream) == "firstsecond"
   end
 
-  test "joins a plain body that arrives in more than one part" do
+  test "joins a plain body that gun delivers in more than one message" do
+    test_pid = self()
+    splitter = spawn_link(fn -> split_final_data(test_pid) end)
+
     url =
       start_raw_server(fn socket ->
-        :gen_tcp.send(socket, "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")
-        Process.sleep(50)
-        :gen_tcp.send(socket, "5\r\nfirst\r\n")
-        Process.sleep(50)
-        :gen_tcp.send(socket, "6\r\nsecond\r\n")
-        Process.sleep(50)
-        :gen_tcp.send(socket, "0\r\n\r\n")
+        :gen_tcp.send(socket, "HTTP/1.1 200 OK\r\ncontent-length: 11\r\n\r\nfirstsecond")
         Process.sleep(50)
         :gen_tcp.close(socket)
       end)
 
     request = %Env{method: :get, url: url}
 
-    assert {:ok, %Env{status: 200, body: "firstsecond"}} = call(request, timeout: 2_000)
+    assert {:ok, %Env{status: 200, body: "firstsecond"}} = call(request, reply_to: splitter)
+  end
+
+  # Relays every Gun message to `owner`, turning the final data message into a
+  # :nofin part and an empty :fin, so the body always takes more than one read.
+  defp split_final_data(owner) do
+    receive do
+      {:gun_data, pid, stream, :fin, data} ->
+        send(owner, {:gun_data, pid, stream, :nofin, data})
+        send(owner, {:gun_data, pid, stream, :fin, ""})
+
+      message ->
+        send(owner, message)
+        split_final_data(owner)
+    end
   end
 
   defp start_raw_server(on_request, opts \\ []) do
