@@ -69,10 +69,13 @@ if Code.ensure_loaded?(Mint.HTTP) do
     @doc """
     Reads chunk of the response body.
     Returns `{:fin, HTTP.t(), binary()}` if all body received, otherwise returns `{:nofin, HTTP.t(), binary()}`.
+    Returns `{:error, reason}` if receiving the next packet fails, e.g. `{:error, :timeout}`.
     """
 
     @spec read_chunk(HTTP.t(), reference(), keyword()) ::
-            {:fin, HTTP.t(), binary()} | {:nofin, HTTP.t(), binary()}
+            {:fin, HTTP.t(), binary()}
+            | {:nofin, HTTP.t(), binary()}
+            | {:error, term()}
     def read_chunk(conn, ref, opts) do
       with {:ok, conn, acc} <- receive_packet(conn, ref, Enum.into(opts, %{})),
            {state, data} <- response_state(acc) do
