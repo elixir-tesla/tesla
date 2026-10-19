@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.1](https://github.com/elixir-tesla/tesla/compare/v1.22.0...v1.22.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **mint:** Include {:error, term()} in read_chunk/3 spec ([#951](https://github.com/elixir-tesla/tesla/issues/951)) ([a62fb9b](https://github.com/elixir-tesla/tesla/commit/a62fb9b52a6e7137f3645521434828e0e970c1c5))
+
 ## [1.22.0](https://github.com/elixir-tesla/tesla/compare/v1.21.3...v1.22.0) (2026-10-04)
 
 
