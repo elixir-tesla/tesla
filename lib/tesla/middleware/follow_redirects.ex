@@ -107,7 +107,13 @@ defmodule Tesla.Middleware.FollowRedirects do
   # requested resource is not available, however a related resource (or another redirect)
   # available via GET is available at the specified location.
   # https://tools.ietf.org/html/rfc7231#section-6.4.4
-  defp new_request(env, 303, location), do: %{env | url: location, method: :get, query: []}
+  #
+  # The new request has no body, and a HEAD request stays HEAD
+  # (https://www.rfc-editor.org/rfc/rfc9110#section-15.4.4).
+  defp new_request(env, 303, location) do
+    method = if env.method == :head, do: :head, else: :get
+    %{env | url: location, method: method, query: [], body: nil}
+  end
 
   # The 307 (Temporary Redirect) status code indicates that the target
   # resource resides temporarily under a different URI and the user agent
