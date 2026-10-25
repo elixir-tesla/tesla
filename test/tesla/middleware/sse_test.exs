@@ -79,6 +79,38 @@ defmodule Tesla.Middleware.SSETest do
              ]
     end
 
+    test "decode fields without a space after the colon, without a value and unknown fields" do
+      body = """
+      data:hello
+      event:greeting
+
+      data
+
+      data:
+      id:
+
+      foo: bar
+      data : x
+      data: y
+
+      :comment
+      """
+
+      adapter = fn _env ->
+        {:ok, %{@env | body: body}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+
+      assert env.body == [
+               %{data: "hello", event: "greeting"},
+               %{data: ""},
+               %{data: "", id: ""},
+               %{data: "y"},
+               %{comment: "comment"}
+             ]
+    end
+
     test "output only data" do
       body = """
       : comment1

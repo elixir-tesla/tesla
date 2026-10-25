@@ -83,12 +83,31 @@ defmodule Tesla.Middleware.SSE do
     end)
   end
 
-  defp decode_body(": " <> comment), do: {:comment, comment}
-  defp decode_body("data: " <> data), do: {:data, data}
-  defp decode_body("event: " <> event), do: {:event, event}
-  defp decode_body("id: " <> id), do: {:id, id}
-  defp decode_body("retry: " <> retry), do: {:retry, retry}
   defp decode_body(""), do: :empty
+  defp decode_body(":" <> comment), do: {:comment, strip_leading_space(comment)}
+
+  # The field name is everything before the first colon, and one space after the
+  # colon is not part of the value. A line without a colon is a field with an
+  # empty value. Unknown fields are ignored.
+  # https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
+  defp decode_body(line) do
+    {field, value} =
+      case :binary.split(line, ":") do
+        [field, value] -> {field, strip_leading_space(value)}
+        [field] -> {field, ""}
+      end
+
+    case field do
+      "data" -> {:data, value}
+      "event" -> {:event, value}
+      "id" -> {:id, value}
+      "retry" -> {:retry, value}
+      _ -> :empty
+    end
+  end
+
+  defp strip_leading_space(" " <> value), do: value
+  defp strip_leading_space(value), do: value
 
   defp decodable_content_type?(env, opts) do
     case Tesla.get_header(env, "content-type") do
