@@ -153,6 +153,28 @@ defmodule Tesla.Middleware.FollowRedirectsTest do
     assert env.method == :get
   end
 
+  test "drops the body and keeps HEAD for 303 requests" do
+    adapter = fn
+      %{url: "http://example.com/see-other"} = env ->
+        {:ok, %{env | status: 303, headers: [{"location", "http://example.com/next"}], body: ""}}
+
+      %{url: "http://example.com/next"} = env ->
+        send(self(), {env.method, env.body})
+        {:ok, %{env | status: 200, headers: [], body: "ok"}}
+    end
+
+    client = Tesla.client([Tesla.Middleware.FollowRedirects], adapter)
+
+    assert {:ok, _env} = Tesla.post(client, "http://example.com/see-other", "body")
+    assert_receive {:get, nil}
+
+    assert {:ok, _env} = Tesla.put(client, "http://example.com/see-other", "body")
+    assert_receive {:get, nil}
+
+    assert {:ok, _env} = Tesla.head(client, "http://example.com/see-other")
+    assert_receive {:head, nil}
+  end
+
   defmodule CustomPreservesRequestClient do
     use Tesla
 
