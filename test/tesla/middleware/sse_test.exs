@@ -813,6 +813,24 @@ defmodule Tesla.Middleware.SSETest do
       assert elapsed < 1000
     end
 
+    test "raise when the server rejects a reconnection" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\n"}},
+          {:ok, %Tesla.Env{status: 503, headers: [{"content-type", "text/plain"}], body: "down"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == :unexpected_response
+      assert error.env.status == 503
+      assert Tesla.get_header(error.env, "content-type") == "text/plain"
+    end
+
     test "stop reconnecting when the server does not respond with an event stream" do
       adapter =
         sequence_adapter([
