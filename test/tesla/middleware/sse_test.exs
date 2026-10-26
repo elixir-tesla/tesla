@@ -1278,6 +1278,8 @@ defmodule Tesla.Middleware.SSETest do
           {:delay, 1.5, "expected :delay to be an integer >= 0, got 1.5"},
           {:delay, nil, "expected :delay to be an integer >= 0, got nil"},
           {:delay, "3000", ~s(expected :delay to be an integer >= 0, got "3000")},
+          {:max_delay, -1, "expected :max_delay to be an integer >= 0, got -1"},
+          {:max_delay, "x", ~s(expected :max_delay to be an integer >= 0, got "x")},
           {:max_attempts, 0, "expected :max_attempts to be an integer >= 1 or :infinity, got 0"},
           {:max_attempts, 2.0,
            "expected :max_attempts to be an integer >= 1 or :infinity, got 2.0"},
@@ -1297,6 +1299,18 @@ defmodule Tesla.Middleware.SSETest do
 
         refute_received {:request, _}
       end
+    end
+
+    test "raise before the request when :delay exceeds :max_delay" do
+      adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
+
+      assert_raise ArgumentError, "expected :delay 5000 not to exceed :max_delay 1000", fn ->
+        Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+          reconnect: [delay: 5000, max_delay: 1000]
+        )
+      end
+
+      refute_received {:request, _}
     end
 
     test "raise before the request on an unknown reconnect option" do
