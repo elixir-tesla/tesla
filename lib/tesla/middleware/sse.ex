@@ -24,6 +24,8 @@ defmodule Tesla.Middleware.SSE do
 
   @default_content_types ["text/event-stream"]
 
+  @parser %{line: [], cr: false, event: %{}}
+
   @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
@@ -44,12 +46,12 @@ defmodule Tesla.Middleware.SSE do
   defp decode_body(body, opts) when is_struct(body, Stream) or is_function(body) do
     body
     |> strip_stream_bom()
-    |> Stream.transform(new_parser(), &parse/2)
+    |> Stream.transform(@parser, &parse/2)
     |> Stream.flat_map(&only(&1, opts[:only]))
   end
 
   defp decode_body(binary, opts) when is_binary(binary) do
-    {events, _parser} = binary |> strip_bom() |> parse(new_parser())
+    {events, _parser} = binary |> strip_bom() |> parse(@parser)
     Enum.flat_map(events, &only(&1, opts[:only]))
   end
 
@@ -88,8 +90,6 @@ defmodule Tesla.Middleware.SSE do
   # A line can end with CRLF, so a CR at the end of a chunk may be followed by the LF of the
   # same line ending at the start of the next chunk. An event that is still pending when the
   # body ends is discarded.
-  defp new_parser(), do: %{line: [], cr: false, event: %{}}
-
   defp parse("", parser), do: {[], parser}
   defp parse("\n" <> chunk, %{cr: true} = parser), do: parse(chunk, %{parser | cr: false})
 
@@ -132,10 +132,13 @@ defmodule Tesla.Middleware.SSE do
     end
   end
 
-  defp replace_invalid_utf8(<<>>, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
+  defp replace_invalid_utf8(<<>>, acc) do
+    acc |> Enum.reverse() |> IO.iodata_to_binary()
+  end
 
-  defp replace_invalid_utf8(<<char::utf8, rest::binary>>, acc),
-    do: replace_invalid_utf8(rest, [<<char::utf8>> | acc])
+  defp replace_invalid_utf8(<<char::utf8, rest::binary>>, acc) do
+    replace_invalid_utf8(rest, [<<char::utf8>> | acc])
+  end
 
   defp replace_invalid_utf8(<<lead, rest::binary>>, acc) do
     size = continuation_size(rest, continuation_ranges(lead))
