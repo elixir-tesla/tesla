@@ -98,7 +98,7 @@ defmodule Tesla.Middleware.SSE do
         }
 
         events =
-          Stream.resource(fn -> state end, &next_events/1, &close_body/1)
+          Stream.resource(start_reconnecting(state), &next_events/1, &close_body/1)
           |> Stream.flat_map(&only(&1, opts[:only]))
 
         {:ok, %{response | body: events}}
@@ -107,6 +107,8 @@ defmodule Tesla.Middleware.SSE do
         decode(response, opts)
     end
   end
+
+  defp start_reconnecting(state), do: fn -> state end
 
   defp event_stream?(response, opts) do
     response.status == 200 and decodable_content_type?(response, opts)
@@ -128,7 +130,8 @@ defmodule Tesla.Middleware.SSE do
 
   defp parse_chunk(chunk, state) do
     {events, parser} = parse(chunk, state.parser)
-    {events, %{track(state, events) | parser: parser}}
+    state = %{state | parser: parser}
+    {events, track(state, events)}
   end
 
   defp reconnect(%{attempts: attempts, max_attempts: attempts} = state), do: {:halt, state}
@@ -171,8 +174,10 @@ defmodule Tesla.Middleware.SSE do
 
   defp open_body(body) do
     body = strip_stream_bom(body)
-    &Enumerable.reduce(body, &1, fn chunk, _acc -> {:suspend, chunk} end)
+    fn acc -> Enumerable.reduce(body, acc, &suspend/2) end
   end
+
+  defp suspend(chunk, _acc), do: {:suspend, chunk}
 
   defp next_chunk(body) do
     case body.({:cont, nil}) do
