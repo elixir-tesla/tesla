@@ -434,6 +434,22 @@ defmodule Tesla.Middleware.SSETest do
       assert env.body == [%{data: "a\uFFFDb"}]
     end
 
+    # https://encoding.spec.whatwg.org/#utf-8-decoder
+    test "replace each maximal ill-formed UTF-8 subsequence with one replacement character" do
+      adapter = fn _env ->
+        {:ok,
+         %{
+           @env
+           | body:
+               <<"data: ", 0xE2, 0x82, "|", 0xF0, 0x9F, 0x91, "|", 0xC0, 0x80, "|", 0xED, 0xA0,
+                 0x80, "\n\n">>
+         }}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert env.body == [%{data: "\uFFFD|\uFFFD|\uFFFD\uFFFD|\uFFFD\uFFFD\uFFFD"}]
+    end
+
     test "replace invalid UTF-8 with the replacement character in a stream" do
       adapter = fn _env ->
         {:ok, %{@env | body: Stream.map([<<"data: a", 0xC3>>, "b\n\n"], & &1)}}
