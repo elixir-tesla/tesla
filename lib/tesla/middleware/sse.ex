@@ -27,7 +27,10 @@ defmodule Tesla.Middleware.SSE do
     `ArgumentError` before the request runs. See the
     [processing model](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model)
     in the WHATWG spec. The Finch, Mint and Gun adapters raise `Tesla.Error` when a streamed
-    body fails, so reconnecting needs one of them or an adapter that does the same.
+    body fails, so reconnecting needs one of them or an adapter that does the same. A read
+    timeout, reason `:timeout` or `:recv_chunk_timeout`, is not a dropped connection and is
+    raised to the consumer without reconnecting. `EventSource` has no read timeout, so set the
+    adapter's receive timeout above the server's heartbeat interval, or to `:infinity`.
     - `:delay` - non-negative integer of milliseconds to wait before reconnecting until the
       server sends a `retry` field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
       initial reconnection time to each implementation.
@@ -244,8 +247,14 @@ defmodule Tesla.Middleware.SSE do
       {_done_or_halted, _acc} -> :closed
     end
   rescue
-    Tesla.Error -> :closed
+    error in Tesla.Error -> closed_or_reraise(error, __STACKTRACE__)
   end
+
+  defp closed_or_reraise(%Tesla.Error{reason: reason} = error, stacktrace)
+       when reason in [:timeout, :recv_chunk_timeout],
+       do: reraise(error, stacktrace)
+
+  defp closed_or_reraise(%Tesla.Error{}, _stacktrace), do: :closed
 
   defp close_body(%{body: :closed}), do: :ok
   defp close_body(%{body: body}), do: body.({:halt, nil})
