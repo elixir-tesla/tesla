@@ -918,7 +918,7 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: true)
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [])
 
       assert env.body == "x"
     end
@@ -927,7 +927,7 @@ defmodule Tesla.Middleware.SSETest do
       adapter = sequence_adapter([{:error, :econnrefused}])
 
       assert {:error, :econnrefused} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: true)
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [])
     end
   end
 

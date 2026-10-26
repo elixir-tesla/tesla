@@ -18,10 +18,11 @@ defmodule Tesla.Middleware.SSE do
 
   - `:only` - keep only specified keys in event (necessary for using with `JSON` middleware)
   - `:decode_content_types` - list of additional decodable content-types
-  - `:reconnect` - when `true` or a keyword list, the body becomes a stream that reconnects
-    whenever the connection ends or reading it raises `Tesla.Error`, sending the last event id
-    in the `last-event-id` header, as `EventSource` does. Reconnecting stops when the server
-    responds with anything other than a `200` event stream, such as a `204`. Defaults to `false`.
+  - `:reconnect` - when given, the body becomes a stream that reconnects whenever the
+    connection ends or reading it raises `Tesla.Error`, sending the last event id in the
+    `last-event-id` header, as `EventSource` does. Reconnecting stops when the server responds
+    with anything other than a `200` event stream, such as a `204`. Pass `[]` to use the
+    defaults.
     - `:delay` - milliseconds to wait before reconnecting until the server sends a `retry`
       field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
       initial reconnection time to each implementation.
@@ -76,10 +77,9 @@ defmodule Tesla.Middleware.SSE do
   defp stop_parsing(_parser), do: :ok
 
   defp reconnect_options(opts) do
-    case Keyword.get(opts, :reconnect, false) do
-      false -> nil
-      true -> @reconnect_defaults
-      reconnect -> Keyword.merge(@reconnect_defaults, reconnect)
+    case Keyword.fetch(opts, :reconnect) do
+      {:ok, reconnect} -> Keyword.merge(@reconnect_defaults, reconnect)
+      :error -> nil
     end
   end
 
