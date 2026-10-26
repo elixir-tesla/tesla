@@ -18,7 +18,7 @@ defmodule Tesla.Middleware.SSE do
 
   - `:only` - keep only specified keys in event (necessary for using with `JSON` middleware)
   - `:decode_content_types` - list of additional decodable content-types
-  - `:reconnect` - when given, the body becomes a stream that reconnects whenever the
+  - `:reconnect` - unless `false` or `nil`, which are the same as leaving it out, the body becomes a stream that reconnects whenever the
     connection ends or reading it raises `Tesla.Error`, sending the last event id in the
     `last-event-id` header, as `EventSource` does. Reconnecting stops when the server responds
     with anything other than a `200` event stream, such as a `204`. Pass `[]` to use the
@@ -43,11 +43,20 @@ defmodule Tesla.Middleware.SSE do
   def call(env, next, opts) do
     opts = opts || []
 
+    reconnect = reconnect_opts!(opts)
+
     with {:ok, response} <- Tesla.run(env, next) do
-      case Keyword.has_key?(opts, :reconnect) do
-        true -> decode_reconnecting(env, next, response, opts)
-        false -> decode(response, opts)
+      case reconnect do
+        nil -> decode(response, opts)
+        reconnect -> decode_reconnecting(env, next, response, opts, reconnect)
       end
+    end
+  end
+
+  defp reconnect_opts!(opts) do
+    case Keyword.get(opts, :reconnect) do
+      value when value in [nil, false] -> nil
+      value -> Keyword.merge(@reconnect_defaults, value)
     end
   end
 
@@ -77,10 +86,10 @@ defmodule Tesla.Middleware.SSE do
 
   defp stop_parsing(_parser), do: :ok
 
-  defp decode_reconnecting(request, next, response, opts) do
+  defp decode_reconnecting(request, next, response, opts, reconnect) do
     case event_stream?(response, opts) do
       true ->
-        start = start_reconnecting(request, next, response, opts)
+        start = start_reconnecting(request, next, response, opts, reconnect)
 
         events =
           Stream.resource(start, &next_events/1, &close_body/1)
@@ -93,9 +102,7 @@ defmodule Tesla.Middleware.SSE do
     end
   end
 
-  defp start_reconnecting(request, next, response, opts) do
-    reconnect = Keyword.merge(@reconnect_defaults, opts[:reconnect])
-
+  defp start_reconnecting(request, next, response, opts, reconnect) do
     fn ->
       %{
         request: request,
