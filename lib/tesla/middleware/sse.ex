@@ -46,7 +46,7 @@ defmodule Tesla.Middleware.SSE do
   defp decode_body(body, opts) when is_struct(body, Stream) or is_function(body) do
     body
     |> strip_stream_bom()
-    |> Stream.transform(fn -> @parser end, &parse/2, &{finish(&1), &1}, fn _parser -> :ok end)
+    |> Stream.transform(&start_parsing/0, &parse/2, &finish_parsing/1, &stop_parsing/1)
     |> Stream.flat_map(&only(&1, opts[:only]))
   end
 
@@ -54,6 +54,12 @@ defmodule Tesla.Middleware.SSE do
     {events, parser} = binary |> strip_bom() |> parse(@parser)
     Enum.flat_map(events ++ finish(parser), &only(&1, opts[:only]))
   end
+
+  defp start_parsing, do: @parser
+
+  defp finish_parsing(parser), do: {finish(parser), parser}
+
+  defp stop_parsing(_parser), do: :ok
 
   # A byte order mark at the very start of the stream is not part of the first line, but one
   # anywhere else is. In a stream it can be split across chunks, so up to two bytes that may be
