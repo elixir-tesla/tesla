@@ -19,45 +19,58 @@ defmodule Tesla.Middleware.SSE do
   - `:only` - keep only specified keys in event (necessary for using with `JSON` middleware)
   - `:decode_content_types` - list of additional decodable content-types
   - `:reconnect` - `false`, `nil` or leaving it out disables reconnecting. Otherwise it takes
-    `true` or a keyword list, where `true` is the same as `[]` and uses the defaults, and the
-    body becomes a stream that reconnects whenever the connection ends or reading it raises
-    `Tesla.Error`, sending the last event id in the `last-event-id` header, as `EventSource`
+    `true` or a keyword list, where `true` is the same as `[]` and uses the defaults. Any other
+    value, and any key other than the following, raises an `ArgumentError` before the request
+    runs.
+
+    The body becomes a stream that reconnects whenever the connection ends or reading it raises
+    `Tesla.Error`. It sends the last event id in the `last-event-id` header, as `EventSource`
     does. A `last-event-id` header on the request seeds that id, and the id the server sends
-    replaces it. The stream raises `Tesla.Error` when it gives up, so a consumer can tell an outage
-    or an expired token from a completed stream. A `204` response to a reconnection is the one
-    clean end, as the server asked to stop. Any other response that is not a `200` event stream
-    raises with `reason` `:unexpected_response` and `env` set to that response. The body of
-    either response is closed first. Reaching `:max_attempts` raises with `env` set to the last
-    request and `reason` `{:max_attempts, last_reason}`, where `last_reason` is the error of the
-    last failed request, the `Tesla.Error` raised while reading the last body, or `:closed` when
-    the last connection ended without an event. Any other value, and any key other than the following, raises an
-    `ArgumentError` before the request runs. With `:reconnect` the body is always a lazy,
-    single use stream, and enumerating it a second time raises `ArgumentError`. Without
-    `:reconnect`, a binary body is an eager list. Only `GET` requests reconnect, any other method is
-    decoded as without `:reconnect`, so a client wide `reconnect: []` is safe for its other
-    calls. `EventSource` only issues `GET` requests, and replaying a body would send the work
-    again. See the
+    replaces it.
+
+    Only `GET` requests reconnect. Any other method is decoded as without `:reconnect`, so a
+    client wide `reconnect: []` is safe for its other calls. `EventSource` only issues `GET`
+    requests, and replaying a body would send the work again. See the
     [processing model](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model)
-    in the WHATWG spec. The Finch, Mint and Gun adapters raise `Tesla.Error` when a streamed
-    body fails, so reconnecting needs one of them or an adapter that does the same. A read
-    timeout, reason `:timeout` or `:recv_chunk_timeout`, is not a dropped connection and is
-    raised to the consumer without reconnecting. `EventSource` has no read timeout, so set the
-    adapter's receive timeout above the server's heartbeat interval, or to `:infinity`.
+    in the WHATWG spec.
+
+    The stream raises `Tesla.Error` when it gives up, so a consumer can tell an outage or an
+    expired token from a completed stream. A `204` response to a reconnection is the one clean
+    end, as the server asked to stop. Any other response that is not a `200` event stream raises
+    with `reason` `:unexpected_response` and `env` set to that response. The body of either
+    response is closed first. Reaching `:max_attempts` raises with `env` set to the last request
+    and `reason` `{:max_attempts, last_reason}`, where `last_reason` is the error of the last
+    failed request, the `Tesla.Error` raised while reading the last body, or `:closed` when the
+    last connection ended without an event.
+
+    With `:reconnect` the body is always a lazy, single use stream, and enumerating it a second
+    time raises `ArgumentError`. Without `:reconnect`, a binary body is an eager list.
+
     Place this middleware last in the list, after any middleware that must run on every
     connection attempt, such as authentication, request signing, redirects, retries and
     telemetry. A reconnection runs only the middleware below this one, so middleware above it
     runs once for the first request. A token set above it is sent again unchanged, and the
     server may answer the reconnection with a `401`.
+
+    The Finch, Mint and Gun adapters raise `Tesla.Error` when a streamed body fails, so
+    reconnecting needs one of them or an adapter that does the same. A read timeout, reason
+    `:timeout` or `:recv_chunk_timeout`, is not a dropped connection and is raised to the
+    consumer without reconnecting. `EventSource` has no read timeout, so set the adapter's
+    receive timeout above the server's heartbeat interval, or to `:infinity`.
+
+    The keys are:
+
     - `:delay` - non-negative integer of milliseconds to wait before reconnecting until the
-      server sends a `retry` field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
-      initial reconnection time to each implementation.
+      server sends a `retry` field. Defaults to `3000`, the value Chrome picked, since the WHATWG
+      spec leaves the initial reconnection time to each implementation.
     - `:max_delay` - non-negative integer of milliseconds that caps the `retry` field the
-      server sends, so a huge value cannot park the consumer. Defaults to `60000`. `:delay` must not
-      exceed it.
+      server sends, so a huge value cannot park the consumer. Defaults to `60000`. `:delay` must
+      not exceed it.
     - `:max_attempts` - positive integer, or `:infinity`, of consecutive reconnection
-      attempts before giving up. A reconnection counts as an attempt until an event arrives on it,
-      so a connection that is established but closes without sending an event is counted too.
-      Defaults to `:infinity`, since the WHATWG spec never gives up reestablishing a connection.
+      attempts before giving up. A reconnection counts as an attempt until an event arrives on
+      it, so a connection that is established but closes without sending an event is counted
+      too. Defaults to `:infinity`, since the WHATWG spec never gives up reestablishing a
+      connection.
 
   A `retry` field applies as soon as it is read, even when the connection closes before the blank
   line that would dispatch its block.
@@ -234,11 +247,11 @@ defmodule Tesla.Middleware.SSE do
     response.status == 200 and decodable_content_type?(response, opts)
   end
 
-  # Unlike a stream that does not reconnect, an event still pending when the connection ends
-  # is discarded, as the server sends it again after the last event id.
   defp next_events(%{pending_error: {kind, reason, stacktrace}}),
     do: :erlang.raise(kind, reason, stacktrace)
 
+  # Unlike a stream that does not reconnect, an event still pending when the connection ends
+  # is discarded, as the server sends it again after the last event id.
   defp next_events(%{body: :closed} = state), do: reconnect(state)
 
   defp next_events(state) do
