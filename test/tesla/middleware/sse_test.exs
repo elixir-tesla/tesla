@@ -796,6 +796,44 @@ defmodule Tesla.Middleware.SSETest do
       end
     end
 
+    test "replace a seeded last event id with the one the server sends" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id: 7\ndata: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      request = %Tesla.Env{method: :get, headers: [{"Last-Event-ID", "42"}]}
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(request, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.to_list(env.body) == [%{id: "7", data: "a"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert [{_name, "7"}] = last_event_id_headers(second)
+    end
+
+    test "send no last event id once the server clears a seeded one" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id\ndata: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      request = %Tesla.Env{method: :get, headers: [{"Last-Event-ID", "42"}]}
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(request, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.to_list(env.body) == [%{id: "", data: "a"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert last_event_id_headers(second) == []
+    end
+
     test "send the id of an earlier event when a later event in the same chunk has none" do
       adapter =
         sequence_adapter([
