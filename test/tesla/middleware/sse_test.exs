@@ -202,6 +202,15 @@ defmodule Tesla.Middleware.SSETest do
       assert Enum.to_list(env.body) == [%{data: "first"}, %{data: "\uFEFFsecond"}]
     end
 
+    test "handle an empty stream" do
+      adapter = fn _env ->
+        {:ok, %{@env | body: Stream.map([], & &1)}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert Enum.to_list(env.body) == []
+    end
+
     test "handle stream data with varying line terminators" do
       adapter = fn _env ->
         chunks = [
