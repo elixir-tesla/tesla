@@ -1350,6 +1350,25 @@ defmodule Tesla.Middleware.SSETest do
       assert_received {:request, _second}
     end
 
+    test "fail when the body is enumerated a second time" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\ndata: b\n\n"}},
+          {:ok, %{@env | body: "data: c\n\n"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      assert Enum.take(env.body, 1) == [%{data: "a"}]
+      assert_raise ArgumentError, ~r/once/, fn -> Enum.to_list(env.body) end
+
+      assert_received {:request, _first}
+      refute_received {:request, _second}
+    end
+
     test "close the connection when the caller stops reading events" do
       test = self()
       ref = make_ref()
