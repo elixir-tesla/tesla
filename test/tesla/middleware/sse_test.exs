@@ -933,7 +933,8 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0, max_attempts: 2]
                )
 
-      assert Enum.to_list(env.body) == [%{data: "a"}]
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == {:max_attempts, :closed}
       assert requests() == 3
     end
 
@@ -953,7 +954,8 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0, max_attempts: 2]
                )
 
-      assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}]
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == {:max_attempts, :closed}
       assert requests() == 5
     end
 
