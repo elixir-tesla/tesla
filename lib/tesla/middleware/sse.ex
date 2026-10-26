@@ -124,13 +124,14 @@ defmodule Tesla.Middleware.SSE do
   # Unlike the spec, an event still pending when the body ends is returned, as it was before.
   defp finish(%{line: line, event: event}) do
     case IO.iodata_to_binary(line) do
-      "" ->
-        dispatch(event)
-
-      line ->
-        {[], event} = line |> replace_invalid_utf8() |> parse_line(event)
-        dispatch(event)
+      "" -> dispatch(event)
+      line -> finish_line(line, event)
     end
+  end
+
+  defp finish_line(line, event) do
+    {[], event} = line |> replace_invalid_utf8() |> parse_line(event)
+    dispatch(event)
   end
 
   defp ends_with_cr?(chunk) do
