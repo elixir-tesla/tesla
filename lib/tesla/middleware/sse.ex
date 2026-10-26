@@ -52,6 +52,11 @@ defmodule Tesla.Middleware.SSE do
     runs once for the first request. A token set above it is sent again unchanged, and the
     server may answer the reconnection with a `401`.
 
+    A failure of the first request is returned as `{:error, reason}` and is not retried. The call
+    is synchronous and returns before any delay could run, so only the stream that follows
+    reconnects. To retry the first connection, put `Tesla.Middleware.Retry` above this
+    middleware.
+
     The Finch, Mint and Gun adapters raise `Tesla.Error` when a streamed body fails, so
     reconnecting needs one of them or an adapter that does the same. A read timeout, reason
     `:timeout` or `:recv_chunk_timeout`, is not a dropped connection and is raised to the
