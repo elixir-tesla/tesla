@@ -98,10 +98,10 @@ defmodule Tesla.Middleware.SSE do
 
     case :binary.split(chunk, ["\r\n", "\n", "\r"], [:global]) do
       [partial] ->
-        {[], %{parser | line: [parser.line | partial]}}
+        {[], %{parser | line: [parser.line, partial]}}
 
       [first | rest] ->
-        {lines, [partial]} = Enum.split([IO.iodata_to_binary([parser.line | first]) | rest], -1)
+        {lines, [partial]} = Enum.split([IO.iodata_to_binary([parser.line, first]) | rest], -1)
         {events, event} = Enum.flat_map_reduce(lines, parser.event, &parse_line/2)
         {events, %{parser | line: [partial], event: event}}
     end
