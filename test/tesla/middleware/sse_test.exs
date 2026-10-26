@@ -867,6 +867,26 @@ defmodule Tesla.Middleware.SSETest do
       assert error.env.body == "b"
     end
 
+    test "clamp a server retry too long to convert to an integer" do
+      digits = String.duplicate("9", 2_000_000)
+
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "retry: #{digits}\ndata: a\n\n"}},
+          {:ok, %{@env | body: "data: b\n\n"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0, max_delay: 10]
+               )
+
+      {elapsed, events} = :timer.tc(fn -> env.body |> Enum.take(2) end, :millisecond)
+
+      assert Enum.map(events, & &1.data) == ["a", "b"]
+      assert elapsed < 1000
+    end
+
     test "clamp the server retry to the maximum delay" do
       adapter =
         sequence_adapter([
