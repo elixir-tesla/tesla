@@ -46,13 +46,13 @@ defmodule Tesla.Middleware.SSE do
   defp decode_body(body, opts) when is_struct(body, Stream) or is_function(body) do
     body
     |> strip_stream_bom()
-    |> Stream.transform(@parser, &parse/2)
+    |> Stream.transform(fn -> @parser end, &parse/2, &{finish(&1), &1}, fn _parser -> :ok end)
     |> Stream.flat_map(&only(&1, opts[:only]))
   end
 
   defp decode_body(binary, opts) when is_binary(binary) do
-    {events, _parser} = binary |> strip_bom() |> parse(@parser)
-    Enum.flat_map(events, &only(&1, opts[:only]))
+    {events, parser} = binary |> strip_bom() |> parse(@parser)
+    Enum.flat_map(events ++ finish(parser), &only(&1, opts[:only]))
   end
 
   # A byte order mark at the very start of the stream is not part of the first line, but one
@@ -88,8 +88,7 @@ defmodule Tesla.Middleware.SSE do
   defp strip_start_bom(start), do: {[start], :done}
 
   # A line can end with CRLF, so a CR at the end of a chunk may be followed by the LF of the
-  # same line ending at the start of the next chunk. An event that is still pending when the
-  # body ends is discarded.
+  # same line ending at the start of the next chunk.
   defp parse("", parser), do: {[], parser}
   defp parse("\n" <> chunk, %{cr: true} = parser), do: parse(chunk, %{parser | cr: false})
 
@@ -109,6 +108,18 @@ defmodule Tesla.Middleware.SSE do
           |> Enum.flat_map_reduce(parser.event, &parse_line/2)
 
         {events, %{parser | line: [partial], event: event}}
+    end
+  end
+
+  # Unlike the spec, an event still pending when the body ends is returned, as it was before.
+  defp finish(%{line: line, event: event}) do
+    case IO.iodata_to_binary(line) do
+      "" ->
+        dispatch(event)
+
+      line ->
+        {[], event} = line |> replace_invalid_utf8() |> parse_line(event)
+        dispatch(event)
     end
   end
 
@@ -168,10 +179,10 @@ defmodule Tesla.Middleware.SSE do
 
   defp continuation_size(_rest, _ranges), do: 0
 
-  # Comments are kept as events, although the spec ignores them.
-  defp dispatch(%{data: _} = event), do: [event]
-  defp dispatch(%{comment: _} = event), do: [event]
-  defp dispatch(_event), do: []
+  # Unlike the spec, blocks without data, such as one with only a comment, an id or a retry,
+  # are returned as they were before, so callers can still track id and retry updates.
+  defp dispatch(event) when map_size(event) == 0, do: []
+  defp dispatch(event), do: [event]
 
   defp decode_body(":" <> comment), do: {:comment, strip_leading_space(comment)}
 
@@ -216,16 +227,13 @@ defmodule Tesla.Middleware.SSE do
 
   defp decodable_content_type?(env, opts) do
     case Tesla.get_header(env, "content-type") do
-      nil -> false
-      content_type -> media_type(content_type) in Enum.map(content_types(opts), &media_type/1)
-    end
-  end
+      nil ->
+        false
 
-  # Media types are case-insensitive and may be followed by parameters.
-  # https://www.rfc-editor.org/rfc/rfc9110#section-8.3.1
-  defp media_type(content_type) do
-    [media_type | _parameters] = String.split(content_type, ";", parts: 2)
-    media_type |> String.trim() |> String.downcase()
+      content_type ->
+        content_type = String.downcase(content_type)
+        Enum.any?(content_types(opts), &String.starts_with?(content_type, &1))
+    end
   end
 
   defp content_types(opts),
