@@ -109,6 +109,7 @@ defmodule Tesla.Middleware.SSE do
     reconnect = Keyword.merge(@reconnect_defaults, value)
     validate_delay!(reconnect[:delay])
     validate_max_delay!(reconnect[:max_delay])
+    validate_delay_within_max!(reconnect[:delay], reconnect[:max_delay])
     validate_max_attempts!(reconnect[:max_attempts])
     reconnect
   end
@@ -123,6 +124,12 @@ defmodule Tesla.Middleware.SSE do
 
   defp validate_max_delay!(max_delay) do
     raise ArgumentError, "expected :max_delay to be an integer >= 0, got #{inspect(max_delay)}"
+  end
+
+  defp validate_delay_within_max!(delay, max_delay) when delay <= max_delay, do: :ok
+
+  defp validate_delay_within_max!(delay, max_delay) do
+    raise ArgumentError, "expected :delay #{delay} not to exceed :max_delay #{max_delay}"
   end
 
   defp validate_max_attempts!(:infinity), do: :ok
