@@ -893,6 +893,27 @@ defmodule Tesla.Middleware.SSETest do
       refute_received {:request, _second}
     end
 
+    test "close the connection when the caller stops reading events" do
+      test = self()
+      ref = make_ref()
+
+      body =
+        Stream.resource(
+          fn -> :open end,
+          fn :open -> {["data: a\n\n", "data: b\n\n"], :open} end,
+          fn _ -> send(test, {:closed, ref}) end
+        )
+
+      adapter = sequence_adapter([{:ok, %{@env | body: body}}])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.take(env.body, 1) == [%{data: "a"}]
+
+      assert_received {:closed, ^ref}
+    end
+
     test "keep only the requested key across connections" do
       adapter =
         sequence_adapter([
