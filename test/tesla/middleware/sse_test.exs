@@ -742,7 +742,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.to_list(env.body) == [%{id: "1", data: "a"}, %{data: "b"}]
 
@@ -762,7 +764,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.to_list(env.body) == [%{id: "1", data: "a"}, %{id: "", data: "b"}]
 
@@ -779,7 +783,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.to_list(env.body) == [%{id: "1", data: "a"}, %{data: "b"}]
 
@@ -796,7 +802,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 5000])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 5000]
+               )
 
       {elapsed, events} = :timer.tc(fn -> Enum.to_list(env.body) end, :millisecond)
 
@@ -814,7 +822,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.to_list(env.body) == [%{data: "a"}]
 
@@ -826,7 +836,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.to_list(env.body) == [%{data: "a"}]
     end
@@ -841,7 +853,7 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                  reconnect: [delay: 0, max_attempts: 2]
                )
 
@@ -860,7 +872,7 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                  reconnect: [delay: 0, max_attempts: 2]
                )
 
@@ -882,7 +894,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}]
     end
@@ -901,7 +915,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
       assert error.reason == :timeout
@@ -923,7 +939,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
       assert error.reason == :recv_chunk_timeout
@@ -940,7 +958,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}]
     end
@@ -953,7 +973,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.take(env.body, 2) == [%{data: "a"}, %{data: "b"}]
 
@@ -979,7 +1001,9 @@ defmodule Tesla.Middleware.SSETest do
       adapter = sequence_adapter([{:ok, %{@env | body: body}}])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.take(env.body, 1) == [%{data: "a"}]
 
@@ -995,7 +1019,7 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                  only: :data,
                  reconnect: [delay: 0]
                )
@@ -1016,7 +1040,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
 
       assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}]
     end
@@ -1028,7 +1054,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: []
+               )
 
       assert env.body == "x"
     end
@@ -1037,10 +1065,16 @@ defmodule Tesla.Middleware.SSETest do
       response = {:ok, %{@env | status: 500, body: "data: a\n\n"}}
 
       assert {:ok, expected} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, sequence_adapter([response])}], [])
+               Tesla.Middleware.SSE.call(
+                 %Tesla.Env{method: :get},
+                 [{:fn, sequence_adapter([response])}],
+                 []
+               )
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, sequence_adapter([response])}],
+               Tesla.Middleware.SSE.call(
+                 %Tesla.Env{method: :get},
+                 [{:fn, sequence_adapter([response])}],
                  reconnect: []
                )
 
@@ -1053,7 +1087,9 @@ defmodule Tesla.Middleware.SSETest do
       adapter = sequence_adapter([{:error, :econnrefused}])
 
       assert {:error, :econnrefused} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [])
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: []
+               )
     end
 
     for {key, value, expected} <- [
@@ -1073,7 +1109,7 @@ defmodule Tesla.Middleware.SSETest do
         adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
 
         assert_raise ArgumentError, unquote(expected), fn ->
-          Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+          Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
             reconnect: [{unquote(key), unquote(value)}]
           )
         end
@@ -1088,7 +1124,7 @@ defmodule Tesla.Middleware.SSETest do
       assert_raise ArgumentError,
                    "unknown :reconnect option :dealy, expected one of [:delay, :max_attempts]",
                    fn ->
-                     Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                     Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                        reconnect: [dealy: 0]
                      )
                    end
@@ -1100,7 +1136,7 @@ defmodule Tesla.Middleware.SSETest do
       adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
 
       assert {:ok, _env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                  reconnect: [delay: 0, max_attempts: :infinity]
                )
     end
@@ -1112,7 +1148,7 @@ defmodule Tesla.Middleware.SSETest do
         assert_raise ArgumentError,
                      "expected :reconnect to be a boolean, nil or a keyword list, got #{inspect(unquote(invalid))}",
                      fn ->
-                       Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                       Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                          reconnect: unquote(Macro.escape(invalid))
                        )
                      end
@@ -1129,7 +1165,9 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: true)
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: true
+               )
 
       assert env.body |> Stream.take(1) |> Enum.to_list() == [%{data: "a"}]
     end
@@ -1139,7 +1177,7 @@ defmodule Tesla.Middleware.SSETest do
         adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
 
         assert {:ok, env} =
-                 Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                 Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                    reconnect: unquote(disabled)
                  )
 
