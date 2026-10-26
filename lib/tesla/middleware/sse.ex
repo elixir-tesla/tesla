@@ -86,20 +86,10 @@ defmodule Tesla.Middleware.SSE do
   defp decode_reconnecting(request, next, response, reconnect, opts) do
     case event_stream?(response, opts) do
       true ->
-        state = %{
-          request: request,
-          next: next,
-          opts: opts,
-          delay: reconnect[:delay],
-          max_attempts: reconnect[:max_attempts],
-          attempts: 0,
-          last_event_id: "",
-          body: open_body(response.body),
-          parser: @parser
-        }
+        start = start_reconnecting(request, next, response, reconnect, opts)
 
         events =
-          Stream.resource(start_reconnecting(state), &next_events/1, &close_body/1)
+          Stream.resource(start, &next_events/1, &close_body/1)
           |> Stream.flat_map(&only(&1, opts[:only]))
 
         {:ok, %{response | body: events}}
@@ -109,7 +99,21 @@ defmodule Tesla.Middleware.SSE do
     end
   end
 
-  defp start_reconnecting(state), do: fn -> state end
+  defp start_reconnecting(request, next, response, reconnect, opts) do
+    fn ->
+      %{
+        request: request,
+        next: next,
+        opts: opts,
+        delay: reconnect[:delay],
+        max_attempts: reconnect[:max_attempts],
+        attempts: 0,
+        last_event_id: "",
+        body: open_body(response.body),
+        parser: @parser
+      }
+    end
+  end
 
   defp event_stream?(response, opts) do
     response.status == 200 and decodable_content_type?(response, opts)
