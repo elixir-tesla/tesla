@@ -1364,6 +1364,15 @@ defmodule Tesla.Middleware.SSETest do
       assert_received {:closed, ^ref}
     end
 
+    test "close the connection once when reading it raises" do
+      assert {:ok, env} = reconnecting(failing_body(fn -> raise "boom" end))
+
+      assert_raise RuntimeError, "boom", fn -> Enum.to_list(env.body) end
+
+      assert_received :body_cleanup
+      refute_received :body_cleanup
+    end
+
     test "keep only the requested key across connections" do
       adapter =
         sequence_adapter([
@@ -1571,6 +1580,23 @@ defmodule Tesla.Middleware.SSETest do
 
   defp last_event_id_headers(env) do
     Enum.filter(env.headers, fn {key, _value} -> String.downcase(key) == "last-event-id" end)
+  end
+
+  defp failing_body(failure) do
+    Stream.resource(
+      fn -> :first end,
+      fn
+        :first -> {["data: a\n\n"], :second}
+        :second -> failure.()
+      end,
+      fn _ -> send(self(), :body_cleanup) end
+    )
+  end
+
+  defp reconnecting(body) do
+    adapter = sequence_adapter([{:ok, %{@env | body: body}}])
+
+    Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}], reconnect: [delay: 0])
   end
 
   defp sequence_adapter(responses) do
