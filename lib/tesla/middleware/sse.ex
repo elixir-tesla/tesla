@@ -93,9 +93,9 @@ defmodule Tesla.Middleware.SSE do
   end
 
   defp start_reconnecting(request, next, response, opts) do
-    fn ->
-      reconnect = Keyword.merge(@reconnect_defaults, opts[:reconnect])
+    reconnect = Keyword.merge(@reconnect_defaults, opts[:reconnect])
 
+    fn ->
       %{
         request: request,
         next: next,
