@@ -106,15 +106,19 @@ defmodule Tesla.Middleware.SSE do
         {[], %{parser | line: [parser.line, partial]}}
 
       [first | rest] ->
-        {lines, [partial]} = Enum.split([IO.iodata_to_binary([parser.line, first]) | rest], -1)
-
-        {events, event} =
-          lines
-          |> Enum.map(&replace_invalid_utf8/1)
-          |> Enum.flat_map_reduce(parser.event, &parse_line/2)
-
-        {events, %{parser | line: [partial], event: event}}
+        parse_lines([IO.iodata_to_binary([parser.line, first]) | rest], parser)
     end
+  end
+
+  defp parse_lines(lines, parser) do
+    {lines, [partial]} = Enum.split(lines, -1)
+
+    {events, event} =
+      lines
+      |> Enum.map(&replace_invalid_utf8/1)
+      |> Enum.flat_map_reduce(parser.event, &parse_line/2)
+
+    {events, %{parser | line: [partial], event: event}}
   end
 
   # Unlike the spec, an event still pending when the body ends is returned, as it was before.
