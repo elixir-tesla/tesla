@@ -709,6 +709,19 @@ defmodule Tesla.Middleware.SSETest do
     end
   end
 
+  describe "body without reconnect" do
+    test "is an eager list that can be enumerated twice" do
+      adapter = fn _env -> {:ok, %{@env | body: "data: a\n\ndata: b\n\n"}} end
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}], [])
+
+      assert is_list(env.body)
+      assert Enum.take(env.body, 1) == [%{data: "a"}]
+      assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}]
+    end
+  end
+
   describe "reconnect option" do
     test "do not reconnect a request that is not a GET" do
       first = {:ok, %{@env | body: "id: 1\ndata: a\n\n"}}
