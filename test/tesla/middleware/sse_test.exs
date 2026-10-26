@@ -18,7 +18,7 @@ defmodule Tesla.Middleware.SSETest do
 
     test "decode comment" do
       adapter = fn _env ->
-        {:ok, %{@env | body: ": comment\n\n"}}
+        {:ok, %{@env | body: ": comment"}}
       end
 
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
@@ -33,7 +33,6 @@ defmodule Tesla.Middleware.SSETest do
 
       data: another message
       data: with two lines
-
       """
 
       adapter = fn _env ->
@@ -59,7 +58,6 @@ defmodule Tesla.Middleware.SSETest do
 
       event: usermessage
       data: {"username": "bobby", "time": "02:34:11", "text": "Hi everyone."}
-
       """
 
       adapter = fn _env ->
@@ -96,7 +94,6 @@ defmodule Tesla.Middleware.SSETest do
       data: y
 
       :comment
-
       """
 
       adapter = fn _env ->
@@ -144,7 +141,6 @@ defmodule Tesla.Middleware.SSETest do
 
       event: usermessage
       data: data4
-
       """
 
       adapter = fn _env ->
@@ -254,7 +250,7 @@ defmodule Tesla.Middleware.SSETest do
 
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
 
-      assert Enum.to_list(env.body) == [%{data: "data1"}, %{data: "data2"}]
+      assert Enum.to_list(env.body) == [%{data: "data1"}, %{data: "data2"}, %{data: "data3"}]
     end
   end
 
@@ -262,17 +258,14 @@ defmodule Tesla.Middleware.SSETest do
     test "decode id and retry" do
       body = """
       id: 42
-      data: a
 
       retry: 3000
-      data: b
-
       """
 
       adapter = fn _env -> {:ok, %{@env | body: body}} end
 
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
-      assert env.body == [%{id: "42", data: "a"}, %{retry: "3000", data: "b"}]
+      assert env.body == [%{id: "42"}, %{retry: "3000"}]
     end
 
     test "ignore response without a content-type" do
@@ -314,31 +307,6 @@ defmodule Tesla.Middleware.SSETest do
 
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
       assert env.body == [%{data: "x"}, %{data: "y"}, %{data: "z"}]
-    end
-
-    test "do not dispatch an event without a data field" do
-      adapter = fn _env ->
-        {:ok, %{@env | body: "event: a\n\nid: 1\n\nretry: 10\n\ndata: x\n\n"}}
-      end
-
-      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
-      assert env.body == [%{data: "x"}]
-    end
-
-    test "discard an unterminated final event" do
-      adapter = fn _env -> {:ok, %{@env | body: "data: a\n\ndata: b"}} end
-
-      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
-      assert env.body == [%{data: "a"}]
-    end
-
-    test "discard an unterminated final event in a stream" do
-      adapter = fn _env ->
-        {:ok, %{@env | body: Stream.map(["data: a\n\nda", "ta: b"], & &1)}}
-      end
-
-      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
-      assert Enum.to_list(env.body) == [%{data: "a"}]
     end
 
     test "remove only one space after the colon" do
@@ -655,15 +623,6 @@ defmodule Tesla.Middleware.SSETest do
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
       assert env.body == [%{data: "x"}]
     end
-
-    test "do not decode a content type that only starts with text/event-stream" do
-      adapter = fn _env ->
-        {:ok, %{@env | headers: [{"content-type", "text/event-streamer"}], body: "data: x\n\n"}}
-      end
-
-      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
-      assert env.body == "data: x\n\n"
-    end
   end
 
   describe "only option" do
@@ -675,6 +634,48 @@ defmodule Tesla.Middleware.SSETest do
 
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], only: :data)
       assert env.body == ["x", ""]
+    end
+  end
+
+  describe "backwards compatibility" do
+    test "return blocks with only an id, a retry or an event" do
+      adapter = fn _env ->
+        {:ok, %{@env | body: "id: 1\n\nretry: 10\n\nevent: a\n\ndata: x\n\n"}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert env.body == [%{id: "1"}, %{retry: "10"}, %{event: "a"}, %{data: "x"}]
+    end
+
+    test "return blocks with only an id, a retry or an event in a stream" do
+      adapter = fn _env ->
+        chunks = ["id: 1\n\nre", "try: 10\n\nevent: a\n", "\ndata: x\n\n"]
+        {:ok, %{@env | body: Stream.map(chunks, & &1)}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert Enum.to_list(env.body) == [%{id: "1"}, %{retry: "10"}, %{event: "a"}, %{data: "x"}]
+    end
+
+    test "return an unterminated final event" do
+      adapter = fn _env -> {:ok, %{@env | body: "data: a\n\nid: 1\ndata: b"}} end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert env.body == [%{data: "a"}, %{id: "1", data: "b"}]
+    end
+
+    test "decode a content type that starts with a decodable content type" do
+      adapter = fn _env ->
+        {:ok,
+         %{@env | headers: [{"content-type", "application/x-events-v2"}], body: "data: x\n\n"}}
+      end
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                 decode_content_types: ["application/x-events"]
+               )
+
+      assert env.body == [%{data: "x"}]
     end
   end
 end
