@@ -938,8 +938,8 @@ defmodule Tesla.Middleware.SSETest do
     test "strip a leading byte order mark from every connection" do
       adapter =
         sequence_adapter([
-          {:ok, %{@env | body: "﻿data: a\n\n"}},
-          {:ok, %{@env | body: "﻿data: b\n\n"}},
+          {:ok, %{@env | body: "\uFEFFdata: a\n\n"}},
+          {:ok, %{@env | body: "\uFEFFdata: b\n\n"}},
           {:ok, %Tesla.Env{status: 204}}
         ])
 
