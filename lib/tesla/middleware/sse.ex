@@ -43,9 +43,9 @@ defmodule Tesla.Middleware.SSE do
     opts = opts || []
 
     with {:ok, response} <- Tesla.run(env, next) do
-      case reconnect_options(opts) do
-        nil -> decode(response, opts)
-        reconnect -> decode_reconnecting(env, next, response, reconnect, opts)
+      case Keyword.has_key?(opts, :reconnect) do
+        true -> decode_reconnecting(env, next, response, opts)
+        false -> decode(response, opts)
       end
     end
   end
@@ -76,17 +76,10 @@ defmodule Tesla.Middleware.SSE do
 
   defp stop_parsing(_parser), do: :ok
 
-  defp reconnect_options(opts) do
-    case Keyword.fetch(opts, :reconnect) do
-      {:ok, reconnect} -> Keyword.merge(@reconnect_defaults, reconnect)
-      :error -> nil
-    end
-  end
-
-  defp decode_reconnecting(request, next, response, reconnect, opts) do
+  defp decode_reconnecting(request, next, response, opts) do
     case event_stream?(response, opts) do
       true ->
-        start = start_reconnecting(request, next, response, reconnect, opts)
+        start = start_reconnecting(request, next, response, opts)
 
         events =
           Stream.resource(start, &next_events/1, &close_body/1)
@@ -99,8 +92,10 @@ defmodule Tesla.Middleware.SSE do
     end
   end
 
-  defp start_reconnecting(request, next, response, reconnect, opts) do
+  defp start_reconnecting(request, next, response, opts) do
     fn ->
+      reconnect = Keyword.merge(@reconnect_defaults, opts[:reconnect])
+
       %{
         request: request,
         next: next,
