@@ -113,7 +113,8 @@ defmodule Tesla.Middleware.SSE do
     |> Enum.reduce(%{}, fn
       :empty, acc -> acc
       {:data, data}, acc -> Map.update(acc, :data, data, &(&1 <> "\n" <> data))
-      {key, value}, acc -> Map.put_new(acc, key, value)
+      {:comment, comment}, acc -> Map.put_new(acc, :comment, comment)
+      {key, value}, acc -> Map.put(acc, key, value)
     end)
   end
 
@@ -134,11 +135,13 @@ defmodule Tesla.Middleware.SSE do
     case field do
       "data" -> {:data, value}
       "event" -> {:event, value}
-      "id" -> {:id, value}
-      "retry" -> {:retry, value}
+      "id" -> if String.contains?(value, <<0>>), do: :empty, else: {:id, value}
+      "retry" -> if ascii_digits?(value), do: {:retry, value}, else: :empty
       _ -> :empty
     end
   end
+
+  defp ascii_digits?(value), do: value =~ ~r/\A[0-9]+\z/
 
   defp strip_leading_space(" " <> value), do: value
   defp strip_leading_space(value), do: value
