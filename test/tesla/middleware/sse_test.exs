@@ -796,6 +796,26 @@ defmodule Tesla.Middleware.SSETest do
       end
     end
 
+    test "reconnect a request whose headers use atom keys" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id: 7\ndata: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      request = %Tesla.Env{method: :get, headers: [{:accept, "text/event-stream"}]}
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(request, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.to_list(env.body) == [%{id: "7", data: "a"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert {:accept, "text/event-stream"} in second.headers
+      assert Tesla.get_header(second, "last-event-id") == "7"
+    end
+
     test "replace a seeded last event id with the one the server sends" do
       adapter =
         sequence_adapter([
