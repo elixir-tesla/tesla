@@ -911,6 +911,25 @@ defmodule Tesla.Middleware.SSETest do
       assert elapsed < 200
     end
 
+    test "apply a retry field split across chunks when the stream ends before its blank line" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: Stream.map(["data: a\n\nret", "ry: 0\n"], & &1)}},
+          {:ok, %{@env | body: "data: b\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 400]
+               )
+
+      {elapsed, events} = :timer.tc(fn -> Enum.to_list(env.body) end, :millisecond)
+
+      assert events == [%{data: "a"}, %{data: "b"}]
+      assert elapsed < 200
+    end
+
     test "raise when the server rejects a reconnection" do
       adapter =
         sequence_adapter([
