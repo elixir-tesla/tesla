@@ -1331,12 +1331,21 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0]
                )
 
-      assert Enum.take(env.body, 2) == [%{data: "a"}, %{data: "b"}]
+      events =
+        env.body
+        |> Stream.with_index()
+        |> Stream.map(fn
+          {event, 1} ->
+            assert_received {:request, _first}
+            refute_received {:request, _second}
+            event
 
-      assert_received {:request, _first}
-      refute_received {:request, _second}
+          {event, _index} ->
+            event
+        end)
+        |> Enum.take(3)
 
-      assert Enum.take(env.body, 3) == [%{data: "a"}, %{data: "b"}, %{data: "c"}]
+      assert events == [%{data: "a"}, %{data: "b"}, %{data: "c"}]
 
       assert_received {:request, _second}
     end
