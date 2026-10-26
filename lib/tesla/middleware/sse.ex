@@ -22,7 +22,8 @@ defmodule Tesla.Middleware.SSE do
     `true` or a keyword list, where `true` is the same as `[]` and uses the defaults, and the
     body becomes a stream that reconnects whenever the connection ends or reading it raises
     `Tesla.Error`, sending the last event id in the `last-event-id` header, as `EventSource`
-    does. The stream raises `Tesla.Error` when it gives up, so a consumer can tell an outage
+    does. A `last-event-id` header on the request seeds that id, and the id the server sends
+    replaces it. The stream raises `Tesla.Error` when it gives up, so a consumer can tell an outage
     or an expired token from a completed stream. A `204` response to a reconnection is the one
     clean end, as the server asked to stop. Any other response that is not a `200` event stream
     raises with `reason` `:unexpected_response` and `env` set to that response. The body of
@@ -198,7 +199,7 @@ defmodule Tesla.Middleware.SSE do
         max_attempts: reconnect[:max_attempts],
         attempts: 0,
         last_reason: :closed,
-        last_event_id: "",
+        last_event_id: seeded_event_id(request),
         body: open_body(response.body),
         parser: @parser
       }
@@ -273,13 +274,29 @@ defmodule Tesla.Middleware.SSE do
     raise Tesla.Error, env: response, reason: :unexpected_response
   end
 
-  defp last_event_id_request(%{request: request, last_event_id: ""}) do
-    Tesla.delete_header(request, "last-event-id")
+  defp seeded_event_id(request) do
+    case last_event_id_headers(request) do
+      [{_name, last_event_id} | _] -> last_event_id
+      [] -> ""
+    end
   end
 
   defp last_event_id_request(%{request: request, last_event_id: last_event_id}) do
-    Tesla.put_header(request, "last-event-id", last_event_id)
+    request = drop_last_event_id(request)
+
+    case last_event_id do
+      "" -> request
+      last_event_id -> Tesla.put_header(request, "last-event-id", last_event_id)
+    end
   end
+
+  defp drop_last_event_id(request) do
+    %{request | headers: Enum.reject(request.headers, &last_event_id_header?/1)}
+  end
+
+  defp last_event_id_headers(request), do: Enum.filter(request.headers, &last_event_id_header?/1)
+
+  defp last_event_id_header?({name, _value}), do: String.downcase(name) == "last-event-id"
 
   defp track(state, events), do: Enum.reduce(events, state, &track_event/2)
 
