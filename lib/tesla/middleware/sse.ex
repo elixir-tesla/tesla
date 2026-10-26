@@ -94,7 +94,7 @@ defmodule Tesla.Middleware.SSE do
   defp parse("\n" <> chunk, %{cr: true} = parser), do: parse(chunk, %{parser | cr: false})
 
   defp parse(chunk, parser) do
-    parser = %{parser | cr: :binary.last(chunk) == ?\r}
+    parser = %{parser | cr: ends_with_cr?(chunk)}
 
     case :binary.split(chunk, ["\r\n", "\n", "\r"], [:global]) do
       [partial] ->
@@ -110,6 +110,10 @@ defmodule Tesla.Middleware.SSE do
 
         {events, %{parser | line: [partial], event: event}}
     end
+  end
+
+  defp ends_with_cr?(chunk) do
+    :binary.last(chunk) == ?\r
   end
 
   defp parse_line("", event), do: {dispatch(event), %{}}
