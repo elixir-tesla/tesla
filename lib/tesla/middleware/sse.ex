@@ -182,9 +182,23 @@ defmodule Tesla.Middleware.SSE do
     case field do
       "data" -> {:data, value}
       "event" -> {:event, value}
-      "id" -> if String.contains?(value, <<0>>), do: :empty, else: {:id, value}
-      "retry" -> if ascii_digits?(value), do: {:retry, value}, else: :empty
+      "id" -> decode_id(value)
+      "retry" -> decode_retry(value)
       _ -> :empty
+    end
+  end
+
+  defp decode_id(value) do
+    case String.contains?(value, <<0>>) do
+      true -> :empty
+      false -> {:id, value}
+    end
+  end
+
+  defp decode_retry(value) do
+    case ascii_digits?(value) do
+      true -> {:retry, value}
+      false -> :empty
     end
   end
 
