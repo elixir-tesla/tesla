@@ -1373,6 +1373,34 @@ defmodule Tesla.Middleware.SSETest do
       refute_received :body_cleanup
     end
 
+    test "close the connection once when reading it throws" do
+      assert {:ok, env} = reconnecting(failing_body(fn -> throw(:boom) end))
+
+      assert catch_throw(Enum.to_list(env.body)) == :boom
+
+      assert_received :body_cleanup
+      refute_received :body_cleanup
+    end
+
+    test "close the connection once when reading it exits" do
+      assert {:ok, env} = reconnecting(failing_body(fn -> exit(:boom) end))
+
+      assert catch_exit(Enum.to_list(env.body)) == :boom
+
+      assert_received :body_cleanup
+      refute_received :body_cleanup
+    end
+
+    test "close the connection once when reading it times out" do
+      body = failing_body(fn -> raise Tesla.Error, reason: :timeout end)
+      assert {:ok, env} = reconnecting(body)
+
+      assert %Tesla.Error{reason: :timeout} = catch_error(Enum.to_list(env.body))
+
+      assert_received :body_cleanup
+      refute_received :body_cleanup
+    end
+
     test "keep only the requested key across connections" do
       adapter =
         sequence_adapter([
