@@ -102,7 +102,12 @@ defmodule Tesla.Middleware.SSE do
 
       [first | rest] ->
         {lines, [partial]} = Enum.split([IO.iodata_to_binary([parser.line, first]) | rest], -1)
-        {events, event} = Enum.flat_map_reduce(lines, parser.event, &parse_line/2)
+
+        {events, event} =
+          lines
+          |> Enum.map(&replace_invalid_utf8/1)
+          |> Enum.flat_map_reduce(parser.event, &parse_line/2)
+
         {events, %{parser | line: [partial], event: event}}
     end
   end
@@ -110,7 +115,7 @@ defmodule Tesla.Middleware.SSE do
   defp parse_line("", event), do: {dispatch(event), %{}}
 
   defp parse_line(line, event) do
-    case line |> replace_invalid_utf8() |> decode_body() do
+    case decode_body(line) do
       :empty -> {[], event}
       {:data, data} -> {[], Map.update(event, :data, data, &(&1 <> "\n" <> data))}
       {:comment, comment} -> {[], Map.put_new(event, :comment, comment)}
@@ -121,7 +126,10 @@ defmodule Tesla.Middleware.SSE do
   # Each maximal ill-formed subsequence becomes one U+FFFD, as the UTF-8 decoder does.
   # https://encoding.spec.whatwg.org/#utf-8-decoder
   defp replace_invalid_utf8(line) do
-    if String.valid?(line), do: line, else: replace_invalid_utf8(line, [])
+    case String.valid?(line) do
+      true -> line
+      false -> replace_invalid_utf8(line, [])
+    end
   end
 
   defp replace_invalid_utf8(<<>>, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
