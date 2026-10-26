@@ -157,7 +157,8 @@ defmodule Tesla.Middleware.SSE do
 
   defp replace_invalid_utf8(<<lead, rest::binary>>, acc) do
     size = continuation_size(rest, continuation_ranges(lead))
-    <<_::binary-size(size), rest::binary>> = rest
+    {_invalid, rest} = :erlang.split_binary(rest, size)
+
     replace_invalid_utf8(rest, ["\uFFFD" | acc])
   end
 
