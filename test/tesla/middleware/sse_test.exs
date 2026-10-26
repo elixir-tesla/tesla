@@ -1283,7 +1283,7 @@ defmodule Tesla.Middleware.SSETest do
       adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
 
       assert_raise ArgumentError,
-                   "unknown :reconnect option :dealy, expected one of [:delay, :max_attempts]",
+                   "unknown :reconnect option :dealy, expected one of [:delay, :max_delay, :max_attempts]",
                    fn ->
                      Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                        reconnect: [dealy: 0]

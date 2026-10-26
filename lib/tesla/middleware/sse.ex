@@ -43,6 +43,9 @@ defmodule Tesla.Middleware.SSE do
     - `:delay` - non-negative integer of milliseconds to wait before reconnecting until the
       server sends a `retry` field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
       initial reconnection time to each implementation.
+    - `:max_delay` - non-negative integer of milliseconds that caps the `retry` field the
+      server sends, so a huge value cannot park the consumer. Defaults to `60000`. `:delay` must not
+      exceed it.
     - `:max_attempts` - positive integer, or `:infinity`, of consecutive reconnection
       attempts before giving up. A reconnection counts as an attempt until an event arrives on it,
       so a connection that is established but closes without sending an event is counted too.
@@ -55,7 +58,7 @@ defmodule Tesla.Middleware.SSE do
 
   @parser %{line: [], cr: false, event: %{}}
 
-  @reconnect_defaults [delay: 3000, max_attempts: :infinity]
+  @reconnect_defaults [delay: 3000, max_delay: 60_000, max_attempts: :infinity]
 
   @impl Tesla.Middleware
   def call(env, next, opts) do
@@ -105,6 +108,7 @@ defmodule Tesla.Middleware.SSE do
   defp validate_reconnect!(value) do
     reconnect = Keyword.merge(@reconnect_defaults, value)
     validate_delay!(reconnect[:delay])
+    validate_max_delay!(reconnect[:max_delay])
     validate_max_attempts!(reconnect[:max_attempts])
     reconnect
   end
@@ -113,6 +117,12 @@ defmodule Tesla.Middleware.SSE do
 
   defp validate_delay!(delay) do
     raise ArgumentError, "expected :delay to be an integer >= 0, got #{inspect(delay)}"
+  end
+
+  defp validate_max_delay!(max_delay) when is_integer(max_delay) and max_delay >= 0, do: :ok
+
+  defp validate_max_delay!(max_delay) do
+    raise ArgumentError, "expected :max_delay to be an integer >= 0, got #{inspect(max_delay)}"
   end
 
   defp validate_max_attempts!(:infinity), do: :ok
@@ -177,6 +187,7 @@ defmodule Tesla.Middleware.SSE do
         next: next,
         opts: opts,
         delay: reconnect[:delay],
+        max_delay: reconnect[:max_delay],
         max_attempts: reconnect[:max_attempts],
         attempts: 0,
         last_reason: :closed,
@@ -270,10 +281,22 @@ defmodule Tesla.Middleware.SSE do
     state = Map.update!(state, :last_event_id, &Map.get(event, :id, &1))
 
     case event do
-      %{retry: retry} -> %{state | delay: String.to_integer(retry)}
+      %{retry: retry} -> %{state | delay: clamp_retry(retry, state.max_delay)}
       _ -> state
     end
   end
+
+  defp clamp_retry(retry, max_delay) do
+    retry = String.trim_leading(retry, "0")
+
+    case byte_size(retry) > length(Integer.digits(max_delay)) do
+      true -> max_delay
+      false -> retry |> to_milliseconds() |> min(max_delay)
+    end
+  end
+
+  defp to_milliseconds(""), do: 0
+  defp to_milliseconds(digits), do: String.to_integer(digits)
 
   defp open_body(body) when is_binary(body), do: open_body([body])
 
