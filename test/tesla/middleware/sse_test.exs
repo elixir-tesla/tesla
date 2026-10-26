@@ -748,6 +748,23 @@ defmodule Tesla.Middleware.SSETest do
       assert Tesla.get_header(second, "last-event-id") == nil
     end
 
+    test "send the id of an earlier event when a later event in the same chunk has none" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id: 1\ndata: a\n\ndata: b\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.to_list(env.body) == [%{id: "1", data: "a"}, %{data: "b"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert Tesla.get_header(second, "last-event-id") == "1"
+    end
+
     test "wait for the reconnection time sent by the server" do
       adapter =
         sequence_adapter([
