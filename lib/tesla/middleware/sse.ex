@@ -43,6 +43,11 @@ defmodule Tesla.Middleware.SSE do
     timeout, reason `:timeout` or `:recv_chunk_timeout`, is not a dropped connection and is
     raised to the consumer without reconnecting. `EventSource` has no read timeout, so set the
     adapter's receive timeout above the server's heartbeat interval, or to `:infinity`.
+    Place this middleware last in the list, after any middleware that must run on every
+    connection attempt, such as authentication, request signing, redirects, retries and
+    telemetry. A reconnection runs only the middleware below this one, so middleware above it
+    runs once for the first request. A token set above it is sent again unchanged, and the
+    server may answer the reconnection with a `401`.
     - `:delay` - non-negative integer of milliseconds to wait before reconnecting until the
       server sends a `retry` field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
       initial reconnection time to each implementation.
