@@ -43,6 +43,7 @@ defmodule Tesla.Middleware.SSE do
 
   defp decode_body(body, opts) when is_struct(body, Stream) or is_function(body) do
     body
+    |> strip_stream_bom()
     |> Stream.chunk_while(
       "",
       fn elem, acc ->
@@ -65,10 +66,43 @@ defmodule Tesla.Middleware.SSE do
 
   defp decode_body(binary, opts) when is_binary(binary) do
     binary
+    |> strip_bom()
     |> String.split(double_linebreak_regex())
     |> Enum.map(&decode_message/1)
     |> Enum.flat_map(&only(&1, opts[:only]))
   end
+
+  # A byte order mark at the very start of the stream is not part of the first line, but one
+  # anywhere else is. In a stream it can be split across chunks, so up to two bytes that may be
+  # its start are held back until the next chunk arrives.
+  @bom <<0xEF, 0xBB, 0xBF>>
+
+  defp strip_bom(@bom <> rest), do: rest
+  defp strip_bom(binary), do: binary
+
+  defp strip_stream_bom(stream) do
+    Stream.transform(
+      stream,
+      fn -> "" end,
+      fn
+        chunk, :done -> {[chunk], :done}
+        chunk, start -> strip_start_bom(start <> chunk)
+      end,
+      fn
+        :done -> {[], :done}
+        start -> {[start], :done}
+      end,
+      fn _acc -> :ok end
+    )
+  end
+
+  defp strip_start_bom(@bom <> rest), do: {[rest], :done}
+
+  defp strip_start_bom(start) when byte_size(start) < byte_size(@bom) do
+    if binary_part(@bom, 0, byte_size(start)) == start, do: {[], start}, else: {[start], :done}
+  end
+
+  defp strip_start_bom(start), do: {[start], :done}
 
   defp double_linebreak_regex(), do: ~r/((\r\n)|((?<!\r)\n)|(\r(?!\n))){2}/
 
@@ -119,6 +153,8 @@ defmodule Tesla.Middleware.SSE do
   defp content_types(opts),
     do: @default_content_types ++ Keyword.get(opts, :decode_content_types, [])
 
+  # A message without any known field, such as one with only an unknown field, is not an event.
+  defp only(message, _key) when map_size(message) == 0, do: []
   defp only(message, nil), do: [message]
 
   defp only(message, key) do
