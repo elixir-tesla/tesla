@@ -106,12 +106,13 @@ defmodule Tesla.Middleware.SSE do
         {[], %{parser | line: [parser.line, partial]}}
 
       [first | rest] ->
-        parse_lines([IO.iodata_to_binary([parser.line, first]) | rest], parser)
+        parse_lines(first, rest, parser)
     end
   end
 
-  defp parse_lines(lines, parser) do
-    {lines, [partial]} = Enum.split(lines, -1)
+  defp parse_lines(first, rest, parser) do
+    first = IO.iodata_to_binary([parser.line, first])
+    {lines, [partial]} = Enum.split([first | rest], -1)
 
     {events, event} =
       lines
