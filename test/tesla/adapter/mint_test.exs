@@ -52,6 +52,42 @@ defmodule Tesla.Adapter.MintTest do
     assert Enum.join(response.body) |> byte_size() == 2245
   end
 
+  test "response body as stream raises Tesla.Error when the server drops the connection" do
+    {:ok, listen_socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen_socket)
+
+    server =
+      spawn_link(fn ->
+        {:ok, socket} = :gen_tcp.accept(listen_socket)
+        {:ok, _request} = :gen_tcp.recv(socket, 0, 5_000)
+        :ok = :gen_tcp.send(socket, @chunked_head <> "5\r\nhello\r\n")
+        Process.sleep(50)
+        :gen_tcp.close(socket)
+      end)
+
+    on_exit(fn ->
+      Process.unlink(server)
+      Process.exit(server, :kill)
+      :gen_tcp.close(listen_socket)
+    end)
+
+    request = %Env{method: :get, url: "http://localhost:#{port}/events"}
+
+    assert {:ok, %Env{status: 200, body: body} = response} = call(request, body_as: :stream)
+
+    parent = self()
+
+    error =
+      assert_raise Tesla.Error, fn ->
+        Enum.each(body, &send(parent, {:chunk, &1}))
+      end
+
+    assert_received {:chunk, "hello"}
+    assert %Mint.TransportError{reason: :closed} = error.reason
+    assert %Env{method: :get, url: url} = error.env
+    assert url == response.url
+  end
+
   test "response body as stream is empty when the response has no body" do
     request = %Env{
       method: :get,
