@@ -895,6 +895,26 @@ defmodule Tesla.Middleware.SSETest do
       assert requests() == 3
     end
 
+    test "reset the failed attempts when an event arrives on a reconnection" do
+      adapter =
+        repeating_adapter(
+          [
+            {:ok, %{@env | body: "data: a\n\n"}},
+            {:ok, %{@env | body: ""}},
+            {:ok, %{@env | body: "data: b\n\n"}}
+          ],
+          {:ok, %{@env | body: ""}}
+        )
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0, max_attempts: 2]
+               )
+
+      assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}]
+      assert requests() == 5
+    end
+
     test "reconnect when reading the body fails and discard the unfinished event" do
       failing_body =
         Stream.concat(
