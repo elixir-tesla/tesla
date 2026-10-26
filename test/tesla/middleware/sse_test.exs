@@ -79,6 +79,56 @@ defmodule Tesla.Middleware.SSETest do
              ]
     end
 
+    test "decode fields without a space after the colon, without a value and unknown fields" do
+      body = """
+      data:hello
+      event:greeting
+
+      data
+
+      data:
+      id:
+
+      foo: bar
+      data : x
+      data: y
+
+      :comment
+      """
+
+      adapter = fn _env ->
+        {:ok, %{@env | body: body}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+
+      assert env.body == [
+               %{data: "hello", event: "greeting"},
+               %{data: ""},
+               %{data: "", id: ""},
+               %{data: "y"},
+               %{comment: "comment"}
+             ]
+    end
+
+    test "ignore an event with only an unknown field" do
+      adapter = fn _env ->
+        {:ok, %{@env | body: "foo: bar\n\ndata: x\n\n"}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert env.body == [%{data: "x"}]
+    end
+
+    test "strip a leading byte order mark" do
+      adapter = fn _env ->
+        {:ok, %{@env | body: "\uFEFFdata: first\n\ndata: second\n\n"}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert env.body == [%{data: "first"}, %{data: "second"}]
+    end
+
     test "output only data" do
       body = """
       : comment1
@@ -121,6 +171,44 @@ defmodule Tesla.Middleware.SSETest do
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
 
       assert Enum.to_list(env.body) == [%{data: "data1"}, %{data: "data2"}, %{data: "data3"}]
+    end
+
+    test "handle stream data with fields without a space after the colon" do
+      adapter = fn _env ->
+        chunks = [
+          ~s|data:hel|,
+          ~s|lo\nevent:gr|,
+          ~s|eeting\n\nfoo: bar\n\nda|,
+          ~s|ta\n\n|
+        ]
+
+        {:ok, %{@env | body: Stream.map(chunks, & &1)}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+
+      assert Enum.to_list(env.body) == [%{data: "hello", event: "greeting"}, %{data: ""}]
+    end
+
+    test "handle stream data with a leading byte order mark split across chunks" do
+      adapter = fn _env ->
+        chunks = [<<0xEF>>, <<0xBB>>, <<0xBF>> <> "data: first\n\n", "data: \uFEFFsecond\n\n"]
+        {:ok, %{@env | body: Stream.map(chunks, & &1)}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+
+      # only the byte order mark at the start of the stream is removed
+      assert Enum.to_list(env.body) == [%{data: "first"}, %{data: "\uFEFFsecond"}]
+    end
+
+    test "handle an empty stream" do
+      adapter = fn _env ->
+        {:ok, %{@env | body: Stream.map([], & &1)}}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert Enum.to_list(env.body) == []
     end
 
     test "handle stream data with varying line terminators" do
