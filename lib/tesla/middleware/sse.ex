@@ -140,14 +140,15 @@ defmodule Tesla.Middleware.SSE do
     Process.sleep(state.delay)
 
     case Tesla.run(last_event_id_request(state), state.next) do
-      {:ok, response} ->
-        case event_stream?(response, state.opts) do
-          true -> {[], %{state | body: open_body(response.body), attempts: 0}}
-          false -> {:halt, state}
-        end
+      {:ok, response} -> resume(response, state)
+      {:error, _reason} -> {[], %{state | attempts: state.attempts + 1}}
+    end
+  end
 
-      {:error, _reason} ->
-        {[], %{state | attempts: state.attempts + 1}}
+  defp resume(response, state) do
+    case event_stream?(response, state.opts) do
+      true -> {[], %{state | body: open_body(response.body), attempts: 0}}
+      false -> {:halt, state}
     end
   end
 
