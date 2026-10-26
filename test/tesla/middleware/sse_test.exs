@@ -988,6 +988,21 @@ defmodule Tesla.Middleware.SSETest do
       assert {:error, :econnrefused} =
                Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [])
     end
+
+    for disabled <- [false, nil] do
+      test "do not reconnect when the option is #{inspect(disabled)}" do
+        adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
+
+        assert {:ok, env} =
+                 Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                   reconnect: unquote(disabled)
+                 )
+
+        assert env.body == [%{data: "a"}]
+        assert_received {:request, _first}
+        refute_received {:request, _second}
+      end
+    end
   end
 
   defp sequence_adapter(responses) do
