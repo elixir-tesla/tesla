@@ -1522,6 +1522,9 @@ defmodule Tesla.Middleware.SSETest do
                Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                  reconnect: []
                )
+
+      assert_received {:request, _}
+      refute_received {:request, _}
     end
 
     for {key, value, expected} <- [
