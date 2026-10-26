@@ -897,7 +897,9 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0, max_attempts: 2]
                )
 
-      assert Enum.to_list(env.body) == [%{data: "a"}]
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == {:max_attempts, :econnrefused}
+      assert error.env.method == :get
     end
 
     test "count failed reconnection attempts only until a connection succeeds" do
