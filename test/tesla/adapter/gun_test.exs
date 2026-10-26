@@ -673,24 +673,27 @@ defmodule Tesla.Adapter.GunTest do
     assert {:error, {:options, {:protocols, [:bogus]}}} == call(request, protocols: [:bogus])
   end
 
-  test "raises when the response stream stops receiving chunks" do
+  test "raises Tesla.Error when the response stream stops receiving chunks" do
     stream = drained_response_stream()
 
-    assert_raise RuntimeError, ":recv_chunk_timeout", fn -> Enum.join(stream) end
+    error = assert_raise Tesla.Error, fn -> Enum.join(stream) end
+    assert error.reason == :recv_chunk_timeout
   end
 
-  test "reraises the exception the response stream failed with" do
+  test "raises Tesla.Error with the exception the response stream failed with" do
     stream = drained_response_stream()
     send(self(), {:DOWN, make_ref(), :process, self(), %RuntimeError{message: "connection died"}})
 
-    assert_raise RuntimeError, "connection died", fn -> Enum.join(stream) end
+    error = assert_raise Tesla.Error, fn -> Enum.join(stream) end
+    assert error.reason == %RuntimeError{message: "connection died"}
   end
 
-  test "raises the message the response stream failed with" do
+  test "raises Tesla.Error with the message the response stream failed with" do
     stream = drained_response_stream()
     send(self(), {:DOWN, make_ref(), :process, self(), "connection died"})
 
-    assert_raise RuntimeError, "connection died", fn -> Enum.join(stream) end
+    error = assert_raise Tesla.Error, fn -> Enum.join(stream) end
+    assert error.reason == "connection died"
   end
 
   test "reuses a connection opened to an ip address" do
