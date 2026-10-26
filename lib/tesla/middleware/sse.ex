@@ -18,6 +18,14 @@ defmodule Tesla.Middleware.SSE do
 
   - `:only` - keep only specified keys in event (necessary for using with `JSON` middleware)
   - `:decode_content_types` - list of additional decodable content-types
+  - `:reconnect` - when `true` or a keyword list, the body becomes a stream that reconnects
+    whenever the connection ends or reading it raises `Tesla.Error`, sending the last event id
+    in the `last-event-id` header, as `EventSource` does. Reconnecting stops when the server
+    responds with anything other than a `200` event stream, such as a `204`. Defaults to `false`.
+    - `:delay` - milliseconds to wait before reconnecting until the server sends a `retry`
+      field. Defaults to `3000`.
+    - `:max_attempts` - consecutive failed reconnection attempts before giving up. Defaults to
+      `:infinity`.
   """
 
   @behaviour Tesla.Middleware
@@ -26,12 +34,17 @@ defmodule Tesla.Middleware.SSE do
 
   @parser %{line: [], cr: false, event: %{}}
 
+  @reconnect_defaults [delay: 3000, max_attempts: :infinity]
+
   @impl Tesla.Middleware
   def call(env, next, opts) do
     opts = opts || []
 
-    with {:ok, env} <- Tesla.run(env, next) do
-      decode(env, opts)
+    with {:ok, response} <- Tesla.run(env, next) do
+      case reconnect_options(opts) do
+        nil -> decode(response, opts)
+        reconnect -> decode_reconnecting(env, next, response, reconnect, opts)
+      end
     end
   end
 
@@ -60,6 +73,114 @@ defmodule Tesla.Middleware.SSE do
   defp finish_parsing(parser), do: {finish(parser), parser}
 
   defp stop_parsing(_parser), do: :ok
+
+  defp reconnect_options(opts) do
+    case Keyword.get(opts, :reconnect, false) do
+      false -> nil
+      true -> @reconnect_defaults
+      reconnect -> Keyword.merge(@reconnect_defaults, reconnect)
+    end
+  end
+
+  defp decode_reconnecting(request, next, response, reconnect, opts) do
+    case event_stream?(response, opts) do
+      true ->
+        state = %{
+          request: request,
+          next: next,
+          opts: opts,
+          delay: reconnect[:delay],
+          max_attempts: reconnect[:max_attempts],
+          attempts: 0,
+          last_event_id: "",
+          body: open_body(response.body),
+          parser: @parser
+        }
+
+        events =
+          Stream.resource(fn -> state end, &next_events/1, &close_body/1)
+          |> Stream.flat_map(&only(&1, opts[:only]))
+
+        {:ok, %{response | body: events}}
+
+      false ->
+        decode(response, opts)
+    end
+  end
+
+  defp event_stream?(response, opts) do
+    response.status == 200 and decodable_content_type?(response, opts)
+  end
+
+  # Unlike a stream that does not reconnect, an event still pending when the connection ends
+  # is discarded, as the server sends it again after the last event id.
+  defp next_events(%{body: :closed} = state), do: reconnect(state)
+
+  defp next_events(state) do
+    case next_chunk(state.body) do
+      {:chunk, chunk, body} ->
+        {events, parser} = parse(chunk, state.parser)
+        {events, %{track(state, events) | body: body, parser: parser}}
+
+      :closed ->
+        {[], %{state | body: :closed, parser: @parser}}
+    end
+  end
+
+  defp reconnect(%{attempts: attempts, max_attempts: attempts} = state), do: {:halt, state}
+
+  defp reconnect(state) do
+    Process.sleep(state.delay)
+
+    case Tesla.run(last_event_id_request(state), state.next) do
+      {:ok, response} ->
+        case event_stream?(response, state.opts) do
+          true -> {[], %{state | body: open_body(response.body), attempts: 0}}
+          false -> {:halt, state}
+        end
+
+      {:error, _reason} ->
+        {[], %{state | attempts: state.attempts + 1}}
+    end
+  end
+
+  defp last_event_id_request(%{request: request, last_event_id: ""}) do
+    Tesla.delete_header(request, "last-event-id")
+  end
+
+  defp last_event_id_request(%{request: request, last_event_id: last_event_id}) do
+    Tesla.put_header(request, "last-event-id", last_event_id)
+  end
+
+  defp track(state, events), do: Enum.reduce(events, state, &track_event/2)
+
+  defp track_event(event, state) do
+    state = Map.update!(state, :last_event_id, &Map.get(event, :id, &1))
+
+    case event do
+      %{retry: retry} -> %{state | delay: String.to_integer(retry)}
+      _ -> state
+    end
+  end
+
+  defp open_body(body) when is_binary(body), do: open_body([body])
+
+  defp open_body(body) do
+    body = strip_stream_bom(body)
+    &Enumerable.reduce(body, &1, fn chunk, _acc -> {:suspend, chunk} end)
+  end
+
+  defp next_chunk(body) do
+    case body.({:cont, nil}) do
+      {:suspended, chunk, body} -> {:chunk, chunk, body}
+      {_done_or_halted, _acc} -> :closed
+    end
+  rescue
+    Tesla.Error -> :closed
+  end
+
+  defp close_body(%{body: :closed}), do: :ok
+  defp close_body(%{body: body}), do: body.({:halt, nil})
 
   # A byte order mark at the very start of the stream is not part of the first line, but one
   # anywhere else is. In a stream it can be split across chunks, so up to two bytes that may be
