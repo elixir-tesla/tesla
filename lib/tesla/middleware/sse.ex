@@ -26,7 +26,7 @@ defmodule Tesla.Middleware.SSE do
       field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
       initial reconnection time to each implementation.
     - `:max_attempts` - consecutive failed reconnection attempts before giving up. Defaults to
-      `:infinity`.
+      `:infinity`, since the WHATWG spec never gives up reestablishing a connection.
   """
 
   @behaviour Tesla.Middleware
