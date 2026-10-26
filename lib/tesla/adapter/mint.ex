@@ -44,6 +44,27 @@ if Code.ensure_loaded?(Mint.HTTP) do
     - `:close_conn` - Close connection or not after receiving full response body. Is used for reusing mint connections. Defaults to `true`.
     - `:proxy` - Proxy settings. E.g.: `{:http, "localhost", 8888, []}`, `{:http, "127.0.0.1", 8888, []}`
     - `:transport_opts` - Keyword list of HTTP or HTTPS options passed into `:gen_tcp` or `:ssl` respectively by mint. See [mint's docs on `transport_opts`](https://hexdocs.pm/mint/Mint.HTTP.html#connect/4-transport-options).
+
+    ## Streamed response failures
+
+    When `body_as: :stream` is used, failures that happen after the response
+    headers arrived cannot be returned as `{:error, reason}`, because the
+    request already succeeded from the caller point of view. Such failures raise
+    `Tesla.Error` while the body stream is being consumed, so that a truncated
+    response is never mistaken for a complete one:
+
+    ```elixir
+    try do
+      Enum.each(env.body, &handle_chunk/1)
+    rescue
+      e in Tesla.Error ->
+        # e.reason is, for example, a Mint.TransportError or :timeout
+        {:error, e.reason}
+    end
+    ```
+
+    Waiting longer than `:timeout` for the next chunk raises with reason
+    `:timeout`.
     """
 
     @behaviour Tesla.Adapter
@@ -100,7 +121,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
         Tesla.build_url(env),
         env.headers,
         env.body,
-        Enum.into(opts, %{})
+        opts |> Enum.into(%{}) |> Map.put(:env, env)
       )
     end
 
@@ -270,7 +291,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
                 {:halt, %{conn: conn}}
 
               %{conn: conn} ->
-                case receive_packet(conn, ref, opts) do
+                case receive_packet(conn, ref, Map.put(opts, :raw_errors, true)) do
                   {:ok, conn, %{done: true, data: data}} ->
                     {[data], %{conn: conn, is_fin: true}}
 
@@ -284,7 +305,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
                     {[], %{conn: conn}}
 
                   {:error, error} ->
-                    raise_stream_error(error)
+                    raise_stream_error(error, opts[:env])
                 end
             end,
             fn %{conn: conn} -> maybe_close(conn, opts) end
@@ -351,13 +372,17 @@ if Code.ensure_loaded?(Mint.HTTP) do
           close_on_error(conn, :timeout, opts)
 
         {:error, conn, error, _responses} ->
-          # TODO: (breaking change) fix typo in error message, "Encounter" => "Encountered"
-          close_on_error(conn, "Encounter Mint error #{inspect(error)}", opts)
+          close_on_error(conn, mint_error(error, opts), opts)
 
         :unknown ->
           close_on_error(conn, :unknown, opts)
       end
     end
+
+    defp mint_error(error, %{raw_errors: true}), do: error
+
+    # TODO: (breaking change) fix typo in error message, "Encounter" => "Encountered"
+    defp mint_error(error, _opts), do: "Encounter Mint error #{inspect(error)}"
 
     defp receive_message(conn, %{mode: :active} = opts) do
       receive do
@@ -371,9 +396,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp receive_message(conn, %{mode: :passive} = opts),
       do: HTTP.recv(conn, 0, opts[:timeout])
 
-    defp raise_stream_error(error) when Kernel.is_exception(error), do: raise(error)
-    defp raise_stream_error(error) when is_binary(error), do: raise(RuntimeError, message: error)
-    defp raise_stream_error(error), do: raise(RuntimeError, message: inspect(error))
+    defp raise_stream_error(error, env), do: raise(Tesla.Error, env: env, reason: error)
 
     defp put_default_content_length_header(headers, body_length) do
       if Enum.any?(headers, &content_length?/1) do
