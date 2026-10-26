@@ -202,6 +202,21 @@ defmodule Tesla.Middleware.SSETest do
       assert Enum.to_list(env.body) == [%{data: "first"}, %{data: "\uFEFFsecond"}]
     end
 
+    test "decode the same events wherever the stream is split after a leading byte order mark" do
+      body = "\uFEFFdata: hello\n\n"
+
+      for split <- 0..byte_size(body) do
+        {first, second} = :erlang.split_binary(body, split)
+
+        adapter = fn _env ->
+          {:ok, %{@env | body: Stream.map([first, second], & &1)}}
+        end
+
+        assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+        assert Enum.to_list(env.body) == [%{data: "hello"}], "split at byte #{split}"
+      end
+    end
+
     test "handle an empty stream" do
       adapter = fn _env ->
         {:ok, %{@env | body: Stream.map([], & &1)}}
