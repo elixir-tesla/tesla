@@ -228,13 +228,14 @@ defmodule Tesla.Middleware.SSE do
 
   defp decodable_content_type?(env, opts) do
     case Tesla.get_header(env, "content-type") do
-      nil ->
-        false
-
-      content_type ->
-        content_type = String.downcase(content_type)
-        Enum.any?(content_types(opts), &String.starts_with?(content_type, &1))
+      nil -> false
+      content_type -> matches_content_type?(content_type, content_types(opts))
     end
+  end
+
+  defp matches_content_type?(content_type, content_types) do
+    content_type = String.downcase(content_type)
+    Enum.any?(content_types, &String.starts_with?(content_type, &1))
   end
 
   defp content_types(opts),
