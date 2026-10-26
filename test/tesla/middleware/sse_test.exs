@@ -710,6 +710,29 @@ defmodule Tesla.Middleware.SSETest do
   end
 
   describe "reconnect option" do
+    test "do not reconnect a request that is not a GET" do
+      first = {:ok, %{@env | body: "id: 1\ndata: a\n\n"}}
+      second = {:ok, %{@env | body: "data: b\n\n"}}
+      request = %Tesla.Env{method: :post, body: "payload"}
+
+      assert {:ok, plain} =
+               Tesla.Middleware.SSE.call(request, [{:fn, sequence_adapter([first])}], [])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(
+                 request,
+                 [{:fn, sequence_adapter([first, second])}],
+                 reconnect: [delay: 0]
+               )
+
+      assert Enum.to_list(env.body) == [%{id: "1", data: "a"}]
+      assert Enum.to_list(env.body) == Enum.to_list(plain.body)
+
+      assert_received {:request, _plain}
+      assert_received {:request, _first}
+      refute_received {:request, _second}
+    end
+
     test "reconnect when the stream ends and send the last event id" do
       adapter =
         sequence_adapter([
