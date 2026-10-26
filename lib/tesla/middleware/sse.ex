@@ -37,8 +37,10 @@ defmodule Tesla.Middleware.SSE do
     - `:delay` - non-negative integer of milliseconds to wait before reconnecting until the
       server sends a `retry` field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
       initial reconnection time to each implementation.
-    - `:max_attempts` - positive integer, or `:infinity`, of consecutive failed reconnection
-      attempts before giving up. Defaults to `:infinity`, since the WHATWG spec never gives up reestablishing a connection.
+    - `:max_attempts` - positive integer, or `:infinity`, of consecutive reconnection
+      attempts before giving up. A reconnection counts as an attempt until an event arrives on it,
+      so a connection that is established but closes without sending an event is counted too.
+      Defaults to `:infinity`, since the WHATWG spec never gives up reestablishing a connection.
   """
 
   @behaviour Tesla.Middleware
@@ -215,7 +217,7 @@ defmodule Tesla.Middleware.SSE do
 
   defp resume(response, state) do
     case event_stream?(response, state.opts) do
-      true -> {[], %{state | body: open_body(response.body), attempts: 0}}
+      true -> {[], %{state | body: open_body(response.body), attempts: state.attempts + 1}}
       false -> {:halt, state}
     end
   end
@@ -231,6 +233,7 @@ defmodule Tesla.Middleware.SSE do
   defp track(state, events), do: Enum.reduce(events, state, &track_event/2)
 
   defp track_event(event, state) do
+    state = %{state | attempts: 0}
     state = Map.update!(state, :last_event_id, &Map.get(event, :id, &1))
 
     case event do
