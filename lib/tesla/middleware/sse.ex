@@ -188,8 +188,15 @@ defmodule Tesla.Middleware.SSE do
   defp decodable_content_type?(env, opts) do
     case Tesla.get_header(env, "content-type") do
       nil -> false
-      content_type -> Enum.any?(content_types(opts), &String.starts_with?(content_type, &1))
+      content_type -> media_type(content_type) in Enum.map(content_types(opts), &media_type/1)
     end
+  end
+
+  # Media types are case-insensitive and may be followed by parameters.
+  # https://www.rfc-editor.org/rfc/rfc9110#section-8.3.1
+  defp media_type(content_type) do
+    [media_type | _parameters] = String.split(content_type, ";", parts: 2)
+    media_type |> String.trim() |> String.downcase()
   end
 
   defp content_types(opts),
