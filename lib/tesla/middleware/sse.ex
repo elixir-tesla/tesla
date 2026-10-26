@@ -296,7 +296,8 @@ defmodule Tesla.Middleware.SSE do
 
   defp last_event_id_headers(request), do: Enum.filter(request.headers, &last_event_id_header?/1)
 
-  defp last_event_id_header?({name, _value}), do: String.downcase(name) == "last-event-id"
+  defp last_event_id_header?({name, _value}),
+    do: String.downcase(to_string(name)) == "last-event-id"
 
   defp track(state, events), do: Enum.reduce(events, state, &track_event/2)
 
