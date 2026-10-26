@@ -773,12 +773,13 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 5000])
 
       {elapsed, events} = :timer.tc(fn -> Enum.to_list(env.body) end, :millisecond)
 
       assert events == [%{retry: "50", data: "a"}]
       assert elapsed >= 50
+      assert elapsed < 1000
     end
 
     test "stop reconnecting when the server does not respond with an event stream" do
