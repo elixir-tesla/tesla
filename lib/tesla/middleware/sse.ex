@@ -23,7 +23,8 @@ defmodule Tesla.Middleware.SSE do
     in the `last-event-id` header, as `EventSource` does. Reconnecting stops when the server
     responds with anything other than a `200` event stream, such as a `204`. Defaults to `false`.
     - `:delay` - milliseconds to wait before reconnecting until the server sends a `retry`
-      field. Defaults to `3000`.
+      field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
+      initial reconnection time to each implementation.
     - `:max_attempts` - consecutive failed reconnection attempts before giving up. Defaults to
       `:infinity`.
   """
