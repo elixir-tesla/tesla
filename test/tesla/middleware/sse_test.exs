@@ -892,6 +892,10 @@ defmodule Tesla.Middleware.SSETest do
 
       assert_received {:request, _first}
       refute_received {:request, _second}
+
+      assert Enum.take(env.body, 3) == [%{data: "a"}, %{data: "b"}, %{data: "c"}]
+
+      assert_received {:request, _second}
     end
 
     test "close the connection when the caller stops reading events" do
