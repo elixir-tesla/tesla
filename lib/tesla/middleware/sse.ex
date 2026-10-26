@@ -22,8 +22,10 @@ defmodule Tesla.Middleware.SSE do
     `true` or a keyword list, where `true` is the same as `[]` and uses the defaults, and the
     body becomes a stream that reconnects whenever the connection ends or reading it raises
     `Tesla.Error`, sending the last event id in the `last-event-id` header, as `EventSource`
-    does. Reconnecting stops when the server responds with anything other than a `200` event
-    stream, such as a `204`. Any other value, and any key other than the following, raises an
+    does. A `204` response to a reconnection ends the stream cleanly, as the server asked to
+    stop. Any other response that is not a `200` event stream raises `Tesla.Error` from the
+    stream, with `reason` `:unexpected_response` and `env` set to that response, so a consumer
+    can tell an outage or an expired token from a completed stream. Any other value, and any key other than the following, raises an
     `ArgumentError` before the request runs. Only `GET` requests reconnect, any other method is
     decoded as without `:reconnect`, so a client wide `reconnect: []` is safe for its other
     calls. `EventSource` only issues `GET` requests, and replaying a body would send the work
@@ -218,8 +220,14 @@ defmodule Tesla.Middleware.SSE do
   defp resume(response, state) do
     case event_stream?(response, state.opts) do
       true -> {[], %{state | body: open_body(response.body), attempts: state.attempts + 1}}
-      false -> {:halt, state}
+      false -> end_or_raise(response, state)
     end
+  end
+
+  defp end_or_raise(%{status: 204}, state), do: {:halt, state}
+
+  defp end_or_raise(response, _state) do
+    raise Tesla.Error, env: response, reason: :unexpected_response
   end
 
   defp last_event_id_request(%{request: request, last_event_id: ""}) do
