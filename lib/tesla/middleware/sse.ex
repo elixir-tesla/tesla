@@ -22,7 +22,8 @@ defmodule Tesla.Middleware.SSE do
     connection ends or reading it raises `Tesla.Error`, sending the last event id in the
     `last-event-id` header, as `EventSource` does. Reconnecting stops when the server responds
     with anything other than a `200` event stream, such as a `204`. Pass `[]` to use the
-    defaults.
+    defaults. See the [processing model](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model)
+    in the WHATWG spec.
     - `:delay` - milliseconds to wait before reconnecting until the server sends a `retry`
       field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
       initial reconnection time to each implementation.
