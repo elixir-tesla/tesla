@@ -482,6 +482,35 @@ defmodule Tesla.Adapter.GunTest do
     stream
   end
 
+  test "response body as stream raises Tesla.Error when the server drops the connection" do
+    url =
+      start_raw_server(fn socket ->
+        :gen_tcp.send(
+          socket,
+          "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n"
+        )
+
+        Process.sleep(50)
+        :gen_tcp.close(socket)
+      end)
+
+    request = %Env{method: :get, url: url}
+
+    assert {:ok, %Env{status: 200, body: body}} =
+             call(request, body_as: :stream, timeout: 2_000)
+
+    parent = self()
+
+    error =
+      assert_raise Tesla.Error, fn ->
+        Enum.each(body, &send(parent, {:chunk, &1}))
+      end
+
+    assert_received {:chunk, "hello"}
+    assert %Env{method: :get, url: ^url} = error.env
+    assert error.reason != nil
+  end
+
   test "streams a chunked body that arrives in more than one part" do
     url =
       start_raw_server(fn socket ->
