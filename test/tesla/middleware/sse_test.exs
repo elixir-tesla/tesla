@@ -18,7 +18,7 @@ defmodule Tesla.Middleware.SSETest do
 
     test "decode comment" do
       adapter = fn _env ->
-        {:ok, %{@env | body: ": comment"}}
+        {:ok, %{@env | body: ": comment\n\n"}}
       end
 
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
@@ -33,6 +33,7 @@ defmodule Tesla.Middleware.SSETest do
 
       data: another message
       data: with two lines
+
       """
 
       adapter = fn _env ->
@@ -58,6 +59,7 @@ defmodule Tesla.Middleware.SSETest do
 
       event: usermessage
       data: {"username": "bobby", "time": "02:34:11", "text": "Hi everyone."}
+
       """
 
       adapter = fn _env ->
@@ -94,6 +96,7 @@ defmodule Tesla.Middleware.SSETest do
       data: y
 
       :comment
+
       """
 
       adapter = fn _env ->
@@ -141,6 +144,7 @@ defmodule Tesla.Middleware.SSETest do
 
       event: usermessage
       data: data4
+
       """
 
       adapter = fn _env ->
@@ -250,7 +254,7 @@ defmodule Tesla.Middleware.SSETest do
 
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
 
-      assert Enum.to_list(env.body) == [%{data: "data1"}, %{data: "data2"}, %{data: "data3"}]
+      assert Enum.to_list(env.body) == [%{data: "data1"}, %{data: "data2"}]
     end
   end
 
@@ -258,14 +262,17 @@ defmodule Tesla.Middleware.SSETest do
     test "decode id and retry" do
       body = """
       id: 42
+      data: a
 
       retry: 3000
+      data: b
+
       """
 
       adapter = fn _env -> {:ok, %{@env | body: body}} end
 
       assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
-      assert env.body == [%{id: "42"}, %{retry: "3000"}]
+      assert env.body == [%{id: "42", data: "a"}, %{retry: "3000", data: "b"}]
     end
 
     test "ignore response without a content-type" do

@@ -44,32 +44,13 @@ defmodule Tesla.Middleware.SSE do
   defp decode_body(body, opts) when is_struct(body, Stream) or is_function(body) do
     body
     |> strip_stream_bom()
-    |> Stream.chunk_while(
-      "",
-      fn elem, acc ->
-        {lines, [rest]} =
-          (acc <> elem)
-          |> String.split(double_linebreak_regex())
-          |> Enum.split(-1)
-
-        {:cont, lines, rest}
-      end,
-      fn
-        "" -> {:cont, ""}
-        acc -> {:cont, [acc], ""}
-      end
-    )
-    |> Stream.flat_map(& &1)
-    |> Stream.map(&decode_message/1)
+    |> Stream.transform(new_parser(), &parse/2)
     |> Stream.flat_map(&only(&1, opts[:only]))
   end
 
   defp decode_body(binary, opts) when is_binary(binary) do
-    binary
-    |> strip_bom()
-    |> String.split(double_linebreak_regex())
-    |> Enum.map(&decode_message/1)
-    |> Enum.flat_map(&only(&1, opts[:only]))
+    {events, _parser} = binary |> strip_bom() |> parse(new_parser())
+    Enum.flat_map(events, &only(&1, opts[:only]))
   end
 
   # A byte order mark at the very start of the stream is not part of the first line, but one
@@ -104,21 +85,44 @@ defmodule Tesla.Middleware.SSE do
 
   defp strip_start_bom(start), do: {[start], :done}
 
-  defp double_linebreak_regex(), do: ~r/((\r\n)|((?<!\r)\n)|(\r(?!\n))){2}/
+  # A line can end with CRLF, so a CR at the end of a chunk may be followed by the LF of the
+  # same line ending at the start of the next chunk. An event that is still pending when the
+  # body ends is discarded.
+  defp new_parser(), do: %{line: [], cr: false, event: %{}}
 
-  defp decode_message(message) do
-    message
-    |> String.split(["\r\n", "\n", "\r"])
-    |> Enum.map(&decode_body/1)
-    |> Enum.reduce(%{}, fn
-      :empty, acc -> acc
-      {:data, data}, acc -> Map.update(acc, :data, data, &(&1 <> "\n" <> data))
-      {:comment, comment}, acc -> Map.put_new(acc, :comment, comment)
-      {key, value}, acc -> Map.put(acc, key, value)
-    end)
+  defp parse("", parser), do: {[], parser}
+  defp parse("\n" <> chunk, %{cr: true} = parser), do: parse(chunk, %{parser | cr: false})
+
+  defp parse(chunk, parser) do
+    parser = %{parser | cr: :binary.last(chunk) == ?\r}
+
+    case :binary.split(chunk, ["\r\n", "\n", "\r"], [:global]) do
+      [partial] ->
+        {[], %{parser | line: [parser.line | partial]}}
+
+      [first | rest] ->
+        {lines, [partial]} = Enum.split([IO.iodata_to_binary([parser.line | first]) | rest], -1)
+        {events, event} = Enum.flat_map_reduce(lines, parser.event, &parse_line/2)
+        {events, %{parser | line: [partial], event: event}}
+    end
   end
 
-  defp decode_body(""), do: :empty
+  defp parse_line("", event), do: {dispatch(event), %{}}
+
+  defp parse_line(line, event) do
+    case decode_body(line) do
+      :empty -> {[], event}
+      {:data, data} -> {[], Map.update(event, :data, data, &(&1 <> "\n" <> data))}
+      {:comment, comment} -> {[], Map.put_new(event, :comment, comment)}
+      {key, value} -> {[], Map.put(event, key, value)}
+    end
+  end
+
+  # Comments are kept as events, although the spec ignores them.
+  defp dispatch(%{data: _} = event), do: [event]
+  defp dispatch(%{comment: _} = event), do: [event]
+  defp dispatch(_event), do: []
+
   defp decode_body(":" <> comment), do: {:comment, strip_leading_space(comment)}
 
   # The field name is everything before the first colon, and one space after the
@@ -156,8 +160,6 @@ defmodule Tesla.Middleware.SSE do
   defp content_types(opts),
     do: @default_content_types ++ Keyword.get(opts, :decode_content_types, [])
 
-  # A message without any known field, such as one with only an unknown field, is not an event.
-  defp only(message, _key) when map_size(message) == 0, do: []
   defp only(message, nil), do: [message]
 
   defp only(message, key) do
