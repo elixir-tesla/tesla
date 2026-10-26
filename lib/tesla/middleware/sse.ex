@@ -56,8 +56,21 @@ defmodule Tesla.Middleware.SSE do
   defp reconnect_opts!(opts) do
     case Keyword.get(opts, :reconnect) do
       value when value in [nil, false] -> nil
-      value -> Keyword.merge(@reconnect_defaults, value)
+      true -> @reconnect_defaults
+      value -> merge_reconnect!(value)
     end
+  end
+
+  defp merge_reconnect!(value) do
+    case Keyword.keyword?(value) do
+      true -> Keyword.merge(@reconnect_defaults, value)
+      false -> invalid_reconnect(value)
+    end
+  end
+
+  defp invalid_reconnect(value) do
+    raise ArgumentError,
+          "expected :reconnect to be a boolean, nil or a keyword list, got #{inspect(value)}"
   end
 
   def decode(env, opts) do
