@@ -905,6 +905,24 @@ defmodule Tesla.Middleware.SSETest do
       assert elapsed < 1000
     end
 
+    test "reconnect at once on a server retry of only zeros" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "retry: 000\ndata: a\n\n"}},
+          {:ok, %{@env | body: "data: b\n\n"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 400]
+               )
+
+      {elapsed, events} = :timer.tc(fn -> env.body |> Enum.take(2) end, :millisecond)
+
+      assert Enum.map(events, & &1.data) == ["a", "b"]
+      assert elapsed < 200
+    end
+
     test "end the stream when the server responds to a reconnection with 204" do
       adapter =
         sequence_adapter([
