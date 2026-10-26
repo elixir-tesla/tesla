@@ -51,6 +51,9 @@ defmodule Tesla.Middleware.SSE do
       attempts before giving up. A reconnection counts as an attempt until an event arrives on it,
       so a connection that is established but closes without sending an event is counted too.
       Defaults to `:infinity`, since the WHATWG spec never gives up reestablishing a connection.
+
+  A `retry` field applies as soon as it is read, even when the connection closes before the blank
+  line that would dispatch its block.
   """
 
   @behaviour Tesla.Middleware
@@ -229,9 +232,15 @@ defmodule Tesla.Middleware.SSE do
 
   defp parse_chunk(chunk, state) do
     {events, parser} = parse(chunk, state.parser)
-    state = %{state | parser: parser}
+    state = apply_pending_retry(%{state | parser: parser})
     {events, track(state, events)}
   end
+
+  defp apply_pending_retry(%{parser: %{event: %{retry: retry}}} = state) do
+    %{state | delay: clamp_retry(retry, state.max_delay)}
+  end
+
+  defp apply_pending_retry(state), do: state
 
   defp reconnect(%{attempts: attempts, max_attempts: attempts} = state) do
     raise Tesla.Error,
