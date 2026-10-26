@@ -930,6 +930,25 @@ defmodule Tesla.Middleware.SSETest do
       assert elapsed < 200
     end
 
+    test "do not send a pending id as the last event id when the stream ends" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id: 1\ndata: a\n\nid: 9"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      assert Enum.to_list(env.body) == [%{id: "1", data: "a"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert Tesla.get_header(second, "last-event-id") == "1"
+    end
+
     test "raise when the server rejects a reconnection" do
       adapter =
         sequence_adapter([
