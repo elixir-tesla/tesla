@@ -25,11 +25,11 @@ defmodule Tesla.Middleware.SSE do
     does. The stream raises `Tesla.Error` when it gives up, so a consumer can tell an outage
     or an expired token from a completed stream. A `204` response to a reconnection is the one
     clean end, as the server asked to stop. Any other response that is not a `200` event stream
-    raises with `reason` `:unexpected_response` and `env` set to that response. Reaching
-    `:max_attempts` raises with `env` set to the last request and `reason`
-    `{:max_attempts, last_reason}`, where `last_reason` is the error of the last failed request,
-    the `Tesla.Error` raised while reading the last body, or `:closed` when the last connection
-    ended without an event. Any other value, and any key other than the following, raises an
+    raises with `reason` `:unexpected_response` and `env` set to that response. The body of
+    either response is closed first. Reaching `:max_attempts` raises with `env` set to the last
+    request and `reason` `{:max_attempts, last_reason}`, where `last_reason` is the error of the
+    last failed request, the `Tesla.Error` raised while reading the last body, or `:closed` when
+    the last connection ended without an event. Any other value, and any key other than the following, raises an
     `ArgumentError` before the request runs. Only `GET` requests reconnect, any other method is
     decoded as without `:reconnect`, so a client wide `reconnect: []` is safe for its other
     calls. `EventSource` only issues `GET` requests, and replaying a body would send the work
@@ -241,9 +241,13 @@ defmodule Tesla.Middleware.SSE do
          }}
 
       false ->
+        release_body(response.body)
         end_or_raise(response, state)
     end
   end
+
+  defp release_body(nil), do: :ok
+  defp release_body(body), do: close_body(%{body: open_body(body)})
 
   defp end_or_raise(%{status: 204}, state), do: {:halt, state}
 
