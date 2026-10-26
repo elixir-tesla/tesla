@@ -879,6 +879,22 @@ defmodule Tesla.Middleware.SSETest do
       assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}, %{data: "c"}]
     end
 
+    test "count a reconnection that yields no event as a failed attempt" do
+      adapter =
+        repeating_adapter(
+          [{:ok, %{@env | body: "data: a\n\n"}}],
+          {:ok, %{@env | body: ""}}
+        )
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0, max_attempts: 2]
+               )
+
+      assert Enum.to_list(env.body) == [%{data: "a"}]
+      assert requests() == 3
+    end
+
     test "reconnect when reading the body fails and discard the unfinished event" do
       failing_body =
         Stream.concat(
@@ -1195,6 +1211,31 @@ defmodule Tesla.Middleware.SSETest do
     fn env ->
       send(test, {:request, env})
       Agent.get_and_update(agent, fn [response | rest] -> {response, rest} end)
+    end
+  end
+
+  @request_cap 20
+
+  defp repeating_adapter(responses, last) do
+    {:ok, agent} = Agent.start_link(fn -> {responses, 0} end)
+    test = self()
+
+    fn _env ->
+      send(test, :request)
+
+      Agent.get_and_update(agent, fn
+        {_responses, @request_cap} -> {{:ok, %Tesla.Env{status: 204}}, {[], @request_cap}}
+        {[], count} -> {last, {[], count + 1}}
+        {[response | rest], count} -> {response, {rest, count + 1}}
+      end)
+    end
+  end
+
+  defp requests(count \\ 0) do
+    receive do
+      :request -> requests(count + 1)
+    after
+      0 -> count
     end
   end
 end
