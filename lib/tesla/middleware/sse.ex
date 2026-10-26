@@ -110,13 +110,48 @@ defmodule Tesla.Middleware.SSE do
   defp parse_line("", event), do: {dispatch(event), %{}}
 
   defp parse_line(line, event) do
-    case decode_body(line) do
+    case line |> replace_invalid_utf8() |> decode_body() do
       :empty -> {[], event}
       {:data, data} -> {[], Map.update(event, :data, data, &(&1 <> "\n" <> data))}
       {:comment, comment} -> {[], Map.put_new(event, :comment, comment)}
       {key, value} -> {[], Map.put(event, key, value)}
     end
   end
+
+  # Each maximal ill-formed subsequence becomes one U+FFFD, as the UTF-8 decoder does.
+  # https://encoding.spec.whatwg.org/#utf-8-decoder
+  defp replace_invalid_utf8(line) do
+    if String.valid?(line), do: line, else: replace_invalid_utf8(line, [])
+  end
+
+  defp replace_invalid_utf8(<<>>, acc), do: acc |> Enum.reverse() |> IO.iodata_to_binary()
+
+  defp replace_invalid_utf8(<<char::utf8, rest::binary>>, acc),
+    do: replace_invalid_utf8(rest, [<<char::utf8>> | acc])
+
+  defp replace_invalid_utf8(<<lead, rest::binary>>, acc) do
+    size = continuation_size(rest, continuation_ranges(lead))
+    <<_::binary-size(size), rest::binary>> = rest
+    replace_invalid_utf8(rest, ["\uFFFD" | acc])
+  end
+
+  defp continuation_ranges(lead) when lead in 0xC2..0xDF, do: [{0x80, 0xBF}]
+  defp continuation_ranges(0xE0), do: [{0xA0, 0xBF}, {0x80, 0xBF}]
+  defp continuation_ranges(0xED), do: [{0x80, 0x9F}, {0x80, 0xBF}]
+  defp continuation_ranges(lead) when lead in 0xE1..0xEF, do: [{0x80, 0xBF}, {0x80, 0xBF}]
+  defp continuation_ranges(0xF0), do: [{0x90, 0xBF}, {0x80, 0xBF}, {0x80, 0xBF}]
+  defp continuation_ranges(0xF4), do: [{0x80, 0x8F}, {0x80, 0xBF}, {0x80, 0xBF}]
+
+  defp continuation_ranges(lead) when lead in 0xF1..0xF3,
+    do: [{0x80, 0xBF}, {0x80, 0xBF}, {0x80, 0xBF}]
+
+  defp continuation_ranges(_lead), do: []
+
+  defp continuation_size(<<byte, rest::binary>>, [{first, last} | ranges])
+       when byte >= first and byte <= last,
+       do: 1 + continuation_size(rest, ranges)
+
+  defp continuation_size(_rest, _ranges), do: 0
 
   # Comments are kept as events, although the spec ignores them.
   defp dispatch(%{data: _} = event), do: [event]
