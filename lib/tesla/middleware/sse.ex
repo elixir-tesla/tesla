@@ -18,17 +18,20 @@ defmodule Tesla.Middleware.SSE do
 
   - `:only` - keep only specified keys in event (necessary for using with `JSON` middleware)
   - `:decode_content_types` - list of additional decodable content-types
-  - `:reconnect` - unless `false` or `nil`, which are the same as leaving it out, the body becomes a stream that reconnects whenever the
-    connection ends or reading it raises `Tesla.Error`, sending the last event id in the
-    `last-event-id` header, as `EventSource` does. Reconnecting stops when the server responds
-    with anything other than a `200` event stream, such as a `204`. Pass `[]` to use the
-    defaults. See the [processing model](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model)
+  - `:reconnect` - `false`, `nil` or leaving it out disables reconnecting. Otherwise it takes
+    `true` or a keyword list, where `true` is the same as `[]` and uses the defaults, and the
+    body becomes a stream that reconnects whenever the connection ends or reading it raises
+    `Tesla.Error`, sending the last event id in the `last-event-id` header, as `EventSource`
+    does. Reconnecting stops when the server responds with anything other than a `200` event
+    stream, such as a `204`. Any other value, and any key other than the following, raises an
+    `ArgumentError` before the request runs. See the
+    [processing model](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model)
     in the WHATWG spec.
-    - `:delay` - milliseconds to wait before reconnecting until the server sends a `retry`
-      field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
+    - `:delay` - non-negative integer of milliseconds to wait before reconnecting until the
+      server sends a `retry` field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
       initial reconnection time to each implementation.
-    - `:max_attempts` - consecutive failed reconnection attempts before giving up. Defaults to
-      `:infinity`, since the WHATWG spec never gives up reestablishing a connection.
+    - `:max_attempts` - positive integer, or `:infinity`, of consecutive failed reconnection
+      attempts before giving up. Defaults to `:infinity`, since the WHATWG spec never gives up reestablishing a connection.
   """
 
   @behaviour Tesla.Middleware
@@ -63,9 +66,42 @@ defmodule Tesla.Middleware.SSE do
 
   defp merge_reconnect!(value) do
     case Keyword.keyword?(value) do
-      true -> Keyword.merge(@reconnect_defaults, value)
+      true -> value |> reject_unknown_reconnect_keys!() |> validate_reconnect!()
       false -> invalid_reconnect(value)
     end
+  end
+
+  defp reject_unknown_reconnect_keys!(value) do
+    case Keyword.keys(value) -- Keyword.keys(@reconnect_defaults) do
+      [] ->
+        value
+
+      [unknown | _] ->
+        raise ArgumentError,
+              "unknown :reconnect option #{inspect(unknown)}, expected one of " <>
+                inspect(Keyword.keys(@reconnect_defaults))
+    end
+  end
+
+  defp validate_reconnect!(value) do
+    reconnect = Keyword.merge(@reconnect_defaults, value)
+    validate_delay!(reconnect[:delay])
+    validate_max_attempts!(reconnect[:max_attempts])
+    reconnect
+  end
+
+  defp validate_delay!(delay) when is_integer(delay) and delay >= 0, do: :ok
+
+  defp validate_delay!(delay) do
+    raise ArgumentError, "expected :delay to be an integer >= 0, got #{inspect(delay)}"
+  end
+
+  defp validate_max_attempts!(:infinity), do: :ok
+  defp validate_max_attempts!(attempts) when is_integer(attempts) and attempts >= 1, do: :ok
+
+  defp validate_max_attempts!(attempts) do
+    raise ArgumentError,
+          "expected :max_attempts to be an integer >= 1 or :infinity, got #{inspect(attempts)}"
   end
 
   defp invalid_reconnect(value) do
