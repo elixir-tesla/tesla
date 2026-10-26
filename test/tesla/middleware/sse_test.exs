@@ -831,7 +831,7 @@ defmodule Tesla.Middleware.SSETest do
       assert Tesla.get_header(error.env, "content-type") == "text/plain"
     end
 
-    test "stop reconnecting when the server does not respond with an event stream" do
+    test "raise when the server responds to a reconnection with another status" do
       adapter =
         sequence_adapter([
           {:ok, %{@env | body: "data: a\n\n"}},
@@ -844,12 +844,34 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0]
                )
 
-      assert Enum.to_list(env.body) == [%{data: "a"}]
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == :unexpected_response
+      assert error.env.status == 500
+    end
 
+    test "raise when the server responds to a reconnection with another content type" do
       adapter =
         sequence_adapter([
           {:ok, %{@env | body: "data: a\n\n"}},
           {:ok, %Tesla.Env{status: 200, headers: [{"content-type", "text/plain"}], body: "b"}},
+          {:ok, %{@env | body: "data: c\n\n"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == :unexpected_response
+      assert error.env.body == "b"
+    end
+
+    test "end the stream when the server responds to a reconnection with 204" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}},
           {:ok, %{@env | body: "data: c\n\n"}}
         ])
 
