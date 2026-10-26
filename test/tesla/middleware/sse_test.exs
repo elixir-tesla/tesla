@@ -961,6 +961,22 @@ defmodule Tesla.Middleware.SSETest do
       assert env.body == "x"
     end
 
+    test "decode a first response that is an event stream with another status as without reconnecting" do
+      response = {:ok, %{@env | status: 500, body: "data: a\n\n"}}
+
+      assert {:ok, expected} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, sequence_adapter([response])}], [])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, sequence_adapter([response])}],
+                 reconnect: []
+               )
+
+      assert env.status == 500
+      assert env.body == [%{data: "a"}]
+      assert env.body == expected.body
+    end
+
     test "return the first request error" do
       adapter = sequence_adapter([{:error, :econnrefused}])
 
