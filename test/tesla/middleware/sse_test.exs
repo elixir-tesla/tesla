@@ -433,6 +433,21 @@ defmodule Tesla.Middleware.SSETest do
       assert env.body == [%{data: "\uFFFD|\uFFFD|\uFFFD\uFFFD|\uFFFD\uFFFD\uFFFD"}]
     end
 
+    test "replace ill-formed UTF-8 that starts with a lead byte that restricts its second byte" do
+      adapter = fn _env ->
+        {:ok,
+         %{
+           @env
+           | body:
+               <<"data: ", 0xE0, 0xA0, "|", 0xE0, 0x80, "|", 0xF4, 0x8F, 0xBF, "|", 0xF4, 0x90,
+                 "|", 0xF2, 0x80, 0x80, "\n\n">>
+         }}
+      end
+
+      assert {:ok, env} = Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], [])
+      assert env.body == [%{data: "\uFFFD|\uFFFD\uFFFD|\uFFFD|\uFFFD\uFFFD|\uFFFD"}]
+    end
+
     test "replace invalid UTF-8 with the replacement character in a stream" do
       adapter = fn _env ->
         {:ok, %{@env | body: Stream.map([<<"data: a", 0xC3>>, "b\n\n"], & &1)}}
