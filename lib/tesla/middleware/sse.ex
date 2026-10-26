@@ -232,8 +232,8 @@ defmodule Tesla.Middleware.SSE do
 
   defp parse_chunk(chunk, state) do
     {events, parser} = parse(chunk, state.parser)
-    state = apply_pending_retry(%{state | parser: parser})
-    {events, track(state, events)}
+    state = %{state | parser: parser} |> track(events) |> apply_pending_retry()
+    {events, state}
   end
 
   defp apply_pending_retry(%{parser: %{event: %{retry: retry}}} = state) do
