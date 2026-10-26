@@ -989,6 +989,35 @@ defmodule Tesla.Middleware.SSETest do
                Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [])
     end
 
+    for invalid <- [3000, "yes", :always, {:delay, 0}] do
+      test "raise before the request when the option is #{inspect(invalid)}" do
+        adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
+
+        assert_raise ArgumentError,
+                     "expected :reconnect to be a boolean, nil or a keyword list, got #{inspect(unquote(invalid))}",
+                     fn ->
+                       Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                         reconnect: unquote(Macro.escape(invalid))
+                       )
+                     end
+
+        refute_received {:request, _}
+      end
+    end
+
+    test "reconnect with the defaults when the option is true" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: true)
+
+      assert env.body |> Stream.take(1) |> Enum.to_list() == [%{data: "a"}]
+    end
+
     for disabled <- [false, nil] do
       test "do not reconnect when the option is #{inspect(disabled)}" do
         adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
