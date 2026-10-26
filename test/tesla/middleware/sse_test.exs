@@ -902,6 +902,30 @@ defmodule Tesla.Middleware.SSETest do
       refute_received :chunk_read
     end
 
+    test "close the body of an unexpected response to a reconnection" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\n"}},
+          {:ok,
+           %Tesla.Env{
+             status: 503,
+             headers: [{"content-type", "text/plain"}],
+             body: observed_body()
+           }}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert_received :rejected_body_closed
+      assert_received :rejected_body_opened
+      refute_received :rejected_body_opened
+      refute_received :chunk_read
+    end
+
     test "give up after the maximum number of failed reconnection attempts" do
       adapter =
         sequence_adapter([
