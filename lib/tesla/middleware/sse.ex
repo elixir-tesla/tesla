@@ -119,12 +119,16 @@ defmodule Tesla.Middleware.SSE do
   defp next_events(state) do
     case next_chunk(state.body) do
       {:chunk, chunk, body} ->
-        {events, parser} = parse(chunk, state.parser)
-        {events, %{track(state, events) | body: body, parser: parser}}
+        parse_chunk(chunk, %{state | body: body})
 
       :closed ->
         {[], %{state | body: :closed, parser: @parser}}
     end
+  end
+
+  defp parse_chunk(chunk, state) do
+    {events, parser} = parse(chunk, state.parser)
+    {events, %{track(state, events) | parser: parser}}
   end
 
   defp reconnect(%{attempts: attempts, max_attempts: attempts} = state), do: {:halt, state}
