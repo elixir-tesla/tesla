@@ -959,6 +959,26 @@ defmodule Tesla.Middleware.SSETest do
       assert requests() == 5
     end
 
+    test "carry the error of the last dropped body when the attempts run out" do
+      dropping_body =
+        Stream.map([:econnreset], &raise(Tesla.Error, env: %Tesla.Env{}, reason: &1))
+
+      adapter =
+        repeating_adapter(
+          [{:ok, %{@env | body: Stream.concat(["data: a\n\n"], dropping_body)}}],
+          {:ok, %{@env | body: dropping_body}}
+        )
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0, max_attempts: 2]
+               )
+
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert {:max_attempts, %Tesla.Error{reason: :econnreset}} = error.reason
+      assert requests() == 3
+    end
+
     test "reconnect when reading the body fails and discard the unfinished event" do
       failing_body =
         Stream.concat(
