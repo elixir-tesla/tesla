@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.23.0](https://github.com/elixir-tesla/tesla/compare/v1.22.0...v1.23.0) (2026-10-27)
+
+
+### Features
+
+* **sse:** Reconnect event streams the way EventSource does ([#956](https://github.com/elixir-tesla/tesla/issues/956)) ([0774718](https://github.com/elixir-tesla/tesla/commit/0774718b5d3a58d4042833574a40982b78939046))
+
+
+### Bug Fixes
+
+* **follow-redirects:** Drop the request body on 303 and keep HEAD ([#953](https://github.com/elixir-tesla/tesla/issues/953)) ([0ba7beb](https://github.com/elixir-tesla/tesla/commit/0ba7bebd3eec3cda2ca2b3583923381516011814))
+* **mint:** Include {:error, term()} in read_chunk/3 spec ([#951](https://github.com/elixir-tesla/tesla/issues/951)) ([a62fb9b](https://github.com/elixir-tesla/tesla/commit/a62fb9b52a6e7137f3645521434828e0e970c1c5))
+* **sse:** Follow the event stream interpretation rules ([#955](https://github.com/elixir-tesla/tesla/issues/955)) ([b330c8f](https://github.com/elixir-tesla/tesla/commit/b330c8f47d68fec1121a42a4644247b6e2895630))
+* **sse:** Parse fields without a space after the colon instead of raising ([#954](https://github.com/elixir-tesla/tesla/issues/954)) ([81120f0](https://github.com/elixir-tesla/tesla/commit/81120f07f7b8f690f4527684bb2901a5aaf5f207))
+* **sse:** Validate reconnect options before the request runs ([#959](https://github.com/elixir-tesla/tesla/issues/959)) ([c05e299](https://github.com/elixir-tesla/tesla/commit/c05e299775060aff78fe0c84b680b3712ac0496f))
+
 ## [1.22.0](https://github.com/elixir-tesla/tesla/compare/v1.21.3...v1.22.0) (2026-10-04)
 
 
