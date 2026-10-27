@@ -892,6 +892,82 @@ defmodule Tesla.Middleware.SSETest do
       assert elapsed < 1000
     end
 
+    test "prefer a trailing retry field over an earlier one in the same chunk" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "retry: 1000\ndata: a\n\nretry: 0\n"}},
+          {:ok, %{@env | body: "data: b\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 400]
+               )
+
+      {elapsed, events} = :timer.tc(fn -> Enum.to_list(env.body) end, :millisecond)
+
+      assert events == [%{retry: "1000", data: "a"}, %{data: "b"}]
+      assert elapsed < 200
+    end
+
+    test "apply a retry field when the stream ends before its blank line" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\nretry: 0\n"}},
+          {:ok, %{@env | body: "data: b\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 400]
+               )
+
+      {elapsed, events} = :timer.tc(fn -> Enum.to_list(env.body) end, :millisecond)
+
+      assert events == [%{data: "a"}, %{data: "b"}]
+      assert elapsed < 200
+    end
+
+    test "apply a retry field split across chunks when the stream ends before its blank line" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: Stream.map(["data: a\n\nret", "ry: 0\n"], & &1)}},
+          {:ok, %{@env | body: "data: b\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 400]
+               )
+
+      {elapsed, events} = :timer.tc(fn -> Enum.to_list(env.body) end, :millisecond)
+
+      assert events == [%{data: "a"}, %{data: "b"}]
+      assert elapsed < 200
+    end
+
+    test "do not send a pending id as the last event id when the stream ends" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id: 1\ndata: a\n\nid: 9"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      assert Enum.to_list(env.body) == [%{id: "1", data: "a"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert Tesla.get_header(second, "last-event-id") == "1"
+    end
+
     test "raise when the server rejects a reconnection" do
       adapter =
         sequence_adapter([
