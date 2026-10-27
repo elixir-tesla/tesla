@@ -204,7 +204,8 @@ defmodule Tesla.Middleware.SSE do
         last_reason: :closed,
         last_event_id: seeded_event_id(request),
         body: open_body(response.body),
-        parser: @parser
+        parser: @parser,
+        pending_error: nil
       }
     end
   end
@@ -215,6 +216,9 @@ defmodule Tesla.Middleware.SSE do
 
   # Unlike a stream that does not reconnect, an event still pending when the connection ends
   # is discarded, as the server sends it again after the last event id.
+  defp next_events(%{pending_error: {kind, reason, stacktrace}}),
+    do: :erlang.raise(kind, reason, stacktrace)
+
   defp next_events(%{body: :closed} = state), do: reconnect(state)
 
   defp next_events(state) do
@@ -227,6 +231,9 @@ defmodule Tesla.Middleware.SSE do
 
       {:closed, error} ->
         {[], %{state | body: :closed, parser: @parser, last_reason: error}}
+
+      {:raised, kind, reason, stacktrace} ->
+        {[], %{state | body: :closed, pending_error: {kind, reason, stacktrace}}}
     end
   end
 
@@ -346,15 +353,17 @@ defmodule Tesla.Middleware.SSE do
       {:suspended, chunk, body} -> {:chunk, chunk, body}
       {_done_or_halted, _acc} -> :closed
     end
-  rescue
-    error in Tesla.Error -> closed_or_reraise(error, __STACKTRACE__)
+  catch
+    kind, reason -> closed_or_raised(kind, reason, __STACKTRACE__)
   end
 
-  defp closed_or_reraise(%Tesla.Error{reason: reason} = error, stacktrace)
+  defp closed_or_raised(:error, %Tesla.Error{reason: reason} = error, stacktrace)
        when reason in [:timeout, :recv_chunk_timeout],
-       do: reraise(error, stacktrace)
+       do: {:raised, :error, error, stacktrace}
 
-  defp closed_or_reraise(%Tesla.Error{} = error, _stacktrace), do: {:closed, error}
+  defp closed_or_raised(:error, %Tesla.Error{} = error, _stacktrace), do: {:closed, error}
+
+  defp closed_or_raised(kind, reason, stacktrace), do: {:raised, kind, reason, stacktrace}
 
   defp close_body(%{body: :closed}), do: :ok
   defp close_body(%{body: body}), do: body.({:halt, nil})
