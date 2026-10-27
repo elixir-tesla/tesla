@@ -988,6 +988,99 @@ defmodule Tesla.Middleware.SSETest do
       assert {:error, :econnrefused} =
                Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [])
     end
+
+    for {key, value, expected} <- [
+          {:delay, -1, "expected :delay to be an integer >= 0, got -1"},
+          {:delay, 1.5, "expected :delay to be an integer >= 0, got 1.5"},
+          {:delay, nil, "expected :delay to be an integer >= 0, got nil"},
+          {:delay, "3000", ~s(expected :delay to be an integer >= 0, got "3000")},
+          {:max_attempts, 0, "expected :max_attempts to be an integer >= 1 or :infinity, got 0"},
+          {:max_attempts, 2.0,
+           "expected :max_attempts to be an integer >= 1 or :infinity, got 2.0"},
+          {:max_attempts, nil,
+           "expected :max_attempts to be an integer >= 1 or :infinity, got nil"},
+          {:max_attempts, "3",
+           ~s(expected :max_attempts to be an integer >= 1 or :infinity, got "3")}
+        ] do
+      test "raise before the request when :#{key} is #{inspect(value)}" do
+        adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
+
+        assert_raise ArgumentError, unquote(expected), fn ->
+          Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+            reconnect: [{unquote(key), unquote(value)}]
+          )
+        end
+
+        refute_received {:request, _}
+      end
+    end
+
+    test "raise before the request on an unknown reconnect option" do
+      adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
+
+      assert_raise ArgumentError,
+                   "unknown :reconnect option :dealy, expected one of [:delay, :max_attempts]",
+                   fn ->
+                     Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                       reconnect: [dealy: 0]
+                     )
+                   end
+
+      refute_received {:request, _}
+    end
+
+    test "accept zero delay and :infinity max attempts" do
+      adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
+
+      assert {:ok, _env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                 reconnect: [delay: 0, max_attempts: :infinity]
+               )
+    end
+
+    for invalid <- [3000, "yes", :always, {:delay, 0}] do
+      test "raise before the request when the option is #{inspect(invalid)}" do
+        adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
+
+        assert_raise ArgumentError,
+                     "expected :reconnect to be a boolean, nil or a keyword list, got #{inspect(unquote(invalid))}",
+                     fn ->
+                       Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                         reconnect: unquote(Macro.escape(invalid))
+                       )
+                     end
+
+        refute_received {:request, _}
+      end
+    end
+
+    test "reconnect with the defaults when the option is true" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: true)
+
+      assert env.body |> Stream.take(1) |> Enum.to_list() == [%{data: "a"}]
+    end
+
+    for disabled <- [false, nil] do
+      test "do not reconnect when the option is #{inspect(disabled)}" do
+        adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
+
+        assert {:ok, env} =
+                 Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}],
+                   reconnect: unquote(disabled)
+                 )
+
+        assert env.body == [%{data: "a"}]
+        assert_received {:request, _first}
+        refute_received {:request, _second}
+      end
+    end
   end
 
   defp sequence_adapter(responses) do
