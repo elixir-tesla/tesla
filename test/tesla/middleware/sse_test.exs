@@ -867,6 +867,62 @@ defmodule Tesla.Middleware.SSETest do
       assert error.env.body == "b"
     end
 
+    test "clamp a server retry too long to convert to an integer" do
+      digits = String.duplicate("9", 2_000_000)
+
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "retry: #{digits}\ndata: a\n\n"}},
+          {:ok, %{@env | body: "data: b\n\n"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0, max_delay: 10]
+               )
+
+      {elapsed, events} = :timer.tc(fn -> env.body |> Enum.take(2) end, :millisecond)
+
+      assert Enum.map(events, & &1.data) == ["a", "b"]
+      assert elapsed < 1000
+    end
+
+    test "clamp the server retry to the maximum delay" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "retry: 4294967296\ndata: a\n\n"}},
+          {:ok, %{@env | body: "data: b\n\n"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0, max_delay: 10]
+               )
+
+      {elapsed, events} = :timer.tc(fn -> env.body |> Enum.take(2) end, :millisecond)
+
+      assert Enum.map(events, & &1.data) == ["a", "b"]
+      assert elapsed < 1000
+    end
+
+    test "reconnect at once on a server retry of only zeros" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "retry: 000\ndata: a\n\n"}},
+          {:ok, %{@env | body: "data: b\n\n"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 400]
+               )
+
+      {elapsed, events} = :timer.tc(fn -> env.body |> Enum.take(2) end, :millisecond)
+
+      assert Enum.map(events, & &1.data) == ["a", "b"]
+      assert elapsed < 200
+    end
+
     test "end the stream when the server responds to a reconnection with 204" do
       adapter =
         sequence_adapter([
@@ -1240,6 +1296,8 @@ defmodule Tesla.Middleware.SSETest do
           {:delay, 1.5, "expected :delay to be an integer >= 0, got 1.5"},
           {:delay, nil, "expected :delay to be an integer >= 0, got nil"},
           {:delay, "3000", ~s(expected :delay to be an integer >= 0, got "3000")},
+          {:max_delay, -1, "expected :max_delay to be an integer >= 0, got -1"},
+          {:max_delay, "x", ~s(expected :max_delay to be an integer >= 0, got "x")},
           {:max_attempts, 0, "expected :max_attempts to be an integer >= 1 or :infinity, got 0"},
           {:max_attempts, 2.0,
            "expected :max_attempts to be an integer >= 1 or :infinity, got 2.0"},
@@ -1261,11 +1319,23 @@ defmodule Tesla.Middleware.SSETest do
       end
     end
 
+    test "raise before the request when :delay exceeds :max_delay" do
+      adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
+
+      assert_raise ArgumentError, "expected :delay 5000 not to exceed :max_delay 1000", fn ->
+        Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+          reconnect: [delay: 5000, max_delay: 1000]
+        )
+      end
+
+      refute_received {:request, _}
+    end
+
     test "raise before the request on an unknown reconnect option" do
       adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
 
       assert_raise ArgumentError,
-                   "unknown :reconnect option :dealy, expected one of [:delay, :max_attempts]",
+                   "unknown :reconnect option :dealy, expected one of [:delay, :max_delay, :max_attempts]",
                    fn ->
                      Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
                        reconnect: [dealy: 0]
