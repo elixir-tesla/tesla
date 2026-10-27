@@ -52,6 +52,42 @@ defmodule Tesla.Adapter.MintTest do
     assert Enum.join(response.body) |> byte_size() == 2245
   end
 
+  test "response body as stream raises Tesla.Error when the server drops the connection" do
+    {:ok, listen_socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen_socket)
+
+    server =
+      spawn_link(fn ->
+        {:ok, socket} = :gen_tcp.accept(listen_socket)
+        {:ok, _request} = :gen_tcp.recv(socket, 0, 5_000)
+        :ok = :gen_tcp.send(socket, @chunked_head <> "5\r\nhello\r\n")
+        Process.sleep(50)
+        :gen_tcp.close(socket)
+      end)
+
+    on_exit(fn ->
+      Process.unlink(server)
+      Process.exit(server, :kill)
+      :gen_tcp.close(listen_socket)
+    end)
+
+    request = %Env{method: :get, url: "http://localhost:#{port}/events"}
+
+    assert {:ok, %Env{status: 200, body: body} = response} = call(request, body_as: :stream)
+
+    parent = self()
+
+    error =
+      assert_raise Tesla.Error, fn ->
+        Enum.each(body, &send(parent, {:chunk, &1}))
+      end
+
+    assert_received {:chunk, "hello"}
+    assert %Mint.TransportError{reason: :closed} = error.reason
+    assert %Env{method: :get, url: url} = error.env
+    assert url == response.url
+  end
+
   test "response body as stream is empty when the response has no body" do
     request = %Env{
       method: :get,
@@ -818,10 +854,11 @@ defmodule Tesla.Adapter.MintTest do
                )
     end
 
-    test "Tesla adapter raises the Mint request error while enumerating stream bodies", %{
-      reset_url: reset_url,
-      reset_cacertfile: reset_cacertfile
-    } do
+    test "Tesla adapter raises Tesla.Error with the Mint request error while enumerating stream bodies",
+         %{
+           reset_url: reset_url,
+           reset_cacertfile: reset_cacertfile
+         } do
       capture_log(fn ->
         request = %Env{
           method: :get,
@@ -838,12 +875,12 @@ defmodule Tesla.Adapter.MintTest do
         assert response.status == 200
 
         error =
-          assert_raise Mint.HTTPError, fn ->
+          assert_raise Tesla.Error, fn ->
             Enum.to_list(response.body)
           end
 
-        assert error.reason == {:server_closed_request, :internal_error}
-        assert error.module == Mint.HTTP2
+        assert %Mint.HTTPError{reason: {:server_closed_request, :internal_error}} = error.reason
+        assert error.reason.module == Mint.HTTP2
       end)
     end
   end
@@ -1438,7 +1475,8 @@ defmodule Tesla.Adapter.MintTest do
                  timeout: 200
                )
 
-      assert_raise RuntimeError, ":timeout", fn -> Enum.to_list(body) end
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(body) end
+      assert error.reason == :timeout
     end
 
     test "raises the transport error the body stream hit", %{
@@ -1462,9 +1500,8 @@ defmodule Tesla.Adapter.MintTest do
 
       send(self(), {:tcp_error, socket, :econnreset})
 
-      assert_raise RuntimeError,
-                   "Encounter Mint error %Mint.TransportError{reason: :econnreset}",
-                   fn -> Enum.to_list(body) end
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(body) end
+      assert error.reason == %Mint.TransportError{reason: :econnreset}
     end
   end
 

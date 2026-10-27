@@ -107,6 +107,27 @@ if Code.ensure_loaded?(:gun) do
         - `:protocols` - A non-empty list enables Websocket protocol negotiation.
             The list of protocols will be sent in the sec-websocket-protocol request header.
             The handler module interface is currently undocumented and must be set to `gun_ws_h`.
+
+    ## Streamed response failures
+
+    When `body_as: :stream` is used, failures that happen after the response
+    headers arrived cannot be returned as `{:error, reason}`, because the
+    request already succeeded from the caller point of view. Such failures raise
+    `Tesla.Error` while the body stream is being consumed, so that a truncated
+    response is never mistaken for a complete one:
+
+    ```elixir
+    try do
+      Enum.each(env.body, &handle_chunk/1)
+    rescue
+      e in Tesla.Error ->
+        # e.reason is, for example, :closed or :recv_chunk_timeout
+        {:error, e.reason}
+    end
+    ```
+
+    Waiting longer than `:timeout` for the next chunk raises with reason
+    `:recv_chunk_timeout`.
     """
     @behaviour Tesla.Adapter
     alias Tesla.Multipart
@@ -187,6 +208,7 @@ if Code.ensure_loaded?(:gun) do
           opts
         )
         |> Enum.into(%{})
+        |> Map.put(:env, env)
         |> maybe_put_gun_stream_owner(env.private[:tesla_gun_stream_owner])
 
       request(
@@ -664,7 +686,7 @@ if Code.ensure_loaded?(:gun) do
               case read_chunk(pid, stream, opts) do
                 {:nofin, part} -> {[part], %{pid: pid, stream: stream}}
                 {:fin, body} -> {[body], %{pid: pid, final: :fin}}
-                {:error, error} -> raise_stream_error(error)
+                {:error, error} -> raise Tesla.Error, env: opts[:env], reason: error
               end
 
             %{pid: pid, final: :fin} ->
@@ -681,10 +703,6 @@ if Code.ensure_loaded?(:gun) do
     defp format_response(pid, stream, opts, status, headers, :chunks) do
       {:ok, status, headers, %{pid: pid, stream: stream, opts: Enum.into(opts, [])}}
     end
-
-    defp raise_stream_error(error) when Kernel.is_exception(error), do: raise(error)
-    defp raise_stream_error(error) when is_binary(error), do: raise(RuntimeError, message: error)
-    defp raise_stream_error(error), do: raise(RuntimeError, message: inspect(error))
 
     defp read_body(pid, stream, opts, acc \\ "") do
       limit = opts[:max_body]

@@ -26,7 +26,8 @@ defmodule Tesla.Middleware.SSE do
     stream, such as a `204`. Any other value, and any key other than the following, raises an
     `ArgumentError` before the request runs. See the
     [processing model](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model)
-    in the WHATWG spec.
+    in the WHATWG spec. The Finch, Mint and Gun adapters raise `Tesla.Error` when a streamed
+    body fails, so reconnecting needs one of them or an adapter that does the same.
     - `:delay` - non-negative integer of milliseconds to wait before reconnecting until the
       server sends a `retry` field. Defaults to `3000`, the value Chrome picked, since the WHATWG spec leaves the
       initial reconnection time to each implementation.
