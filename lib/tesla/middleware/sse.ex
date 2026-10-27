@@ -28,7 +28,8 @@ defmodule Tesla.Middleware.SSE do
     raises with `reason` `:unexpected_response` and `env` set to that response. Reaching
     `:max_attempts` raises with `env` set to the last request and `reason`
     `{:max_attempts, last_reason}`, where `last_reason` is the error of the last failed request,
-    or `:closed` when the connection dropped or yielded no event. Any other value, and any key other than the following, raises an
+    the `Tesla.Error` raised while reading the last body, or `:closed` when the last connection
+    ended without an event. Any other value, and any key other than the following, raises an
     `ArgumentError` before the request runs. Only `GET` requests reconnect, any other method is
     decoded as without `:reconnect`, so a client wide `reconnect: []` is safe for its other
     calls. `EventSource` only issues `GET` requests, and replaying a body would send the work
@@ -201,6 +202,9 @@ defmodule Tesla.Middleware.SSE do
 
       :closed ->
         {[], %{state | body: :closed, parser: @parser}}
+
+      {:closed, error} ->
+        {[], %{state | body: :closed, parser: @parser, last_reason: error}}
     end
   end
 
@@ -289,7 +293,7 @@ defmodule Tesla.Middleware.SSE do
        when reason in [:timeout, :recv_chunk_timeout],
        do: reraise(error, stacktrace)
 
-  defp closed_or_reraise(%Tesla.Error{}, _stacktrace), do: :closed
+  defp closed_or_reraise(%Tesla.Error{} = error, _stacktrace), do: {:closed, error}
 
   defp close_body(%{body: :closed}), do: :ok
   defp close_body(%{body: body}), do: body.({:halt, nil})
