@@ -748,6 +748,23 @@ defmodule Tesla.Middleware.SSETest do
       assert Tesla.get_header(second, "last-event-id") == nil
     end
 
+    test "send the id of an earlier event when a later event in the same chunk has none" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id: 1\ndata: a\n\ndata: b\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.to_list(env.body) == [%{id: "1", data: "a"}, %{data: "b"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert Tesla.get_header(second, "last-event-id") == "1"
+    end
+
     test "wait for the reconnection time sent by the server" do
       adapter =
         sequence_adapter([
@@ -756,12 +773,13 @@ defmodule Tesla.Middleware.SSETest do
         ])
 
       assert {:ok, env} =
-               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 5000])
 
       {elapsed, events} = :timer.tc(fn -> Enum.to_list(env.body) end, :millisecond)
 
       assert events == [%{retry: "50", data: "a"}]
       assert elapsed >= 50
+      assert elapsed < 1000
     end
 
     test "stop reconnecting when the server does not respond with an event stream" do
@@ -874,6 +892,31 @@ defmodule Tesla.Middleware.SSETest do
 
       assert_received {:request, _first}
       refute_received {:request, _second}
+
+      assert Enum.take(env.body, 3) == [%{data: "a"}, %{data: "b"}, %{data: "c"}]
+
+      assert_received {:request, _second}
+    end
+
+    test "close the connection when the caller stops reading events" do
+      test = self()
+      ref = make_ref()
+
+      body =
+        Stream.resource(
+          fn -> :open end,
+          fn :open -> {["data: a\n\n", "data: b\n\n"], :open} end,
+          fn _ -> send(test, {:closed, ref}) end
+        )
+
+      adapter = sequence_adapter([{:ok, %{@env | body: body}}])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.take(env.body, 1) == [%{data: "a"}]
+
+      assert_received {:closed, ^ref}
     end
 
     test "keep only the requested key across connections" do
@@ -900,8 +943,8 @@ defmodule Tesla.Middleware.SSETest do
     test "strip a leading byte order mark from every connection" do
       adapter =
         sequence_adapter([
-          {:ok, %{@env | body: "﻿data: a\n\n"}},
-          {:ok, %{@env | body: "﻿data: b\n\n"}},
+          {:ok, %{@env | body: "\uFEFFdata: a\n\n"}},
+          {:ok, %{@env | body: "\uFEFFdata: b\n\n"}},
           {:ok, %Tesla.Env{status: 204}}
         ])
 
@@ -921,6 +964,22 @@ defmodule Tesla.Middleware.SSETest do
                Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [])
 
       assert env.body == "x"
+    end
+
+    test "decode a first response that is an event stream with another status as without reconnecting" do
+      response = {:ok, %{@env | status: 500, body: "data: a\n\n"}}
+
+      assert {:ok, expected} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, sequence_adapter([response])}], [])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, sequence_adapter([response])}],
+                 reconnect: []
+               )
+
+      assert env.status == 500
+      assert env.body == [%{data: "a"}]
+      assert env.body == expected.body
     end
 
     test "return the first request error" do
