@@ -864,6 +864,50 @@ defmodule Tesla.Middleware.SSETest do
       assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}]
     end
 
+    test "raise instead of reconnecting when reading the body times out with :timeout" do
+      timing_out_body =
+        Stream.concat(
+          ["data: a\n\n"],
+          Stream.map([:timeout], &raise(Tesla.Error, env: %Tesla.Env{}, reason: &1))
+        )
+
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: timing_out_body}},
+          {:ok, %{@env | body: Stream.map(["data: b\n\n"], & &1)}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == :timeout
+      assert_received {:request, _}
+      refute_received {:request, _}
+    end
+
+    test "raise instead of reconnecting when reading the body times out with :recv_chunk_timeout" do
+      timing_out_body =
+        Stream.concat(
+          ["data: a\n\n"],
+          Stream.map([:recv_chunk_timeout], &raise(Tesla.Error, env: %Tesla.Env{}, reason: &1))
+        )
+
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: timing_out_body}},
+          {:ok, %{@env | body: Stream.map(["data: b\n\n"], & &1)}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{}, [{:fn, adapter}], reconnect: [delay: 0])
+
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == :recv_chunk_timeout
+      assert_received {:request, _}
+      refute_received {:request, _}
+    end
+
     test "discard the unfinished event when the stream ends" do
       adapter =
         sequence_adapter([
