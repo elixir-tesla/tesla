@@ -1618,6 +1618,52 @@ defmodule Tesla.Middleware.SSETest do
       assert env.body |> Stream.take(1) |> Enum.to_list() == [%{data: "a"}]
     end
 
+    defmodule CountingMiddleware do
+      @behaviour Tesla.Middleware
+
+      @impl Tesla.Middleware
+      def call(env, next, _opts) do
+        send(self(), :outer_middleware)
+        Tesla.run(env, next)
+      end
+    end
+
+    test "middleware above SSE does not run again on a reconnect" do
+      adapter =
+        sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}, {:ok, %Tesla.Env{status: 204}}])
+
+      stack = [
+        {CountingMiddleware, :call, [[]]},
+        {Tesla.Middleware.SSE, :call, [[reconnect: [delay: 0]]]},
+        {:fn, adapter}
+      ]
+
+      assert {:ok, env} = Tesla.run(%Tesla.Env{method: :get}, stack)
+      assert Enum.to_list(env.body) == [%{data: "a"}]
+      assert_received {:request, _first}
+      assert_received {:request, _second}
+      assert_received :outer_middleware
+      refute_received :outer_middleware
+    end
+
+    test "middleware below SSE runs again on a reconnect" do
+      adapter =
+        sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}, {:ok, %Tesla.Env{status: 204}}])
+
+      stack = [
+        {Tesla.Middleware.SSE, :call, [[reconnect: [delay: 0]]]},
+        {CountingMiddleware, :call, [[]]},
+        {:fn, adapter}
+      ]
+
+      assert {:ok, env} = Tesla.run(%Tesla.Env{method: :get}, stack)
+      assert Enum.to_list(env.body) == [%{data: "a"}]
+      assert_received {:request, _first}
+      assert_received {:request, _second}
+      assert_received :outer_middleware
+      assert_received :outer_middleware
+    end
+
     for disabled <- [false, nil] do
       test "do not reconnect when the option is #{inspect(disabled)}" do
         adapter = sequence_adapter([{:ok, %{@env | body: "data: a\n\n"}}])
