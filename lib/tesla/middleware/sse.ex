@@ -22,8 +22,14 @@ defmodule Tesla.Middleware.SSE do
     `true` or a keyword list, where `true` is the same as `[]` and uses the defaults, and the
     body becomes a stream that reconnects whenever the connection ends or reading it raises
     `Tesla.Error`, sending the last event id in the `last-event-id` header, as `EventSource`
-    does. Reconnecting stops when the server responds with anything other than a `200` event
-    stream, such as a `204`. Any other value, and any key other than the following, raises an
+    does. The stream raises `Tesla.Error` when it gives up, so a consumer can tell an outage
+    or an expired token from a completed stream. A `204` response to a reconnection is the one
+    clean end, as the server asked to stop. Any other response that is not a `200` event stream
+    raises with `reason` `:unexpected_response` and `env` set to that response. Reaching
+    `:max_attempts` raises with `env` set to the last request and `reason`
+    `{:max_attempts, last_reason}`, where `last_reason` is the error of the last failed request,
+    the `Tesla.Error` raised while reading the last body, or `:closed` when the last connection
+    ended without an event. Any other value, and any key other than the following, raises an
     `ArgumentError` before the request runs. Only `GET` requests reconnect, any other method is
     decoded as without `:reconnect`, so a client wide `reconnect: []` is safe for its other
     calls. `EventSource` only issues `GET` requests, and replaying a body would send the work
@@ -173,6 +179,7 @@ defmodule Tesla.Middleware.SSE do
         delay: reconnect[:delay],
         max_attempts: reconnect[:max_attempts],
         attempts: 0,
+        last_reason: :closed,
         last_event_id: "",
         body: open_body(response.body),
         parser: @parser
@@ -195,6 +202,9 @@ defmodule Tesla.Middleware.SSE do
 
       :closed ->
         {[], %{state | body: :closed, parser: @parser}}
+
+      {:closed, error} ->
+        {[], %{state | body: :closed, parser: @parser, last_reason: error}}
     end
   end
 
@@ -204,22 +214,41 @@ defmodule Tesla.Middleware.SSE do
     {events, track(state, events)}
   end
 
-  defp reconnect(%{attempts: attempts, max_attempts: attempts} = state), do: {:halt, state}
+  defp reconnect(%{attempts: attempts, max_attempts: attempts} = state) do
+    raise Tesla.Error,
+      env: last_event_id_request(state),
+      reason: {:max_attempts, state.last_reason}
+  end
 
   defp reconnect(state) do
     Process.sleep(state.delay)
 
     case Tesla.run(last_event_id_request(state), state.next) do
       {:ok, response} -> resume(response, state)
-      {:error, _reason} -> {[], %{state | attempts: state.attempts + 1}}
+      {:error, reason} -> {[], %{state | attempts: state.attempts + 1, last_reason: reason}}
     end
   end
 
   defp resume(response, state) do
     case event_stream?(response, state.opts) do
-      true -> {[], %{state | body: open_body(response.body), attempts: state.attempts + 1}}
-      false -> {:halt, state}
+      true ->
+        {[],
+         %{
+           state
+           | body: open_body(response.body),
+             attempts: state.attempts + 1,
+             last_reason: :closed
+         }}
+
+      false ->
+        end_or_raise(response, state)
     end
+  end
+
+  defp end_or_raise(%{status: 204}, state), do: {:halt, state}
+
+  defp end_or_raise(response, _state) do
+    raise Tesla.Error, env: response, reason: :unexpected_response
   end
 
   defp last_event_id_request(%{request: request, last_event_id: ""}) do
@@ -264,7 +293,7 @@ defmodule Tesla.Middleware.SSE do
        when reason in [:timeout, :recv_chunk_timeout],
        do: reraise(error, stacktrace)
 
-  defp closed_or_reraise(%Tesla.Error{}, _stacktrace), do: :closed
+  defp closed_or_reraise(%Tesla.Error{} = error, _stacktrace), do: {:closed, error}
 
   defp close_body(%{body: :closed}), do: :ok
   defp close_body(%{body: body}), do: body.({:halt, nil})

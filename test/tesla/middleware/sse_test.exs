@@ -813,7 +813,25 @@ defmodule Tesla.Middleware.SSETest do
       assert elapsed < 1000
     end
 
-    test "stop reconnecting when the server does not respond with an event stream" do
+    test "raise when the server rejects a reconnection" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\n"}},
+          {:ok, %Tesla.Env{status: 503, headers: [{"content-type", "text/plain"}], body: "down"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == :unexpected_response
+      assert error.env.status == 503
+      assert Tesla.get_header(error.env, "content-type") == "text/plain"
+    end
+
+    test "raise when the server responds to a reconnection with another status" do
       adapter =
         sequence_adapter([
           {:ok, %{@env | body: "data: a\n\n"}},
@@ -826,12 +844,34 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0]
                )
 
-      assert Enum.to_list(env.body) == [%{data: "a"}]
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == :unexpected_response
+      assert error.env.status == 500
+    end
 
+    test "raise when the server responds to a reconnection with another content type" do
       adapter =
         sequence_adapter([
           {:ok, %{@env | body: "data: a\n\n"}},
           {:ok, %Tesla.Env{status: 200, headers: [{"content-type", "text/plain"}], body: "b"}},
+          {:ok, %{@env | body: "data: c\n\n"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == :unexpected_response
+      assert error.env.body == "b"
+    end
+
+    test "end the stream when the server responds to a reconnection with 204" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}},
           {:ok, %{@env | body: "data: c\n\n"}}
         ])
 
@@ -857,7 +897,9 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0, max_attempts: 2]
                )
 
-      assert Enum.to_list(env.body) == [%{data: "a"}]
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == {:max_attempts, :econnrefused}
+      assert error.env.method == :get
     end
 
     test "count failed reconnection attempts only until a connection succeeds" do
@@ -891,7 +933,8 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0, max_attempts: 2]
                )
 
-      assert Enum.to_list(env.body) == [%{data: "a"}]
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == {:max_attempts, :closed}
       assert requests() == 3
     end
 
@@ -911,8 +954,29 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0, max_attempts: 2]
                )
 
-      assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}]
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert error.reason == {:max_attempts, :closed}
       assert requests() == 5
+    end
+
+    test "carry the error of the last dropped body when the attempts run out" do
+      dropping_body =
+        Stream.map([:econnreset], &raise(Tesla.Error, env: %Tesla.Env{}, reason: &1))
+
+      adapter =
+        repeating_adapter(
+          [{:ok, %{@env | body: Stream.concat(["data: a\n\n"], dropping_body)}}],
+          {:ok, %{@env | body: dropping_body}}
+        )
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0, max_attempts: 2]
+               )
+
+      error = assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert {:max_attempts, %Tesla.Error{reason: :econnreset}} = error.reason
+      assert requests() == 3
     end
 
     test "reconnect when reading the body fails and discard the unfinished event" do
