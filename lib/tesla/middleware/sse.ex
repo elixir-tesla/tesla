@@ -24,7 +24,10 @@ defmodule Tesla.Middleware.SSE do
     `Tesla.Error`, sending the last event id in the `last-event-id` header, as `EventSource`
     does. Reconnecting stops when the server responds with anything other than a `200` event
     stream, such as a `204`. Any other value, and any key other than the following, raises an
-    `ArgumentError` before the request runs. See the
+    `ArgumentError` before the request runs. Only `GET` requests reconnect, any other method is
+    decoded as without `:reconnect`, so a client wide `reconnect: []` is safe for its other
+    calls. `EventSource` only issues `GET` requests, and replaying a body would send the work
+    again. See the
     [processing model](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model)
     in the WHATWG spec. The Finch, Mint and Gun adapters raise `Tesla.Error` when a streamed
     body fails, so reconnecting needs one of them or an adapter that does the same. A read
@@ -53,12 +56,16 @@ defmodule Tesla.Middleware.SSE do
     reconnect = reconnect_opts!(opts)
 
     with {:ok, response} <- Tesla.run(env, next) do
-      case reconnect do
-        nil -> decode(response, opts)
-        reconnect -> decode_reconnecting(env, next, response, opts, reconnect)
-      end
+      decode_response(env, next, response, opts, reconnect)
     end
   end
+
+  defp decode_response(%Tesla.Env{method: :get} = request, next, response, opts, reconnect)
+       when reconnect != nil do
+    decode_reconnecting(request, next, response, opts, reconnect)
+  end
+
+  defp decode_response(_request, _next, response, opts, _reconnect), do: decode(response, opts)
 
   defp reconnect_opts!(opts) do
     case Keyword.get(opts, :reconnect) do
