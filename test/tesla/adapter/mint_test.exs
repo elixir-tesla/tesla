@@ -1,6 +1,7 @@
 defmodule Tesla.Adapter.MintTest do
   use ExUnit.Case
   import ExUnit.CaptureLog
+  import Tesla.TestSupport.AtomAssertions
 
   @internal_error_listener_ref :"mint-internal-error"
   @push_promise_listener_ref :"mint-push-promise"
@@ -82,16 +83,12 @@ defmodule Tesla.Adapter.MintTest do
   end
 
   test "unsupported scheme does not mint atoms" do
-    request = %Env{
-      method: :get,
-      url: "atk-#{:erlang.unique_integer([:positive])}://127.0.0.1/"
-    }
+    scheme = "atk-#{:erlang.unique_integer([:positive])}"
 
-    before_count = :erlang.system_info(:atom_count)
-    assert {:error, :unsupported_scheme} = call(request)
-    after_count = :erlang.system_info(:atom_count)
+    assert {:error, :unsupported_scheme} =
+             call(%Env{method: :get, url: "#{scheme}://127.0.0.1/"})
 
-    assert after_count == before_count
+    refute_atom_exists(scheme)
   end
 
   test "streamed request that Mint rejects returns a two-tuple error" do
