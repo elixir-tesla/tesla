@@ -775,6 +775,85 @@ defmodule Tesla.Middleware.SSETest do
       assert Tesla.get_header(second, "last-event-id") == nil
     end
 
+    for name <- ["Last-Event-ID", "last-event-id"] do
+      test "keep the id the caller seeded as #{name} when the connection drops before any event id" do
+        adapter =
+          sequence_adapter([
+            {:ok, %{@env | body: ": comment\n\n"}},
+            {:ok, %Tesla.Env{status: 204}}
+          ])
+
+        request = %Tesla.Env{method: :get, headers: [{unquote(name), "42"}]}
+
+        assert {:ok, env} =
+                 Tesla.Middleware.SSE.call(request, [{:fn, adapter}], reconnect: [delay: 0])
+
+        assert Enum.to_list(env.body) == [%{comment: "comment"}]
+
+        assert_received {:request, _first}
+        assert_received {:request, second}
+        assert [{_name, "42"}] = last_event_id_headers(second)
+      end
+    end
+
+    test "reconnect a request whose headers use atom keys" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id: 7\ndata: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      request = %Tesla.Env{method: :get, headers: [{:accept, "text/event-stream"}]}
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(request, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.to_list(env.body) == [%{id: "7", data: "a"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert {:accept, "text/event-stream"} in second.headers
+      assert Tesla.get_header(second, "last-event-id") == "7"
+    end
+
+    test "replace a seeded last event id with the one the server sends" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id: 7\ndata: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      request = %Tesla.Env{method: :get, headers: [{"Last-Event-ID", "42"}]}
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(request, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.to_list(env.body) == [%{id: "7", data: "a"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert [{_name, "7"}] = last_event_id_headers(second)
+    end
+
+    test "send no last event id once the server clears a seeded one" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "id\ndata: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204}}
+        ])
+
+      request = %Tesla.Env{method: :get, headers: [{"Last-Event-ID", "42"}]}
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(request, [{:fn, adapter}], reconnect: [delay: 0])
+
+      assert Enum.to_list(env.body) == [%{id: "", data: "a"}]
+
+      assert_received {:request, _first}
+      assert_received {:request, second}
+      assert last_event_id_headers(second) == []
+    end
+
     test "send the id of an earlier event when a later event in the same chunk has none" do
       adapter =
         sequence_adapter([
@@ -1412,6 +1491,10 @@ defmodule Tesla.Middleware.SSETest do
       end,
       fn _ -> send(test, :rejected_body_closed) end
     )
+  end
+
+  defp last_event_id_headers(env) do
+    Enum.filter(env.headers, fn {key, _value} -> String.downcase(key) == "last-event-id" end)
   end
 
   defp sequence_adapter(responses) do
