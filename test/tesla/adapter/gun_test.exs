@@ -482,6 +482,35 @@ defmodule Tesla.Adapter.GunTest do
     stream
   end
 
+  test "response body as stream raises Tesla.Error when the server drops the connection" do
+    url =
+      start_raw_server(fn socket ->
+        :gen_tcp.send(
+          socket,
+          "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n"
+        )
+
+        Process.sleep(50)
+        :gen_tcp.close(socket)
+      end)
+
+    request = %Env{method: :get, url: url}
+
+    assert {:ok, %Env{status: 200, body: body}} =
+             call(request, body_as: :stream, timeout: 2_000)
+
+    parent = self()
+
+    error =
+      assert_raise Tesla.Error, fn ->
+        Enum.each(body, &send(parent, {:chunk, &1}))
+      end
+
+    assert_received {:chunk, "hello"}
+    assert %Env{method: :get, url: ^url} = error.env
+    assert error.reason != nil
+  end
+
   test "streams a chunked body that arrives in more than one part" do
     url =
       start_raw_server(fn socket ->
@@ -644,24 +673,27 @@ defmodule Tesla.Adapter.GunTest do
     assert {:error, {:options, {:protocols, [:bogus]}}} == call(request, protocols: [:bogus])
   end
 
-  test "raises when the response stream stops receiving chunks" do
+  test "raises Tesla.Error when the response stream stops receiving chunks" do
     stream = drained_response_stream()
 
-    assert_raise RuntimeError, ":recv_chunk_timeout", fn -> Enum.join(stream) end
+    error = assert_raise Tesla.Error, fn -> Enum.join(stream) end
+    assert error.reason == :recv_chunk_timeout
   end
 
-  test "reraises the exception the response stream failed with" do
+  test "raises Tesla.Error with the exception the response stream failed with" do
     stream = drained_response_stream()
     send(self(), {:DOWN, make_ref(), :process, self(), %RuntimeError{message: "connection died"}})
 
-    assert_raise RuntimeError, "connection died", fn -> Enum.join(stream) end
+    error = assert_raise Tesla.Error, fn -> Enum.join(stream) end
+    assert error.reason == %RuntimeError{message: "connection died"}
   end
 
-  test "raises the message the response stream failed with" do
+  test "raises Tesla.Error with the message the response stream failed with" do
     stream = drained_response_stream()
     send(self(), {:DOWN, make_ref(), :process, self(), "connection died"})
 
-    assert_raise RuntimeError, "connection died", fn -> Enum.join(stream) end
+    error = assert_raise Tesla.Error, fn -> Enum.join(stream) end
+    assert error.reason == "connection died"
   end
 
   test "reuses a connection opened to an ip address" do
