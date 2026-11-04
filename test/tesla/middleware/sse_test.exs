@@ -883,6 +883,49 @@ defmodule Tesla.Middleware.SSETest do
       assert Enum.to_list(env.body) == [%{data: "a"}]
     end
 
+    test "close the body of a 204 response to a reconnection" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\n"}},
+          {:ok, %Tesla.Env{status: 204, body: observed_body()}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      assert Enum.to_list(env.body) == [%{data: "a"}]
+      assert_received :rejected_body_closed
+      assert_received :rejected_body_opened
+      refute_received :rejected_body_opened
+      refute_received :chunk_read
+    end
+
+    test "close the body of an unexpected response to a reconnection" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\n"}},
+          {:ok,
+           %Tesla.Env{
+             status: 503,
+             headers: [{"content-type", "text/plain"}],
+             body: observed_body()
+           }}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      assert_raise Tesla.Error, fn -> Enum.to_list(env.body) end
+      assert_received :rejected_body_closed
+      assert_received :rejected_body_opened
+      refute_received :rejected_body_opened
+      refute_received :chunk_read
+    end
+
     test "give up after the maximum number of failed reconnection attempts" do
       adapter =
         sequence_adapter([
@@ -1286,6 +1329,19 @@ defmodule Tesla.Middleware.SSETest do
         refute_received {:request, _second}
       end
     end
+  end
+
+  defp observed_body do
+    test = self()
+
+    Stream.resource(
+      fn -> send(test, :rejected_body_opened) end,
+      fn state ->
+        send(test, :chunk_read)
+        {:halt, state}
+      end,
+      fn _ -> send(test, :rejected_body_closed) end
+    )
   end
 
   defp sequence_adapter(responses) do
