@@ -709,6 +709,19 @@ defmodule Tesla.Middleware.SSETest do
     end
   end
 
+  describe "body without reconnect" do
+    test "is an eager list that can be enumerated twice" do
+      adapter = fn _env -> {:ok, %{@env | body: "data: a\n\ndata: b\n\n"}} end
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}], [])
+
+      assert is_list(env.body)
+      assert Enum.take(env.body, 1) == [%{data: "a"}]
+      assert Enum.to_list(env.body) == [%{data: "a"}, %{data: "b"}]
+    end
+  end
+
   describe "reconnect option" do
     test "do not reconnect a request that is not a GET" do
       first = {:ok, %{@env | body: "id: 1\ndata: a\n\n"}}
@@ -1331,14 +1344,42 @@ defmodule Tesla.Middleware.SSETest do
                  reconnect: [delay: 0]
                )
 
-      assert Enum.take(env.body, 2) == [%{data: "a"}, %{data: "b"}]
+      events =
+        env.body
+        |> Stream.with_index()
+        |> Stream.map(fn
+          {event, 1} ->
+            assert_received {:request, _first}
+            refute_received {:request, _second}
+            event
+
+          {event, _index} ->
+            event
+        end)
+        |> Enum.take(3)
+
+      assert events == [%{data: "a"}, %{data: "b"}, %{data: "c"}]
+
+      assert_received {:request, _second}
+    end
+
+    test "fail when the body is enumerated a second time" do
+      adapter =
+        sequence_adapter([
+          {:ok, %{@env | body: "data: a\n\ndata: b\n\n"}},
+          {:ok, %{@env | body: "data: c\n\n"}}
+        ])
+
+      assert {:ok, env} =
+               Tesla.Middleware.SSE.call(%Tesla.Env{method: :get}, [{:fn, adapter}],
+                 reconnect: [delay: 0]
+               )
+
+      assert Enum.take(env.body, 1) == [%{data: "a"}]
+      assert_raise ArgumentError, ~r/once/, fn -> Enum.to_list(env.body) end
 
       assert_received {:request, _first}
       refute_received {:request, _second}
-
-      assert Enum.take(env.body, 3) == [%{data: "a"}, %{data: "b"}, %{data: "c"}]
-
-      assert_received {:request, _second}
     end
 
     test "close the connection when the caller stops reading events" do

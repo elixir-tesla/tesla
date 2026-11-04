@@ -31,7 +31,9 @@ defmodule Tesla.Middleware.SSE do
     request and `reason` `{:max_attempts, last_reason}`, where `last_reason` is the error of the
     last failed request, the `Tesla.Error` raised while reading the last body, or `:closed` when
     the last connection ended without an event. Any other value, and any key other than the following, raises an
-    `ArgumentError` before the request runs. Only `GET` requests reconnect, any other method is
+    `ArgumentError` before the request runs. With `:reconnect` the body is always a lazy,
+    single use stream, and enumerating it a second time raises `ArgumentError`. Without
+    `:reconnect`, a binary body is an eager list. Only `GET` requests reconnect, any other method is
     decoded as without `:reconnect`, so a client wide `reconnect: []` is safe for its other
     calls. `EventSource` only issues `GET` requests, and replaying a body would send the work
     again. See the
@@ -178,7 +180,8 @@ defmodule Tesla.Middleware.SSE do
   defp decode_reconnecting(request, next, response, opts, reconnect) do
     case event_stream?(response, opts) do
       true ->
-        start = start_reconnecting(request, next, response, opts, reconnect)
+        claim = :atomics.new(1, [])
+        start = start_reconnecting(request, next, response, opts, reconnect, claim)
 
         events =
           Stream.resource(start, &next_events/1, &close_body/1)
@@ -191,8 +194,10 @@ defmodule Tesla.Middleware.SSE do
     end
   end
 
-  defp start_reconnecting(request, next, response, opts, reconnect) do
+  defp start_reconnecting(request, next, response, opts, reconnect, claim) do
     fn ->
+      claim_body!(claim)
+
       %{
         request: request,
         next: next,
@@ -207,6 +212,16 @@ defmodule Tesla.Middleware.SSE do
         parser: @parser,
         pending_error: nil
       }
+    end
+  end
+
+  defp claim_body!(claim) do
+    case :atomics.compare_exchange(claim, 1, 0, 1) do
+      :ok ->
+        :ok
+
+      _claimed ->
+        raise ArgumentError, "the body of a reconnecting SSE response can only be enumerated once"
     end
   end
 
