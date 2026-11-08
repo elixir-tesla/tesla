@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.23.0](https://github.com/elixir-tesla/tesla/compare/v1.22.0...v1.23.0) (2026-11-08)
+
+
+### Features
+
+* **sse:** Reconnect event streams the way EventSource does ([#956](https://github.com/elixir-tesla/tesla/issues/956)) ([0774718](https://github.com/elixir-tesla/tesla/commit/0774718b5d3a58d4042833574a40982b78939046))
+
+
+### Bug Fixes
+
+* **follow-redirects:** Drop the request body on 303 and keep HEAD ([#953](https://github.com/elixir-tesla/tesla/issues/953)) ([0ba7beb](https://github.com/elixir-tesla/tesla/commit/0ba7bebd3eec3cda2ca2b3583923381516011814))
+* **mint:** Include {:error, term()} in read_chunk/3 spec ([#951](https://github.com/elixir-tesla/tesla/issues/951)) ([a62fb9b](https://github.com/elixir-tesla/tesla/commit/a62fb9b52a6e7137f3645521434828e0e970c1c5))
+* **mint:** Stop the unsupported scheme test from counting every atom in the VM ([#974](https://github.com/elixir-tesla/tesla/issues/974)) ([d2d045a](https://github.com/elixir-tesla/tesla/commit/d2d045aaeaa76096e472de37a3b873aa4fb9fa24))
+* **sse:** Apply a retry field before its block is dispatched ([#968](https://github.com/elixir-tesla/tesla/issues/968)) ([dc8bea9](https://github.com/elixir-tesla/tesla/commit/dc8bea95342024ed6ae3becef274656c1b42a302))
+* **sse:** Bound reconnects that yield no events ([#963](https://github.com/elixir-tesla/tesla/issues/963)) ([1f627b9](https://github.com/elixir-tesla/tesla/commit/1f627b9d89cbd30df66c2615d80f7af7be546a41))
+* **sse:** Bound the server retry with a max_delay option ([#966](https://github.com/elixir-tesla/tesla/issues/966)) ([8827a3d](https://github.com/elixir-tesla/tesla/commit/8827a3d5aa9ddfbcaad316c2e20381210ff991d8))
+* **sse:** Close a reconnecting body once when reading it fails ([#969](https://github.com/elixir-tesla/tesla/issues/969)) ([445ad60](https://github.com/elixir-tesla/tesla/commit/445ad6024c98966817c754790a816b648a873383))
+* **sse:** Close the body of a rejected reconnection response ([#965](https://github.com/elixir-tesla/tesla/issues/965)) ([529757d](https://github.com/elixir-tesla/tesla/commit/529757d0c2cd404e55297591c1bc16a1c097f164))
+* **sse:** Fail when a reconnecting body is enumerated twice ([#970](https://github.com/elixir-tesla/tesla/issues/970)) ([5bae2e4](https://github.com/elixir-tesla/tesla/commit/5bae2e49893e6f9c08f92ac2b9f9ea8d145d9223))
+* **sse:** Follow the event stream interpretation rules ([#955](https://github.com/elixir-tesla/tesla/issues/955)) ([b330c8f](https://github.com/elixir-tesla/tesla/commit/b330c8f47d68fec1121a42a4644247b6e2895630))
+* **sse:** Parse fields without a space after the colon instead of raising ([#954](https://github.com/elixir-tesla/tesla/issues/954)) ([81120f0](https://github.com/elixir-tesla/tesla/commit/81120f07f7b8f690f4527684bb2901a5aaf5f207))
+* **sse:** Raise a read timeout instead of reconnecting ([#961](https://github.com/elixir-tesla/tesla/issues/961)) ([01d6b6e](https://github.com/elixir-tesla/tesla/commit/01d6b6e321c7ae24e9c670a001607f7e8ee51a88))
+* **sse:** Raise Tesla.Error from failed Mint and Gun body streams ([#960](https://github.com/elixir-tesla/tesla/issues/960)) ([f97548c](https://github.com/elixir-tesla/tesla/commit/f97548cc42ba03297f8cf0284044009b5be02ebe))
+* **sse:** Raise when the reconnecting stream gives up ([#964](https://github.com/elixir-tesla/tesla/issues/964)) ([1026a1f](https://github.com/elixir-tesla/tesla/commit/1026a1f9c9ee4d8f789ae436da8b8cee4f65dfd6))
+* **sse:** Reconnect only GET requests ([#962](https://github.com/elixir-tesla/tesla/issues/962)) ([66cc59f](https://github.com/elixir-tesla/tesla/commit/66cc59f5c2b1f99331fb49b3b35e6832486d0169))
+* **sse:** Seed the reconnect id from the request header ([#967](https://github.com/elixir-tesla/tesla/issues/967)) ([3ba5a77](https://github.com/elixir-tesla/tesla/commit/3ba5a77344935b0353494814dee24d8b94d61264))
+* **sse:** Validate reconnect options before the request runs ([#959](https://github.com/elixir-tesla/tesla/issues/959)) ([c05e299](https://github.com/elixir-tesla/tesla/commit/c05e299775060aff78fe0c84b680b3712ac0496f))
+
 ## [1.22.0](https://github.com/elixir-tesla/tesla/compare/v1.21.3...v1.22.0) (2026-10-04)
 
 
