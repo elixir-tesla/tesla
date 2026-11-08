@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.23.0](https://github.com/elixir-tesla/tesla/compare/v1.22.0...v1.23.0) (2026-11-04)
+## [1.23.0](https://github.com/elixir-tesla/tesla/compare/v1.22.0...v1.23.0) (2026-11-08)
 
 
 ### Features
